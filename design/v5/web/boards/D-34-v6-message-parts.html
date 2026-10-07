@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-34 · V6 提案 · 消息与响应件 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-34 · V6 提案 · 消息与响应件</h1>
+  <p>
+    beUI「AI Agents」剩余件的 V5 化全集（一）：消息表面与模型输出。八件全部用 V5 现有原语组装，
+    只新增三个类（语气变体两档、滚到最新悬浮钮）。四条纪律：
+    ① <b>分组共用一个头像位</b>，连续同发送者的内容块收进一条消息，不再逐块带头像；
+    ② <b>语气变体只动底色</b>，warn / bad 走语义色，不新增色相；
+    ③ <b>代码块流式期间不上色</b>，结束后才错峰高亮 —— 这是本仓已有的流式纪律，beUI 同款；
+    ④ <b>diff 逐行渐入</b>，行号与计数徽章常驻，词级加粗高亮是自绘（不引 shiki）。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：转录区 / 组件规格</span>
+    <span class="d-tag">组件：MessageBubble · Message · StreamingResponse · CodeBlock · FileDiff · ToolResult · ToolApproval · LoadingStates（beUI 借鉴）</span>
+    <span class="d-tag">状态：tone 三档 · 分组 · 流式 · 复制反馈 · 渐进行 · 折叠 · 三种加载</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 消息表面（beUI message-bubble / message）─────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 消息表面：语气三档 + 分组共用头像<span class="d-grow"></span>beUI message-bubble / message → 语气变体 ×2 + DOM 组织</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body" data-demo-scope>
+      <div class="d-grid3" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+
+        <div class="d-col">
+          <span class="d-subhead">用户气泡 · 语气三档（visual tones）</span>
+          <div class="d-col" style="gap:var(--nx-sp-2)">
+            <div class="d-msg-user">默认：普通陈述与指令。</div>
+            <div class="d-msg-user warn">警告语气：这一步要小心，缓存是共享的。</div>
+            <div class="d-msg-user bad">错误语气：上次这么跑把构建目录清没了，别再来一次。</div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">助手分组：连续内容共用一个头像位</span>
+          <div class="d-msg-ai">
+            <div class="d-msg-ai-head">
+              <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+              <span class="d-t-b">PI NEXT</span>
+              <span class="d-badge mute">3 段 · 一轮</span>
+              <span class="d-grow"></span>
+              <div class="d-msg-acts is-on">
+                <button class="d-iconbtn" title="复制"><i data-ico="copy" data-size="12"></i></button>
+                <button class="d-iconbtn" title="引用"><i data-ico="quote" data-size="12"></i></button>
+              </div>
+            </div>
+            <div class="d-md"><p>第一段：结论先行 —— 断点收进 hook 之后，三处调用点都不再自己 clamp。</p></div>
+            <div class="d-md"><p>第二段：边界条件 —— 窄屏（≤1024）不 clamp，直接走抽屉。</p></div>
+            <div class="d-md"><p>第三段：遗留问题 —— 抽屉宽度的来源还要单独确认一次。</p></div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">元数据行：模型 · 计时 · 令牌（beUI message 的 meta）</span>
+          <div class="d-card"><div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+            <div class="d-row">
+              <span class="d-badge mute"><i data-ico="sparkles" data-size="11"></i>claude-opus-4-6</span>
+              <span class="d-badge mute"><i data-ico="clock" data-size="11"></i>18.4s</span>
+              <span class="d-badge mute"><i data-ico="percent" data-size="11"></i>4.2k 出 / 1.1k 入</span>
+            </div>
+            <div class="d-row">
+              <span class="d-badge ok"><i data-ico="circle-check" data-size="11"></i>已完成</span>
+              <span class="d-badge info"><i data-ico="globe" data-size="11"></i>2 个来源</span>
+              <span class="d-badge warn"><i data-ico="triangle-alert" data-size="11"></i>1 次重试</span>
+            </div>
+            <span class="d-t-xs d-t-faint">元数据是消息行的附属，不是独立卡 —— 徽章只读，不占动作位。</span>
+          </div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 流式响应（beUI streaming-response）───────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 流式响应：打字机 + 完成动作 + 来源摘要<span class="d-grow"></span>beUI streaming-response → .d-md + .d-text-live + details</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-grid2" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+
+        <div class="d-col">
+          <span class="d-subhead">流式中：光标跟随 · 动作行不出现</span>
+          <div class="d-msg-ai">
+            <div class="d-msg-ai-head">
+              <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+              <span class="d-t-b">PI NEXT</span>
+              <span class="d-badge mute">流式中</span>
+            </div>
+            <div class="d-md d-text-live" id="d34-stream"></div>
+            <div class="d-row">
+              <button class="d-btn sm ghost" data-demo-stream="d34-stream"><i data-ico="play" data-size="12"></i>播放流式</button>
+              <button class="d-btn sm ghost" data-demo-stream="d34-stream" data-demo-stream-mode="reset"><i data-ico="eraser" data-size="12"></i>清空</button>
+              <span class="d-t-xs d-t-faint">CJK 按标点分段落字，与产品同一节奏。</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">完成：动作行浮现 · 来源可展开</span>
+          <div class="d-msg-ai">
+            <div class="d-msg-ai-head">
+              <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+              <span class="d-t-b">PI NEXT</span>
+              <div class="d-grow"></div>
+              <div class="d-msg-acts is-on">
+                <button class="d-iconbtn" title="复制"><i data-ico="copy" data-size="12"></i></button>
+                <button class="d-iconbtn" title="重试"><i data-ico="redo-2" data-size="12"></i></button>
+                <button class="d-iconbtn" title="赞"><i data-ico="thumbs-up" data-size="12"></i></button>
+              </div>
+            </div>
+            <div class="d-md">
+              <p>断点收进 hook，调用点删掉各自的 clamp；宽度的上下界从此只有一份来源<span class="d-cite-mark">1</span>。</p>
+            </div>
+            <details class="d-think">
+              <summary><i data-ico="book-open" data-size="12"></i>来源 · 2 条<span class="d-grow"></span><i data-ico="chevron-down" data-size="12"></i></summary>
+              <div class="d-think-body d-col" style="gap:var(--nx-sp-1)">
+                <button class="d-cite is-on" style="align-self:flex-start"><i data-ico="file-text" data-size="11"></i>hooks/useResizablePanel.ts</button>
+                <button class="d-cite" style="align-self:flex-start"><i data-ico="file-code" data-size="11"></i>app/globals.css:118</button>
+              </div>
+            </details>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 代码块与 diff（beUI code-block / file-diff）───────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 代码块与 diff：行号 · 复制反馈 · 渐进行<span class="d-grow"></span>beUI code-block / file-diff → .d-code / .d-diff（不引 shiki）</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-grid2" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+
+        <div class="d-col">
+          <span class="d-subhead">代码块：行号 + token 高亮 + 复制反馈两态</span>
+          <div class="d-code">
+            <div class="d-code-head">
+              <i data-ico="file-code" data-size="12"></i>useResizablePanel.ts
+              <span class="d-grow"></span>
+              <button class="d-iconbtn" title="复制"><i data-ico="copy" data-size="12"></i></button>
+            </div>
+            <div class="d-code-body"><span class="d-ln">14</span><span class="tok-k">export function</span> <span class="tok-n">reclampWidth</span>(w: <span class="tok-k">number</span>) {</div>
+            <div class="d-code-body"><span class="d-ln">15</span>  <span class="tok-k">return</span> Math.<span class="tok-n">min</span>(max, Math.<span class="tok-n">max</span>(min, w)); <span class="tok-c">// 唯一的夹取点</span></div>
+            <div class="d-code-body"><span class="d-ln">16</span>}</div>
+          </div>
+          <div class="d-code">
+            <div class="d-code-head">
+              <i data-ico="file-code" data-size="12"></i>useResizablePanel.ts
+              <span class="d-grow"></span>
+              <span class="d-badge ok"><i data-ico="copy-check" data-size="11"></i>已复制</span>
+              <button class="d-iconbtn" title="复制"><i data-ico="copy-check" data-size="12"></i></button>
+            </div>
+            <div class="d-code-body"><span class="d-ln">14</span><span class="tok-c">// 复制后图标翻成对勾 1.2s 再弹回 —— 与产品同一反馈</span></div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">diff：词级高亮 · 渐进入场 · 变更计数徽章</span>
+          <div class="d-card">
+            <div class="d-card-head">
+              <i data-ico="file-diff" data-size="13"></i>
+              <span class="d-grow d-mono">login-form.css</span>
+              <span class="d-badge ok">+6</span>
+              <span class="d-badge bad">−3</span>
+            </div>
+            <div class="d-card-body" style="padding-top:var(--nx-sp-2)">
+              <div class="d-diff" id="d34-diff">
+                <span class="d-diff-line">@@ -41,7 +41,9 @@</span>
+                <span class="d-diff-line">  .login-form {</span>
+                <span class="d-diff-line del">-  display: grid; grid-auto-flow: column;</span>
+                <span class="d-diff-line add">+  display: grid;</span>
+                <span class="d-diff-line add">+  <span class="tok-k">grid-template-columns</span>: repeat(auto-fit, minmax(240px, 1fr));</span>
+                <span class="d-diff-line add">+  gap: var(--nx-sp-3);</span>
+                <span class="d-diff-line">  }</span>
+              </div>
+              <div class="d-row" style="margin-top:var(--nx-sp-2)">
+                <span class="d-t-xs d-t-faint">行按序渐入（40ms 错峰），词级加粗是自绘 diff，不引 shiki。</span>
+                <span class="d-grow"></span>
+                <button class="d-btn sm ghost" data-demo-spring="#d34-diff" data-demo-spring-kind="stagger"><i data-ico="rotate-cw" data-size="12"></i>重播渐入</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 工具结果与记住授权（beUI tool-result / tool-approval）────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 工具结果三态 + 记住授权<span class="d-grow"></span>beUI tool-result / tool-approval → .d-tool / .d-approve</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body" data-demo-scope>
+      <div class="d-grid2" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+
+        <div class="d-col">
+          <span class="d-subhead">工具结果折叠面板：成功 / 运行中 / 失败</span>
+          <div class="d-col" style="gap:var(--nx-sp-2)">
+            <details class="d-tool" open>
+              <summary class="d-tool-head"><i data-ico="terminal" data-size="13"></i><span class="d-mono">npm run test</span><span class="d-grow"></span><span class="d-badge ok"><i data-ico="check" data-size="11"></i>通过</span></summary>
+              <div class="d-tool-body d-term plain" style="padding:var(--nx-sp-2) var(--nx-sp-3)"><span class="d-term-ok"><i data-ico="check" data-size="11"></i></span> 128 tests passed in 3.1s</div>
+            </details>
+            <div class="d-tool running">
+              <div class="d-tool-head"><i data-ico="terminal" data-size="13"></i><span class="d-mono">npm run build</span><span class="d-grow"></span><span class="d-run"><i data-ico="loader-circle" data-size="11"></i>运行中</span></div>
+            </div>
+            <details class="d-tool">
+              <summary class="d-tool-head"><i data-ico="terminal" data-size="13"></i><span class="d-mono">npm run lint</span><span class="d-grow"></span><span class="d-badge bad"><i data-ico="x" data-size="11"></i>退出 1</span></summary>
+              <div class="d-tool-body d-term plain" style="padding:var(--nx-sp-2) var(--nx-sp-3); color:var(--nx-danger)">error Missing return type  @typescript-eslint/explicit-function-return-type</div>
+            </details>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">工具授权：三选一 + 记住授权（beUI tool-approval）</span>
+          <div class="d-approve">
+            <div class="d-approve-head">
+              <i data-ico="shield-alert" data-size="14"></i>
+              <span>MCP · <span class="d-mono">github.create_pull_request</span></span>
+            </div>
+            <div class="d-approve-body d-col" style="gap:var(--nx-sp-2)">
+              <span>第三方工具第一次运行，工具入参如下：</span>
+              <div class="d-term plain d-mono">{ "title": "fix: login grid", "base": "main" }</div>
+            </div>
+            <div class="d-approve-acts">
+              <button class="d-btn sm primary">允许一次</button>
+              <button class="d-btn sm">总是允许</button>
+              <button class="d-btn sm danger ghost">拒绝</button>
+            </div>
+            <div class="d-row" style="padding:0 var(--nx-sp-3) var(--nx-sp-3)">
+              <button class="d-checkbox" data-demo-switch><i data-ico="check" data-size="10"></i></button>
+              <span class="d-t-xs d-t-faint">记住 github.* 工具，本会话不再询问 —— 写进会话的 grant 记录，设置里可撤销</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 E · 三种加载态（beUI loading-states）─────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 E</b> · 三种加载态：微光文字 · 实时进度 · 循环短语<span class="d-grow"></span>beUI loading-states → .d-shimmer / .d-bar / .d-think-row</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-grid3" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+
+        <div class="d-col">
+          <span class="d-subhead">微光状态文字</span>
+          <div class="d-card"><div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+            <span class="d-shimmer">正在读取会话上下文…</span>
+            <span class="d-t-xs d-t-faint">等待中的文案扫一道高光，颜色是同一支墨的浓度变化。</span>
+          </div></div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">实时进度</span>
+          <div class="d-card"><div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+            <div class="d-row"><span class="d-t-cap">建立索引</span><span class="d-grow"></span><span class="d-t-xs d-t-faint d-num">64%</span></div>
+            <div class="d-bar"><i style="width:64%"></i></div>
+            <div class="d-row"><i data-ico="loader-circle" data-size="12" style="animation:nx-spin 1400ms linear infinite"></i><span class="d-t-xs d-t-faint">12,418 / 19,300 个文件</span></div>
+          </div></div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">循环推理短语</span>
+          <div class="d-card"><div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+            <div class="d-think-row">
+              <span class="d-think-dots wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span class="d-shimmer">在比对三个调用点的取值…</span>
+            </div>
+            <span class="d-t-xs d-t-faint">短语按 agent 实际动作轮换（推理 / 检索 / 起草），微光提示「这句话是活的」。</span>
+          </div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>本板新增类只有三个</b>
+  <p style="margin:0"><span class="d-mono">.d-msg-user.warn / .d-msg-user.bad</span>（语气变体，语义色底）与 <span class="d-mono">.d-jump</span>（滚到最新悬浮钮，见 D-35）。
+  分组、流式、来源摘要、工具结果、时间线、进度条全部复用 V5 既有原语 —— beUI 这八件的「形」在 V5 里本来就有，缺的只是上面这三块补丁。</p>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/vendor/motion.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

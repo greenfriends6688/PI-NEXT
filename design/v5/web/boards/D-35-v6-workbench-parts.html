@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-35 · V6 提案 · 工作台件 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-35 · V6 提案 · 工作台件</h1>
+  <p>
+    beUI「AI Agents」剩余件的 V5 化全集（二）：视口与输入。四条纪律：
+    ① <b>跟随是默认，释放是显式动作</b> —— 追加一条消息就贴底（点「模拟输出」看），用户上滚后右下角出现「滚到最新」悬浮钮；
+    ② <b>输入框的发送与停止是同一枚键的两个态</b>，不是两枚键；
+    ③ <b>活动时间线只有一条</b>，思考 / 检索 / 工具 / 输出混排，不按类型分栏；
+    ④ <b>右栏上下文是读数与引用</b>，动作（导出 / 轨迹）仍在会话菜单 —— beUI 的 ai-sidebar 在本仓的对应物是右栏六面板，这里只画它缺的「会话内引用上下文」。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：转录区 / 输入框 / 右栏</span>
+    <span class="d-tag">组件：MessageScroller · PromptInput · AgentActivity · AiSidebar · ChatApp（beUI 借鉴）</span>
+    <span class="d-tag">状态：跟随 / 释放 · 发送 / 停止 · 时间线混排 · 引用上下文</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · Message Scroller：跟随与释放（beUI message-scroller）──────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 读者感知视口：追加即贴底 · 上滚后出「滚到最新」<span class="d-grow"></span>beUI message-scroller → .d-chat + .d-navrail + .d-jump</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-grid2" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+
+        <div class="d-col">
+          <span class="d-subhead">跟随态：读者在 live edge，新内容自动贴底</span>
+          <div class="d-card" style="position:relative; overflow:hidden">
+            <div class="d-chat" style="height:300px">
+              <div class="d-chat-inner" id="d35-chat-inner">
+                <div class="d-msg-user">把 D-32 的帧 A 再压一版，生图卡有点高。</div>
+                <div class="d-msg-ai">
+                  <div class="d-msg-ai-head">
+                    <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                    <span class="d-t-b">PI NEXT</span>
+                  </div>
+                  <div class="d-md"><p>已把 stage 从 160 收到 120，meta 行不动 —— 三阶段还是同一个盒子。</p></div>
+                  <div class="d-md"><p>导航轨的刻度也随内容自适应了。</p></div>
+                </div>
+              </div>
+            </div>
+            <div class="d-row" style="padding:var(--nx-sp-2) var(--nx-sp-3); border-top:1px solid var(--nx-line)">
+              <button class="d-btn sm" data-demo-append="#d35-chat-inner" data-demo-append-from="#d35-tpl-follow" data-demo-append-spring="1"><i data-ico="send" data-size="12"></i>模拟流式输出</button>
+              <span class="d-t-xs d-t-faint">追加一条 · 视口自动滚到 live edge</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">释放态：读者上滚查看历史，悬浮钮等待召回</span>
+          <div class="d-card" style="position:relative; overflow:hidden">
+            <div class="d-chat" style="height:300px">
+              <div class="d-chat-inner">
+                <div class="d-msg-user">最初的需求是哪一句来着？</div>
+                <div class="d-msg-ai">
+                  <div class="d-msg-ai-head">
+                    <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                    <span class="d-t-b">PI NEXT</span>
+                  </div>
+                  <div class="d-md"><p>第一轮的原话：「把登录页的表单在窄屏挤成一团的问题修一下」。</p></div>
+                </div>
+                <div class="d-msg-user">那轮之后改过几次？</div>
+                <div class="d-msg-ai">
+                  <div class="d-msg-ai-head">
+                    <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                    <span class="d-t-b">PI NEXT</span>
+                  </div>
+                  <div class="d-md"><p>两次：一次收 stage 高度，一次调导航轨刻度。</p></div>
+                </div>
+                <div class="d-msg-user">好，那把导航轨的预览卡也收窄一档。</div>
+                <div class="d-msg-ai">
+                  <div class="d-msg-ai-head">
+                    <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                    <span class="d-t-b">PI NEXT</span>
+                  </div>
+                  <div class="d-md"><p>预览卡 250 收到 220，正在跑测试。</p></div>
+                </div>
+              </div>
+              <div class="d-fade"></div>
+            </div>
+            <button class="d-jump"><i data-ico="arrow-down" data-size="13"></i>滚到最新</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<template id="d35-tpl-follow">
+  <div class="d-msg-ai d-row-in">
+    <div class="d-msg-ai-head">
+      <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+      <span class="d-t-b">PI NEXT</span>
+    </div>
+    <div class="d-md"><p>新的一段输出<span class="d-caret"></span></p></div>
+  </div>
+</template>
+
+<!-- ── 帧 B · Prompt Input：一枚键的两个态（beUI prompt-input）──────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 输入框：发送 ⇄ 停止同一枚键 · 队列随行<span class="d-grow"></span>beUI prompt-input → .d-composer / .d-send（V5 已有，只补对照帧）</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body" data-demo-scope>
+      <div class="d-grid2" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+
+        <div class="d-col">
+          <span class="d-subhead">空闲：发送键（accent 底 + send 图标）</span>
+          <div class="d-composer">
+            <input class="d-input" placeholder="描述要做什么，@ 引用文件…" value="把 D-35 的帧 A 再压一版">
+            <div class="d-composer-bar">
+              <button class="d-select"><i data-ico="sparkles" data-size="12"></i>claude-opus-4-6<i data-ico="chevrons-up-down" data-size="11"></i></button>
+              <button class="d-select"><i data-ico="brain" data-size="12"></i>high<i data-ico="chevrons-up-down" data-size="11"></i></button>
+              <span class="d-grow"></span>
+              <button class="d-send" title="发送"><i data-ico="send" data-size="13"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">运行中：同位置变停止键（danger 底 + square 图标），可排队</span>
+          <div class="d-col" style="gap:var(--nx-sp-2)">
+            <div class="d-queue">
+              <div class="d-queue-head"><i data-ico="inbox" data-size="13"></i>队列 · 1 条<span class="d-grow"></span><span class="d-t-xs d-t-faint">发消息自动入队</span></div>
+              <div class="d-queue-body">
+                <div class="d-queue-row"><i data-ico="grip-vertical" data-size="12" class="d-grip"></i><span class="d-queue-t">顺手把导航轨的预览卡也收窄一点</span><button class="d-iconbtn" title="移除"><i data-ico="x" data-size="12"></i></button></div>
+              </div>
+            </div>
+            <div class="d-composer">
+              <input class="d-input" placeholder="排队下一条…" value="">
+              <div class="d-composer-bar">
+                <button class="d-select"><i data-ico="sparkles" data-size="12"></i>claude-opus-4-6<i data-ico="chevrons-up-down" data-size="11"></i></button>
+                <span class="d-grow"></span>
+                <span class="d-t-xs d-t-faint">正在运行 · 0:42</span>
+                <button class="d-send stop" title="停止"><i data-ico="square" data-size="12"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 C · Agent Activity：一条混合时间线（beUI agent-activity）──────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 活动时间线：思考 / 检索 / 工具 / 输出混排<span class="d-grow"></span>beUI agent-activity → .d-steps（一条轴，不按类型分栏）</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-grid2" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+
+        <div class="d-col">
+          <span class="d-subhead">运行中：在飞的那一步有指示器</span>
+          <div class="d-card">
+            <div class="d-card-body">
+              <div class="d-steps">
+                <div class="d-step done">
+                  <span class="d-step-ico"><i data-ico="brain" data-size="10"></i></span>
+                  <span class="d-step-body">先确认窄屏断点在哪几处生效…</span>
+                  <span class="d-step-meta">2.1s</span>
+                </div>
+                <div class="d-step done">
+                  <span class="d-step-ico"><i data-ico="file-search" data-size="10"></i></span>
+                  <span class="d-step-body d-mono">search("login-form grid")</span>
+                  <span class="d-step-meta">0.6s</span>
+                </div>
+                <div class="d-step done">
+                  <span class="d-step-ico"><i data-ico="file-text" data-size="10"></i></span>
+                  <span class="d-step-body d-mono">app/login-form.css</span>
+                  <span class="d-step-meta">1.2s</span>
+                </div>
+                <div class="d-step running">
+                  <span class="d-step-ico"><i data-ico="terminal" data-size="10"></i></span>
+                  <span class="d-step-body d-mono">npm run test</span>
+                  <span class="d-run"><i data-ico="loader-circle" data-size="11"></i><span class="d-think-dots wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span>
+                  <span class="d-step-meta">3.1s</span>
+                </div>
+                <div class="d-step skip">
+                  <span class="d-step-ico"><i data-ico="image" data-size="10"></i></span>
+                  <span class="d-step-body">生图卡在排队（测试先行）</span>
+                  <span class="d-step-meta">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">已结束：整轴折叠，只留一句摘要</span>
+          <div class="d-card">
+            <details open>
+              <summary class="d-tool-head">
+                <i data-ico="chevron-down" data-size="13"></i>
+                <span class="d-grow"><b>4 步</b> · 2 个文件 · 1 条命令 · 7.0s</span>
+                <span class="d-badge ok"><i data-ico="check" data-size="11"></i>完成</span>
+              </summary>
+              <div class="d-card-body" style="padding-top:var(--nx-sp-2)">
+                <div class="d-steps">
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="brain" data-size="10"></i></span>
+                    <span class="d-step-body">断点收进 hook，三处调用点删掉各自的 clamp</span>
+                    <span class="d-step-meta">2.1s</span>
+                  </div>
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="terminal" data-size="10"></i></span>
+                    <span class="d-step-body d-mono">npm run test</span>
+                    <span class="d-step-meta">3.1s</span>
+                  </div>
+                </div>
+                <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">结束后整轴可折叠成一行摘要；展开仍按同一条轴回看。</div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 会话内引用上下文（beUI ai-sidebar / chat-app 的落点）──────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 右栏会话上下文：读数 + 引用，不做第二棵消息树<span class="d-grow"></span>beUI ai-sidebar → .d-panel（chat-app = D-32 全景，18 件至此收齐）</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-grid2" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+
+        <div class="d-col">
+          <span class="d-subhead">右栏：本轮的引用上下文（只读）</span>
+          <div class="d-panel" style="height:340px">
+            <div class="d-panel-head">
+              <span class="d-tabbar" style="border-bottom:0; padding-bottom:0">
+                <button class="d-tab is-on"><i data-ico="quote" data-size="13"></i></button>
+                <button class="d-tab"><i data-ico="file" data-size="13"></i></button>
+                <button class="d-tab"><i data-ico="terminal" data-size="13"></i></button>
+              </span>
+              <span class="d-grow"></span>
+              <span class="d-ring" style="--p:38"></span>
+            </div>
+            <div class="d-panel-body d-col" style="gap:var(--nx-sp-2)">
+              <span class="d-subhead">本轮引用的文件</span>
+              <button class="d-trow is-on"><i data-ico="file-code" data-size="13"></i>login-form.css<span class="d-badge ok" style="margin-left:auto">+6</span></button>
+              <button class="d-trow"><i data-ico="file-code" data-size="13"></i>useResizablePanel.ts<span class="d-badge mute" style="margin-left:auto">只读</span></button>
+              <button class="d-trow"><i data-ico="image" data-size="13"></i>cover.png<span class="d-badge mute" style="margin-left:auto">生成</span></button>
+              <div class="d-sep"></div>
+              <span class="d-subhead">本轮读数</span>
+              <div class="d-kv-row"><span>回合</span><span>3</span></div>
+              <div class="d-kv-row"><span>上下文</span><span>38%</span></div>
+              <div class="d-kv-row"><span>费用</span><span>$0.42</span></div>
+              <div class="d-t-xs d-t-faint" style="margin-top:auto">路径类动作在 ⋯ 会话菜单，不在这里 —— 读写分开。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">Chat App 全家桶 = 本板 + D-32（18 件收齐）</span>
+          <div class="d-card"><div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+            <span class="d-t-cap">beUI 的 <span class="d-mono">chat-app</span> 是 52 文件 11,213 行的组合示例 —— 把其余 17 件拼成一个完整聊天应用。</span>
+            <span class="d-t-cap">在 V6 里，它的对应物就是 <b>D-32 的整张工作台</b>：侧栏（会话列表）+ 顶栏（模型与语音球）+ 转录（消息 / 清单 / 审批 / 生图）+ 右缘导航轨 + 输入框。</span>
+            <span class="d-t-cap d-t-dim">这 18 件的 V5 化全部落在四张板：D-32（全景）、D-33（会话件）、D-34（消息件）、D-35（本板）。</span>
+            <div class="d-sep"></div>
+            <div class="d-row" style="flex-wrap:wrap; gap:var(--nx-sp-1)">
+              <span class="d-badge ok">voice-orb</span><span class="d-badge ok">todo-list</span><span class="d-badge ok">approval-card</span><span class="d-badge ok">image-generation</span><span class="d-badge ok">preview-rail</span><span class="d-badge ok">citations</span><span class="d-badge ok">loading-states</span>
+              <span class="d-badge info">message-bubble</span><span class="d-badge info">message</span><span class="d-badge info">streaming-response</span><span class="d-badge info">code-block</span><span class="d-badge info">file-diff</span><span class="d-badge info">tool-result</span><span class="d-badge info">tool-approval</span>
+              <span class="d-badge info">message-scroller</span><span class="d-badge info">prompt-input</span><span class="d-badge info">agent-activity</span><span class="d-badge info">ai-sidebar</span>
+            </div>
+            <span class="d-t-xs d-t-faint">绿 = D-32/33 落的，蓝 = D-34/35 落的；chat-app 本身是拼装示例，不单独落。</span>
+          </div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── 帧 F · motion 弹簧对照台（vendor Motion，画板家具层）────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 F</b> · 弹簧物理对照：beUI 手感（spring 过冲） vs V5 曲线（tween 到位）<span class="d-grow"></span>Motion（MIT）只进画板家具层，产品化另行裁定</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-col" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3); flex:1">
+
+        <div class="d-grid2">
+          <div class="d-card"><div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+            <span class="d-subhead">计数徽章 · pop（scale 过冲）</span>
+            <div class="d-row">
+              <span class="d-todo-count" id="d35-f-pop" style="font-size:var(--nx-fs-xl)">3 / 5</span>
+              <span class="d-grow"></span>
+              <button class="d-btn sm" data-demo-spring="#d35-f-pop" data-demo-spring-kind="pop" data-demo-spring-mode="spring">Motion 弹簧</button>
+              <button class="d-btn sm ghost" data-demo-spring="#d35-f-pop" data-demo-spring-kind="pop" data-demo-spring-mode="tween">V5 缓动</button>
+            </div>
+          </div></div>
+          <div class="d-card"><div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+            <span class="d-subhead">勾选盒 · flip（rotateX 翻转）</span>
+            <div class="d-row">
+              <span class="d-checkbox on" id="d35-f-flip" style="width:22px;height:22px"><i data-ico="check" data-size="13"></i></span>
+              <span class="d-grow"></span>
+              <button class="d-btn sm" data-demo-spring="#d35-f-flip" data-demo-spring-kind="flip" data-demo-spring-mode="spring">Motion 弹簧</button>
+              <button class="d-btn sm ghost" data-demo-spring="#d35-f-flip" data-demo-spring-kind="flip" data-demo-spring-mode="tween">V5 缓动</button>
+            </div>
+          </div></div>
+        </div>
+
+        <div class="d-grid2">
+          <div class="d-card"><div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+            <span class="d-subhead">消息行 · rise（浮入）</span>
+            <div class="d-row" id="d35-f-rise" style="padding:var(--nx-sp-1) 0">
+              <span class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></span>
+              <span class="d-t-cap">新的一段输出，浮入时弹簧会轻微过头再落定。</span>
+            </div>
+            <div class="d-row">
+              <button class="d-btn sm" data-demo-spring="#d35-f-rise" data-demo-spring-kind="rise" data-demo-spring-mode="spring">Motion 弹簧</button>
+              <button class="d-btn sm ghost" data-demo-spring="#d35-f-rise" data-demo-spring-kind="rise" data-demo-spring-mode="tween">V5 缓动</button>
+            </div>
+          </div></div>
+          <div class="d-card"><div class="d-card-body d-col" style="gap:var(--nx-sp-2)">
+            <span class="d-subhead">读法</span>
+            <span class="d-t-cap d-t-dim">「弹簧」= stiffness 420 / damping 14 / mass .6 —— 落点会<b>过冲再回弹</b>，这是 beUI 全库的手感来源；「缓动」= V5 的 <span class="d-mono">--nx-ease</span>，到位即停，更「专业风」。</span>
+            <span class="d-t-cap d-t-dim">两套物理各点两下，手感差异立见。产品化要 <span class="d-mono">motion/react</span>（React hook），是把 beUI 弹簧真搬进组件的路 —— 是否进产品另行裁定。</span>
+          </div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>跟随与释放的产品语义（对应 lib/scroll-follow.ts 的既有状态机）</b>
+  <p style="margin:0">画板演示的是结果态：追加内容时视口在 live edge 就贴底（左），用户上滚后跟随权交还读者、
+  右下角浮现「滚到最新」（右）。产品里还有会话切换的锚点恢复与程序化贴底否决 —— 那是行为层，画板不演。</p>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/vendor/motion.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

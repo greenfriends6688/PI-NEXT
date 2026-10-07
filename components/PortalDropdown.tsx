@@ -46,7 +46,13 @@ export function AnimatedDropdown({ open, children, style, className }: { open: b
 
   return (
     <div
-      className={className}
+      /* fork:pwa-pop-display（2026-10-06 用户报「那三个点点不了」）—— 窄屏浮层件
+         `.m-pop-float` 是「默认 `display:none`、靠 `.is-open` 显形」的库件，而本组件
+         用 opacity/transform 管显隐、从不发 `is-open` —— 于是手机上侧栏那三只
+         PortalDropdown（会话行 ⋯ / 项目 ⋯ / 工作区切换）全都渲染成 `display:none`：
+         DOM 里有、点不到、看不见。`mounted` 期间补上 `is-open`（关闭动画那 140ms
+         `mounted` 仍为 true，所以淡出照常）；`.d-pop-float` 没有这条规则，不受影响。 */
+      className={[className, mounted ? "is-open" : ""].filter(Boolean).join(" ")}
       style={{
         ...style,
         opacity: visible ? 1 : 0,

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-33 · V6 提案 · Agent 部件规格台 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-33 · V6 提案 · Agent 部件规格台</h1>
+  <p>
+    D-32 剧照里四个新件的多状态全集，每件都标了 beUI 原件（MIT）与 V6 的取舍。
+    四条纪律：① <b>任务清单的折叠头自带进度</b>，行状态只有 done / run / 待做三态，不做第五种颜色；
+    ② <b>审批卡的卡身永远中性</b>，危险语义只落在命令代码与「拒绝」钮上；
+    ③ <b>生图卡三阶段共用同一个 stage 盒</b>，高度不变 —— 排队是骨架、显影是 nx-reveal、完成是元信息落定；
+    ④ <b>导航轨的刻度长度编码距离</b>：临近当前轮的刻度长，远的短，悬停弹预览卡。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：转录区 / 组件规格</span>
+    <span class="d-tag">组件：TodoCard · ApproveCard · ImageGenCard · NavRail · CiteMark（beUI 借鉴）</span>
+    <span class="d-tag">状态：收起 / 进行 / 完成 · 待决策 / 已决策 · 排队 / 显影 / 完成</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 任务清单四态（beUI todo-list）────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 任务清单四态<span class="d-grow"></span>beUI todo-list → .d-todo*（勾选盒复用 .d-checkbox）</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-col" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3); flex:1">
+        <div class="d-grid2">
+          <div class="d-col">
+            <span class="d-subhead">收起：只有折叠头，进度计数常驻</span>
+            <div class="d-todo">
+              <button class="d-todo-btn">
+                <i data-ico="list-todo" data-size="14"></i><span>任务清单</span>
+                <span class="d-badge mute">进行中</span>
+                <span class="d-todo-count">2 / 5</span>
+                <i data-ico="chevron-right" data-size="13"></i>
+              </button>
+            </div>
+          </div>
+          <div class="d-col">
+            <span class="d-subhead">计数变化：值一变就淡一下（nx-num）</span>
+            <div class="d-card"><div class="d-card-body d-col">
+              <div class="d-row">
+                <span class="d-todo-count d-num" style="font-size:var(--nx-fs-lg)" id="d33-count-demo">3 / 5</span>
+                <span class="d-grow"></span>
+                <button class="d-btn sm ghost" data-demo-spring="#d33-count-demo" data-demo-spring-kind="pop" data-demo-spring-mode="spring"><i data-ico="rotate-cw" data-size="12"></i>重播</button>
+              </div>
+              <span class="d-t-xs d-t-faint">完成一项时计数从「2 / 5」翻到「3 / 5」，翻动只用一次 220ms 淡入，不做滚动数字。</span>
+            </div></div>
+          </div>
+        </div>
+        <div class="d-grid2">
+          <div class="d-col">
+            <span class="d-subhead">进行中：run 行是 loader 盒 + 加粗</span>
+            <div class="d-todo">
+              <button class="d-todo-btn">
+                <i data-ico="list-todo" data-size="14"></i><span>任务清单</span>
+                <span class="d-badge mute">进行中</span>
+                <span class="d-todo-count">2 / 5</span>
+                <i data-ico="chevron-down" data-size="13"></i>
+              </button>
+              <div class="d-todo-list">
+                <div class="d-todo-row done"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span class="d-todo-text">量 LoginCard 的三处栅格断点</span></div>
+                <div class="d-todo-row done"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span class="d-todo-text">改 login-form.css：窄屏并入单列</span></div>
+                <div class="d-todo-row run"><span class="d-checkbox"><i data-ico="loader-circle" data-size="11"></i></span><span class="d-todo-text">跑登录相关的测试</span></div>
+                <div class="d-todo-row"><span class="d-checkbox"></span><span class="d-todo-text">生成 16:9 发布封面图</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="d-col">
+            <span class="d-subhead">全部完成：计数变绿章，行全划线</span>
+            <div class="d-todo">
+              <button class="d-todo-btn">
+                <i data-ico="list-todo" data-size="14"></i><span>任务清单</span>
+                <span class="d-badge ok">已完成</span>
+                <span class="d-todo-count">5 / 5</span>
+                <i data-ico="chevron-down" data-size="13"></i>
+              </button>
+              <div class="d-todo-list">
+                <div class="d-todo-row done"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span class="d-todo-text">量 LoginCard 的三处栅格断点</span></div>
+                <div class="d-todo-row done"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span class="d-todo-text">改 login-form.css：窄屏并入单列</span></div>
+                <div class="d-todo-row done"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span class="d-todo-text">跑登录相关的测试</span></div>
+                <div class="d-todo-row done"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span class="d-todo-text">生成 16:9 发布封面图</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 审批卡三变体（beUI approval-card）────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 审批卡三变体<span class="d-grow"></span>beUI approval-card → .d-approve*（卡身中性，危险只在命令与拒绝钮）</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-grid3" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+
+        <div class="d-col">
+          <span class="d-subhead">常规：单命令 · 三选一</span>
+          <div class="d-approve">
+            <div class="d-approve-head">
+              <i data-ico="shield-alert" data-size="14"></i>
+              <span>要运行一条命令</span>
+            </div>
+            <div class="d-approve-body">
+              <div class="d-term plain d-mono"><span class="d-term-prompt">$</span> npm run test</div>
+              全量测试，约 3 分钟。
+            </div>
+            <div class="d-approve-acts">
+              <button class="d-btn sm primary">允许一次</button>
+              <button class="d-btn sm">总是允许</button>
+              <button class="d-btn sm danger ghost">拒绝</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">危险命令：命令行描红，卡身不描</span>
+          <div class="d-approve">
+            <div class="d-approve-head">
+              <i data-ico="shield-alert" data-size="14"></i>
+              <span>要运行一条命令</span>
+              <span class="d-badge warn">删除性</span>
+            </div>
+            <div class="d-approve-body">
+              <div class="d-term plain d-mono" style="color:var(--nx-danger)"><span class="d-term-prompt">$</span> rm -rf .next/cache</div>
+              不可逆删除构建缓存。
+            </div>
+            <div class="d-approve-acts">
+              <button class="d-btn sm primary">允许一次</button>
+              <button class="d-btn sm">总是允许</button>
+              <button class="d-btn sm danger ghost">拒绝</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">多步审批：已决策的步收进计数</span>
+          <div class="d-approve">
+            <div class="d-approve-head">
+              <i data-ico="shield-check" data-size="14"></i>
+              <span>要运行一条命令</span>
+              <span class="d-badge mute">第 3 / 3 步</span>
+            </div>
+            <div class="d-approve-body">
+              <div class="d-term plain d-mono"><span class="d-term-prompt">$</span> npm run build</div>
+              前两步（测试 · 清缓存）已允许。
+            </div>
+            <div class="d-approve-acts">
+              <button class="d-btn sm primary">允许一次</button>
+              <button class="d-btn sm">总是允许</button>
+              <button class="d-btn sm danger ghost">拒绝</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 生图卡三阶段（beUI image-generation）─────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 生成图片三阶段<span class="d-grow"></span>beUI image-generation → .d-imgen*（stage 高度三阶段不变）</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-col" style="padding:var(--nx-sp-4); gap:var(--nx-sp-2); flex:1">
+        <div class="d-grid3">
+
+        <div class="d-col">
+          <span class="d-subhead">排队：纯骨架扫掠，占位就是终态的盒子</span>
+          <div class="d-imgen">
+            <div class="d-imgen-stage"><div class="d-skel"></div></div>
+            <div class="d-imgen-meta">
+              <i data-ico="sparkle" data-size="12"></i>
+              <span class="d-grow">「深空蓝紫渐变 · 封面」</span>
+              <span class="d-badge mute">排队中</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">显影：nx-reveal 模糊低饱和 → 清晰</span>
+          <div class="d-imgen">
+            <div class="d-imgen-stage" id="d33-reveal-stage">
+              <div class="d-skel"></div>
+              <img src="../../assets/brand/logo.png" alt="">
+            </div>
+            <div class="d-imgen-meta">
+              <i data-ico="sparkle" data-size="12"></i>
+              <span class="d-grow">「深空蓝紫渐变 · 封面」</span>
+              <span class="d-badge info"><i data-ico="loader-circle" data-size="11"></i>显影中</span>
+            </div>
+          </div>
+          <div class="d-row">
+            <span class="d-grow"></span>
+            <button class="d-btn sm ghost" data-demo-motion="#d33-reveal-stage"><i data-ico="rotate-cw" data-size="12"></i>重播显影</button>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">完成：只换元信息，盒子一像素没动</span>
+          <div class="d-imgen">
+            <div class="d-imgen-stage"><img src="../../assets/brand/logo.png" alt=""></div>
+            <div class="d-imgen-meta">
+              <i data-ico="sparkle" data-size="12"></i>
+              <span class="d-grow">已落盘 <span class="d-mono">cover.png</span></span>
+              <span class="d-badge mute">1792×1024</span>
+              <span class="d-badge ok"><i data-ico="circle-check" data-size="11"></i>完成</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+        <span class="d-t-xs d-t-faint">三个阶段同一个 stage 盒（高 160px）：排队是骨架扫掠，显影是 nx-reveal，完成只换元信息行 —— 卡片高度从头到尾不变，消息流不跳动。</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 D · 导航轨与行内引用（beUI preview-rail / citations）─────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 D</b> · 消息导航轨 + 行内引用<span class="d-grow"></span>beUI preview-rail / citations → .d-navrail / .d-navpop / .d-cite-mark</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-grid2" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+
+        <div class="d-col">
+          <span class="d-subhead">导航轨：刻度长度 = 与当前轮的距离，悬停弹预览</span>
+          <div class="d-card" style="position:relative; min-height:220px; overflow:hidden">
+            <div class="d-col" style="padding:var(--nx-sp-3) var(--nx-sp-6) var(--nx-sp-3) var(--nx-sp-3); gap:var(--nx-sp-3)">
+              <div class="d-row"><span class="d-badge mute">第 1 轮</span><span class="d-t-xs d-t-faint">配置生图档案</span></div>
+              <div class="d-row"><span class="d-badge mute">第 2 轮</span><span class="d-t-xs d-t-faint">端点与密钥改成引用</span></div>
+              <div class="d-row"><span class="d-badge warn">第 3 轮 · 当前</span><span class="d-t-xs d-t-faint">画板清单与门禁</span></div>
+              <div class="d-t-xs d-t-faint">…下面还有 2 轮</div>
+            </div>
+            <div class="d-navrail" style="top:var(--nx-sp-3); bottom:var(--nx-sp-3)">
+              <span class="d-navtick done near" data-demo-spring-hover="1.5"></span>
+              <span class="d-navtick done near" data-demo-spring-hover="1.5"></span>
+              <span class="d-navtick now mid" data-demo-spring-hover="1.5"></span>
+              <span class="d-navtick far" data-demo-spring-hover="1.5"></span>
+              <span class="d-navtick far" data-demo-spring-hover="1.5"></span>
+            </div>
+            <div class="d-navpop" style="top:52px">
+              <div class="d-navpop-t"><i data-ico="message-square" data-size="11"></i>第 3 轮 · PI NEXT</div>
+              画板清单是自动生成的：标题、说明、三标签全部从画板自己的 h1 与标签里取…
+            </div>
+          </div>
+        </div>
+
+        <div class="d-col">
+          <span class="d-subhead">行内引用标：上标数字，底部来源集合复用 .d-cite 芯片</span>
+          <div class="d-card"><div class="d-card-body d-col">
+            <div class="d-md">
+              <p>pi 1.0 已公开导出 codemode 与 tool-search 的工厂<span class="d-cite-mark">1</span>，MCP 的曝光语义回到原生<span class="d-cite-mark">2</span>；画板清单由门禁自动回写<span class="d-cite-mark">3</span>。</p>
+            </div>
+            <div class="d-cites">
+              <button class="d-cite"><i data-ico="file-code" data-size="11"></i>dist/index.d.ts:29</button>
+              <button class="d-cite"><i data-ico="file-text" data-size="11"></i>extensions/mcp/index.js:352</button>
+              <button class="d-cite"><i data-ico="file-text" data-size="11"></i>check-v5.mjs:255</button>
+            </div>
+            <span class="d-t-xs d-t-faint">来源以本仓文件为主（@路径引用），网页来源才用 favicon —— beUI 的 favicon 拉取不引入。</span>
+          </div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>不引入的东西（与 BoardUI 采纳清单同一纪律）</b>
+  <p style="margin:0">beUI 全库依赖 motion / Tailwind / shiki / lucide-react —— 本仓一个都不进：动效用 CSS 关键帧（nx-orb / nx-orb-ring / nx-reveal 已进 base.css），
+  类与令牌用 V5 自己的，高亮用 react-syntax-highlighter，图标走 <span class="d-mono">data-ico</span>。
+  外来件只借「信息组织与交互形态」，实现每一条都是 V5 的。</p>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/vendor/motion.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

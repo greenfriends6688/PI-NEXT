@@ -84,8 +84,10 @@ test("桌面搜索格落在 .d-side-nav 盒子里；窄屏那格是 .m-searchfie
 test("窄屏会话标题挂 .m-top-title（PWA 形态），桌面那一支仍是 .d-tb-stack", () => {
   assert.match(shell, /<span className="m-top-title">\{topBarSessionTitle\}<\/span>/);
   assert.match(shell, /className="d-tb-stack"/);
-  // 副行（fork:mobile-tb-subtitle 的既有功能）在窄屏换 PWA 字号件，不删。
-  assert.match(shell, /\{subtitle && <span className="m-t-xs m-t-faint">\{subtitle\}<\/span>\}/);
+  // fork:no-tb-sub-everywhere（2026-10-07 用户再次要求）—— 副行整件删除，
+  // 两种形态都不再渲染它。
+  assert.doesNotMatch(shell, /className="m-t-xs m-t-faint"/);
+  assert.doesNotMatch(shell, /className="d-tb-sub"/);
 });
 
 test("ContextMenu 窄屏换 m-* 件，宽屏仍是 d-*；形态判据是 useIsMobile（≤640）", () => {
@@ -108,4 +110,16 @@ test("ContextMenu 窄屏换 m-* 件，宽屏仍是 d-*；形态判据是 useIsMo
   // （那是行为变更，见汇报的需产品裁定项）。这条断言就是那道闸。
   assert.doesNotMatch(menu, /m-menu-sheet/);
   assert.match(menu, /top: pos\.y,\s*left: pos\.x/);
+});
+
+test("菜单项里再开一只浮窗时，父菜单的收尾不会把它一起关掉", () => {
+  // fork:menu-chained-open（2026-10-07 用户报「插件行的『移除…』点了没反应」）——
+  // 插件行菜单的 onSelect 会接着开「卸载确认」浮窗（锚点相同、两枚叠着），而
+  // runItem 的收尾无条件 closeMenu()：新开的那只被同一个 tick 的关闭吃掉，
+  // 用户看到的就是「点了移除没反应」。openMenu 在「已经有一只开着」时置标记，
+  // runItem 收尾看到标记就跳过关闭 —— 这三处必须同时存在。
+  const menu = strip(contextMenu);
+  assert.match(menu, /chainedOpenRef\.current = menuRef\.current !== null;/);
+  assert.match(menu, /const chained = chainedOpenRef\.current;/);
+  assert.match(menu, /if \(!chained\) \{/);
 });

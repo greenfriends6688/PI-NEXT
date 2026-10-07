@@ -25,15 +25,15 @@ test("every icon in the shell comes from the board icon set", () => {
 });
 
 test("the top bar title is the board's .d-tb-stack, not a hand-styled button", () => {
-  // fork:v5-landing —— 标题两行 = 画板 D-01/D-02 的 `.d-tb-stack`（`d-tb-title` + `d-tb-sub`），
+  // fork:v5-landing —— 标题 = 画板 D-01/D-02 的 `.d-tb-stack`（现在只剩 `d-tb-title`），
   // 省略号由 `.d-tb-title` 给；旧 `.pw-tb-title` 已从 DOM 退场。
   assert.match(systemCss, /\.d-tb-stack \{ display: flex; flex-direction: column; min-width: 0; \}/);
   assert.match(systemCss, /\.d-tb-title \{[^}]*text-overflow: ellipsis/);
   // fork:no-recent-sessions —— 标题不再是「最近会话」下拉的触发钮（那一档已撤），
   // 也不再是任何交互元素：纯文本标题，点它什么都不发生。
-  // fork:no-tb-sub（2026-10-05 用户裁定）—— 桌面顶栏那一行副标题被去掉（项目名
-  // 在侧栏 / 文件面板头 / 输入卡上都写着，顶栏是第四遍，且两行叠起来把标题顶上
-  // 去）。断言改成「标题仍在、桌面不再有 `d-tb-sub`」；手机那一支的副行不动。
+  // fork:no-tb-sub（2026-10-05）→ fork:v6-landing（2026-10-07 上午）→
+  // fork:no-tb-sub-everywhere（2026-10-07 当天用户再次要求）：`d-tb-sub` 那一行
+  // **最终删掉**，`.d-tb-stack` 里只剩标题。
   assert.match(source, /className="d-tb-stack"/);
   assert.match(source, /<span className="d-tb-title">\{topBarSessionTitle\}<\/span>/);
   assert.doesNotMatch(source, /className="d-tb-sub"/);
@@ -84,8 +84,10 @@ test("the top bar action buttons take their size from the board classes", () => 
   // 终端 / 浏览器两枚（浏览器那枚本来就有，从文件树头行搬过来），多用了一处。
   assert.equal(source.match(/className="d-iconbtn"/g)?.length, 10);
   // fork:v5-frame-audit（2026-10-05）—— 抽屉底栏那枚「手机与推送」钮按画板
-  // M-04 帧 A 的 `.m-drawer-foot` 改成 `.m-top-btn`（桌面上仍是 `.d-iconbtn`）。
-  assert.match(source, /className=\{isMobile \? "m-top-btn" : "d-iconbtn"\}/);
+  // M-04 帧 A 的 `.m-drawer-foot` 改成了 `.m-top-btn`（桌面上仍是 `.d-iconbtn`）。
+  // fork:pwa-drawer-foot-icon（2026-10-06 用户裁定）—— 随后换成无底的 `.m-iconbtn`：
+  // 底栏那枚不是浮在内容上的顶栏钮，玻璃圆底是一圈多余的圆。
+  assert.match(source, /className=\{isMobile \? "m-iconbtn" : "d-iconbtn"\}/);
   // 手机顶栏的两枚（抽屉入口 + 右栏面板开关）现在都是 `.m-top-btn`。
   // fork:v5-wave-b —— 右栏面板钮后来又收了一步：它两端都在（手机与桌面同一个按钮），
   // 形态由内联几何的 `mobile ? undefined : {...}` 分支处理，不再用三元类名。

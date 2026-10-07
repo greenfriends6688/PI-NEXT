@@ -1261,6 +1261,9 @@ pre, code {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/* fork:v6-landing —— `.d-jump`（画板 D-35 帧 A）的内边距是为「图标 + 文字」写的，
+   而用户 2026-10-07 裁定只留箭头：双类覆盖（0-2-0）把内边距收掉，图标在方钮里居中。 */
+.chat-scroll-to-bottom.d-jump { padding: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .chat-scroll-to-bottom,

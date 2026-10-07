@@ -1650,6 +1650,35 @@ html[data-theme-skin="true"] .main-workspace-header {
   height: 8px;
   background: var(--accent);
 }
+/* fork:v6-landing（2026-10-07 用户裁定「V6 三件全落」）—— 导轨刻度 = 画板 D-32 /
+   D-33 帧 D 的 `.d-navtick`（beUI preview-rail）。画板里刻度是 flex 排的，产品要按
+   滚动位置绝对定位（top 由组件给），所以这里只补定位与右对齐；宽度/颜色/过渡
+   仍归库（`.d-navtick` / `.far|.mid|.near` / `.done|.now`）。 */
+.pw-minimap-rail > .d-navtick {
+  position: absolute;
+  right: var(--nx-sp-2);
+}
+/* 指针最近的那一道刻度：悬停反馈（与旧 `.node` 的 hover 同义）。 */
+.pw-minimap-rail > .d-navtick[data-minimap-node-hover] {
+  background: var(--accent);
+}
+/* 双类覆盖（0-2-0）：`.d-navrail` 自带的 `position:absolute / top / bottom / right`
+   是「转录右缘的浮轨」那一种形态，而产品的导轨是 grid 第二列的通高列（画板 53
+   的 `.pw-minimap-rail`）。合并时**几何归产品列，刻度形态归 V6**。 */
+.pw-minimap-rail.d-navrail {
+  position: relative;
+  top: auto;
+  bottom: auto;
+  right: auto;
+  width: 36px;
+  display: block;
+  /* 画板 D-32/D-33 帧 D 的 `.d-navrail` 是**浮在转录右缘的透明细刻度**（无底色、
+     无边线）；board 53 的 `.pw-minimap-rail` 却是一条带底色 + 左边线的竖轨。
+     用户 2026-10-07 实拍：「为啥还有导轨啊」—— 把轨道的底色与边线隐掉，只留刻度
+     （保留 1px 边框宽度以免列宽跳变）。 */
+  background: transparent;
+  border-left-color: transparent;
+}
 .composer-ring:hover .pw-ring,
 .composer-ring:focus-within .pw-ring {
   box-shadow: 0 0 0 3px var(--accent-soft);

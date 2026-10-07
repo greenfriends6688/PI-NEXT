@@ -303,3 +303,12 @@ i[data-ico] > svg { display: block; }
    已从 web/system.css 提到这里，web 侧改为引用（定义不再重复）。 */
 @keyframes nx-think-tick { 0%,100% { opacity: .12; } 40% { opacity: 1; } }
 
+/* ── V6 提案（D-32 / D-33，beUI 借鉴）── 关键帧属两端共用，定义只在这里 ──
+   nx-orb / nx-orb-ring：语音球的呼吸与外扩波纹（beUI Voice Orb 的 CSS 近似 ——
+   画板不跑 WebGL，取「活动度越高呼吸越快」这一条语义：默认 3.2s，.live 1.6s）。
+   nx-reveal：生成图片的渐进显影（beUI image-generation：从模糊低饱和到清晰，
+   配合占位骨架，图出现前后盒子尺寸不变 —— 「无布局偏移」是那张卡的核心承诺）。 */
+@keyframes nx-orb { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@keyframes nx-orb-ring { from { transform: scale(.72); opacity: .8; } to { transform: scale(1.9); opacity: 0; } }
+@keyframes nx-reveal { from { opacity: .12; filter: blur(18px) saturate(.55); } to { opacity: 1; filter: blur(0) saturate(1); } }
+

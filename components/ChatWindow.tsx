@@ -86,6 +86,8 @@ import { useMotionPreference } from "./fork/RollingNumber";
 // fork:zc-17 — 零会话首屏的三条起步路径。
 import { EmptyStateGuide } from "./fork/EmptyStateGuide";
 import { TEXT } from "@/lib/typography";
+import { APPROVAL_CHOICES } from "@/lib/approval-policy";
+import { springEnter } from "@/lib/motion-pop";
 
 interface Props {
   session: SessionInfo | null;
@@ -2984,7 +2986,11 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 这条定位带现在只装「回到最下方」。 */}
             <button
               type="button"
-              className={`chat-scroll-to-bottom${showScrollToBottom && !pendingScrollRestore ? " is-visible" : ""}`}
+              /* fork:v6-landing —— 换成画板 D-35 帧 A 的 `.d-jump`（beUI message-scroller
+                 的「滚到最新」悬浮钮）：毛玻璃 pill + 图标 + 文字。显隐与定位仍由
+                 产品类 `chat-scroll-to-bottom` 的 is-visible 通道管（zm-03 的跟随
+                 状态机没动），`.d-jump` 只接管视觉。 */
+              className={`chat-scroll-to-bottom d-jump${showScrollToBottom && !pendingScrollRestore ? " is-visible" : ""}`}
               title={t("chat.scrollToLatest")}
               aria-label={t("chat.scrollToLatest")}
               onPointerDown={() => { followingRef.current = true; }}
@@ -2994,7 +3000,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               }}
               onClick={() => scrollToBottom("smooth")}
             >
-              <i data-ico="arrow-down" data-size="16" aria-hidden="true"></i>
+              {/* 用户 2026-10-07 实拍：「你只需要箭头就行了，为啥还有文字啊」——
+                  只留箭头（`.chat-scroll-to-bottom` 本来就是定宽方钮，文字在里面
+                  会被挤成一列竖排）。文案仍挂在 `title` / `aria-label` 上。 */}
+              <i data-ico="arrow-down" data-size="13" aria-hidden="true"></i>
             </button>
           </div>
         )}
@@ -3014,9 +3023,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           scrollContainer={scrollContainerRef}
           messageRefs={messageRefs}
           onRevealHistory={revealHistoryForMinimap}
-          hasEarlierMessages={hasEarlierMessages}
-          loadingEarlier={loadingEarlier}
-          onLoadEarlier={loadOlderPage}
         />
       )}
       {/* fork:ui-newhome — the composer used to be vertically centred by a
@@ -3264,6 +3270,11 @@ function ExtensionDialog({
     }
   };
 
+  /* fork:v6-landing —— 审批请求（lib/approval-extension.ts 的 ctx.ui.select）渲染成
+     决策卡；三枚动作钮就是卡片本身，底部那条「取消 + 提交」foot 不再渲染
+     （Esc 仍然取消，语义同拒绝）。 */
+  const isApproval = request.method === "select" && isApprovalSelect(request);
+
   return (
     <div
       onKeyDown={(event) => {
@@ -3394,6 +3405,13 @@ function ExtensionDialog({
             <MarkdownBody>{request.message}</MarkdownBody>
           )}
           {request.method === "select" && (
+            isApprovalSelect(request) ? (
+              /* fork:v6-landing —— 工具审批走画板 D-32 帧 A 的 `.d-approve`（beUI
+                 approval-card 的 V5 化）：决策卡三钮横排，卡身中性、危险只在命令与
+                 「拒绝」钮上。数据从 approvalPrompt 的固定形状拆出（第一段=风险原因，
+                 第二段=label:摘要）；键盘沿用 data-extension-option 通道。 */
+                <ApprovalCardBody request={request} onRespond={onRespond} />
+            ) : (
             <div
               onKeyDown={(event) => {
                 if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft", "Home", "End"].includes(event.key)) return;
@@ -3440,6 +3458,7 @@ function ExtensionDialog({
                 </div>
               ))}
             </div>
+            )
           )}
           {request.method === "input" && (
             /* fork:design-components —— 输入框 = 画板 D-26b 帧 D「输入」那一件的 `.d-input`。 */
@@ -3475,6 +3494,7 @@ function ExtensionDialog({
             右对齐 + gap）。取消 = `.d-btn.ghost`，确认/提交 = `.d-btn.primary`（强调填充）。
             danger 留给不可逆动作，扩展请求的取消只是收起这次请求，所以仍是普通 ghost。
             倒计时条已移到头部下方，此处不再重复渲染。 */}
+        {!isApproval && (
         <div className="d-modal-foot">
           <button
             type="button"
@@ -3503,6 +3523,7 @@ function ExtensionDialog({
             </button>
           ) : null}
         </div>
+        )}
       </div>
       )}
     </div>
@@ -3510,6 +3531,110 @@ function ExtensionDialog({
 }
 
 type ExtensionCustomRequest = Extract<ExtensionUiRequest, { method: "custom" }>;
+
+/* fork:v6-landing —— 审批请求的辨识口径：lib/approval-extension.ts 的 approvalPrompt
+   把 title 拼成固定两段（首行「需要确认这笔操作（原因）」），且选项恰为
+   APPROVAL_CHOICES 三项。两条同时成立才走决策卡，其余 select 一律走通用对话框。 */
+function isApprovalSelect(request: ExtensionDialogRequest): boolean {
+  if (request.method !== "select") return false;
+  if (request.options.length !== APPROVAL_CHOICES.length) return false;
+  if (!APPROVAL_CHOICES.every((choice, index) => request.options[index] === choice)) return false;
+  return request.title.startsWith("需要确认这笔操作");
+}
+
+/* fork:v6-landing —— 审批决策卡 = 画板 D-32 帧 A 的 `.d-approve`（beUI approval-card
+   的 V5 化）。卡身中性（panel 底 + 发丝线），危险语义只在命令代码与「拒绝」钮上；
+   三枚动作钮横排底部（首钮 = 允许一次 primary，末钮 = 拒绝 danger ghost，选项顺序
+   就是 APPROVAL_CHOICES）。挂载时 Motion 弹簧入场（lib/motion-pop.ts 的 springEnter）。
+   data-extension-option 保留：折叠横幅的键盘/焦点通道与通用对话框同一份。 */
+function ApprovalCardBody({
+  request,
+  onRespond,
+}: {
+  request: Extract<ExtensionDialogRequest, { method: "select" }>;
+  onRespond: (request: ExtensionDialogRequest, response: { value: string }) => void;
+}) {
+  const { t } = useI18n();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const firstOptionRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    // 与通用对话框的 focusFirstOption 同语义:打开时焦点落首钮(方向键从它出发)
+    firstOptionRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    springEnter(cardRef.current);
+  }, []);
+
+  /* approvalPrompt 的形状：`需要确认这笔操作（原因）\n\n命令：<summary>`。
+     label 决定头标题（命令 / 工具），摘要做等宽代码块，原因做小字。 */
+  const [reasonLine, detailLine] = request.title.split("\n\n");
+  const separator = (detailLine ?? "").indexOf("：") >= 0 ? "：" : ":";
+  const labelEnd = (detailLine ?? "").indexOf(separator);
+  const label = labelEnd > 0 ? (detailLine ?? "").slice(0, labelEnd) : "";
+  const detailText = labelEnd > 0 ? (detailLine ?? "").slice(labelEnd + separator.length).trim() : (detailLine ?? "").trim();
+  const isCommand = label.includes("命令");
+
+  const optionClass = (option: string) => {
+    if (option === APPROVAL_CHOICES[APPROVAL_CHOICES.length - 1]) return "d-btn sm danger ghost";
+    if (option === APPROVAL_CHOICES[0]) return "d-btn sm primary";
+    return "d-btn sm";
+  };
+
+  return (
+    <div className="d-approve" ref={cardRef}>
+      <div className="d-approve-head">
+        <i data-ico="shield-alert" data-size="14" aria-hidden="true"></i>
+        <span>{isCommand ? t("chat.approvalCommand") : t("chat.approvalTool")}</span>
+      </div>
+      <div className="d-approve-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
+        {detailText && (
+          <div className="d-term plain d-mono" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {detailText}
+          </div>
+        )}
+        {reasonLine && <span className="d-t-xs d-t-faint">{reasonLine}</span>}
+      </div>
+      <div
+        className="d-approve-acts"
+        onKeyDown={(event) => {
+          if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+          const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("[data-extension-option]"));
+          const index = buttons.indexOf(event.target as HTMLElement);
+          if (index < 0) return;
+          event.preventDefault();
+          const next = event.key === "Home" ? 0
+            : event.key === "End" ? buttons.length - 1
+            : (index + (event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+          buttons[next].focus({ preventScroll: true });
+        }}
+      >
+        {request.options.map((option, index) => (
+          <button
+            key={option}
+            type="button"
+            data-extension-option
+            aria-label={option}
+            className={optionClass(option)}
+            ref={index === 0 ? firstOptionRef : undefined}
+            onClick={() => onRespond(request, { value: option })}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              onRespond(request, { value: option });
+            }}
+          >
+            {option}
+          </button>
+        ))}
+        <span className="d-grow"></span>
+        <span className="d-t-xs d-t-faint">
+          <span className="d-kbd">Esc</span> {t("chat.approvalEscHint")}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function ExtensionCustomPanel({
   request,

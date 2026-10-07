@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 import test from "node:test";
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { createJiti } from "jiti";
 
 registerHooks({
@@ -21,24 +19,11 @@ const jiti = createJiti(import.meta.url, {
   jsx: { runtime: "automatic" },
   tsconfigPaths: true,
 });
-const { AssistantOutline, countToolCalls } = await jiti.import("./ChatMinimap.tsx");
+const { countToolCalls } = await jiti.import("./ChatMinimap.tsx");
 const source = await readFile(new URL("./ChatMinimap.tsx", import.meta.url), "utf8");
-
-test("renders math in headings without disabling heading navigation", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(AssistantOutline, {
-      markdown: String.raw`# Inline $f_{k,t+1}$
-
-## Parentheses \(x^2 + y^2\)`,
-      onHeadingClick() {},
-    }),
-  );
-
-  assert.match(html, /class="katex"/);
-  assert.match(html, /data-preview-heading-index="0"/);
-  assert.match(html, /data-preview-heading-index="1"/);
-  assert.doesNotMatch(html, /disabled=""/);
-});
+/* 「退场」类断言只查**代码**，不查注释：注释里为了说清楚「什么退场了」必然要提旧类名
+   （口径与 design/v5/scripts/land-status.mjs 剥块注释一致）。 */
+const code = source.replace(/\/\*[\s\S]*?\*\//g, "");
 
 // fork:upstream-0.9.2-minimap-tools — #939 移植的计数单测
 test("counts tool calls per assistant reply, including replies that also answer", () => {
@@ -70,65 +55,46 @@ test("counts no tool calls for non-assistant or string-content messages", () => 
   assert.equal(countToolCalls({ role: "assistant" }), 0);
 });
 
-test("renders the load-earlier row before the loaded turns", () => {
-  assert.match(source, /hasEarlierMessages: boolean/);
-  assert.match(source, /loadingEarlier: boolean/);
-  assert.match(source, /onLoadEarlier: \(\) => void \| Promise<void>/);
-
-  // The preview panel must render the row even when no turn is loaded yet,
-  // otherwise a page that ends inside one huge turn has no affordance at all.
-  assert.match(source, /minimapHovered && \(allNodes\.length > 0 \|\| hasEarlierMessages\)/);
-
-  const previewBox = source.slice(
-    source.indexOf("data-minimap-preview-box"),
-    source.indexOf("{allNodes.map((node) =>"),
-  );
-  assert.match(previewBox, /hasEarlierMessages && \(/);
-  assert.match(previewBox, /data-minimap-load-earlier/);
-  assert.match(previewBox, /disabled=\{loadingEarlier\}/);
-  assert.match(previewBox, /void onLoadEarlier\(\)/);
-});
-
-test("labels the load-earlier row from i18n and shows progress while it loads", () => {
-  assert.match(source, /t\("chatMinimap\.loadEarlier"\)/);
-  assert.match(source, /loadingEarlier \? t\("i18n\.loading"\) : t\("chatMinimap\.loadEarlier"\)/);
-});
-
-// fork:minimap-board53（2026-10-05 用户裁定）—— 面板与导轨的 DOM 退回画板 53
-// （v0.1.8 那一版）。D-03e 的 `d-minimap` / `d-mm-node` / `d-mm-pin` / `d-mm-turn` /
-// `d-trow` 那一套已退场，两枚 `.d-mm-*` 标记随之退役：它们只是
-// `minimapHovered + nearestNodeIndex` 派生的可视标记，没有独立状态、也没有交互，
-// 导轨换回圆点后无处安放。行为（props / 悬停拖拽 / 定位锁 / 加载更早 / 大纲点击跳转 /
-// data-minimap-* 钩子）一律不变。
-test("导航面板与导轨保持画板 53（0.1.8）的 DOM —— d-* 那套已退场", () => {
-  assert.match(source, /className="pw-minimap-rail"/, "导轨是 board.css 的 .pw-minimap-rail");
-  assert.match(source, /className="pw-minimap-pop"/, "浮层是 .pw-minimap-pop");
+// fork:v6-landing（2026-10-07 用户实拍第二轮）—— 导轨 = 画板 D-32 / D-33 帧 D 的
+// `.d-navrail` 细刻度（过去 done / 当前 now / 未来 far）+ `.d-navpop` 悬停卡。
+// board 53 的 320px 大纲面板（`.pw-minimap-pop` / `.pin` / `.load-earlier` / `.turn` /
+// `.gutter` / `.no.anchor`）与 `AssistantOutline` **整块退场**：用户实拍「这个浮窗，
+// 你也没有按照设计的来」。「加载更早」本来就有「滚到顶自动加载」兜底（ChatWindow 的
+// sentinel IntersectionObserver），大纲级跳转随面板一起退场。
+test("导轨刻度与悬停卡是 V6 的 .d-navtick / .d-navpop，大纲面板已退场", () => {
+  // 容器几何仍归 `.pw-minimap-rail`（grid 第二列的通高列），另挂 `.d-navrail` 表达
+  // 「这一列现在是 V6 导航轨」（双类覆盖在 app/fork-ui.css，0-2-0）。
+  assert.match(source, /className="pw-minimap-rail d-navrail"/, "导轨容器是 .pw-minimap-rail + .d-navrail");
+  assert.doesNotMatch(code, /pw-minimap-pop|previewPinned|AssistantOutline|data-minimap-preview-box/, "320px 大纲面板已整块退场");
   assert.doesNotMatch(
-    source,
+    code,
     /className=[^\n]*\b(d-minimap|d-mm-node|d-mm-pin|d-mm-turn|d-trow|fork-minimap-panel|fork-minimap-rail)\b/,
-    "组件里不再有任何 d-* / fork-* 迷你地图类",
+    "组件里不再有任何旧 d-* / fork-* 迷你地图类",
   );
 
-  // 导轨节点：6px 圆点 + 当前轮 `.on` + 标题轮 `.heading`（`kind` 仍是前端派生）。
-  assert.match(source, /className=\{`node\$\{node\.kind === "heading" \? " heading" : ""\}\$\{activeIndex === node\.index \? " on" : ""\}`\}/);
-  // 头行：图钉图标 + 文案开关钮（aria-pressed）+ ✕ 关闭钮，两枚都在 div.pin 内。
-  assert.match(source, /className=\{`pin\$\{previewPinned \? " on" : ""\}`\}/);
-  assert.match(source, /aria-pressed=\{previewPinned\}/, "固定开关仍有 aria-pressed");
-  assert.match(source, /className="load-earlier"/, "加载更早行回到 .load-earlier");
-  assert.match(source, /className=\{`turn\$\{isLocated \? " on" : ""\}`\}/, "轮行回到 .turn/.on");
-  assert.match(source, /className="gutter"/);
-  assert.match(source, /className="no anchor"/, "回答锚点回到 .no.anchor");
-  assert.match(source, /className="u"/, "用户行回到 .u");
-  assert.match(source, /className="a"/, "回答块回到 .a");
-  // 工具数徽标在 tooltip 与轮行里都是 pw-badge count / .tool，不是 d-badge。
-  assert.match(source, /className="pw-badge count"/);
-  assert.match(source, /className="tool"/);
-  assert.match(source, /className="pw-card"/, "tooltip 回到 .pw-card 工具卡");
+  // 刻度：`.d-navtick` 按与当前轮的关系分三档（过去 done / 当前 now / 未来 far）。
+  assert.match(source, /className=\{activeIndex === null\s*\n\s*\? "d-navtick far"/);
+  assert.match(source, /"d-navtick now mid"/);
+  assert.match(source, /"d-navtick done near"/);
+  assert.doesNotMatch(code, /className=\{`node\$/, "board 53 的圆点已退场");
+  // `data-minimap-*` 钩子（e2e 与 verify-against-boards 按它们选元素）一个不能少。
+  for (const hook of ["data-minimap-node-index", "data-minimap-node-kind", "data-minimap-node-active", "data-minimap-node-hover"]) {
+    assert.ok(source.includes(hook), `${hook} 钩子不能少`);
+  }
+  // 悬停卡：画板 D-32 的 `.d-navpop` + `.d-navpop-t`，工具数徽标走 V5 的 `.d-badge.mute`。
+  assert.match(source, /className="d-navpop"/, "悬停预览卡是 V6 的 .d-navpop");
+  assert.match(source, /className="d-navpop-t"/, "预览卡头行是 .d-navpop-t");
+  assert.match(source, /className="d-badge mute"/);
+  // 悬停就出卡（不再要求「先钉住」）。
+  assert.match(source, /const tooltipTurn = minimapHovered && nearestNode/);
 });
 
-test("关闭钮仍取消固定并立刻收起面板（D-03e 那版带进来的动作没丢）", () => {
-  const close = source.slice(source.indexOf("data-minimap-close"));
-  assert.match(close, /setPreviewPinned\(false\)/);
-  assert.match(close, /setMinimapHovered\(false\)/);
-  assert.match(close, /setMouseYRatio\(null\)/);
+// fork:v6-landing —— 刻度组**垂直居中**（画板 D-32/D-33 帧 D 的 `.d-navrail` 是
+// `justify-content: center`）。用户实拍「这些横杆不是从顶部开始的，应该是上下居中」。
+test("刻度组垂直居中，不再从轨道顶部起排", () => {
+  assert.match(source, /const start = Math\.max\(MINIMAP_PADDING, \(height - span\) \/ 2\)/);
+  assert.match(source, /topRatio: \(start \+ index \* gap\) \/ height/);
+  assert.doesNotMatch(code, /topRatio: \(MINIMAP_PADDING \+ index \* gap\) \/ height/, "旧贴顶排法已退场");
+  // 单轮会话那颗刻度落在正中。
+  assert.match(source, /nodes: \[\{ \.\.\.allNodes\[0\], topRatio: 0\.5 \}\]/);
 });

@@ -100,8 +100,10 @@ test("M-01 / M-04 身份行的 .m-brand 挂在手机抽屉的品牌位上", () =
   const shell = sources.get("components/AppShell.tsx");
   assert.match(shell, /<img className="m-brand" src="\/pi-next-logo\.png" alt="PI NEXT"/);
   assert.match(shell, /className="nx-row m-t-sm"/);
-  // 尾件是画板同一行的 `.m-badge mute`，接真实数据（不是写死的样例文案）。
-  assert.match(shell, /\{activeCwdName \? <span className="m-badge mute">\{activeCwdName\}<\/span> : null\}/);
+  // fork:pwa-drawer-brand（2026-10-06 用户裁定）—— 尾件从「项目名徽章」换成字标图：
+  // 原来图标后面同时写着 `.m-t-b` 文本与项目名徽章，同一个名字在这一行出现三次。
+  assert.match(shell, /<img className="m-wordmark" src="\/pi-next-wordmark\.png"/);
+  assert.doesNotMatch(shell, /<span className="m-t-b">PI NEXT<\/span>/);
 });
 
 test("M-02 帧 B / 帧 C：附件网格与引用芯片接的是真实附件集合", () => {

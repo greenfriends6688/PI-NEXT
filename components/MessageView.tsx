@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useState, useRef, useEffect, useMemo, type ComponentProps, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
-import { MarkdownBody } from "./MarkdownBody";
+import { CiteSourcesContext, MarkdownBody } from "./MarkdownBody";
 import { useFileIndex, useSkillInfo } from "@/hooks/useProjectContext";
 import { useCollapsePresence } from "@/hooks/useCollapsePresence";
 import type { MentionValidators } from "@/lib/mention-tokens";
@@ -19,6 +19,7 @@ import { applyPatchPreviewToFiles, extractApplyPatchPaths, getApplyPatchInputTex
 import { mcpToolLabel } from "@/lib/mcp-tool-display";
 // fork:imagegen —— generate_image 结果卡：details.images 的落盘路径 → /api/files 预览。
 import { encodeFilePathForApi } from "@/lib/file-paths";
+import { springPop } from "@/lib/motion-pop";
 // fork:codemode-view —— codemode 调用的显示助手（脚本 / 调用列表 / 折叠头预览）。
 import { CODEMODE_TOOL_NAME, codemodeCalls, codemodeScript, codemodeScriptPreview } from "@/lib/codemode-view";
 import { CodemodeCallList } from "./CodemodeToolView";
@@ -36,7 +37,7 @@ import type { SubagentToolDetails } from "@/lib/subagent-extension";
 import { isPlanToolDetails } from "@/lib/plan-documents";
 // fork:v5-landing —— 画板 D-03 帧 C 的进度轨道 `PlanRail`（`.d-plan-body > .d-plan-rail`），
 // 与计划文档卡同源；窄屏不画（PWA 库没有对应的 `m-plan-*`，不发明类名）。
-import { PlanDocumentCard, PlanRail, type PlanRailStep } from "./fork/PlanDocumentCard";
+import { PlanDocumentCard, type PlanRailStep } from "./fork/PlanDocumentCard";
 import { PlanReferenceList } from "./fork/PlanReferenceList";
 // fork:v5-landing —— 流式正文段的切分：稳定前缀走 markdown，还在长的那一块挂
 // `.d-stream` / `.m-stream` + 光标（画板 D-03 帧 B / D-27 帧 B）。
@@ -859,6 +860,18 @@ function AssistantMessageView({
   // fork:v5-landing —— 助手动作行的 hover 由 system.css 的 `.d-msg-ai:hover .d-msg-acts`
   // 承担；这里只补键盘焦点一档（:focus-within 无 v5 规则），命中时挂 `.is-on`。
   const [actionsFocused, setActionsFocused] = useState(false);
+  /* fork:v6-landing —— 行内引用标的来源表（画板 D-33 帧 D 的 `.d-cite-mark`）：
+     这一轮写过的文件按首次出现排序，位次从 1 起；正文里指向其中之一的本地链接
+     在右上角带上这个位次，与底部 `.d-cites` 芯片一一对应。没有写过文件时整表为
+     null，`MarkdownAnchor` 就不加标（不猜来源）。 */
+  const citeSources = useMemo(() => {
+    if (!writtenFiles || writtenFiles.length === 0) return null;
+    const map = new Map<string, number>();
+    writtenFiles.forEach((file, index) => {
+      map.set(file.filePath.replace(/\\/g, "/").toLowerCase(), index + 1);
+    });
+    return map;
+  }, [writtenFiles]);
   const blockItemsRef = useRef(blockItems);
   blockItemsRef.current = blockItems;
   const tokenEstimateCacheRef = useRef<Map<number, TokenEstimateCacheEntry>>(new Map());
@@ -1097,6 +1110,9 @@ function AssistantMessageView({
         </div>
       )}
 
+      {/* fork:v6-landing —— 行内引用标的来源表（画板 D-33 帧 D）：这一轮写过的文件，
+          位次从 1 起，与底部 `.d-cites` 芯片同一份 `writtenFiles`、同一顺序。 */}
+      <CiteSourcesContext.Provider value={citeSources}>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--s2)" }}>
         {blockItems.map(({ block, originalIndex }) => (
           /* fork:v5-landing —— 只有**还在长的那一块**算「流式中」：
@@ -1105,6 +1121,7 @@ function AssistantMessageView({
           <BlockView key={`${entryId ?? "stream"}-${originalIndex}`} block={block} searchTarget={block === searchBlock} toolResults={toolResults} isStreaming={isStreaming} isStreamingTail={isStreaming && originalIndex === streamingTailIndex} streamingDuration={streamingDurations.get(originalIndex) ?? (block.type === "thinking" ? thinkingDurationFromFile : undefined)} toolCallDurations={toolCallDurations} cwd={cwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} sessionId={sessionId} entryId={entryId} blockIndex={originalIndex} expandedToolIds={expandedToolIds} onToggleTool={onToggleTool} />
         ))}
       </div>
+      </CiteSourcesContext.Provider>
 
       {/* fork:v5-landing —— M-02 帧 A 的实时行：`.m-run`（转圈）+ `.m-text-live`
           （实时文字，光标由 `.m-text-live::after` 给）。只挂在窄屏、且只在正文
@@ -1841,38 +1858,13 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
         )}
       </div>
 
-      {/* fork:v5-landing —— todo 卡 = 画板 D-03 帧 C 的计划卡：`.d-plan` ›
-          `.d-plan-head`（图标 + 标题 + 进度徽章）+ `.d-plan-body > .d-plan-rail`
-          （真实步骤，done / run 两个状态档）。窄屏不画：PWA 库没有 `m-plan-*`，
-          不为它发明类名（窄屏的待办由输入卡上方的 `.m-tool` 芯片承担）。 */}
-      {todoSteps && !isPwa && (
-        <div className="d-plan">
-          <div className="d-plan-head">
-            <i data-ico="list-todo" data-size="15" aria-hidden="true"></i>
-            <span className="d-grow">{t("chat.todos")}</span>
-            {/* fork:d03-frame-c —— 进度徽章按帧 C 的 `d-badge ok`「3 / 6」：
-                进行中也是这一档（那一帧画的就是进行中的样子），不再按完成与否分两档。 */}
-            <span className="d-badge ok">
-              {todoSteps.filter((step) => step.state === "done").length} / {todoSteps.length}
-            </span>
-          </div>
-          <PlanRail steps={todoSteps} />
-          {/* fork:d03-frame-c —— `d-plan-foot` 只接**真有的读数**：帧 C 那行「第 4 步
-              进行中」（正在跑的是第几条，由 `state === "run"` 反推）。帧 C 那两枚钮
-              （暂停 / 查看清单）**不画**：todo 是模型自己的写接口，用户没有暂停权限，
-              而「查看清单」指向的就是这张卡本身 —— 画一个切不动的控件就是画死控件。 */}
-          {(() => {
-            const runIndex = todoSteps.findIndex((step) => step.state === "run");
-            if (runIndex < 0) return null;
-            return (
-              <div className="d-plan-foot">
-                <span>{t("chat.todoStepRunning", { index: runIndex + 1 })}</span>
-                <span className="d-grow" />
-              </div>
-            );
-          })()}
-        </div>
-      )}
+      {/* fork:v6-landing —— todo 卡换成画板 D-32 帧 A 的 `.d-todo`（beUI todo-list 的
+          V5 化）：折叠头自带进度徽章与计数（tabular-nums），行三态 done / run / 待做，
+          勾选盒复用 `.d-checkbox`（同一视觉角色，不另起名），run 行的盒子是 loader
+          （system.css 23a 段给它 nx-spin）。计数变化时 Motion 弹簧 pop。
+          窄屏不画：PWA 库没有 `m-todo-*`，不为它发明类名（窄屏的待办由
+          输入卡上方的 `.m-tool` 芯片承担）。 */}
+      {todoSteps && !isPwa && <TodoCard steps={todoSteps} />}
 
       {/* fork:pr52-plan-tools —— 计划文档卡（画板 54 B 的 `.pw-filecard`）。放在参数区之前，
           所以收起态也看得见；预览复用宿主既有的 FileViewer 打开通道，不自写预览器。 */}
@@ -1953,10 +1945,10 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
 
       {/* ── Result images — always visible, independent of the collapsed details ── */}
       {resultImages.length > 0 && <ResultImages images={resultImages} />}
-      {/* fork:imagegen —— generate_image 的结果卡：路径存在 details.images 里（content
-          永不含 base64，会话文件只存路径元数据），预览走 /api/files。与 resultImages
-          同级常驻（收起也看得见那张图）。 */}
-      {generatedImages.length > 0 && <ResultImages images={generatedImages} />}
+      {/* fork:v6-landing —— generate_image 的结果换成画板 D-32 帧 A 的 `.d-imgen`
+          （beUI image-generation 的 V5 化）：stage 高度固定、图落盘时 nx-reveal
+          显影，卡片高度从头到尾不变；meta 行 = 文件名 + 已落盘徽章。 */}
+      {generatedImages.length > 0 && <GeneratedImagesCard images={generatedImages} />}
       {/* fork:zm-01 — 结果区（patch diff + paired result）与参数区同时过渡。 */}
       <div
         ref={resultCollapseRef}
@@ -2256,6 +2248,117 @@ function getResultDiff(result: ToolResultMessage): ResultDiff | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/* fork:v6-landing —— todo 卡 = 画板 D-32 帧 A 的 `.d-todo`（beUI todo-list 的 V5 化）。
+   折叠头：图标 + 标题 + 状态徽章 + 进度计数（tabular-nums）+ chevron；行三态
+   done / run / 待做。勾选盒复用 `.d-checkbox`（同一视觉角色），run 行的盒子是
+   loader（system.css 23a 段给它 nx-spin）。计数变化时 Motion 弹簧 pop
+   （lib/motion-pop.ts，springPop 的过冲回弹）。折叠默认展开，点了记忆在本地状态。 */
+function TodoCard({ steps }: { steps: PlanRailStep[] }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(true);
+  const countRef = useRef<HTMLSpanElement>(null);
+  const done = steps.filter((step) => step.state === "done").length;
+  const allDone = done === steps.length;
+
+  useEffect(() => {
+    springPop(countRef.current);
+  }, [done]);
+
+  return (
+    <div className="d-todo">
+      <button
+        type="button"
+        className="d-todo-btn"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        <i data-ico="list-todo" data-size="14" aria-hidden="true"></i>
+        <span>{t("chat.todos")}</span>
+        <span className={allDone ? "d-badge ok" : "d-badge mute"}>
+          {allDone ? t("chat.todosAllDone") : t("chat.todosActive")}
+        </span>
+        <span className="d-todo-count" ref={countRef}>
+          {done} / {steps.length}
+        </span>
+        <i data-ico={open ? "chevron-down" : "chevron-right"} data-size="13" aria-hidden="true"></i>
+      </button>
+      {open && (
+        <div className="d-todo-list">
+          {steps.map((step, index) => (
+            <div key={index} className={step.state ? `d-todo-row ${step.state}` : "d-todo-row"}>
+              {step.state === "run" ? (
+                <span className="d-checkbox" aria-hidden="true">
+                  <i data-ico="loader-circle" data-size="11"></i>
+                </span>
+              ) : (
+                <span className={step.state === "done" ? "d-checkbox on" : "d-checkbox"} aria-hidden="true">
+                  <i data-ico="check" data-size="10"></i>
+                </span>
+              )}
+              <span className="d-todo-text">{step.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* fork:v6-landing —— generate_image 的结果卡 = 画板 D-32 帧 A / D-33 帧 C 的
+   `.d-imgen`（beUI image-generation 的 V5 化）。stage 高度固定（160px），图落盘时
+   `nx-reveal` 显影（模糊低饱和 → 清晰，system.css 23c 段的 CSS 动画），meta 行 =
+   文件名 + 已落盘徽章 —— 卡片高度从头到尾不变，消息流不跳动。点图仍走 ImagePreview
+   灯箱（cover 只影响卡内观感，灯箱里看原图）。多图 = 横向 wrap 的多张卡。 */
+function GeneratedImagesCard({ images }: { images: ImageContent[] }) {
+  const { t } = useI18n();
+  return (
+    <div className="d-tool-body" style={{ display: "flex", gap: "var(--nx-sp-2)", flexWrap: "wrap" }}>
+      {images.map((image, index) => {
+        const src = imageSource(image);
+        if (!src) return null;
+        return (
+          <figure
+            className="d-imgen"
+            key={`${src}-${index}`}
+            style={{ flex: "1 1 280px", maxWidth: "100%", margin: 0 }}
+          >
+            <div className="d-imgen-stage">
+              <ImagePreview src={src} style={{ width: "100%", height: "100%", display: "block" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt=""
+                  loading="lazy"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+              </ImagePreview>
+            </div>
+            <figcaption className="d-imgen-meta">
+              <i data-ico="sparkle" data-size="12" aria-hidden="true"></i>
+              <span className="d-grow">{fileNameFromUrl(src) ?? t("chat.imagegenTitle")}</span>
+              <span className="d-badge ok">
+                <i data-ico="circle-check" data-size="11" aria-hidden="true"></i>
+                {t("chat.imageSaved")}
+              </span>
+            </figcaption>
+          </figure>
+        );
+      })}
+    </div>
+  );
+}
+
+/* 从 /api/files/<path>?type=read 的 URL 里取落盘文件名（decode 失败就退回 null）。 */
+function fileNameFromUrl(url: string): string | null {
+  try {
+    const pathname = new URL(url, "http://localhost").pathname;
+    const name = decodeURIComponent(pathname.split("/").pop() ?? "");
+    return name || null;
+  } catch {
+    return null;
+  }
 }
 
 /* fork:v5-landing —— 内容块按画板 D-03b 帧 B「非文本内容块」给形状：

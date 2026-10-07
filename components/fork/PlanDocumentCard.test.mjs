@@ -66,12 +66,13 @@ test("接线：工具卡把计划 details 交给卡片，并把宿主的 onOpenF
   assert.match(messageView, /onOpenFile=\{onOpenFile \? \(filePath\) => onOpenFile\(filePath\) : undefined\}/, "复用宿主既有的打开通道");
   // 失败的那次不画卡
   assert.match(messageView, /!result\?\.isError && isPlanToolDetails/);
-  // fork:v5-landing D-03 帧 C —— 轨道的接线：真实步骤只从 `todo` 工具结果来
-  // （`isTodoDetails`），纯 `list` 不画（否则同一张卡连排两遍），窄屏不画
-  // （PWA 库没有 m-plan-*，不发明类名）。
+  // fork:v5-landing D-03 帧 C —— 步骤数据的接线：真实步骤只从 `todo` 工具结果来
+  // （`isTodoDetails`），纯 `list` 不画（否则同一张卡连排两遍），窄屏不画。
+  // fork:v6-landing —— 渲染件从 <PlanRail> 换成 <TodoCard>（D-32 的 .d-todo），
+  // PlanRail 留在 PlanDocumentCard 内部继续服务计划文档卡。
   assert.match(messageView, /isTodoDetails\(result\?\.details\)/, "todo 工具结果里的真实步骤要被认出来");
   assert.match(messageView, /todo\.action !== "list"/, "纯读取动作不重复画同一张卡");
-  assert.match(messageView, /<PlanRail steps=\{todoSteps\} \/>/, "轨道只接真实步骤");
+  assert.match(messageView, /<TodoCard steps=\{todoSteps\} \/>/, "真实步骤交给 D-32 的 todo 卡");
 });
 
 test("轨道：状态档逐字来自画板，且没有步骤就不画", () => {

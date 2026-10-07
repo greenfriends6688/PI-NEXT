@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-32 · V6 提案 · Agent 会话全景 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-32 · V6 提案 · Agent 会话全景</h1>
+  <p>
+    V5 的骨架不动（三栏 / 发丝线 / 唯一强调色），把 beUI「AI Agents」组（MIT）的四个会话件
+    融进一轮真实跑动：任务清单（todo-list）、审批卡（approval-card）、生成图片卡（image-generation）、
+    消息导航轨（preview-rail），外加语音球（voice-orb）与行内引用标（citations）。
+    三条纪律：① <b>外来件全部 V5 化</b> —— 类名进 system.css 23 段，令牌取同一套，不引入 Tailwind / motion / shiki；
+    ② <b>过程仍然只有一条时间轴</b>，新卡片是时间轴上的「块」，不是第二棵树；
+    ③ <b>运行中的会话一张剧照说清</b>：顶部语音球在呼吸，发送键已换成停止键。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：工作台 / 转录区</span>
+    <span class="d-tag">组件：TodoCard · ApproveCard · ImageGenCard · NavRail · VoiceOrb（beUI 借鉴）</span>
+    <span class="d-tag">状态：运行中 · 审批待决策 · 生图显影 · 流式光标</span>
+  </div>
+</header>
+
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 一轮正在跑的会话（1440×900）<span class="d-grow"></span>新四件：任务清单 / 审批卡 / 生图卡 / 右缘导航轨</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+
+        <!-- 侧栏：V5 原样，只让运行中的那一行继续用乱码刷新语义 -->
+        <aside class="d-side">
+          <div class="d-side-head">
+            <div class="d-logo"><img src="../../assets/brand/logo.png" alt=""></div>
+            <span class="d-t-b">PI NEXT</span>
+            <span class="d-grow"></span>
+            <button class="d-iconbtn" title="新会话"><i data-ico="plus" data-size="15"></i></button>
+          </div>
+          <div class="d-side-scroll">
+            <div class="d-searchfield" style="margin-bottom:var(--nx-sp-2)"><i data-ico="search" data-size="13"></i><input placeholder="搜索会话"></div>
+            <div class="d-group-title">今天</div>
+            <button class="d-sess running is-on">
+              <span class="d-sess-t">修复登录页布局并配发布图</span>
+              <span class="d-sess-m"><i data-ico="loader-circle" data-size="11"></i>正在运行 · 第 2 步</span>
+            </button>
+            <button class="d-sess">
+              <span class="d-sess-t">调用轨迹面板的字段映射</span>
+              <span class="d-sess-m">14 条消息 · 2 小时前</span>
+            </button>
+            <button class="d-sess unread">
+              <span class="d-sess-t">生图档案的引用模式</span>
+              <span class="d-sess-m">6 条消息 · 完成</span>
+            </button>
+            <div class="d-group-title">昨天</div>
+            <button class="d-sess">
+              <span class="d-sess-t">会话行高与虚拟列表</span>
+              <span class="d-sess-m">31 条消息 · 完成</span>
+            </button>
+            <button class="d-sess">
+              <span class="d-sess-t">MCP 曝光四档的落地</span>
+              <span class="d-sess-m">12 条消息 · 完成</span>
+            </button>
+          </div>
+          <div class="d-side-foot">
+            <button class="d-iconbtn" title="设置"><i data-ico="settings" data-size="15"></i></button>
+            <span class="d-t-xs d-t-faint">v0.2</span>
+          </div>
+        </aside>
+
+        <!-- 主区 -->
+        <main class="d-main">
+          <div class="d-topbar">
+            <div class="d-tb-stack">
+              <span class="d-tb-title">修复登录页布局并配发布图</span>
+              <span class="d-tb-sub">~/pi-cwd-workbench · main</span>
+            </div>
+            <span class="d-grow"></span>
+            <span class="d-badge mute"><i data-ico="sparkles" data-size="11"></i>claude-opus-4-6</span>
+            <span class="d-sep-v"></span>
+            <span class="d-orb live" title="语音活动：正在输出"></span>
+            <span class="d-run"><i data-ico="loader-circle" data-size="12"></i>正在运行 · 4:12</span>
+            <span class="d-ring" style="--p:38" title="上下文占用 38%"></span>
+          </div>
+
+          <div class="d-chat" style="padding:var(--nx-sp-4) var(--nx-sp-8) var(--nx-sp-5)">
+            <div class="d-chat-inner">
+
+              <!-- 用户 -->
+              <div class="d-msg-user">
+                登录页的表单在窄屏挤成一团，修一下；顺手给 v0.2 的发布说明配一张 16:9 的封面图。
+                <div class="d-msg-acts is-on">
+                  <button class="d-iconbtn" title="从这里编辑"><i data-ico="pencil" data-size="12"></i></button>
+                  <button class="d-iconbtn" title="复制"><i data-ico="copy" data-size="12"></i></button>
+                </div>
+              </div>
+
+              <!-- AI 轮 -->
+              <div class="d-msg-ai">
+                <div class="d-msg-ai-head">
+                  <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+                  <span class="d-t-b">PI NEXT</span>
+                  <span class="d-badge mute">计划 · 5 步</span>
+                </div>
+
+                <!-- 思考：收起态一行 -->
+                <details class="d-think">
+                  <summary><i data-ico="brain" data-size="12"></i>先看了 LoginCard 的三个断点，窄屏问题的根因是栅格没参与折叠…<span class="d-grow"></span><span class="d-think-timer">6.8s</span></summary>
+                  <div class="d-think-body"><p>占位：展开后的推理正文。</p></div>
+                </details>
+
+                <!-- 任务清单（beUI todo-list → d-todo） -->
+                <div class="d-todo">
+                  <button class="d-todo-btn">
+                    <i data-ico="list-todo" data-size="14"></i>
+                    <span>任务清单</span>
+                    <span class="d-badge mute">进行中</span>
+                    <span class="d-todo-count d-num">2 / 5</span>
+                    <i data-ico="chevron-down" data-size="13"></i>
+                  </button>
+                  <div class="d-todo-list">
+                    <div class="d-todo-row done">
+                      <span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span>
+                      <span class="d-todo-text">量 LoginCard 的三处栅格断点</span>
+                    </div>
+                    <div class="d-todo-row done">
+                      <span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span>
+                      <span class="d-todo-text">改 login-form.css：窄屏并入单列</span>
+                    </div>
+                    <div class="d-todo-row run">
+                      <span class="d-checkbox"><i data-ico="loader-circle" data-size="11"></i></span>
+                      <span class="d-todo-text">跑登录相关的测试</span>
+                    </div>
+                    <div class="d-todo-row">
+                      <span class="d-checkbox"></span>
+                      <span class="d-todo-text">生成 16:9 发布封面图</span>
+                    </div>
+                    <div class="d-todo-row">
+                      <span class="d-checkbox"></span>
+                      <span class="d-todo-text">把配图写进发布说明</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 审批卡（beUI approval-card → d-approve） -->
+                <div class="d-approve">
+                  <div class="d-approve-head">
+                    <i data-ico="shield-alert" data-size="14"></i>
+                    <span>要运行一条命令</span>
+                    <span class="d-badge mute">第 2 / 3 步</span>
+                  </div>
+                  <div class="d-approve-body">
+                    <div class="d-term plain d-mono"><span class="d-term-prompt">$</span> npm run test:clean -- --force-cache</div>
+                    这会清掉 <span class="d-mono">.next/cache</span> 再跑全量测试，约 3 分钟。
+                  </div>
+                  <div class="d-approve-acts">
+                    <button class="d-btn sm primary">允许一次</button>
+                    <button class="d-btn sm">本次会话总是允许</button>
+                    <button class="d-btn sm danger ghost">拒绝</button>
+                    <span class="d-grow"></span>
+                    <span class="d-t-xs d-t-faint"><span class="d-kbd">⏎</span> 允许 · <span class="d-kbd">Esc</span> 拒绝</span>
+                  </div>
+                </div>
+
+                <!-- 生成图片卡（beUI image-generation → d-imgen）：图正在显影 -->
+                <div class="d-imgen">
+                  <div class="d-imgen-stage" id="d32-imagen" style="height:120px">
+                    <div class="d-skel"></div>
+                    <img src="../../assets/brand/logo.png" alt="">
+                  </div>
+                  <div class="d-imgen-meta">
+                    <i data-ico="sparkle" data-size="12"></i>
+                    <span class="d-grow">「深空蓝紫渐变 · v0.2 发布封面 · 16:9」</span>
+                    <span class="d-badge mute">1792×1024</span>
+                    <span class="d-badge info"><i data-ico="loader-circle" data-size="11"></i>显影中</span>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- 消息导航轨（beUI preview-rail → d-navrail）：右缘细刻度 + 悬停预览 -->
+          <div class="d-navrail">
+            <span class="d-navtick done near" data-demo-spring-hover="1.5"></span>
+            <span class="d-navtick done near" data-demo-spring-hover="1.5"></span>
+            <span class="d-navtick now mid" data-demo-spring-hover="1.5"></span>
+            <span class="d-navtick far" data-demo-spring-hover="1.5"></span>
+            <span class="d-navtick far" data-demo-spring-hover="1.5"></span>
+          </div>
+          <div class="d-navpop" style="top:46%">
+            <div class="d-navpop-t"><i data-ico="message-square" data-size="11"></i>第 2 轮 · 你</div>
+            登录页的表单在窄屏挤成一团，修一下；顺手给 v0.2 的发布说明配一张 16:9 的封面图。
+          </div>
+
+          <!-- 输入框：运行中（环绕光带 + 停止键） -->
+          <div class="d-composer-wrap">
+            <div class="d-ctxbar">
+              <button class="d-chipbtn"><i data-ico="folder" data-size="12"></i><span class="d-ctx-name">pi-cwd-workbench</span></button>
+              <button class="d-chipbtn"><i data-ico="git-branch" data-size="12"></i>main</button>
+            </div>
+            <div class="d-composer">
+              <div class="d-chips">
+                <button class="d-chipbtn is-on"><i data-ico="paperclip" data-size="11"></i>login-form.css</button>
+                <button class="d-chipbtn"><i data-ico="image" data-size="11"></i>发布封面.png</button>
+              </div>
+              <input class="d-input" placeholder="排队下一条，或用 @ 引用文件…" value="">
+              <div class="d-composer-bar">
+                <button class="d-select"><i data-ico="sparkles" data-size="12"></i>claude-opus-4-6<i data-ico="chevrons-up-down" data-size="11"></i></button>
+                <button class="d-select"><i data-ico="brain" data-size="12"></i>high<i data-ico="chevrons-up-down" data-size="11"></i></button>
+                <button class="d-select"><i data-ico="wrench" data-size="12"></i>默认<i data-ico="chevrons-up-down" data-size="11"></i></button>
+                <span class="d-grow"></span>
+                <span class="d-t-xs d-t-faint">排队 1 条</span>
+                <button class="d-send stop" title="停止"><i data-ico="square" data-size="12"></i></button>
+              </div>
+            </div>
+          </div>
+        </main>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 同一张板的深色 ───────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 新四件在深色下（点右上「深色」按钮即本帧）<span class="d-grow"></span>组件不为深色单写规则，全是变量覆盖</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body" data-demo-scope>
+      <div class="d-grid3" style="padding:var(--nx-sp-4); gap:var(--nx-sp-3)">
+        <div class="d-col">
+          <span class="d-subhead">任务清单 · 全部完成</span>
+          <div class="d-todo">
+            <button class="d-todo-btn">
+              <i data-ico="list-todo" data-size="14"></i><span>任务清单</span>
+              <span class="d-badge ok">已完成</span>
+              <span class="d-todo-count">5 / 5</span>
+              <i data-ico="chevron-down" data-size="13"></i>
+            </button>
+            <div class="d-todo-list">
+              <div class="d-todo-row done"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span class="d-todo-text">量断点</span></div>
+              <div class="d-todo-row done"><span class="d-checkbox on"><i data-ico="check" data-size="10"></i></span><span class="d-todo-text">改栅格</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="d-col">
+          <span class="d-subhead">生成图片 · 完成（无布局偏移）</span>
+          <div class="d-imgen">
+            <div class="d-imgen-stage"><img src="../../assets/brand/logo.png" alt=""></div>
+            <div class="d-imgen-meta">
+              <i data-ico="sparkle" data-size="12"></i>
+              <span class="d-grow">发布封面 · 已落盘</span>
+              <span class="d-badge ok"><i data-ico="circle-check" data-size="11"></i>完成</span>
+            </div>
+          </div>
+        </div>
+        <div class="d-col">
+          <span class="d-subhead">语音球 · 两态（idle / live）</span>
+          <div class="d-card"><div class="d-card-body d-row" style="gap:var(--nx-sp-4)">
+            <span class="d-orb"></span>
+            <span class="d-t-xs d-t-faint">idle · 3.2s 呼吸</span>
+            <span class="d-orb live"></span>
+            <span class="d-t-xs d-t-faint">live · 1.6s + 波纹</span>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>beUI → V6 映射（抄规格不抄实现）</b>
+  <table class="d-table">
+    <thead><tr><th>beUI 组件（MIT）</th><th>V6 落点</th><th>取舍</th></tr></thead>
+    <tbody>
+      <tr><td>todo-list</td><td class="d-mono">.d-todo*</td><td>折叠头进度计数 + 行三态；勾选盒复用 .d-checkbox，运行行用 loader 图标</td></tr>
+      <tr><td>approval-card</td><td class="d-mono">.d-approve*</td><td>决策卡三钮横排；卡身中性，危险只在命令与拒绝钮；多步用 .d-badge</td></tr>
+      <tr><td>image-generation</td><td class="d-mono">.d-imgen*</td><td>三阶段共用 stage 盒，显影 nx-reveal；高度从头到尾不变</td></tr>
+      <tr><td>preview-rail</td><td class="d-mono">.d-navrail / .d-navpop</td><td>右缘细刻度按距离定长；预览卡复用面板语言；不与 .d-minimap 互斥</td></tr>
+      <tr><td>voice-orb</td><td class="d-mono">.d-orb</td><td>画板用 CSS 近似（呼吸 + 波纹）；产品化换 canvas 渲染器，activity 语义保留</td></tr>
+      <tr><td>citations</td><td class="d-mono">.d-cite-mark</td><td>正文上标 + 来源集合复用 .d-cite 芯片；favicon 依赖不引入</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:var(--nx-sp-2)">重播生图显影：<button class="d-btn sm ghost" data-demo-spring="#d32-imagen" data-demo-spring-kind="reveal"><i data-ico="rotate-cw" data-size="12"></i>重播</button></p>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/vendor/motion.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

@@ -848,13 +848,17 @@ test("思考行 = 画板 D-03d 帧 A / D-27 帧 A 的 .d-think-row（点阵 + �
   assert.match(source, /if \(!active\) \{[\s\S]{0,80}setSeconds\(0\)/);
 });
 
-test("todo 工具结果画成画板 D-03 帧 C 的计划卡（真实步骤 → .d-plan-rail）", () => {
-  assert.match(source, /import \{ PlanDocumentCard, PlanRail, type PlanRailStep \} from "\.\/fork\/PlanDocumentCard"/);
+test("todo 工具结果画成画板 D-32 帧 A 的 todo 卡（真实步骤 → .d-todo-list）", () => {
+  // fork:v6-landing —— 卡从 D-03 的 .d-plan 换成 D-32 的 .d-todo（beUI todo-list 的
+  // V5 化）；PlanRail 的步骤数据通路不变，勾选盒复用 .d-checkbox。
+  assert.match(source, /import \{ PlanDocumentCard, type PlanRailStep \} from "\.\/fork\/PlanDocumentCard"/);
   assert.match(source, /const todo = !result\?\.isError && isTodoDetails\(result\?\.details\) \? result\.details : null;/);
   // 「进行中」= 最老的一条未完成项（todo 工具没有 current 字段，与 TodoChip 同口径）。
   assert.match(source, /const activeId = todo\.todos\.find\(\(item\) => !item\.done\)\?\.id \?\? null;/);
-  assert.match(source, /<span className="d-grow">\{t\("chat\.todos"\)\}<\/span>/);
-  assert.match(source, /<PlanRail steps=\{todoSteps\} \/>/);
+  assert.match(source, /<TodoCard steps=\{todoSteps\} \/>/);
+  assert.match(source, /className=\{step\.state === "done" \? "d-checkbox on" : "d-checkbox"\}/);
+  // 计数变化走 Motion 弹簧（画板 D-35 帧 F 裁定的产品落地）。
+  assert.match(source, /springPop\(countRef\.current\)/);
 });
 
 test("思考行只画在尾块上：isStreamingTail 由 AssistantMessageView 逐块算，不各自另算", () => {
@@ -883,4 +887,46 @@ test("fork:thinking-typewriter —— 思考正文也走逐字揭示，且用纯
   assert.match(block, /const revealedThinking = useTypewriterReveal\(/);
   assert.match(block, /Boolean\(live\) && !error && !loading && motion !== "reduce"/);
   assert.match(block, /\) : revealedThinking\}/);
+});
+
+test("fork:v6-landing —— 行内引用标：正文里指向本轮写过的文件的链接带 .d-cite-mark", () => {
+  /* 用户 2026-10-07 裁定「V6 三件全落」。来源集 = 这一轮写过的文件（与底部
+     `.d-cites` 同一份 writtenFiles），位次从 1 起；只有**显式指向来源文件的本地
+     链接**带标 —— 正文里的裸路径不猜（会误标）。 */
+  const html = renderMessage(
+    {
+      role: "assistant",
+      content: [{ type: "text", text: "改在 [AppShell.tsx](/proj/components/AppShell.tsx) 里。" }],
+    },
+    {
+      cwd: "/proj",
+      writtenFiles: [{ filePath: "/proj/components/AppShell.tsx" }],
+      onOpenFile: () => {},
+    },
+  );
+  assert.match(html, /<sup class="d-cite-mark">1<\/sup>/);
+
+  // 同一段正文，但这一轮没有写过文件 → 不加标（不猜来源）。
+  const noSources = renderMessage(
+    {
+      role: "assistant",
+      content: [{ type: "text", text: "改在 [AppShell.tsx](/proj/components/AppShell.tsx) 里。" }],
+    },
+    { cwd: "/proj", onOpenFile: () => {} },
+  );
+  assert.doesNotMatch(noSources, /d-cite-mark/);
+
+  // 正文提到一个**不在来源集**里的文件 → 不加标。
+  const otherFile = renderMessage(
+    {
+      role: "assistant",
+      content: [{ type: "text", text: "见 [other.ts](/proj/other.ts)。" }],
+    },
+    {
+      cwd: "/proj",
+      writtenFiles: [{ filePath: "/proj/components/AppShell.tsx" }],
+      onOpenFile: () => {},
+    },
+  );
+  assert.doesNotMatch(otherFile, /d-cite-mark/);
 });

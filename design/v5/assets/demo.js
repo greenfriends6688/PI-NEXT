@@ -8,6 +8,9 @@
  *       目标上的 CSS 动画被强制重启（animation:none → reflow → 复原）。
  *       目标树里的动画一起重播，所以点一下能同时看柱条与折线的入场。
  *
+ *   12) motion 弹簧（vendor Motion，画板家具层，永不进产品）：
+ *        <button data-demo-spring="#t" data-demo-spring-kind="pop" data-demo-spring-mode="spring">
+ *
  *   11) 切状态类（动效里由类驱动的那一半）：
  *        <button data-demo-motion="#row" data-demo-motion-class="is-open">展开</button>
  *        再给一个 "is-closing" 的按钮就能演收起；不带 class 时只重播动画。
@@ -161,6 +164,11 @@
       var node = from.content ? from.content.cloneNode(true) : from.cloneNode(true);
       to.appendChild(node);
       var last = to.lastElementChild;
+      var M = window.Motion;
+      if (btn.getAttribute("data-demo-append-spring") && M && typeof M.animate === "function" && last) {
+        /* 新消息弹簧浮入：位移过冲（落过头半格再回）—— CSS 入场类同时存在但被覆盖 */
+        M.animate(last, { y: [-8, 0], opacity: [0, 1] }, { type: "spring", stiffness: 380, damping: 16 });
+      }
       if (last && last.scrollIntoView) last.scrollIntoView({ block: "end", behavior: "smooth" });
     });
   });
@@ -249,6 +257,62 @@
         if (frame >= total) { clearInterval(timer); el.textContent = finalText; delete el.dataset.scrambling; }
       }, 45);
     });
+  });
+
+  /* 12 · motion 弹簧（D-35 帧 F）：vendor 的 Motion（MIT，assets/vendor/motion.js）
+     驱动一次动画。声明式：<button data-demo-spring="#target"
+     data-demo-spring-kind="pop|flip|rise" data-demo-spring-mode="spring|tween">。
+     spring 带过冲（beUI 手感），tween 是 V5 缓动曲线 —— 同一帧里对照两种物理。 */
+  $$("[data-demo-spring]").forEach(function (btn) {
+    once(btn, function () {
+      var M = window.Motion;
+      if (!M || typeof M.animate !== "function") return;
+      var el = $(btn.getAttribute("data-demo-spring"));
+      if (!el) return;
+      var kind = btn.getAttribute("data-demo-spring-kind") || "pop";
+      var mode = btn.getAttribute("data-demo-spring-mode") || "spring";
+      var spring = { type: "spring", stiffness: 420, damping: 14, mass: .6 };
+      var tween = { duration: .28, ease: [.22, .61, .36, 1] };
+      /* 显影：出现类动效过冲会怪（opacity 冲过 1 无意义），但由 Motion 驱动、
+         用更长的 tween —— 模糊低饱和 → 清晰，与 CSS 版 nx-reveal 同曲线。 */
+      if (kind === "reveal") {
+        M.animate(el, { opacity: [.12, 1], filter: ["blur(18px) saturate(.55)", "blur(0px) saturate(1)"] },
+          { duration: .9, ease: [.16, .84, .28, 1] });
+        return;
+      }
+      /* 逐行浮入：容器的每个直接子元素依次弹簧入场（40ms 错峰），
+         y 上的过冲让行「落下时多压半格再弹回」—— beUI 渐进行的手感。 */
+      if (kind === "stagger") {
+        Array.prototype.forEach.call(el.children, function (row, i) {
+          M.animate(row, { y: [-6, 0], opacity: [0, 1] },
+            Object.assign({}, spring, { delay: i * .04 }));
+        });
+        return;
+      }
+      /* Motion 12 的 spring 只吃单值目标（keyframes 数组静默不跑），所以是
+         两段式：弹出到极值，finished 后弹簧回位 —— 过冲就发生在回程。 */
+      var K = kind === "pop"  ? { out: { scale: 1.18 }, back: { scale: 1 } }
+            : kind === "flip" ? { out: { rotateX: 90 }, back: { rotateX: 0 } }
+            : { out: { y: -10 }, back: { y: 0 } };
+      var conf = mode === "spring" ? spring : tween;
+      var a1 = M.animate(el, K.out, conf);
+      Promise.resolve(a1 && a1.finished).then(function () {
+        M.animate(el, K.back, conf);
+      }).catch(function () {});
+    });
+  });
+
+  /* 12b · 悬停弹簧（D-33 导航轨刻度等）：enter 放大到目标值、leave 弹回，
+     两段都是 spring —— CSS :hover 做不出过冲回弹。属性值即目标缩放。 */
+  $$("[data-demo-spring-hover]").forEach(function (el) {
+    if (el.dataset.springHoverBound) return;
+    el.dataset.springHoverBound = "1";
+    var M = window.Motion;
+    if (!M || typeof M.animate !== "function") return;
+    var to = parseFloat(el.getAttribute("data-demo-spring-hover")) || 1.4;
+    var spring = { type: "spring", stiffness: 500, damping: 18 };
+    el.addEventListener("mouseenter", function () { M.animate(el, { scale: to }, spring); });
+    el.addEventListener("mouseleave", function () { M.animate(el, { scale: 1 }, spring); });
   });
 
   /* 9 · 主题切换（v5）：一键切浅/深 —— 同一套类名，变量板翻转 */

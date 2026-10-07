@@ -19,7 +19,8 @@ function elementBlock() {
 test("shows the scroll-to-latest button only when the viewport is detached from the tail", () => {
   assert.match(
     source,
-    /className=\{`chat-scroll-to-bottom\$\{showScrollToBottom && !pendingScrollRestore \? " is-visible" : ""\}`\}/,
+    /className=\{`chat-scroll-to-bottom d-jump\$\{showScrollToBottom && !pendingScrollRestore \? " is-visible" : ""\}`\}/,
+    // fork:v6-landing —— 类列表多了 `d-jump`(画板 D-35 的视觉接管),显隐仍是同一个类切换
     "visibility must be a class toggle so the exit transition can play",
   );
 });

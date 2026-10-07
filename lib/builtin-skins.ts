@@ -40,13 +40,23 @@ export const BUILTIN_SKIN_LABEL_KEYS: Record<string, string> = {
   [MAC_SKEUO_SKIN_ID]: MAC_SKEUO_SKIN_LABEL_KEY,
 };
 
+/**
+ * fork:mac-skeuo-retired — 用户 2026-10-07 裁定把「Mac 拟物」从皮肤卡片条撤下。
+ *
+ * **实现一个字没删**：皮肤定义（`lib/mac-skeuo.ts`）、材质层（`app/fork-mac-skeuo.css`）、
+ * label key、门禁测试全部留着，只是不进 `BUILTIN_SKINS`（卡片条与解析用的清单）。
+ * 想再上：把 `MAC_SKEUO_SKIN_ID` 从下面这个清单里删掉（或把清单清空）就行 —— 这是唯一的开关。
+ * 已经选了它的用户会自然回落成默认皮肤（`findActiveSkinIncludingBuiltins` 找不到 → null）。
+ */
+export const RETIRED_BUILTIN_SKIN_IDS: ReadonlySet<string> = new Set([MAC_SKEUO_SKIN_ID]);
+
 export const BUILTIN_SKINS: ThemeSkin[] = [
   ...BUILTIN_WALLPAPERS.map((item) =>
     createSkinDraft(builtinSkinId(item.id), "", "dark", { wallpaper: paintingPath(item.id) }),
   ),
   // fork:mac-skeuo — 「Mac拟物风格」没有壁纸（它是**材质**皮肤，不是画作皮肤），
   // 所以不进 BUILTIN_WALLPAPERS（那份清单的每一条都要 paintingPath(item.id)）。
-  MAC_SKEUO_SKIN,
+  ...[MAC_SKEUO_SKIN].filter((skin) => !RETIRED_BUILTIN_SKIN_IDS.has(skin.id)),
 ];
 
 export function isBuiltinSkinId(id: string): boolean {

@@ -96,8 +96,6 @@ import { useAudio } from "@/hooks/useAudio";
 import { copyText } from "@/lib/clipboard";
 import { sendAgentCommand } from "@/lib/agent-client";
 import { getFileName, joinFilePath, sameFilePath } from "@/lib/file-paths";
-// fork:mobile-tb-subtitle —— 副行里的目录名与项目行同一个规则（lib/project-prefs.ts）。
-import { pathBasename } from "@/lib/project-prefs";
 import { getFileExt } from "@/lib/file-types";
 import { buildAtMentionText, buildFileAtMentionsText } from "@/lib/file-fuzzy";
 import {
@@ -2290,15 +2288,22 @@ export function AppShell() {
           尺寸来源）。产品里那条身份行在 MessageView（属另一波），而这条工作包把
           `m-brand` 交给抽屉：手机抽屉顶部就是品牌位，`.m-drawer-head`（会话 + 关闭）
           仍按画板保持在它下面。
-          尾件是画板同一行的 `.m-badge mute`，接**真实数据**：板面写的是模型名，
-          而这一层（AppShell 的抽屉头）拿不到模型标签，能拿到的真数据是当前项目名。
-          版本号不重复写在这里 —— 它是 `.m-drawer-foot` 的尾件（M-04 帧 A 原文）。 */}
+          fork:pwa-drawer-brand（2026-10-06 用户裁定）—— 板面那一行的尾件是 `.m-badge mute`，
+          产品原来拿它装当前项目名（板面写的是模型名，这一层拿不到模型标签）。用户看到
+          的是同一个名字在一行里写三遍（图标 + `.m-t-b` 文本 + 项目名徽章，而本项目恰好
+          也叫 PI NEXT），所以尾件撤掉、文本换成与桌面同一张字标图 `.m-wordmark`。
+          版本号仍不写在这里 —— 它是 `.m-drawer-foot` 的尾件（M-04 帧 A 原文）。 */}
       {isMobile && (
         <div className="nx-row m-t-sm" style={{ gap: "var(--nx-sp-2)", padding: "0 var(--nx-sp-3) var(--nx-sp-2)" }}>
           {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
           <img className="m-brand" src="/pi-next-logo.png" alt="PI NEXT" draggable={false} />
-          <span className="m-t-b">PI NEXT</span>
-          {activeCwdName ? <span className="m-badge mute">{activeCwdName}</span> : null}
+          {/* fork:pwa-drawer-brand（2026-10-06 用户裁定）—— 品牌位只留两枚图：图标 + 字标图。
+              原来图标后面跟着两行「PI NEXT」文本（`.m-t-b` 实色文本 + `.m-badge` 项目名，
+              后者在这个仓库恰好也叫 PI NEXT），用户看到的就是同一个名字写三遍。
+              字标换成与桌面同一张 `pi-next-wordmark.png`（`.d-wordmark` 的窄屏对位件
+              `.m-wordmark`），项目名徽章撤掉 —— 当前项目在分组标题与输入卡上都有。 */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
+          <img className="m-wordmark" src="/pi-next-wordmark.png" alt="" draggable={false} />
         </div>
       )}
       <SessionSidebar
@@ -2347,7 +2352,10 @@ export function AppShell() {
           onClick={() => setSettingsSection("phonePush")}
           title={translate("phonePush.quickOpen")}
           aria-label={translate("phonePush.quickOpen")}
-          className={isMobile ? "m-top-btn" : "d-iconbtn"}
+          /* fork:pwa-drawer-foot-icon（2026-10-06 用户裁定）—— 底栏这枚不是浮在内容上的
+             顶栏钮，不该有那圈玻璃圆底：`.m-top-btn` 换成无底的 `.m-iconbtn`（同尺寸族，
+             `:active` 才给一层浅底）。 */
+          className={isMobile ? "m-iconbtn" : "d-iconbtn"}
           data-fork-quick="phone-push"
         >
           <i data-ico="smartphone" data-size={isMobile ? "15" : "14"} aria-hidden="true"></i>
@@ -2666,39 +2674,24 @@ export function AppShell() {
   };
 
   /* fork:design-components —— 顶栏标题 = 画板 D-01/D-02 的 `.d-tb-stack`：
-     `d-tb-title`（一枚淡色 panel-left + 标题文本）+ `d-tb-sub`（手机副行）。
+     `d-tb-title` 一个节点，**没有副行**（fork:no-tb-sub-everywhere）。
      它曾经是「最近会话」下拉的触发钮（fork:ui-18），那一档已按用户要求撤掉
      （fork:no-recent-sessions），所以现在是纯文本而不是 `<button>`。手机上表头左侧
      已经有自己的 panel-left / menu 钮，所以这里不再重复一枚图标。 */
-  /* fork:mobile-tb-subtitle（2026-10-03）—— 手机顶栏的**会话身份副行**。
-
-     窄屏看不到这个会话在哪个目录里 —— 桌面靠侧栏项目树与输入框上方的 `.pw-ctxbar`，
-     而手机上抽屉是关着的，副行是唯一能一眼说清「我在哪」的地方。上下文百分比同理：
-     环只在浮窗里报数，副行是常驻的那个数字。
-
-     **刻意只放这两项**，不照搬参照物的五项（`cwd · model · thinking · Context% · 运行中`）：
-       · model 与 thinking 已经在输入区常驻（行一的模型选择器、行二的思考芯片）——
-         再放一份就是「同一块屏上摆两枚同一个读数」，AGENTS.md 为这种事记过好几次裁定；
-       · 「运行中」也不用写：发送钮这时已经翻成「停止」，比一个词更明确。
-     副行只在手机渲染（`is-stacked` 只挂窄屏），桌面那一行一字不变。 */
-  const topBarSubtitle = (() => {
-    if (!selectedSession) return null;
-    const parts: string[] = [];
-    if (selectedSession.cwd) parts.push(pathBasename(selectedSession.cwd));
-    const percent = sessionStats?.contextUsage?.percent;
-    if (typeof percent === "number") parts.push(`${translate("topbar.context")} ${Math.round(percent)}%`);
-    return parts.length > 0 ? parts.join(" · ") : null;
-  })();
+  /* fork:no-tb-sub-everywhere（2026-10-07 用户第二次裁定）—— 顶栏副行**整件删掉**。
+     历史：fork:mobile-tb-subtitle（2026-10-03）只在窄屏渲染「cwd · 上下文 %」；
+     fork:no-tb-sub（2026-10-05）把桌面那一行撤掉（项目名在侧栏 / 文件面板头 /
+     输入卡上已写三遍）；fork:v6-landing（2026-10-07 上午）又按画板把它在桌面恢复。
+     用户今天实拍顶栏标题下的「PI NEXT」直接发问「你啥时候加的副标题啊」，并再次
+     要求去掉 —— 所以桌面与窄屏两条一起删，`topBarSubtitle` /
+     `desktopTopBarSubtitle` 两个取值函数也一并删除（不留空壳）。 */
 
   const renderSessionTitle = () => {
-    const subtitle = topBarSubtitle;
     /* fork:v5-wave-b-2026-10-04 —— 窄屏标题照画板 M-01 帧 A / M-04 帧 A / M-12 帧 A
        的 `<span class="m-top-title m-grow">设计体系 V5 · PWA 画板</span>` 落成：
        `.m-top-title`（fs-lg / 600 / 单行省略）此前在产品里没挂过 —— 手机顶栏标题
        一直是 `.d-tb-stack` 一套，而 d-* 只在 ≥641 生效，所以 ≤640 上这一格**没有任何
        规则命中**（长标题不省略、不换行控制）。
-       副行保留（fork:mobile-tb-subtitle 的既有功能，删它就是删功能），但换 PWA 的
-       字号件：`.m-t-xs.m-t-faint` 承担 `.d-tb-sub` 在画板里的角色。
        桌面那一支逐字不动。 */
     if (isMobile) {
       return (
@@ -2706,47 +2699,40 @@ export function AppShell() {
           /* fork:v5-frame-audit —— 画板那一格是 `<span class="m-top-title m-grow">`：
              `m-grow`（flex:1 / min-width:0）就是那一格在 `.m-top`（flex 行）里的
              位置。产品此前用内联 flex/minWidth 复刻同一件事（间距值第二个来源），
-             换成库里的类；副行（cwd · 上下文占用）是 fork:mobile-tb-subtitle 的
-             既有行为，保留。 */
+             换成库里的类。 */
           className="m-grow"
-          title={subtitle ? `${topBarSessionTitle} · ${subtitle}` : topBarSessionTitle}
+          title={topBarSessionTitle}
           style={{ display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0 }}
         >
           <span className="m-top-title">{topBarSessionTitle}</span>
-          {subtitle && <span className="m-t-xs m-t-faint">{subtitle}</span>}
         </div>
       );
     }
     return (
 <div
-  title={subtitle ? `${topBarSessionTitle} · ${subtitle}` : topBarSessionTitle}
+  title={topBarSessionTitle}
   className="d-tb-stack"
 >
   {/* fork:v5-frame-audit-2026-10-05 —— 身份块逐节点照画板：
       · 没有运行中芯片 / 分支芯片时（D-01 帧 A/B、D-02 帧 B/D、D-02b、D-02c、D-02d
-        每一帧的顶栏）就是 `d-tb-stack` 的两个平级子节点：
-        `<span class="d-tb-title">` + `<span class="d-tb-sub">`；
+        每一帧的顶栏）就是 `d-tb-stack` 的一个平级子节点 `<span class="d-tb-title">`；
       · 有芯片时（D-02 帧 A/C）板面把两者包进一枚 `span.d-row`，芯片接在标题后面。
       产品此前无条件套了 `span.d-row`，并给标题前面多加了一枚 `panel-left` 图标
       （板面标题左边是空的）—— 两处都按板面去掉。
-      · 副行：此前只在手机渲染（fork:mobile-tb-subtitle）。画板 D-01 帧 A/B/C/D 与
-        D-02 帧 A/B/C/D 的**桌面**顶栏都有一行 `d-tb-sub`，内容就是
-        「项目 · 上下文 %」—— 补上（同一份数据，零新取值）。
-        fork:no-tb-sub（2026-10-05 用户裁定）—— 那一行随后被去掉：项目名在侧栏、
-        在文件面板头、在输入卡上都已经写着，顶栏再写一遍是第四遍；而且两行叠起来
-        把标题挤到顶上去。桌面只留标题（`.d-tb-stack` 一行即居中），窄屏那行
-        （fork:mobile-tb-subtitle 的既有功能）不动。 */}
+      · 板面还有一行 `d-tb-sub`（「项目 · 上下文 %」）：fork:no-tb-sub（2026-10-05）
+        撤掉 → fork:v6-landing（2026-10-07 上午）按画板恢复 →
+        fork:no-tb-sub-everywhere（2026-10-07 当天）用户再次要求去掉。**这是对画板的
+        有意偏离**，与窄屏那一条同一个裁定。 */}
   {selectedSession && (runningSessionIds.has(selectedSession.id) || topBarBranch) ? (
     <span className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
       <span className="d-tb-title">{topBarSessionTitle}</span>
       {runningSessionIds.has(selectedSession.id) && (
         // 画板 01 帧 B：运行中在标题右侧给一枚状态芯片。
         <span className="d-chipbtn">
-          {/* fork:v5-landing —— 运行中 spinner = 画板 `.d-run`（首枚 `<i>` 自带 nx-spin），
-              不再用旧 `.pw-anim-spin`。 */}
-          <span className="d-run" style={{ gap: 0 }}>
-            <i data-ico="loader-circle" data-size="14" aria-hidden="true"></i>
-          </span>
+          {/* fork:v6-landing —— 画板 D-32 帧 A 顶栏的 `.d-orb.live`（beUI voice-orb 的
+              CSS 近似）：呼吸 + 波纹表达「这个会话活着」。它替代同位 spinner（.d-run
+              的转圈与呼吸球语义重复），文字保留。 */}
+          <span className="d-orb live" aria-hidden="true"></span>
           {translate("chat.running")}
         </span>
       )}
@@ -3630,16 +3616,19 @@ export function AppShell() {
                   内边距在 ChatWindow / MessageView 那边（不是本波的文件）—— 只挂类
                   不改那一侧的留白，结果就是渐隐盖住第一屏消息。需要 ChatInput /
                   ChatWindow 那一波一起落；
-               ③ 中间那一格仍渲染 `.d-tb-stack`（标题 + 副行）。副行是 fork:mobile-tb-subtitle
-                  的既有行为（cwd + 上下文占用），而 PWA 库没有副行类（`.m-top-title`
-                  是单行件）。删副行就是删功能，所以保留 d-* 件并登记为需设计侧裁定。 */
+               ③ 中间那一格渲染的是 `.m-top-title`（单行标题）—— fork:no-tb-sub-everywhere
+                  把副行整件删了，所以那一格不再有第二行。 */
             <div
               ref={mobileToolbarRef}
               data-mobile-toolbar="true"
               style={{
                 position: "relative",
                 display: "flex",
-                alignItems: "stretch",
+                /* fork:pwa-topbar-align（2026-10-06 用户报「三个点老是偏下一点」）——
+                   `stretch` 让带定高（44px）的子项按 flex-start 落在 53px 高的行里，
+                   于是右栏面板钮顶到 y=0、抽屉钮与 ⋯ 居中在 y=4（实测差 4px）。
+                   改 center，三枚同一个中线。 */
+                alignItems: "center",
                 flex: 1,
                 minWidth: 0,
                 height: "100%",

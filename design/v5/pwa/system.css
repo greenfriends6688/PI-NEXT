@@ -23,6 +23,9 @@
 
 /* ── 1 · 渐隐顶栏（内容从下方穿过）────────────────────────────────────────── */
 .m-brand { height: 26px; width: auto; display: block; }
+/* fork:pwa-drawer-brand（2026-10-06 用户裁定）—— 字标图：与 Web 的 `.d-wordmark` 同一张
+   `pi-next-wordmark.png`，窄屏对位件。高度与 `.d-wordmark` 同值（20px），不另立尺寸。 */
+.m-wordmark { height: 20px; width: auto; display: block; flex: 0 0 auto; }
 .m-top { position: absolute; top: 0; left: 0; right: 0; z-index: var(--nx-z-sticky);
   padding: 6px 14px 10px; display: flex; align-items: center; gap: var(--nx-sp-2);
   background: linear-gradient(to bottom, var(--nx-canvas) 42%, transparent); pointer-events: none; }
@@ -213,7 +216,7 @@
   -webkit-backdrop-filter: blur(24px) saturate(1.6);
   border-radius: var(--nx-r-xl); box-shadow: var(--nx-sh-2), var(--nx-halo);
   padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--nx-line); }
-.m-composer-row { display: flex; align-items: flex-end; gap: 8px; }
+.m-composer-row { display: flex; align-items: center; gap: 8px; }
 /* height 必须是 auto：.m-input 给的是 height 44px（单行控件），
    输入区要能长到多行，继承过来会把 rows=2 的草稿第二行裁掉 ——「草稿一个字都不丢」是硬要求。 */
 .m-composer-wrap .m-input { flex: 1 1 auto; min-width: 0; border: 0; background: none; outline: none;
@@ -309,9 +312,15 @@
   font-weight: 600; color: var(--nx-text-3); }
 .m-pop-foot { padding: var(--nx-sp-1) var(--nx-sp-3) var(--nx-sp-2); font-size: var(--nx-fs-xs);
   color: var(--nx-text-3); line-height: var(--nx-lh-body); }
-.m-menu-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--nx-ctl-md);
-  border: 0; background: none; font: inherit; font-size: var(--nx-fs-body); color: var(--nx-text);
+/* fork:pwa-menu-compact（2026-10-06 用户裁定「这个浮窗有点大」）—— 手机菜单行从
+   `--nx-ctl-md`（44）收到 `--nx-ctl-sm`（36）、字号从 `--nx-fs-body` 收到 `--nx-fs-cap`：
+   12 行的会话动作菜单从 633px 收到 ~520px。浮窗本身再封一层高度上限
+   （fork-ui.css 的 `.context-menu` 只封到 `100dvh - 16px`），超出靠它自己的
+   overflow-y 滚 —— 选择器带 `.m-pop-float`，只改窄屏形态那一支。 */
+.m-menu-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--nx-ctl-sm);
+  border: 0; background: none; font: inherit; font-size: var(--nx-fs-cap); color: var(--nx-text);
   padding: 0 12px; border-radius: var(--nx-r-sm); cursor: pointer; text-align: left; }
+.m-pop-float.context-menu { max-height: min(66dvh, 560px); }
 .m-menu-row:active { background: var(--nx-surface); }
 .m-menu-row.danger { color: var(--nx-danger); }
 .m-menu-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: var(--nx-z-modal);
@@ -732,7 +741,7 @@
 .m-dot.warn { background: var(--nx-warning); }
 .m-dot.bad { background: var(--nx-danger); }
 .m-dot.run { background: var(--nx-accent); }
-.m-sep { height: 1px; background: var(--nx-line); margin: 4px 8px; }
+.m-sep { height: 1px; background: var(--nx-line); margin: 2px 8px; }
 .m-t-xs { font-size: var(--nx-fs-xs); }
 .m-t-sm { font-size: var(--nx-fs-sm); }
 .m-t-cap { font-size: var(--nx-fs-cap); }

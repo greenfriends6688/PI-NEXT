@@ -57,7 +57,7 @@ const CELL = 11;
  * 之前这张图是 GitHub 式「一列一周」的自绘网格（轨道写死 11px、内联 gridColumn），
  * 于是 `.d-heat` 与「每格一天」这条口径一直没进产品；现在整张图按画板原样发。
  */
-const HEAT_COLUMNS = 26;
+const HEAT_ROWS = 7;
 
 /** Shared 5-step scale: level 0 is "nothing happened", 1-4 are quartiles of the max. */
 function levels(value: number, max: number): number {
@@ -185,7 +185,18 @@ export function UsageHeatmap({
   const values = days.map((day) => (metric === "sessions" ? day.sessions : day.tokens));
   const max = Math.max(1, ...values);
 
-  // 月份横排：横跨若干列的一段标签（起点 = 该月第一天所在的列），
+  // fork:usage-heat-year（2026-10-07 用户实拍「别显示这么大，照 ZCode 那种」）——
+  // 此前是 26 列 × 14 行（`index % 26`）：格子宽跟着设置弹窗的宽度 1fr 放大（1440
+  // 视口实测 27px，用户宽窗口下 42px，比图例那枚 11px 的色块大四倍），而且月份标签
+  // 按 `index % 26` 定位 —— 26 天一行、一个月约 30 天，标签自然落到随机列上（实拍
+  // 读到「10月 6月 2月 7月 1月 8月…」）。改成 GitHub / ZCode 那一档的周历：
+  // **列 = 周、行 = 星期**（`lead` = 首日是星期几）。同一块宽度下格子小一半，
+  // 月份标签也落在真实列上。列数由数据算出来（一年最多 53 周），`.d-heat` 的
+  // `repeat(53, …)` 给的是轨道上限。
+  const lead = mondayIndex(days[0].day);
+  const weekCount = Math.ceil((days.length + lead) / HEAT_ROWS);
+
+  // 月份横排：横跨若干列的一段标签（起点 = 该月第一天所在的**周列**），
   // 与下面那张格子网格共用同一套列轨，所以天然对齐。
   const monthMarks: { start: number; span: number; label: string }[] = [];
   let lastMonth = "";
@@ -193,7 +204,7 @@ export function UsageHeatmap({
     const month = days[index].day.slice(0, 7);
     if (month === lastMonth) continue;
     monthMarks.push({
-      start: (index % HEAT_COLUMNS) + 1,
+      start: Math.floor((index + lead) / HEAT_ROWS) + 1,
       span: 1,
       label: monthLabel(days[index].day),
     });
@@ -202,7 +213,7 @@ export function UsageHeatmap({
   // 每一段一直伸到下一段开始（或行尾）。
   monthMarks.forEach((mark, order) => {
     const next = monthMarks[order + 1];
-    mark.span = next ? Math.max(1, next.start - mark.start) : HEAT_COLUMNS - mark.start + 1;
+    mark.span = next ? Math.max(1, next.start - mark.start) : Math.max(1, weekCount - mark.start + 1);
   });
 
   return (
@@ -228,8 +239,8 @@ export function UsageHeatmap({
               title={`${day.day} · ${value}`}
               className={`${cellClass(level)} d-cell-pop`}
               style={{
-                gridColumn: (index % HEAT_COLUMNS) + 1,
-                gridRow: Math.floor(index / HEAT_COLUMNS) + 2,
+                gridColumn: Math.floor((index + lead) / HEAT_ROWS) + 1,
+                gridRow: ((index + lead) % HEAT_ROWS) + 2,
                 animationDelay: `${Math.min(index * 3, 380)}ms`,
               }}
             />

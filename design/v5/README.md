@@ -102,6 +102,11 @@ design/v5/
 | `D-29-motion-containers.html` | D-29 · 动效规格台 B · 容器与转场 | 类型：规格台 | D-29-motion-containers.html |
 | `D-30-keyboard-focus.html` | D-30 · 键盘与焦点 | 类型：规格台 | D-30-keyboard-focus.html |
 | `D-31-settings-imagegen.html` | D-31 · 生图模型 | 设置 / 生图模型 | D-31-settings-imagegen.html |
+| `D-32-v6-conversation.html` | D-32 · V6 提案 · Agent 会话全景 | 工作台 / 转录区 | D-32-v6-conversation.html |
+| `D-33-v6-agent-parts.html` | D-33 · V6 提案 · Agent 部件规格台 | 转录区 / 组件规格 | D-33-v6-agent-parts.html |
+| `D-34-v6-message-parts.html` | D-34 · V6 提案 · 消息与响应件 | 转录区 / 组件规格 | D-34-v6-message-parts.html |
+| `D-35-v6-workbench-parts.html` | D-35 · V6 提案 · 工作台件 | 转录区 / 输入框 / 右栏 | D-35-v6-workbench-parts.html |
+| `D-36-settings-memory.html` | D-36 · 记忆 | 设置 / 记忆 | D-36-settings-memory.html |
 | `M-01-conversation-drawer.html` | M-01 · 会话页与抽屉 | 会话流 / 会话抽屉 / 模型选择 | M-01-conversation-drawer.html |
 | `M-02-transcript.html` | M-02 · 手机转录 | 会话转录 | M-02-transcript.html |
 | `M-03-composer-sheet.html` | M-03 · 手机输入卡与面板 | 输入卡 / 能力浮层 / 补全面板 / 队列面板 | M-03-composer-sheet.html |

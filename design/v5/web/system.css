@@ -829,7 +829,11 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-chart-head { padding: var(--nx-sp-3) var(--nx-sp-4); border-bottom: 1px solid var(--nx-line);
   display: flex; align-items: center; gap: var(--nx-sp-2); font-weight: 600; font-size: var(--nx-fs-body); }
 .d-chart-body { padding: var(--nx-sp-4); }
-.d-heat { display: grid; grid-template-columns: repeat(26, 1fr); gap: 2px; min-width: 0; }
+/* fork:usage-heat-year（2026-10-07）—— 53 列 = 一年最多 53 周（GitHub 口径），
+   行 = 星期。`minmax(0, 1fr)` 不能省：行 1 的月份标签是 `white-space: nowrap`
+   的格子项，`1fr` = `minmax(auto, 1fr)`，标签的最小内容宽会把轨道顶宽、
+   `max-width` 也压不下去（实测 414px 的盒子里格子仍是 27px）。 */
+.d-heat { display: grid; grid-template-columns: repeat(53, minmax(0, 1fr)); gap: 2px; min-width: 0; }
 .d-heat-grid { aspect-ratio: 1; border-radius: 2px; background: var(--nx-surface-hi); }
 .d-heat-grid.l1 { background: color-mix(in srgb, var(--nx-accent) 25%, var(--nx-panel)); }
 .d-heat-grid.l2 { background: color-mix(in srgb, var(--nx-accent) 50%, var(--nx-panel)); }
@@ -1236,3 +1240,155 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
    输入类控件的 --nx-r-sm。点开看大图是会话里 ImagePreview 的事，这里只做回显。 */
 .d-test-img { display: block; max-width: min(240px, 100%); max-height: 240px;
   border: 1px solid var(--nx-line); border-radius: var(--nx-r-sm); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 23 · V6 提案：agent 会话的 beUI 借鉴形态（D-32 / D-33）
+ *
+ * 来源：beUI「AI Agents」组（MIT，beui.dev，2026-10-07 评估）。借鉴的是**交互形态
+ * 与信息组织**，实现全部是 V5 自己的 —— 类名/令牌/动效不引入任何外来体系，
+ * 与 BoardUI 采纳清单同一条路（抄规格不抄实现）。逐件映射登记在 DIVERGENCE.md。
+ * 每个类至少被 D-32 / D-33 一帧使用。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 23a · Todo 卡（beUI todo-list）────────────────────────────────────────
+   与 .d-plan 的分工：plan 是「agent 先声明再执行」的计划轨道，todo 是**执行中
+   逐项翻转**的任务清单 —— 价值在折叠头上的进度计数与行的三态（done / run / 待做）。
+   勾选盒复用 .d-checkbox（同一视觉角色，不另起名）；运行行的盒子是 loader 图标。 */
+.d-todo { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md);
+  background: var(--nx-panel); overflow: hidden; }
+.d-todo-btn { display: flex; align-items: center; gap: var(--nx-sp-2); width: 100%;
+  padding: 8px var(--nx-sp-3); border: 0; background: none; font: inherit;
+  font-size: var(--nx-fs-sm); font-weight: 500; color: var(--nx-text); cursor: pointer; text-align: left; }
+.d-todo-btn:hover { background: var(--nx-surface); }
+.d-todo-count { margin-left: auto; font-size: var(--nx-fs-xs); color: var(--nx-text-3);
+  font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.d-todo-list { border-top: 1px solid var(--nx-line); padding: var(--nx-sp-1) var(--nx-sp-2);
+  display: flex; flex-direction: column; }
+.d-todo-row { display: flex; align-items: flex-start; gap: var(--nx-sp-2);
+  padding: 6px var(--nx-sp-1); border-radius: var(--nx-r-sm);
+  font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
+.d-todo-row > .d-checkbox { margin-top: 2px; }
+.d-todo-row.run > .d-checkbox { border-color: var(--nx-accent); color: var(--nx-accent); }
+.d-todo-row.run > .d-checkbox > i { display: block; animation: nx-spin 1400ms linear infinite; }
+.d-todo-row.done > .d-todo-text { color: var(--nx-text-3);
+  text-decoration: line-through; text-decoration-color: var(--nx-line-hi); }
+.d-todo-row.run > .d-todo-text { color: var(--nx-text); font-weight: 500; }
+.d-todo-text { min-width: 0; line-height: var(--nx-lh-ctrl); }
+
+/* ── 23b · 审批卡（beUI approval-card）────────────────────────────────────
+   与 .d-perm 的分工：perm 是权限请求的横幅态（warning 底、轻量），approve 是
+   **决策卡**：命令/参数以代码块展示、三个动作钮横排底部、多步审批有步骤计数。
+   卡身保持中性（panel 底），危险语义只在命令代码与「拒绝」钮上 —— 整卡描红
+   在本系统已废止（失败不整卡描红，同一纪律）。 */
+.d-approve { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md);
+  background: var(--nx-panel); overflow: hidden; }
+.d-approve-head { display: flex; align-items: center; gap: var(--nx-sp-2);
+  padding: var(--nx-sp-2) var(--nx-sp-3) 0;
+  font-size: var(--nx-fs-sm); font-weight: 500; color: var(--nx-text); }
+.d-approve-head > i:first-child { color: var(--nx-warning); }
+.d-approve-body { padding: var(--nx-sp-2) var(--nx-sp-3);
+  font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
+.d-approve-acts { display: flex; align-items: center; gap: var(--nx-sp-2);
+  padding: 0 var(--nx-sp-3) var(--nx-sp-3); }
+
+/* ── 23c · 生成图片卡（beUI image-generation）─────────────────────────────
+   核心承诺是「无布局偏移」：排队 / 渐进 / 完成三阶段共用同一个 stage 盒，
+   图在占位底上显影（nx-reveal），卡片高度从头到尾不变。stage 定高不走
+   aspect-ratio（转录区宽度会把它顶到 480px 高），按会话里的实际观感定。 */
+.d-imgen { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md);
+  background: var(--nx-panel); overflow: hidden; }
+.d-imgen-stage { position: relative; height: 160px; background: var(--nx-surface); overflow: hidden; }
+.d-imgen-stage > img { position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; display: block; animation: nx-reveal 900ms var(--nx-ease-out) both; }
+.d-imgen-stage .d-skel { position: absolute; inset: 0; border-radius: 0; }
+.d-imgen-meta { display: flex; align-items: center; gap: var(--nx-sp-2);
+  padding: 7px var(--nx-sp-3); border-top: 1px solid var(--nx-line);
+  font-size: var(--nx-fs-xs); color: var(--nx-text-3); }
+.d-imgen-meta > .d-grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── 23d · 消息导航轨（beUI preview-rail）─────────────────────────────────
+   与 .d-minimap 的分工：minimap 是 36px 的通高导轨 + 点击浮层（细粒度），
+   navrail 是转录右缘的**细刻度**：临近当前轮的刻度长、远的短（距离梯度），
+   悬停弹消息预览卡。挂在 .d-main 上（转录与 composer 之间的右缘）。 */
+.d-navrail { position: absolute; top: 60px; bottom: 150px; right: 4px; width: 26px;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-end;
+  gap: var(--nx-sp-2); z-index: var(--nx-z-raised); }
+.d-navtick { display: block; height: 2px; border-radius: 999px; background: var(--nx-line-hi);
+  transition: background var(--nx-dur-1) var(--nx-ease), width var(--nx-dur-1) var(--nx-ease); }
+.d-navtick.done { background: var(--nx-accent); }
+.d-navtick.now { background: var(--nx-warning); }
+.d-navtick.far { width: 6px; }
+.d-navtick.mid { width: 10px; }
+.d-navtick.near { width: 14px; }
+.d-navpop { position: absolute; right: 30px; width: 250px;
+  background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-r-md);
+  box-shadow: var(--nx-sh-2); padding: var(--nx-sp-2) var(--nx-sp-3);
+  font-size: var(--nx-fs-xs); color: var(--nx-text-2); line-height: var(--nx-lh-ctrl); }
+.d-navpop-t { display: flex; align-items: center; gap: var(--nx-sp-1);
+  font-weight: 500; color: var(--nx-text); margin-bottom: 2px; }
+
+/* ── 23e · 语音球（beUI voice-orb 的 CSS 近似）─────────────────────────────
+   画板不跑 WebGL：radial-gradient 球 + 呼吸（nx-orb）表达 idle，
+   .live 加快呼吸并外扩波纹（nx-orb-ring）表达「正在听/正在说」。
+   产品化时换成 canvas 渲染器，这个类只保留占位语义。 */
+.d-orb { position: relative; width: 20px; height: 20px; border-radius: 999px; flex: 0 0 auto;
+  background: radial-gradient(circle at 32% 30%,
+    color-mix(in srgb, var(--nx-accent) 55%, var(--nx-panel)),
+    var(--nx-accent) 62%,
+    color-mix(in srgb, var(--nx-accent) 62%, var(--nx-panel)) 100%);
+  animation: nx-orb 3.2s var(--nx-ease) infinite; }
+.d-orb.live { animation-duration: 1.6s; }
+.d-orb.live::after { content: ""; position: absolute; inset: -3px; border-radius: 999px;
+  border: 1px solid var(--nx-accent); animation: nx-orb-ring 1.6s var(--nx-ease-out) infinite; }
+
+/* ── 23f · 行内引用标（beUI citations）────────────────────────────────────
+   底部来源集合复用 .d-cite 芯片（已有）；这里补的是正文里的上标数字 ——
+   悬浮出来源卡（复用 .d-pop-float 家具），点击跳来源。 */
+.d-cite-mark { vertical-align: super; font-size: var(--nx-fs-2xs); line-height: 1;
+  color: var(--nx-info); font-family: var(--nx-font-mono); cursor: pointer; }
+.d-cite-mark:hover { text-decoration: underline; }
+
+/* V6 提案新类的减弱动效：全部停终态 */
+@media (prefers-reduced-motion: reduce) {
+  .d-orb, .d-orb.live, .d-orb.live::after { animation: none; }
+  .d-orb.live::after { opacity: .35; }
+  .d-todo-row.run > .d-checkbox > i { animation: none; }
+  .d-imgen-stage > img { animation: none; filter: none; opacity: 1; }
+}
+
+/* ── 23g · beUI 全集补齐（D-34 / D-35）─────────────────────────────────────
+   只补 V5 真缺的三件：消息表面的语气变体（beUI message-bubble 的 visual tones，
+   用户气泡的 warn / bad 两档走语义色底）、滚到最新的悬浮钮（beUI message-scroller
+   的 follow 恢复动作）。其余件（分组、流式、工具结果、时间线、右栏上下文）
+   V5 已有原语，纯 DOM 组织，不另起名。 */
+.d-msg-user.warn { background: color-mix(in srgb, var(--nx-warning) 10%, var(--nx-panel)); }
+.d-msg-user.bad  { background: color-mix(in srgb, var(--nx-danger) 9%, var(--nx-panel)); }
+.d-jump { position: absolute; right: var(--nx-sp-6); bottom: var(--nx-sp-4); z-index: var(--nx-z-raised);
+  height: var(--nx-ctl-md); padding: 0 12px; display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--nx-line-hi); border-radius: var(--nx-r-pill); background: var(--nx-glass);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: var(--nx-sh-1);
+  font: inherit; font-size: var(--nx-fs-sm); color: var(--nx-text-2); cursor: pointer; }
+.d-jump:hover { color: var(--nx-text); }
+@media (prefers-reduced-motion: reduce) {
+  .d-jump { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--nx-panel); }
+}
+/* details 折叠的 summary 复用 .d-tool-head 时要摘掉 UA 三角(.d-think summary 已单独处理) */
+summary.d-tool-head { list-style: none; }
+summary.d-tool-head::-webkit-details-marker { display: none; }
+/* diff 渐入(D-34 帧 C):类驱动,初始不带 .in(静态即终态),重播按钮用
+   data-demo-motion-class="in" 挂类 —— 探针走「类名变化」判活,不踩 both 时钟坑 */
+.d-diff.in > .d-diff-line { animation: nx-list-in 240ms var(--nx-ease-out) both; }
+.d-diff.in > .d-diff-line:nth-child(2) { animation-delay: 40ms; }
+.d-diff.in > .d-diff-line:nth-child(3) { animation-delay: 80ms; }
+.d-diff.in > .d-diff-line:nth-child(4) { animation-delay: 120ms; }
+.d-diff.in > .d-diff-line:nth-child(5) { animation-delay: 160ms; }
+.d-diff.in > .d-diff-line:nth-child(6) { animation-delay: 200ms; }
+.d-diff.in > .d-diff-line:nth-child(7) { animation-delay: 240ms; }
+
+/* 消息导航轨的刻度：悬停拉长（beUI preview-rail 弹簧缩放的 CSS 近似） */
+.d-navrail:hover .d-navtick { background: var(--nx-accent); }
+/* 悬停缩放由 Motion 悬停弹簧驱动(demo.js 12b),CSS 只留变色回退 */
+.d-navtick { transform-origin: right center; }
+@media (prefers-reduced-motion: reduce) {
+  .d-navtick { transition: none; }
+}

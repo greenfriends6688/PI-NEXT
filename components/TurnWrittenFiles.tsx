@@ -74,7 +74,10 @@ export function TurnWrittenFiles({ files, onOpenFile }: {
           </button>
         </div>
       )}
-      <div className={isPwa ? "m-tray" : "d-chips"} aria-label={t("chat.filesWritten")}>
+      {/* fork:v6-landing —— 容器换成 `.d-cites`（画板 D-33 帧 D 的来源集合行）：
+          这一轮写过的文件就是这轮回答的「来源」，芯片语法与引用集合同一套。
+          PWA 仍是 `.m-tray`（m- 前缀形态不混用）。 */}
+      <div className={isPwa ? "m-tray" : "d-cites"} aria-label={t("chat.filesWritten")}>
         {files.map(({ filePath }) => {
           const name = getFileName(filePath);
           return (

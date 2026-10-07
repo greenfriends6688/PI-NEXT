@@ -32,12 +32,16 @@ test("帧 B · 失败卡把 .d-err 提到 d-tool-body 的直接子位，并给�
   assert.match(messageView, /process\.errorLine/);
 });
 
-test("帧 C · 计划卡的进度徽章与 d-plan-foot（第 N 步进行中）", () => {
+test("帧 C · todo 卡（fork:v6-landing 换成 D-32 的 .d-todo：折叠头计数 + 行三态）", () => {
+  // 板面 D-03 帧 C 还是计划卡原样（历史画板不动）；产品侧已换成 D-32 帧 A 的 .d-todo。
   assert.match(board, /<span class="d-badge ok">3 \/ 6<\/span>/);
-  assert.match(board, /<div class="d-plan-foot">\s*<span>第 4 步进行中<\/span>/);
-  assert.match(messageView, /<span className="d-badge ok">\s*\{todoSteps\.filter/);
-  assert.match(messageView, /<div className="d-plan-foot">/);
-  assert.match(messageView, /chat\.todoStepRunning/);
+  assert.match(messageView, /<TodoCard steps=\{todoSteps\} \/>/);
+  assert.match(messageView, /className="d-todo-btn"/);
+  assert.match(messageView, /d-todo-count/);
+  // 状态徽章：全完成 ok 档（todosAllDone），否则 mute 档（todosActive）——进度这件事
+  // 由计数表达，foot 的「第 N 步进行中」由 run 行自身表达（画板 D-32 无 foot）。
+  assert.match(messageView, /chat\.todosAllDone/);
+  assert.match(messageView, /chat\.todosActive/);
 });
 
 test("帧 A · 收起的思考行带可见的「思考」标签（D-03d 帧 A 的 summary）", () => {

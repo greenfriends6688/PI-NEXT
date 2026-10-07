@@ -1,12 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState, useCallback, useMemo, type RefObject } from "react";
-import ReactMarkdown, { type Options as ReactMarkdownOptions } from "react-markdown";
-import rehypeKatex from "rehype-katex";
-import {
-  markdownPreviewRemarkPlugins,
-  normalizeDisplayMath,
-} from "@/lib/markdown";
+import { useEffect, useRef, useState, useCallback, useMemo, type RefObject } from "react";
 import { isMessageGroupAnchor, splitFinalAssistantBlocks } from "@/lib/message-display";
 import type { AgentMessage, AssistantMessage, CustomMessage, TextContent, UserMessage } from "@/lib/types";
 import { useI18n } from "@/hooks/useI18n";
@@ -18,19 +12,13 @@ interface Props {
   scrollContainer: RefObject<HTMLDivElement | null>;
   messageRefs: RefObject<(HTMLDivElement | null)[]>;
   onRevealHistory: () => void;
-  /** Whether the server has user turns older than the loaded page. */
-  hasEarlierMessages: boolean;
-  /** True while a page of older history is being fetched. */
-  loadingEarlier: boolean;
-  /** Fetch the previous page of older history into the chat. */
-  onLoadEarlier: () => void | Promise<void>;
 }
 
 /*
  * fork:v5-wave-b —— **本组件刻意不加 m-* 分支**（不是漏做）。
  *
- * 导轨（`.pw-minimap-rail` + `.node` + `.pw-minimap-pop`）是画板 53 的**鼠标悬停**
- * 装置：算 `topRatio`、绑 mousemove/mousedown 拖拽、悬停出浮层。PWA 的 M-01~M-12
+ * 导轨（`.pw-minimap-rail` + `.d-navtick`）是**鼠标悬停**装置：算 `topRatio`、
+ * 绑 mousemove/mousedown 拖拽、悬停出 `.d-navpop` 预览卡。PWA 的 M-01~M-12
  * 十二张板里**没有这一件**（手机的「回看更早 / 切分支」在 M-04 会话抽屉与 M-02
  * 输入卡上方的 `.m-pickbar` 分支条上，属于别的波次与别的文件）。
  *
@@ -43,27 +31,31 @@ interface Props {
  */
 
 /*
- * fork:minimap-board53 —— **形态退回画板 53（v0.1.8 那一版）**，2026-10-05 用户裁定。
+ * fork:v6-landing —— **导轨形态 = 画板 D-32 / D-33 帧 D**（2026-10-07 用户两轮实拍）。
  *
- * D-03e 那版（`d-minimap` 悬浮卡 + 3px 横条 + 面板头两枚 iconbtn）被用户判为
- * 「现在的这个不太好」，本组件的**外观与 DOM** 整块回到 board.css 里的
- * `.pw-minimap-rail` / `.node` / `.pw-minimap-pop` / `.pin` / `.list` / `.turn`
- * （36px 圆点导轨 + 贴左阴影的 320px 面板），行为 / 状态 / 接线一律是现在的：
- * props、悬停与拖拽、`previewPinned` 定位锁、加载更早、大纲点击跳转、
- * `data-minimap-*` 钩子（e2e 与 `scripts/verify-against-boards.mjs` 都按这些属性选）全部保留。
- * 因此上一版挂在这条链上的 `fork:v5-wave-n1` 两枚标记（`.d-mm-pin` 定位线 /
- * `.d-mm-turn` 回合编号）随之退场 —— 它们只是 `minimapHovered + nearestNodeIndex`
- * 派生的可视标记，没有独立 state，也没有交互，导轨换回圆点后无处安放。
+ * 第一轮（「V6 三件全落」）：刻度换成 `.d-navtick`，悬停卡换成 `.d-navpop`，
+ * 容器几何仍归 `.pw-minimap-rail`（grid 第二列）。
+ * 第二轮实拍又定两件：
+ *   · 「这些横杆不是从顶部开始的，应该是上下居中」→ 刻度组垂直居中（见 `layoutNodes`）；
+ *   · 「这个浮窗，你也没有按照设计的来」→ board 53 的 **320px 大纲面板**
+ *     （`.pw-minimap-pop` / `.pin` / `.load-earlier` / `.turn` / `AssistantOutline`）
+ *     整块退场，悬停就出画板的 `.d-navpop` 小卡。「加载更早」本来就有「滚到顶自动
+ *     加载」兑底（ChatWindow 的 sentinel IntersectionObserver），大纲级跳转一并退场。
+ *
+ * 保留下来的行为：props、悬停与拖拽、`activeIndex` 定位锁、
+ * `data-minimap-*` 钩子（e2e 与 `scripts/verify-against-boards.mjs` 都按这些属性选）。
  */
 
-/** 导轨宽 36px 由 board.css 的 `.pw-minimap-rail` 给（画板 53），产品侧不再写死。 */
-const MAX_NODE_GAP = 50;
+/** 导轨宽 36px 由 board.css 的 `.pw-minimap-rail` 给，产品侧不再写死。 */
+/* fork:v6-landing —— 刻度间距 = 画板 D-32/D-33 帧 D 的 `.d-navrail` 节奏：
+   `gap: var(--nx-sp-2)`（8px）+ 刻度高 2px ⇒ 中心距 10px。用户 2026-10-07 实拍
+   「这些间距不对啊…太宽了」—— 旧值 50px 把几轮会话铺满整条轨道。
+   命中靠 `findNearestNode` 的取整，10px 相邻也选得中。 */
+const MAX_NODE_GAP = 10;
 const MINIMAP_PADDING = 12;
 const MINIMAP_TRIGGER_TAIL = 16;
 const PREVIEW_HIDE_DELAY = 250;
 const NAVIGATION_ACTIVE_LOCK_MS = 1600;
-/** fix:minimap-hover —— 时间线浮层宽（画板 53：320），tooltip 要避让它的宽度。 */
-const MINIMAP_POP_WIDTH = 320;
 
 interface AssistantPreview {
   markdown: string;
@@ -87,7 +79,8 @@ interface NodeInfo {
 }
 
 /**
- * fork:design-system SW-15 —— 导轨节点的语义分类（画板 53 的 `.node.heading`）。
+ * fork:design-system SW-15 —— 导轨节点的语义分类（旧 `.node.heading` 那套；V6 刻度
+ * 不再按 kind 换外观，它只落在 `data-minimap-node-kind` 上供 e2e / 排查用）。
  *
  * **纯前端派生**：只看这一轮已渲染出来的内容，不回读会话文件、不新增任何持久字段。
  * 判定顺序即视觉优先级：
@@ -137,131 +130,6 @@ function getAssistantAnswerMarkdown(message: AgentMessage | Partial<AgentMessage
     .trim();
 }
 
-function PreviewHeading({
-  level,
-  children,
-  headingIndex,
-  onClick,
-}: {
-  level: 1 | 2 | 3;
-  children: React.ReactNode;
-  headingIndex: number | null;
-  onClick?: (headingIndex: number) => void;
-}) {
-  return (
-    <button
-      type="button"
-      data-minimap-line=""
-      data-level={level}
-      data-preview-heading-index={headingIndex ?? undefined}
-      disabled={headingIndex === null || !onClick}
-      onClick={(event) => {
-        event.stopPropagation();
-        if (headingIndex !== null) onClick?.(headingIndex);
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-interface PreviewAstNode {
-  type?: string;
-  depth?: number;
-  data?: {
-    hProperties?: Record<string, unknown>;
-  };
-}
-
-function remarkPreviewOutline() {
-  return (tree: { children?: PreviewAstNode[] }) => {
-    if (!Array.isArray(tree.children)) return;
-    const headings = tree.children.filter((node) => (
-      node.type === "heading" && typeof node.depth === "number" && node.depth <= 3
-    ));
-    if (headings.length > 0) {
-      headings.forEach((node, headingIndex) => {
-        node.data = {
-          ...node.data,
-          hProperties: {
-            ...node.data?.hProperties,
-            "data-preview-heading-index": headingIndex,
-          },
-        };
-      });
-      tree.children = headings;
-      return;
-    }
-    const firstParagraph = tree.children.find((node) => node.type === "paragraph");
-    tree.children = firstParagraph ? [firstParagraph] : [];
-  };
-}
-
-const previewRemarkPlugins = [
-  ...(markdownPreviewRemarkPlugins ?? []),
-  remarkPreviewOutline,
-];
-const previewRehypePlugins: ReactMarkdownOptions["rehypePlugins"] = [
-  [rehypeKatex, { throwOnError: false, strict: false }],
-];
-
-function getPreviewHeadingIndex(node: unknown): number | null {
-  const properties = (node as { properties?: Record<string, unknown> } | undefined)?.properties;
-  const value = properties?.dataPreviewHeadingIndex ?? properties?.["data-preview-heading-index"];
-  if (typeof value === "number") return value;
-  if (typeof value === "string" && /^\d+$/.test(value)) return Number(value);
-  return null;
-}
-
-export const AssistantOutline = memo(function AssistantOutline({
-  markdown,
-  onHeadingClick,
-  onAnswerClick,
-}: {
-  markdown: string;
-  onHeadingClick?: (headingIndex: number) => void;
-  onAnswerClick?: () => void;
-}) {
-  const normalizedMarkdown = useMemo(() => normalizeDisplayMath(markdown), [markdown]);
-  if (!markdown) return null;
-  return (
-    <div data-minimap-outline="">
-
-      <ReactMarkdown
-        remarkPlugins={previewRemarkPlugins}
-        rehypePlugins={previewRehypePlugins}
-        components={{
-          h1: ({ children, node }) => <PreviewHeading level={1} headingIndex={getPreviewHeadingIndex(node)} onClick={onHeadingClick}>{children}</PreviewHeading>,
-          h2: ({ children, node }) => <PreviewHeading level={2} headingIndex={getPreviewHeadingIndex(node)} onClick={onHeadingClick}>{children}</PreviewHeading>,
-          h3: ({ children, node }) => <PreviewHeading level={3} headingIndex={getPreviewHeadingIndex(node)} onClick={onHeadingClick}>{children}</PreviewHeading>,
-          h4: () => null,
-          h5: () => null,
-          h6: () => null,
-          p: ({ children }) => (
-            <button
-              type="button"
-              data-minimap-line=""
-              onClick={onAnswerClick}
-            >
-              {children}
-            </button>
-          ),
-          blockquote: () => null,
-          ul: () => null,
-          ol: () => null,
-          pre: () => null,
-          table: () => null,
-          hr: () => null,
-          a: ({ children }) => <>{children}</>,
-          code: ({ children }) => <>{children}</>,
-        }}
-      >
-        {normalizedMarkdown}
-      </ReactMarkdown>
-    </div>
-  );
-});
-
 function createTurnNodes(turns: TurnInfo[]): NodeInfo[] {
   return turns.map((turn, index) => ({
     topRatio: 0,
@@ -284,9 +152,13 @@ function layoutNodes(allNodes: NodeInfo[], minimapHeight: number): NodeLayout {
 
   const height = Math.max(1, minimapHeight);
   const usableHeight = Math.max(0, height - MINIMAP_PADDING * 2);
+  /* fork:v6-landing —— 刻度组**垂直居中**（画板 D-32/D-33 帧 D 的 `.d-navrail` 就是
+     `justify-content: center`）：原来从 `MINIMAP_PADDING` 起往下排，几轮会话时整组
+     贴在轨道顶部（用户 2026-10-07 实拍「这些横杆不是从顶部开始的，应该是最右侧的
+     上下居中」）。组高超出可用高度时回落成贴顶（与旧行为一致）。 */
   if (allNodes.length === 1) {
     return {
-      nodes: [{ ...allNodes[0], topRatio: MINIMAP_PADDING / height }],
+      nodes: [{ ...allNodes[0], topRatio: 0.5 }],
       gap: MAX_NODE_GAP,
       fillsHeight: false,
     };
@@ -294,10 +166,12 @@ function layoutNodes(allNodes: NodeInfo[], minimapHeight: number): NodeLayout {
 
   const naturalGap = usableHeight / (allNodes.length - 1);
   const gap = Math.min(MAX_NODE_GAP, naturalGap);
+  const span = gap * (allNodes.length - 1);
+  const start = Math.max(MINIMAP_PADDING, (height - span) / 2);
   return {
     nodes: allNodes.map((node, index) => ({
       ...node,
-      topRatio: (MINIMAP_PADDING + index * gap) / height,
+      topRatio: (start + index * gap) / height,
     })),
     gap,
     fillsHeight: naturalGap <= MAX_NODE_GAP,
@@ -310,9 +184,6 @@ export function ChatMinimap({
   scrollContainer,
   messageRefs,
   onRevealHistory,
-  hasEarlierMessages,
-  loadingEarlier,
-  onLoadEarlier,
 }: Props) {
   const { t } = useI18n();
   const [visible, setVisible] = useState(false);
@@ -320,7 +191,6 @@ export function ChatMinimap({
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [minimapHeight, setMinimapHeight] = useState(600);
   const [minimapHovered, setMinimapHovered] = useState(false);
-  const [previewPinned, setPreviewPinned] = useState(false);
   /* fork:zn-17 — 单根 dash 的悬停 tooltip（Zeno `.minimap-popover`）。
      与既有的 outline 预览面板（hover 整条轨道才出、可钉住）并存：tooltip 回答
      「这一根是什么」，预览面板回答「整段结构长什么样」。 */
@@ -333,16 +203,9 @@ export function ChatMinimap({
     gap: MAX_NODE_GAP,
     fillsHeight: false,
   });
-  const previewBoxRef = useRef<HTMLDivElement>(null);
-  const previewItemRefs = useRef(new Map<number, HTMLDivElement>());
   const previewHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeNodeLockRef = useRef<{ index: number; until: number } | null>(null);
-  const pendingNavigationRef = useRef<{
-    nodeIndex: number;
-    target: "user" | "assistant" | "heading";
-    assistantIndex?: number;
-    headingIndex?: number;
-  } | null>(null);
+  const pendingNavigationRef = useRef<{ nodeIndex: number } | null>(null);
 
   const allMessages = useMemo(
     () => (streamingMessage ? [...messages, streamingMessage] : messages) as (AgentMessage | Partial<AgentMessage>)[],
@@ -457,28 +320,7 @@ export function ChatMinimap({
         ? nextNodes[pendingNavigation.nodeIndex]
         : null;
       if (pendingNavigation && pendingNode) {
-        const assistant = pendingNavigation.assistantIndex === undefined
-          ? null
-          : pendingNode.targetTurn.assistantPreviews[pendingNavigation.assistantIndex];
-        let targetTop: number | null = pendingNode.targetTurn.scrollTop;
-        if (pendingNavigation.target === "assistant") {
-          const assistantRect = assistant?.element?.getBoundingClientRect();
-          targetTop = assistantRect
-            ? assistantRect.top - containerRect.top + scrollEl.scrollTop
-            : null;
-        } else if (pendingNavigation.target === "heading") {
-          const heading = (
-            pendingNavigation.headingIndex === undefined
-              ? null
-              : assistant?.element
-                ?.querySelectorAll<HTMLElement>("h1, h2, h3")
-                .item(pendingNavigation.headingIndex)
-          );
-          const headingRect = heading?.getBoundingClientRect();
-          targetTop = headingRect
-            ? headingRect.top - containerRect.top + scrollEl.scrollTop
-            : null;
-        }
+        const targetTop: number | null = pendingNode.targetTurn.scrollTop;
         if (targetTop === null) return;
         pendingNavigationRef.current = null;
         lockActiveNode(pendingNode.index);
@@ -529,7 +371,7 @@ export function ChatMinimap({
     if (!scrollEl) return;
     lockActiveNode(node.index);
     if (node.targetTurn.scrollTop === null) {
-      pendingNavigationRef.current = { nodeIndex: node.index, target: "user" };
+      pendingNavigationRef.current = { nodeIndex: node.index };
       onRevealHistory();
       return;
     }
@@ -539,32 +381,6 @@ export function ChatMinimap({
       node.targetTurn.scrollTop - scrollEl.clientHeight * 0.3,
     );
     scrollEl.scrollTo({ top: targetTop, behavior: reduceMotion ? "auto" : behavior });
-  }, [lockActiveNode, onRevealHistory, scrollContainer]);
-
-  const scrollToAssistant = useCallback((node: NodeInfo, assistantIndex: number) => {
-    const scrollEl = scrollContainer.current;
-    if (!scrollEl) return;
-    const assistantElement = node.targetTurn.assistantPreviews[assistantIndex]?.element;
-    if (!assistantElement) {
-      pendingNavigationRef.current = {
-        nodeIndex: node.index,
-        target: "assistant",
-        assistantIndex,
-      };
-      onRevealHistory();
-      return;
-    }
-    const containerRect = scrollEl.getBoundingClientRect();
-    const assistantRect = assistantElement.getBoundingClientRect();
-    const targetTop = (
-      assistantRect.top
-      - containerRect.top
-      + scrollEl.scrollTop
-      - scrollEl.clientHeight * 0.3
-    );
-    lockActiveNode(node.index);
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    scrollEl.scrollTo({ top: Math.max(0, targetTop), behavior: reduceMotion ? "auto" : "smooth" });
   }, [lockActiveNode, onRevealHistory, scrollContainer]);
 
   const findNearestNode = useCallback((ratio: number): NodeInfo | null => {
@@ -586,39 +402,6 @@ export function ChatMinimap({
     return nearestNode;
   }, []);
 
-  const scrollToHeading = useCallback((
-    node: NodeInfo,
-    assistantIndex: number,
-    headingIndex: number,
-  ) => {
-    const scrollEl = scrollContainer.current;
-    if (!scrollEl) return;
-    const answerElement = node.targetTurn.assistantPreviews[assistantIndex]?.element;
-    if (!answerElement) {
-      pendingNavigationRef.current = {
-        nodeIndex: node.index,
-        target: "heading",
-        assistantIndex,
-        headingIndex,
-      };
-      onRevealHistory();
-      return;
-    }
-    const heading = answerElement.querySelectorAll<HTMLElement>("h1, h2, h3").item(headingIndex);
-    if (!heading) return;
-    const containerRect = scrollEl.getBoundingClientRect();
-    const headingRect = heading.getBoundingClientRect();
-    const targetTop = (
-      headingRect.top
-      - containerRect.top
-      + scrollEl.scrollTop
-      - scrollEl.clientHeight * 0.3
-    );
-    lockActiveNode(node.index);
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    scrollEl.scrollTo({ top: Math.max(0, targetTop), behavior: reduceMotion ? "auto" : "smooth" });
-  }, [lockActiveNode, onRevealHistory, scrollContainer]);
-
   const cancelPreviewHide = useCallback(() => {
     if (!previewHideTimerRef.current) return;
     clearTimeout(previewHideTimerRef.current);
@@ -632,13 +415,12 @@ export function ChatMinimap({
 
   const schedulePreviewHide = useCallback(() => {
     cancelPreviewHide();
-    if (previewPinned) return;
     previewHideTimerRef.current = setTimeout(() => {
       previewHideTimerRef.current = null;
       setMinimapHovered(false);
       setMouseYRatio(null);
     }, PREVIEW_HIDE_DELAY);
-  }, [cancelPreviewHide, previewPinned]);
+  }, [cancelPreviewHide]);
 
   useEffect(() => () => cancelPreviewHide(), [cancelPreviewHide]);
 
@@ -689,35 +471,28 @@ export function ChatMinimap({
 
   const nearestNode = mouseYRatio === null ? null : findNearestNode(mouseYRatio);
   const nearestNodeIndex = nearestNode?.index ?? null;
-  /* fork:zn-17 — tooltip 瞄准的是「离指针最近的那根 dash」。
-     不能给 dash 挂 onMouseEnter：标记层整体 `pointer-events: none`，悬停位置由
+  /* fork:v6-landing —— 悬停卡瞄准的是「离指针最近的那道刻度」。
+     不能给刻度挂 onMouseEnter：标记层整体 `pointer-events: none`，悬停位置由
      整条轨道的 mousemove + `findNearestNode` 算出来（见上面 onMouseMove）。
      所以复用同一个 `nearestNode`，不另开一套命中逻辑。
 
-     只在**预览面板已钉住**时显示：面板没钉住时，悬停轨道本身就会弹出大纲面板，
-     那种情况下再叠一个 tooltip 是两块内容互相盖。钉住后指针落在面板上，
-     `minimapHovered` 仍为真，这时 tooltip 才回答「这几根 dash 分别是哪一回合」。 */
-  const tooltipTurn = previewPinned && minimapHovered && nearestNode
+     悬停就出卡（画板 D-32 的 `.d-navpop`），不再需要「先钉住」那个前置 ——
+     320px 大纲面板整块退场（用户 2026-10-07 实拍「这个浮窗，你也没有按照设计
+     的来」），它的「加载更早」本来就有滚动到顶自动加载兑底，大纲跳转一并退场。 */
+  const tooltipTurn = minimapHovered && nearestNode
     ? nearestNode.targetTurn
     : null;
-
-
-  useEffect(() => {
-    if (!minimapHovered || nearestNodeIndex === null) return;
-    const previewBox = previewBoxRef.current;
-    const previewItem = previewItemRefs.current.get(nearestNodeIndex);
-    if (!previewBox || !previewItem) return;
-    const targetTop = previewItem.offsetTop
-      - (previewBox.clientHeight - previewItem.offsetHeight) / 2;
-    previewBox.scrollTop = Math.max(0, targetTop);
-  }, [allNodes, minimapHovered, nearestNodeIndex]);
 
   if (!visible) return null;
 
   return (
     <div
       ref={containerRef}
-      className="pw-minimap-rail"
+      /* fork:v6-landing —— 容器挂上画板 D-32/D-33 帧 D 的 `.d-navrail`：刻度形态
+         （`.d-navtick`）与悬停卡（`.d-navpop`）都是 V6 的，**容器几何仍归
+         `.pw-minimap-rail`**（跨 grid 两行 / 宽 36 / 左边线，画板 53 那套布局）。
+         双类覆盖（0-2-0）在 app/fork-ui.css，顶掉 `.d-navrail` 自带的 absolute。 */
+      className="pw-minimap-rail d-navrail"
       onMouseDown={handleMouseDown}
       onMouseEnter={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
@@ -747,9 +522,8 @@ export function ChatMinimap({
         overflow: "visible",
       }}
     >
-      {/* fork:design-system SW-15 —— 悬停 tooltip 用通用工具卡（画板 22/53 的
-          `.pw-card` + `.pw-card-head` + `.pw-card-body`）：头是角色 + 工具数徽章，
-          体是这一轮的首段。定位仍挂在导轨坐标系里（top: topRatio%），
+      {/* fork:v6-landing —— 悬停预览卡（画板 D-32 的 `.d-navpop`）：头行是
+          角色 + 工具数，体是这一轮的首段。定位仍挂在导轨坐标系里（top: topRatio%），
           `pointer-events: none` 是必需的，否则鼠标进卡就触发 mouseleave 闪烁。 */}
       {tooltipTurn && nearestNode && (() => {
         const node = nearestNode;
@@ -763,31 +537,26 @@ export function ChatMinimap({
         if (!body) return null;
         return (
           <div
-            className="pw-card"
+            className="d-navpop"
             data-minimap-tooltip=""
             style={{
               position: "absolute",
-              // fix:minimap-hover —— 导轨在最右缘，`left: 34`（导轨右侧）等于把卡片
-              // 推到屏外、再被 `.chat-content` 的 overflow 裁掉。改成朝**左**展开，
-              // 并且让开 320px 的时间线浮层 —— 卡片落在浮层左边，两者不叠加。
-              right: `calc(100% + ${MINIMAP_POP_WIDTH + 8}px)`,
+              // 导轨在最右缘，卡片朝**左**展开（`right: 100% + 8px` = 贴导轨左缘）。
+              right: "calc(100% + var(--nx-sp-2))",
               top: `calc(${node.topRatio * 100}% + ${MINIMAP_PADDING}px)`,
               zIndex: 3,
               transform: "translateY(-50%)",
               pointerEvents: "none",
             }}
           >
-            <div className="pw-card-head">
-              <span className="pw-ico">
-                <i data-ico={isUser ? "message-square" : "bot"} data-size="14"></i>
-              </span>
-              <span className="pw-tool">
-                {t(isUser ? "chatMinimap.userMessage" : "chatMinimap.assistantReply")}
-              </span>
-              <span className="grow" style={{ flex: 1 }} />
+            <div className="d-navpop-t">
+              <i data-ico={isUser ? "message-square" : "bot"} data-size="11" aria-hidden="true"></i>
+              {/* 画板 D-32 的 `.d-navpop-t` 写的是「第 N 轮 · 你 / PI NEXT」，不是
+                  「用户消息 / 助手回复」。 */}
+              {t(isUser ? "chatMinimap.turnUser" : "chatMinimap.turnAssistant", { index: node.index + 1 })}
               {tooltipTurn.toolCount > 0 && (
                 <span
-                  className="pw-badge count"
+                  className="d-badge mute"
                   role="img"
                   title={t("chatMinimap.toolCalls", { count: tooltipTurn.toolCount })}
                   aria-label={t("chatMinimap.toolCalls", { count: tooltipTurn.toolCount })}
@@ -796,21 +565,30 @@ export function ChatMinimap({
                 </span>
               )}
             </div>
-            <div className="pw-card-body" data-minimap-tooltip-text="">{body}</div>
+            <div data-minimap-tooltip-text="">{body}</div>
           </div>
         );
       })()}
 
-      {/* 导轨节点：6px 圆点，当前 8px 转 accent（`.node.on`），标题轮走 muted
-          （`.node.heading`）。kind 由 `deriveTurnNodeKind` 纯前端派生。
-          fix:minimap-hover —— 另给「指针最近的那一颗」挂 data 属性：悬停导轨时
-          这颗点放大 + 转 accent，配合左侧浮层里对应轮的高亮，回答「我hover的是哪一轮」。
+      {/* fork:v6-landing —— 导轨刻度：画板 D-32/D-33 帧 D 的 `.d-navtick`（beUI
+          preview-rail）：细刻度按「与当前轮的关系」分三档 —— 过去（done，长）、
+          当前（now，中）、未来（far，短），取代 board 53 的 6px 圆点。
+          `kind`（`deriveTurnNodeKind` 纯前端派生）仍照旧落在 `data-minimap-node-kind`
+          上，只是不再影响刻度外观（标题轮与普通回答轮用同一档长度）。
+          fix:minimap-hover —— 「指针最近的那一颗」照旧挂 data 属性，悬停时变色，
+          配合左侧浮层里对应轮的高亮，回答「我 hover 的是哪一轮」。
           （`data-minimap-*` 四个钩子与 0.1.8 一致：e2e / `scripts/verify-against-boards.mjs`
           都按它们选元素，所以一个都不能少。） */}
       {positionedNodes.map((node) => (
         <span
           key={node.index}
-          className={`node${node.kind === "heading" ? " heading" : ""}${activeIndex === node.index ? " on" : ""}`}
+          className={activeIndex === null
+            ? "d-navtick far"
+            : node.index === activeIndex
+              ? "d-navtick now mid"
+              : node.index < activeIndex
+                ? "d-navtick done near"
+                : "d-navtick far"}
           data-minimap-node-index={node.index}
           data-minimap-node-kind={node.kind}
           data-minimap-node-active={activeIndex === node.index ? "" : undefined}
@@ -818,159 +596,6 @@ export function ChatMinimap({
           style={{ top: `${node.topRatio * 100}%` }}
         />
       ))}
-
-      {/* 320px 时间线浮层（画板 53）：图钉头 + 列表（加载更早 + 逐轮编号列/内容列）。
-          定位（锚在导轨左侧）是几何，走 fork-ui.css 的
-          `.pw-minimap-rail > .pw-minimap-pop`（与 0.1.8 同一条：board.css 里的
-          `.pw-minimap-pop` 只给宽度 / flex / align-self，不含定位）。 */}
-      {minimapHovered && (allNodes.length > 0 || hasEarlierMessages) && (
-        <div
-          className="pw-minimap-pop"
-          data-minimap-preview-box=""
-          data-pinned={previewPinned || undefined}
-          onMouseEnter={showPreview}
-          onMouseDown={(event) => event.stopPropagation()}
-          onMouseMove={(event) => event.stopPropagation()}
-        >
-          {/* 固定态只把图钉图标转 accent + 下边线染一档（画板 53 `.pin.on`），
-              整条铺底色会盖过内容。
-              fork:minimap-board53 —— 头行按画板 53 的 `div.pin` 排（0.1.8 组件把
-              整行做成一枚 button，这里回退成两枚钮：文案钮 = 固定开关
-              （`aria-pressed` + label/title，命中区等于 0.1.8 的整行），✕ 钮 =
-              D-03e 那版带来的关闭动作（取消固定 + 立刻收起），行为保留。
-              preflight 归零了按钮的 UA 边框/底色，所以两枚钮在屏幕上仍是一条
-              32px 图钉行；图钉图标留在 `.pin` 的**第一个子元素**上，
-              `.pin.on .pw-ico:first-child` 的 accent 规则才照旧命中。 */}
-          <div className={`pin${previewPinned ? " on" : ""}`} data-minimap-pin-row="">
-            <span className="pw-ico">
-              <i data-ico={previewPinned ? "pin" : "pin-off"} data-size="14"></i>
-            </span>
-            <button
-              type="button"
-              className="grow"
-              style={{ flex: 1 }}
-              data-minimap-pin=""
-              aria-pressed={previewPinned}
-              aria-label={t(previewPinned ? "chatMinimap.unpinPreview" : "chatMinimap.pinPreview")}
-              title={t(previewPinned ? "chatMinimap.unpinPreview" : "chatMinimap.pinPreview")}
-              onMouseDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation();
-                setPreviewPinned((pinned) => !pinned);
-                showPreview();
-              }}
-            >
-              {t(previewPinned ? "chatMinimap.unpinPreview" : "chatMinimap.pinPreview")}
-            </button>
-            <button
-              type="button"
-              className="pw-ico"
-              data-minimap-close=""
-              title={t("i18n.close")}
-              aria-label={t("i18n.close")}
-              onMouseDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation();
-                setPreviewPinned(false);
-                setMinimapHovered(false);
-                setMouseYRatio(null);
-              }}
-            >
-              <i data-ico="x" data-size="13"></i>
-            </button>
-          </div>
-          <div ref={previewBoxRef} className="list" data-minimap-preview-list="">
-            {hasEarlierMessages && (
-              <button
-                type="button"
-                className="load-earlier"
-                data-minimap-load-earlier=""
-                disabled={loadingEarlier}
-                onClick={() => { void onLoadEarlier(); }}
-              >
-                <span className="pw-ico" aria-hidden="true">
-                  <i data-ico="arrow-up" data-size="13"></i>
-                </span>
-                <span>
-                  {loadingEarlier ? t("i18n.loading") : t("chatMinimap.loadEarlier")}
-                </span>
-              </button>
-            )}
-            {allNodes.map((node) => {
-              const isLocated = nearestNodeIndex === node.index;
-              return (
-                <div
-                  key={node.index}
-                  ref={(element) => {
-                    if (element) previewItemRefs.current.set(node.index, element);
-                    else previewItemRefs.current.delete(node.index);
-                  }}
-                  className={`turn${isLocated ? " on" : ""}`}
-                  data-minimap-preview-index={node.index}
-                  data-minimap-turn-kind={node.kind}
-                  data-located={isLocated ? "true" : undefined}
-                >
-                  <span className="gutter">
-                    <span className="no">
-                      {String(node.index + 1).padStart(2, "0")}
-                      {node.targetTurn.toolCount > 0 && (
-                        <span
-                          className="tool"
-                          role="img"
-                          title={t("chatMinimap.toolCalls", { count: node.targetTurn.toolCount })}
-                          aria-label={t("chatMinimap.toolCalls", { count: node.targetTurn.toolCount })}
-                        >
-                          {node.targetTurn.toolCount > 99 ? "99+" : node.targetTurn.toolCount}
-                        </span>
-                      )}
-                    </span>
-                    {node.targetTurn.assistantPreviews.length > 0 && (
-                      <button
-                        type="button"
-                        className="no anchor"
-                        data-minimap-preview-assistant={`${node.index}-0`}
-                        onClick={() => scrollToAssistant(node, 0)}
-                        aria-label={t("chatMinimap.locateAssistant")}
-                        title={t("chatMinimap.locateAssistant")}
-                      >
-                        A
-                      </button>
-                    )}
-                  </span>
-                  <span className="body">
-                    <button
-                      type="button"
-                      className="u"
-                      data-minimap-preview-user={node.index}
-                      onClick={() => {
-                        scrollToNode(node, "smooth");
-                      }}
-                    >
-                      {getUserPreview(node.targetTurn.userMessage)}
-                    </button>
-
-                    {node.targetTurn.assistantPreviews.map((assistant, assistantIndex) => (
-                      <span
-                        key={assistantIndex}
-                        className="a"
-                        data-minimap-answer-index={assistantIndex}
-                      >
-                        <AssistantOutline
-                          markdown={assistant.markdown}
-                          onAnswerClick={() => scrollToAssistant(node, assistantIndex)}
-                          onHeadingClick={(headingIndex) => (
-                            scrollToHeading(node, assistantIndex, headingIndex)
-                          )}
-                        />
-                      </span>
-                    ))}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

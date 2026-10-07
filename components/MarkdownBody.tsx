@@ -96,6 +96,69 @@ function MarkdownImage({
 }
 
 /**
+ * fork:v6-landing —— 行内引用标（画板 D-33 帧 D / D-34 帧 A 的 `.d-cite-mark`）。
+ *
+ * 这一轮**写过的文件**就是这轮回答的「来源」（与底部 `.d-cites` 芯片同一份列表）。
+ * 正文里**显式指向来源文件**的本地链接在右上角带一个编号 —— 编号就是它在来源
+ * 集合里的位次（1 起），与 `.d-cites` 芯片的顺序一一对应。
+ *
+ * 只标链接，不猜正文里的裸路径：一句话「支持了哪个来源」需要锚点，靠文件名做
+ * 模糊匹配会误标。窄屏不渲染（PWA 库没有 `m-cite-mark`，V6 画板也只做了桌面）。
+ */
+export const CiteSourcesContext = createContext<ReadonlyMap<string, number> | null>(null);
+
+/** 路径比对键：Windows 反斜杠与大小写差异不应让同一条来源标不上。 */
+const citePathKey = (path: string) => path.replace(/\\/g, "/").toLowerCase();
+
+function MarkdownAnchor({
+  href,
+  children,
+  cwd,
+  onOpenFile,
+  isPwa,
+  ...props
+}: ComponentProps<"a"> & ExtraProps & {
+  cwd?: string;
+  onOpenFile?: (filePath: string, page?: number) => void;
+  isPwa?: boolean;
+}) {
+  // `node` is react-markdown metadata, not a DOM attribute.
+  delete props.node;
+  const citeSources = useContext(CiteSourcesContext);
+  const filePath = onOpenFile ? resolveLocalFileHref(href, cwd) : null;
+  // fork:pdf-page-fragment — resolveLocalFileHref drops `#…`; page lives only on the raw href.
+  const page = onOpenFile ? parsePdfPageFragment(href) : null;
+  const openFile = onOpenFile;
+  if (!filePath || !openFile) {
+    return (
+      <MarkdownLinkContext.Provider value={true}>
+        <ExternalLink href={href} {...props}>
+          {children}
+        </ExternalLink>
+      </MarkdownLinkContext.Provider>
+    );
+  }
+
+  const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!shouldOpenLocalFileInApp(event)) return;
+    const target = event.currentTarget.getAttribute("target");
+    if (target && target !== "_self") return;
+    event.preventDefault();
+    openFile(filePath, page ?? undefined);
+  };
+
+  const citeIndex = isPwa ? undefined : citeSources?.get(citePathKey(filePath));
+  return (
+    <MarkdownLinkContext.Provider value={true}>
+      <a href={href} {...props} onClick={handleClick}>
+        {children}
+        {citeIndex !== undefined && <sup className="d-cite-mark">{citeIndex}</sup>}
+      </a>
+    </MarkdownLinkContext.Provider>
+  );
+}
+
+/**
  * fork:markdown-incremental — 构造一套 markdown 叶子渲染器。
  *
  * `readStreaming` 用回调而不是布尔值：一次性渲染路径把读取推迟到渲染真正发生的
@@ -266,38 +329,10 @@ function buildMarkdownComponents(
       }
       return <span {...props} className={className}>{children}</span>;
     },
-    a({ href, children, ...props }) {
-      // `node` is react-markdown metadata, not a DOM attribute.
-      delete props.node;
-      const filePath = onOpenFile ? resolveLocalFileHref(href, cwd) : null;
-      // fork:pdf-page-fragment — resolveLocalFileHref drops `#…`; page lives only on the raw href.
-      const page = onOpenFile ? parsePdfPageFragment(href) : null;
-      const openFile = onOpenFile;
-      if (!filePath || !openFile) {
-        return (
-          <MarkdownLinkContext.Provider value={true}>
-            <ExternalLink href={href} {...props}>
-              {children}
-            </ExternalLink>
-          </MarkdownLinkContext.Provider>
-        );
-      }
-
-      const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
-        if (!shouldOpenLocalFileInApp(event)) return;
-        const target = event.currentTarget.getAttribute("target");
-        if (target && target !== "_self") return;
-        event.preventDefault();
-        openFile(filePath, page ?? undefined);
-      };
-
-      return (
-        <MarkdownLinkContext.Provider value={true}>
-          <a href={href} {...props} onClick={handleClick}>
-            {children}
-          </a>
-        </MarkdownLinkContext.Provider>
-      );
+    // fork:v6-landing —— 抽成具名组件才能读 CiteSourcesContext（钩子不能在
+    // 这个返回对象的方法简写里安全调用）。
+    a(props) {
+      return <MarkdownAnchor {...props} cwd={cwd} onOpenFile={onOpenFile} isPwa={isPwa} />;
     },
     img(props) {
       return <MarkdownImage cwd={cwd} {...props} />;

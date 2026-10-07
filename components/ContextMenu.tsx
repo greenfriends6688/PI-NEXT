@@ -89,6 +89,12 @@ interface MenuState {
    * `match` 决定一行在当前查询词下留不留；不传 `match` 就只渲染搜索框不过滤。
    */
   search?: { placeholder: string; match: (label: string, query: string) => boolean };
+  /**
+   * fork:pwa-menu-toggle（2026-10-06 用户报「再次点击按钮不消失」）—— 触发这个菜单
+   * 的那枚钮。给了它，第二次点同一枚钮就是「关」而不是「关了又开」（见 onPointerDown
+   * 与 openMenu 里的 anchorCloseRef）。不给就是原来那种一次性浮窗（右键菜单等）。
+   */
+  anchor?: HTMLElement | null;
 }
 
 interface ContextMenuApi {
@@ -96,6 +102,7 @@ interface ContextMenuApi {
     title?: string;
     footer?: string;
     search?: { placeholder: string; match: (label: string, query: string) => boolean };
+    anchor?: HTMLElement | null;
   }) => void;
   closeMenu: () => void;
 }
@@ -134,6 +141,13 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
   const [submenuIndex, setSubmenuIndex] = useState<number | null>(null);
   const [submenuPos, setSubmenuPos] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  // fork:pwa-menu-toggle —— 刚刚被触发钮自己关掉的那一枚（时间戳防误吞下一次真实打开）。
+  const anchorCloseRef = useRef<{ el: HTMLElement; at: number } | null>(null);
+  // fork:menu-chained-open（2026-10-07 用户报「移除这个按钮用不了」）—— 有些菜单项的
+  // onSelect 会**接着开另一只**浮窗（插件行的「移除…」→ 卸载确认，锚点相同、两枚叠着）。
+  // runItem 的收尾会无条件 closeMenu()，于是刚开的那只被一起关掉：点了「移除…」
+  // 什么都看不到。openMenu 在「已经有一只开着」时置一次标记，runItem 收尾看到它就跳过关闭。
+  const chainedOpenRef = useRef(false);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // fork:v5-wave-b-2026-10-04 —— 窄屏换 m-* 件；宽屏仍是 d-*。
@@ -169,7 +183,20 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     title?: string;
     footer?: string;
     search?: { placeholder: string; match: (label: string, query: string) => boolean };
+    anchor?: HTMLElement | null;
   }) => {
+    // fork:pwa-menu-toggle —— pointerdown 已经把菜单关掉了（onPointerDown），
+    // 紧随其后的 click 只是那一下的尾巴，不要再开。这里**不能**先 clearTimers()：
+    // 关场动画的收尾定时器就是负责把 `closing` 落回 false、`menu` 置空的，
+    // 提前清掉会让浮窗永远留在 DOM 里（opacity:0）。
+    const anchor = chrome?.anchor ?? null;
+    const lastAnchorClose = anchorCloseRef.current;
+    anchorCloseRef.current = null;
+    if (anchor && lastAnchorClose && lastAnchorClose.el === anchor && Date.now() - lastAnchorClose.at < 500) {
+      return;
+    }
+    // 「已经有一只开着」= 这次是链式替换（见 chainedOpenRef）。
+    chainedOpenRef.current = menuRef.current !== null;
     clearTimers();
     if (closeTimer.current) {
       clearTimeout(closeTimer.current);
@@ -180,7 +207,7 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     setSubmenuPos(null);
     setFeedbackIndex(-1);
     setActiveIndex(-1);
-    setMenu({ x, y, entries, title: chrome?.title, footer: chrome?.footer, search: chrome?.search });
+    setMenu({ x, y, entries, title: chrome?.title, footer: chrome?.footer, search: chrome?.search, anchor });
     // 每次打开都清空上一次查询词（画板 D-02c 帧 C：别让人以为列表被过滤坏了）。
     setQuery("");
     // Provisional position; useLayoutEffect re-measures and flips.
@@ -212,7 +239,16 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     if (!menu) return;
 
     const onPointerDown = (event: PointerEvent) => {
-      if (menuRef.current?.contains(event.target as Node)) return;
+      const target = event.target as Node;
+      // fork:pwa-menu-toggle —— 点回触发钮 = 关。不记这一笔的话，同一个 click 还会
+      // 走到触发钮的 onClick → openMenu，于是「点一下关了、立刻又开」= 用户看到的
+      // 「点它不消失」。记下 (钮, 时刻)，让 openMenu 吞掉这次尾巴。
+      if (menu.anchor && menu.anchor.contains(target)) {
+        anchorCloseRef.current = { el: menu.anchor, at: Date.now() };
+        closeMenu();
+        return;
+      }
+      if (menuRef.current?.contains(target)) return;
       closeMenu();
     };
     const onKeyDown = (event: KeyboardEvent) => {
@@ -300,10 +336,15 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
       // A rejecting action (e.g. a denied clipboard write) must not escape as an
       // unhandled rejection; the menu still closes the way it always does.
     } finally {
-      if (entry.feedbackLabel) {
-        feedbackTimer.current = setTimeout(() => closeMenu(), FEEDBACK_MS);
-      } else {
-        closeMenu();
+      // fork:menu-chained-open —— onSelect 里又开了一只：那只不能被这里顺手关掉。
+      const chained = chainedOpenRef.current;
+      chainedOpenRef.current = false;
+      if (!chained) {
+        if (entry.feedbackLabel) {
+          feedbackTimer.current = setTimeout(() => closeMenu(), FEEDBACK_MS);
+        } else {
+          closeMenu();
+        }
       }
     }
   };

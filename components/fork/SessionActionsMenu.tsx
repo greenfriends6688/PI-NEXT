@@ -150,6 +150,8 @@ export function SessionActionsMenu({
     ];
 
     openMenu(Math.max(8, rect.right - 200), rect.bottom, entries, {
+      // fork:pwa-menu-toggle —— 把触发钮一并交出去：再点它一次是关，不是重开。
+      anchor: event.currentTarget,
       // fork:v5-frame-audit-2026-10-05 —— 浮窗顶部分组标题（画板 D-02d 帧 D / D-02c 帧 B）：
       // 「会话动作 · <会话名>」。文案全部用已有 key 拼，不新增 i18n。
       title: session.name ? `${t("session.actions")} · ${session.name}` : t("session.actions"),
