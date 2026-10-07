@@ -44,14 +44,21 @@ const LEGACY_APP_NAMES = ["Pinkslab", "Pi Codex", "pi-web"];
 const { lanEnabledByConfig, superviseLanBind } = require("../bin/lan-supervisor.cjs");
 const { legacyUserDataSource } = require("./legacy-user-data");
 const { attachRendererRecovery } = require("./renderer-recovery");
+const {
+  createCrashBudget,
+  SERVER_RESTART_MAX_ATTEMPTS,
+  SERVER_RESTART_MAX_DELAY_MS,
+} = require("./server-crash-budget");
 let mainWindow = null;
 let tray = null;
 let serverProc = null;
 let serverPort = null;
-/** fork:pr48-restart —— 服务意外退出后的有界退避重启（见 exit 处理器的注释）。 */
-let restartAttempt = 0;
-const SERVER_RESTART_MAX_ATTEMPTS = 5;
-const SERVER_RESTART_MAX_DELAY_MS = 16_000;
+/* fork:desktop-crash-budget —— 服务意外退出后的有界退避重启。
+   预算状态从 main.js 本地的 `restartAttempt` 搬进这个模块（带单测），因为旧写法
+   把清零写在 `startServer()` 里面，导致退避永远停在 1s、`MAX_ATTEMPTS` 从不触发。 */
+const crashBudget = createCrashBudget();
+/** `before-quit` 只跑一轮清理（否则 preventDefault + app.quit() 会自递归）。 */
+let serverCleanupStarted = false;
 /** fork:lan-access —— 当前绑的网卡（`0.0.0.0` = 局域网可达）与监督器的退订函数。 */
 let lanHost = "127.0.0.1";
 let stopLanSupervisor = null;
@@ -96,6 +103,9 @@ function getNextBin(appRoot) {
 // 现在按固定端口依次尝试；全被占用才退回随机端口，而且那时设置会丢，
 // 所以打一行警告。应用有 requestSingleInstanceLock，自己不会跟自己撞端口。
 const DESKTOP_PORTS = [30142, 30143, 30144, 30145];
+
+/** fork:desktop-ready-probe —— 就绪探测的三个地址（见 `waitReady` 头注）。 */
+const READY_PROBE_HOSTS = ["127.0.0.1", "localhost", "::1"];
 
 function getFreePort() {
   return new Promise((resolve, reject) => {
@@ -172,6 +182,9 @@ async function startServer(appRoot) {
       env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", PORT: String(port), PI_WEB_HOSTNAME: host },
       stdio: ["ignore", "pipe", "pipe"],
     });
+    // fork:desktop-crash-budget —— 记下它的出生时刻：退出时用它算存活时长，
+    // 「跑够稳定窗口才翻篇」这条必须靠它，不能靠「我们调过 startServer」。
+    proc.startedAt = Date.now();
     proc.stdout.on("data", (chunk) => process.stdout.write(chunk));
     proc.stderr.on("data", (chunk) => process.stderr.write(chunk));
     proc.on("error", (err) => {
@@ -195,8 +208,14 @@ async function startServer(appRoot) {
       //
       // 退避上限 5 次 / 累计约 31s（1+2+4+8+16）。超过就退出 —— 无限重启会把用户
       // 锁在一个永远转圈的窗口里，比退出更糟。
-      restartAttempt += 1;
-      if (restartAttempt > SERVER_RESTART_MAX_ATTEMPTS) {
+      //
+      // fork:desktop-crash-budget —— 判定搬进 `server-crash-budget.js`；那句「什么时候
+      // 把预算还回去」原来写在 `startServer()` 结尾（`restartAttempt = 0`），而重启正是
+      // 靠 startServer 完成的，所以计数器每次都被清零：退避永远 1s、上面那条上限
+      // 从来没触发过。现在只有**稳定运行够久**才翻篇（见该模块头注）。
+      const uptimeMs = typeof proc.startedAt === "number" ? Date.now() - proc.startedAt : 0;
+      const verdict = crashBudget.recordExit(uptimeMs);
+      if (verdict.exhausted) {
         dialog.showErrorBox(
           `${APP_NAME} 服务反复退出`,
           `本地服务连续 ${SERVER_RESTART_MAX_ATTEMPTS} 次启动失败，已关闭应用。最后一次退出：code=${code} signal=${signal ?? "-"}\n\n请检查终端输出后重试。`,
@@ -204,8 +223,8 @@ async function startServer(appRoot) {
         app.quit();
         return;
       }
-      const delayMs = Math.min(1000 * 2 ** (restartAttempt - 1), SERVER_RESTART_MAX_DELAY_MS);
-      console.warn(`[pi-next] 服务意外退出，${delayMs / 1000}s 后第 ${restartAttempt}/${SERVER_RESTART_MAX_ATTEMPTS} 次重启…`);
+      const delayMs = verdict.delayMs;
+      console.warn(`[pi-next] 服务意外退出，${delayMs / 1000}s 后第 ${verdict.attempts}/${SERVER_RESTART_MAX_ATTEMPTS} 次重启…`);
       // 前端不用动：EventSource 在连接断开时会自己重连，服务端回来它就接上了。
       setTimeout(() => {
         if (quitting) return;
@@ -220,7 +239,6 @@ async function startServer(appRoot) {
   };
 
   lanRebinding = false;
-  restartAttempt = 0;
   spawnServer(lanHost);
 
   // fork:lan-access —— 点「启动 / 停止」后由这里重启子进程生效，细节见
@@ -269,29 +287,41 @@ async function startServer(appRoot) {
 function waitReady(port, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
-    const poll = () => {
-      const req = http.get(
-        { host: "127.0.0.1", port, path: "/" },
-        (res) => {
-          res.resume();
-          if (res.statusCode && res.statusCode < 500) resolve();
-          else schedule();
-        },
-      );
-      req.on("error", schedule);
+    /* fork:desktop-ready-probe —— 只探 `127.0.0.1` 是不够的：局域网一开，服务绑的是
+       `::`（双栈），某些环境下 v4 那一条会先吃一个 ECONNREFUSED；而 `localhost` 在
+       本机可能先解析成 `::1`。三个地址轮着探，**任一通了就算就绪**，只有全部超时才失败。
+       （ZCode 的开发态启动器同口径：localhost / 127.0.0.1 / [::1] 三个都轮。） */
+    let settled = false;
+    const probe = (host) => new Promise((done) => {
+      const req = http.get({ host, port, path: "/" }, (res) => {
+        res.resume();
+        done(Boolean(res.statusCode && res.statusCode < 500));
+      });
+      req.on("error", () => done(false));
       req.setTimeout(1000, () => {
         req.destroy();
-        schedule();
+        done(false);
       });
-    };
-    const schedule = () => {
+    });
+    const tick = async () => {
+      if (settled) return;
       if (Date.now() > deadline) {
+        settled = true;
         reject(new Error("等待 pi-web 服务就绪超时"));
         return;
       }
-      setTimeout(poll, 300);
+      for (const host of READY_PROBE_HOSTS) {
+        if (await probe(host)) {
+          if (!settled) {
+            settled = true;
+            resolve();
+          }
+          return;
+        }
+      }
+      setTimeout(() => { void tick(); }, 300);
     };
-    poll();
+    void tick();
   });
 }
 
@@ -676,11 +706,38 @@ app.on("window-all-closed", () => {
   }
 });
 
-app.on("before-quit", () => {
+app.on("before-quit", (event) => {
   quitting = true;
   if (keepAwakeId !== null) {
     powerSaveBlocker.stop(keepAwakeId);
     keepAwakeId = null;
   }
-  if (serverProc && !serverProc.killed) serverProc.kill("SIGTERM");
+  /* fork:desktop-quit-cleanup —— 原来这里只发一次 SIGTERM 就放行退出：
+     Next 会派生子 worker，一次信号被吞就留下**孤儿 next 进程**占着端口，
+     下次启动直接 EADDRINUSE（表现就是「壳子老是连不上」）。
+     现在：SIGTERM → 3s 后 SIGKILL 兑底 → 等它真的退了再放行退出；
+     最多等 5s，超时也放行（不能因为子进程卡住就退不掉应用）。
+     `serverCleanupStarted` 只让这一轮清理跑一次 —— 否则 preventDefault +
+     app.quit() 会自递归。 */
+  if (serverCleanupStarted || !serverProc || serverProc.killed) return;
+  serverCleanupStarted = true;
+  event.preventDefault();
+  const proc = serverProc;
+  proc.kill("SIGTERM");
+  const forceKill = setTimeout(() => {
+    try {
+      proc.kill("SIGKILL");
+    } catch {
+      /* 已经退了 */
+    }
+  }, 3000);
+  forceKill.unref?.();
+  const proceed = () => {
+    clearTimeout(forceKill);
+    clearTimeout(giveUp);
+    app.quit();
+  };
+  const giveUp = setTimeout(proceed, 5000);
+  giveUp.unref?.();
+  proc.once("exit", proceed);
 });
