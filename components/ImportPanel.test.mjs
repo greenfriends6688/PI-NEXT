@@ -38,10 +38,13 @@ test("the page is one column of cards, no toolbar, no list/detail split", () => 
   assert.match(panel, /import\.stepScan/);
   assert.match(panel, /className="d-card-head"/);
   assert.match(panel, /className="d-table"/);
-  assert.match(panel, /import\.stepApply/);
   // 两枚路由徽标写明两段式。
   assert.match(panel, /POST \/api\/import\/scan/);
-  assert.match(panel, /POST \/api\/import\/apply/);
+  // 2026-10-07 用户裁定：链路上的「确认导入」卡整块去掉（只剩扫描卡），
+  // 确认钮落在细选弹窗 foot，结果横幅挪到页首。
+  assert.doesNotMatch(panel, /import\.stepApply/);
+  assert.doesNotMatch(panel, /POST \/api\/import\/apply/);
+  assert.equal((panel.match(/className="d-card"/g) ?? []).length, 1);
 });
 
 test("verbose detail lives in portal modals, not in the page column", () => {
@@ -89,8 +92,8 @@ test("the conflict modal states the one mode the apply layer actually has", () =
   assert.match(panel, /import\.conflictOnlySkip/);
   assert.match(panel, /className="d-seg"/);
   assert.match(panel, /import\.conflictSkipBody/);
-  // 弹窗入口是卡头上那枚按钮。
-  assert.match(panel, /import\.conflictButton/);
+  // 弹窗入口原来在卡头上那枚按钮；卡去掉后页面上没有入口了（弹窗组件仍在）。
+  assert.doesNotMatch(panel, /import\.conflictButton/);
 });
 
 test("the source popover cannot be clipped by the settings scroller", () => {

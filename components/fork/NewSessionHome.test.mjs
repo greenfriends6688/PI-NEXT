@@ -17,12 +17,13 @@ function render(props) {
   );
 }
 
-test("shows the project name and one card per starter", () => {
+test("one card per starter, and no empty-state title", () => {
   const html = render({ cwd: "/Users/me/projects/pi-web", isMobile: false, onInsertPrompt: () => {} });
 
-  // Title uses the basename, not the full path.
-  assert.match(html, /pi-web/);
-  assert.doesNotMatch(html, /\/Users\/me\/projects\/pi-web\?/);
+  // 空态标题（「在 pi-web 里做点什么？」）2026-10-07 用户裁定去掉，连同它读的
+  // `cwd` basename —— 现在这一块只剩品牌行 + 一句提示 + 四张起步卡。
+  assert.doesNotMatch(html, /pi-web/);
+  assert.doesNotMatch(html, /d-empty-t/);
   assert.equal((html.match(/<button/g) ?? []).length, 4);
   // fork:v5-landing-frame —— 起步卡直接用画板 **D-01 帧 D** 的网格与卡片：
   // `.d-cardgrid`（`auto-fill` + 220px 下限，窄栏自己塌成一列）› `button.d-setcard`
@@ -35,7 +36,7 @@ test("shows the project name and one card per starter", () => {
   assert.doesNotMatch(html, /d-store-card|d-grid2/);
 });
 
-test("falls back to the generic title without a cwd and stacks cards on mobile", () => {
+test("stacks cards on mobile without an inline column override", () => {
   const html = render({ cwd: null, isMobile: true, onInsertPrompt: () => {} });
 
   // 单列堆叠不再靠内联 `gridTemplateColumns: "1fr"`：`.d-cardgrid` 的

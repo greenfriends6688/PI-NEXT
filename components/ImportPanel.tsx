@@ -19,18 +19,19 @@
  * 一列**卡片**，不再有工具栏、列表列与详情列：
  *
  *   d-col（gap sp-4）
+ *     ├ 结果 / 报错横幅（有才画）
  *     ├ d-card 扫描（只读）          卡头：图标 + 标题 + `POST /api/import/scan` 徽标
  *     │                              + 「来源是怎么定的」浮层 + 重新扫描
  *     │   卡身：四类芯片（= 页签）→ 搜索 → **d-table**（一行一个来源，点行整批勾）
  *     │        → 「细选具体条目」入口（开弹窗）→ 一段脚注
- *     ├ d-card 确认导入              卡头：图标 + 标题 + `POST /api/import/apply` 徽标
- *     │                              + 「冲突策略」/「导入说明」两枚弹窗入口
- *     │   卡身：上次结果横幅（有才画）+ 清空选择 / 确认导入
- *     └ 三个 portal 弹窗：细选 / 冲突策略 / 导入说明
+ *     └ 三个 portal 弹窗：细选（含清空选择 / 确认导入）/ 冲突策略 / 导入说明
  *
  * 2026-10-07 用户裁定（覆盖 10-06 的帧 B 形态）：冲突策略卡、`d-statgrid` 四张统计卡、
  * 末尾 `d-grid3` 三张口径卡全部收进弹窗，页面上只留按钮；卡片不再编号（「第一步/第二步」
  * 对用户没用）。弹窗走 `useDialogA11y` + `createPortal(…, document.body)`。
+ * 同日再裁定：原来那张**「确认导入」卡整块去掉**（截图原文「第二张图的这一整块」）——
+ * 清空选择 / 确认导入只剩细选弹窗 foot，结果横幅挪到页首；「冲突策略」/「导入说明」
+ * 两枚入口随卡一起去掉（两个弹窗组件还在，暂时没有入口）。
  *
  * 四条判定：
  *   1. 表格里是**候选**不是结果，落盘数量由「确认导入」按钮给出；
@@ -489,8 +490,9 @@ export function ImportPanel() {
   });
 
   /**
-   * fork:import-confirm-one —— 「确认导入」**只有这一处实现**、两处引用：页面第二张
-   * 「确认导入」卡，与细选弹窗的 foot。用户 2026-10-07 原话：「导入细选条目的弹窗上
+   * fork:import-confirm-one —— 「确认导入」**只有这一处实现**：页面那张「确认导入」卡
+   * 已整块去掉（2026-10-07），所以现在只剩细选弹窗 foot 这一个引用。
+   * 用户 2026-10-07 原话：「导入细选条目的弹窗上
    * 没有导入按钮，而是你还是长在原来的第二步那个位置」—— 所以在弹窗里逐条挑完就能直接
    * 导，不必先关弹窗再回下面那张卡找那枚钮。禁用判据与页面那枚**同一条**（一条都没勾 /
    * 正在导就置灰），抽成变量引用，不复制第二份 JSX。
@@ -517,6 +519,13 @@ export function ImportPanel() {
           <div role="alert" className="d-banner err">
             <i data-ico="triangle-alert" data-size="14" aria-hidden="true" />
             <span className="d-grow">{activeState.error}</span>
+          </div>
+        )}
+        {/* 导入结果横幅原挂在「确认导入」卡里，卡去掉后挪到这里（结果只有这一处能报）。 */}
+        {activeState.status && (
+          <div role="status" className="d-banner ok">
+            <i data-ico="check" data-size="14" aria-hidden="true" />
+            <span>{activeState.status}</span>
           </div>
         )}
 
@@ -707,45 +716,6 @@ export function ImportPanel() {
           </div>
         </div>
 
-        {/* 确认导入卡：冲突口径与三条说明都收进弹窗，页面上只留按钮。 */}
-        <div className="d-card">
-          <div className="d-card-head">
-            <i data-ico="circle-play" data-size="15" aria-hidden="true" />
-            <span>{t("import.stepApply")}</span>
-            <span className="d-badge mute">POST /api/import/apply</span>
-            <span className="d-grow" aria-hidden="true" />
-            <button type="button" className="d-btn sm ghost" onClick={() => setShowConflicts(true)}>
-              <i data-ico="git-merge" data-size="13" aria-hidden="true" />
-              {t("import.conflictButton")}
-            </button>
-            <button type="button" className="d-btn sm ghost" onClick={() => setShowNotes(true)}>
-              <i data-ico="info" data-size="13" aria-hidden="true" />
-              {t("import.notesTitle")}
-            </button>
-          </div>
-          <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-3)" }}>
-            {activeState.status && (
-              <div role="status" className="d-banner ok">
-                <i data-ico="check" data-size="14" aria-hidden="true" />
-                <span>{activeState.status}</span>
-              </div>
-            )}
-            <div className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
-              <ConfigButton
-                variant="secondary"
-                size="small"
-                title={activeState.selected.size === 0 ? localCopy(NOTHING_SELECTED, locale) : undefined}
-                disabled={activeState.selected.size === 0}
-                onClick={() => setKind(active, { selected: new Set() })}
-              >
-                {t("import.clearSelection")}
-              </ConfigButton>
-              {/* 与弹窗 foot 引用同一枚确认钮（见上方 `confirmImportButton`）。 */}
-              {confirmImportButton}
-            </div>
-          </div>
-        </div>
-
         {/* 三个弹窗都 portal 到 body：设置壳有 `overflow` 与 `backdrop-filter`，
             留在壳里的 `position: fixed` 会被面板裁掉（同 ThemeSkinStudio 的注记）。 */}
         {showPick && createPortal(
@@ -859,7 +829,7 @@ export function ImportPanel() {
                   {t("import.clearSelection")}
                 </button>
                 <span className="d-grow" aria-hidden="true" />
-                {/* 弹窗 foot 与页面卡片引用同一枚「确认导入」（`confirmImportButton`）。
+                {/* 确认钮只有细选弹窗 foot 一个落点（页面那张卡已去掉）。
                     关闭在弹窗里是次级动作，退回默认档 `d-btn`：foot 只留一枚 accent 实底，
                     否则两枚蓝钮并排，用户还是不知道该点哪个。 */}
                 {confirmImportButton}
@@ -950,7 +920,8 @@ export function ImportPanel() {
   );
 }
 
-/** `import.result`（"导入 X · 跳过 Y · 失败 Z"）现在是确认导入卡里那条 `d-banner ok`；
+/** `import.result`（"导入 X · 跳过 Y · 失败 Z"）现在是页首那条 `d-banner ok`
+ *  （原挂在「确认导入」卡里，卡去掉后挪到错误横幅旁边）；
  *  窄屏另用结构化的 `lastSummary` 三行。 */
 
 /** One line that identifies a row well enough to decide whether to import it. */

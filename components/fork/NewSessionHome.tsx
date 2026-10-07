@@ -4,8 +4,9 @@ import { useI18n } from "@/hooks/useI18n";
 
 /*
  * fork:v5-landing —— 新会话空态首屏照 v5 画板 **D-01 帧 A** 抄 DOM：
- * 结构 = .d-empty（.d-empty-ico + .d-empty-t.d-t-display + .d-empty-s）
- *        + 起步卡网格。
+ * 结构 = .d-empty（品牌行 + .d-empty-s）+ 起步卡网格。
+ * 空态标题 `.d-empty-t.d-t-display`（「在 … 里做点什么？」）2026-10-07 按用户要求去掉，
+ * 连同它读的 cwd basename —— 顶部只剩品牌行与一句提示。
  * 样式全部来自 design/v5/web/system.css（d-* 唯一出处），图标走 <i data-ico>（icons.js hydrate）。
  * 四张起步卡 = STARTERS（scan-search / git-compare / square-check / book-open），
  * 点卡只把完整指令填进输入框、不发送。
@@ -25,12 +26,6 @@ import { useI18n } from "@/hooks/useI18n";
  * 等设计侧补板后再换。
  */
 
-function cwdBasename(cwd: string | null | undefined): string | null {
-  if (!cwd) return null;
-  const name = cwd.replace(/[\\/]+$/, "").split(/[\\/]/).pop();
-  return name || cwd;
-}
-
 const STARTERS = [
   { key: "chat.homeExplore", desc: "chat.homeExploreDesc", prompt: "chat.homeExplorePrompt", icon: "scan-search" },
   { key: "chat.homeReview", desc: "chat.homeReviewDesc", prompt: "chat.homeReviewPrompt", icon: "git-compare" },
@@ -39,9 +34,10 @@ const STARTERS = [
 ] as const;
 
 export function NewSessionHome({
-  cwd,
   onInsertPrompt,
 }: {
+  /** 调用方仍传着（**「在 … 里做点什么？」标题已去掉**，这里不再读它）：
+   *  留着这个字段是为了不改 `ChatWindow` 的调用点，也不再从 props 里解构。 */
   cwd: string | null | undefined;
   /** 仍由调用方（`ChatWindow`）传入，但**网格不再靠它判形**：`.d-cardgrid` 是
    *  `auto-fill` + 220px 下限，窄栏（手机 / 开了右栏的桌面）自己塌成一列 ——
@@ -50,7 +46,6 @@ export function NewSessionHome({
   onInsertPrompt: (text: string) => void;
 }) {
   const { t } = useI18n();
-  const label = cwdBasename(cwd);
   const hint = t("chat.homeHint");
 
   return (
@@ -79,12 +74,6 @@ export function NewSessionHome({
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element -- 静态品牌资产，不走 next/image 优化器 */}
             <img className="d-wordmark" src="/pi-next-wordmark.png" alt="PI NEXT" draggable={false} />
-          </div>
-          <div
-            className="d-empty-t d-t-display fork-row-enter"
-            style={{ animationDelay: "calc(var(--motion-stagger) * 1)" }}
-          >
-            {label ? t("chat.homeTitle", { cwd: label }) : t("chat.homeTitleGeneric")}
           </div>
           <div
             className="d-empty-s fork-row-enter"
