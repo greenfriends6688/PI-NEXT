@@ -4,7 +4,7 @@
 
 [English](./README.md) | 简体中文
 
-![PI NEXT 正在跑一个 pi 会话：可折叠的工具调用、带语法高亮的回答与输入框](./assets/readme-screenshot.png)
+![PI NEXT 工作台：输入框、四张起步卡与项目侧栏](./assets/readme-screenshot.png)
 
 在 pi 终端里开始的对话，可以直接在 PI NEXT 里接着聊，再交回终端——因为 PI NEXT 读写的就是 pi 自己的文件：`~/.pi/agent/sessions` 下的会话，以及 `models.json`、`settings.json`、认证、技能和插件包。数据不出本机：服务只绑 `127.0.0.1`，供应商密钥始终留在 pi 的配置里。
 
@@ -153,9 +153,7 @@ npm run desktop:dist:win   # 交叉打 Windows 安装包
 
 ## 致谢
 
-PI NEXT 是 [@agegr](https://github.com/agegr/pi-web) 的 [Pi Web](https://github.com/agegr/pi-web) 的分支。会话浏览、进程内 AgentSession 层、文件与预览栈，以及大部分配置界面都源自那里——感谢原作者的工作，没有它就没有这个分支。
-
-智能体运行时、会话文件格式与终端体验来自 [earendil-works](https://github.com/earendil-works) 的 [pi](https://github.com/earendil-works/pi)。
+PI NEXT 是 [Pi Web](https://github.com/agegr/pi-web) 的分支，运行在 [pi](https://github.com/earendil-works/pi) 智能体运行时之上。感谢这两个项目及其作者。
 
 ## 许可
 

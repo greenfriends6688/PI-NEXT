@@ -4,7 +4,7 @@
 
 English | [简体中文](./README.zh-CN.md)
 
-![PI NEXT driving a pi session: collapsible tool calls, a syntax-highlighted answer and the composer](./assets/readme-screenshot.png)
+![PI NEXT workbench: the composer, four starter cards and the project sidebar](./assets/readme-screenshot.png)
 
 A conversation started in the pi terminal can be picked up in PI NEXT and handed back, because PI NEXT reads and writes the same files pi does — sessions under `~/.pi/agent/sessions`, plus `models.json`, `settings.json`, auth, skills and packages. Nothing leaves the machine: the server binds to `127.0.0.1` and provider keys stay in pi's own config.
 
@@ -153,9 +153,7 @@ The desktop shell bundles the same Next.js server, so the browser and the app ar
 
 ## Credits
 
-PI NEXT is a fork of [Pi Web](https://github.com/agegr/pi-web) by [@agegr](https://github.com/agegr/pi-web). Session browsing, the in-process agent session layer, the file and preview stack, and most of the configuration surfaces started there — thank you for the original work, without it this fork would not exist.
-
-The agent runtime, session format and terminal experience belong to [pi](https://github.com/earendil-works/pi) by [earendil-works](https://github.com/earendil-works).
+PI NEXT is a fork of [Pi Web](https://github.com/agegr/pi-web), built on the [pi](https://github.com/earendil-works/pi) agent runtime. Thanks to both projects and their authors.
 
 ## License
 
