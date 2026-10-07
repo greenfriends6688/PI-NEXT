@@ -13,8 +13,8 @@
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 import { writePrivateFileAtomicSync } from "./atomic-file";
 import { getAgentDir } from "./session-reader";
@@ -109,10 +109,48 @@ function allowHost(host: string): void {
 
 let restartAttempt = 0;
 
+/**
+ * 解析 cloudflared 的启动方式 —— **不依赖 PATH**。
+ *
+ * 坑：npm 装的 `cloudflared` 可执行文件是个 Node 脚本（shebang `#!/usr/bin/env node`），
+ * 双重依赖 PATH（脚本位置 + node 本身）。服务若是从没加载 nvm 的 shell 拉起来的
+ * （2026-10-07 实测：13:41 那代进程 env 里没有 nvm），spawn("cloudflared") 直接 ENOENT。
+ * 所以按候选绝对路径解析：JS 入口 → 用**正在跑的这只 node**（process.execPath）执行；
+ * 真二进制 → 直接 spawn；都找不到才回落 PATH。
+ */
+function resolveCloudflared(): { command: string; prefix: string[] } {
+  const candidates: Array<{ command: string; prefix: string[] }> = [];
+  const fromEnv = process.env.CLOUDFLARED_BIN?.trim();
+  if (fromEnv) candidates.push({ command: fromEnv, prefix: [] });
+
+  // 1) 与"正在跑的 node"同级的 npm -g 布局（无需枚举）
+  const nodeBin = dirname(process.execPath);
+  const fromNodeLib = join(nodeBin, "..", "lib", "node_modules", "cloudflared", "lib", "cloudflared.js");
+  if (existsSync(fromNodeLib)) candidates.push({ command: process.execPath, prefix: [fromNodeLib] });
+
+  // 2) 用户 nvm 里所有 node 版本的 npm -g 布局（服务可能不是用 nvm 那只 node 跑的）
+  try {
+    const nvmNodeDir = join(process.env.HOME ?? "", ".nvm", "versions", "node");
+    for (const version of readdirSync(nvmNodeDir)) {
+      const entry = join(nvmNodeDir, version, "lib", "node_modules", "cloudflared", "lib", "cloudflared.js");
+      if (existsSync(entry)) candidates.push({ command: process.execPath, prefix: [entry] });
+    }
+  } catch { /* 没有 nvm 目录 */ }
+
+  // 3) 家酿/系统真二进制
+  for (const binary of ["/opt/homebrew/bin/cloudflared", "/usr/local/bin/cloudflared"]) {
+    if (existsSync(binary)) candidates.push({ command: binary, prefix: [] });
+  }
+
+  return candidates[0] ?? { command: "cloudflared", prefix: [] };
+}
+
 function launch(): void {
+  const resolved = resolveCloudflared();
   const child = spawn(
-    "cloudflared",
+    resolved.command,
     [
+      ...resolved.prefix,
       "tunnel",
       "--url", `http://127.0.0.1:${localPort()}`,
       "--no-autoupdate",
