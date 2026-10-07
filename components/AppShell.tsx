@@ -2346,6 +2346,23 @@ export function AppShell() {
           <i data-ico="settings" data-size="14" aria-hidden="true"></i>
           <span>{translate("common.settings")}</span>
         </button>
+        {/* fork:foot-global-search（2026-10-07 用户裁定）—— 「在手机这个 icon 前面帮我加
+            一下全局搜索的 icon，点一下就出现全局搜索的弹窗」。
+            它开的是**同一个** `CommandPalette`（⌘K 那条路），所以只有一处状态
+            `commandPaletteOpen` —— 不再另建一个搜索入口。
+            图标用 `search`，与侧栅头部那枚「筛选会话」区分开：一个筛当前列表，一个搜全局
+            （命令 / 会话 / 文件）；名字沿用 `palette.title`（与快捷键地图、它自己的
+            `aria-label` 同一个词，不给同一件事起第二个名字）。 */}
+        <button
+          type="button"
+          onClick={() => setCommandPaletteOpen(true)}
+          title={translate("palette.title")}
+          aria-label={translate("palette.title")}
+          className={isMobile ? "m-iconbtn" : "d-iconbtn"}
+          data-fork-quick="command-palette"
+        >
+          <i data-ico="search" data-size={isMobile ? "15" : "14"} aria-hidden="true"></i>
+        </button>
         <button
           type="button"
           onClick={() => setSettingsSection("phonePush")}
