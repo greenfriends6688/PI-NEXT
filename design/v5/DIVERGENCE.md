@@ -937,3 +937,38 @@ U7 登记的三件（导航轨 / 行内引用标 / 顶栏副标题）在用户�
 | 3 | 「打开皮肤工作室帮我改成编辑俩字」 | `settings.skinStudio` 的值三语改成「编辑」/「Edit」（该 key 全仓仅此一处消费）。**对画板 D-07b 的偏离**，依据是用户裁定 |
 | 4 | 「页面透明度和会话阅读遮罩用不了了啊，点了没啥反应」 | 两个滑块在**预览里**都是死的：① `--preview-page` 画在 `.fork-skin-preview` 自己的 background 上，而壁纸是它的**子元素**（绝对定位 inset:0），整块压在页面层上面 —— 只要选了壁纸就看不见；② 阅读遮罩在预览里**根本没有对应层**。现在预览的层序与真机一致：壁纸 → 压暗 → 页面层 → **阅读遮罩层**（`--preview-reading`，与真机 `.chat-slot::before` 同 102deg、同 100/86/42% 色标）→ chrome。真机那两处（`hooks/useThemeSkins.ts` 写变量、`app/fork-ui.css` 消费）本来就是对的，未动 |
 | 5 | 「为啥我编辑蔡徐坤这个内置主题的时候，这里面会出现章若楠的内置壁纸啊……然后还有那个名称那里是空的」 | 两个 bug，根因不同：**名称** —— 内置皮肤是 `createSkinDraft(id, "", …)` 造的，`skin.name` 本来就是空串，显示名一直只存在 `BUILTIN_SKIN_LABEL_KEYS` 一处（卡片条在用），工作室直接读 `draft.name` 所以空白；新增 `hydrateSkin()` 在初始化与同步时补上，不造第二份映射表。**壁纸串了** —— 是「选中态/预览画作丢了」而不是「列表内容错」：内置皮肤保存后覆盖写进 `pi-theme-skins`，而 `parseThemeSkin` 只接受 `data:` URL，`paintingPath(id)` 被解析成 `null`，覆盖又盖住内置定义 → 画廊没有选中态、预览没有壁纸层，透出主题的兜底画作（明暗两张都指章若楠）。新增 `builtinWallpaperIdForSkin()`：先认用户显式挑的，再把 `builtin-<paintingId>` 前缀剥掉从 **`skin.id`** 补回（唯一来源） |
+
+## Z · 皮肤开着时浮窗/弹层整块错位（2026-10-07 · fork:*-pop-portal / settings-modal-portal）
+
+**一个根因，五个症状。** 用户 2026-10-07 四张实拍：模型浮窗跑到顶栏那一带、会话分支浮窗被裁掉看不见、
+「mcp / 模型 / 导入细选 / 其它设置的弹窗为啥要内嵌在设置的弹窗里」。
+
+根因：`app/fork-ui.css` 的皮肤块会给 `.d-composer` / `.main-workspace-header` /
+`.settings-dialog-surface` / `.config-panel-surface` 加 `backdrop-filter`，而
+**带 `backdrop-filter` 的祖先会成为后代 `position: fixed` 的包含块** —— 那些浮窗与弹层
+虽然用视口坐标定位，却渲染在这些容器**子树里**，于是坐标被二次叠加容器的偏移。
+
+真 Chrome 实测（1440×900，注入同样的 `backdrop-filter` 复现）：
+
+| 件 | 无皮肤 | 有皮肤（改前） | 有皮肤（改后） |
+|---|---|---|---|
+| 模型浮窗 | x=517 | **x=992**（偏右 475） | **x=517** |
+| 会话分支浮窗 | x=1112 | **x=1392**（右缘越出视口 → 被裁） | **x=1112** |
+| 设置里的 `d-modal` | 相对视口 | 相对设置面板（「内嵌」） | 相对视口（`parent = BODY`） |
+
+改法一律是 `createPortal(…, document.body)`（本仓既有先例：`ContextMenu` /
+`PortalDropdown` / `ThemeSkinStudio` 的 `fork:ui-skin-modal-portal`）：挂出去之后
+`position: fixed` 重新相对视口，**各处的定位算法一个字都没改**。涉及
+`ModelSelector`、`BranchNavigator`、`PluginsConfig` 的六个弹层、`ModelsConfig` 的
+`Modal` 与 `ChatModelsPicker`。**锚定浮窗（`d-pop is-open up`）与内联面板不动** ——
+它们本来就该待在容器里。
+
+同批的形态改动（都是用户裁定）：
+
+| 件 | 处置 | 依据 |
+|---|---|---|
+| 顶栏分支触发钮 | `.d-branch` 壳（描边 + 圆角）→ 顶栏其它钮同款的 `.d-iconbtn`，只留 `git-fork` 图标 | 「这个 icon 不需要边框，就正常显示 icon 就行了」 |
+| 顶栏动作簇末尾的 `div.d-sep-v` | **整条退场** | 「icon 右边有条竖线，麻烦帮我去掉」—— MCP 那一枚去掉后右边只剩插件一枚，为单独一枚钮画的竖线只是噪声 |
+| 模型浮窗尺寸 | `placement` 默认 `up` → `auto`（只在下面真放不下且上方更大时才朝上）+ 高度封顶 400px（旧实测 540px 顶到屏幕顶） | 「这个模型的悬浮窗你啥时候给我改到这里了啊」+「不需要占这么多位置」 |
+| 思考强度 | 从输入行搬进**模型浮窗页脚**（`ModelSelector` 新增可选 `thinkingSection` 节点槽位，不传则连分隔线都不画） | 「请你把这个思考强度也帮我融合进这浮窗中去」 |
+| 导入细选弹窗 | 补上「确认导入」（与页面卡**同一处实现**）+ 弹窗内可搜（同一个 `query`）+ 入口钮 `ghost` → `primary` | 「弹窗上没有导入按钮……细选条目的按钮麻烦给我弄明显点」 |
