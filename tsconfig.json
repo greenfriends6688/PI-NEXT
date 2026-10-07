@@ -38,7 +38,9 @@
     ".next-probe/types/**/*.ts",
     ".next-probe/dev/types/**/*.ts",
     ".next-verify/types/**/*.ts",
-    ".next-verify/dev/types/**/*.ts"
+    ".next-verify/dev/types/**/*.ts",
+    ".next-fork-verify/dev/types/**/*.ts",
+    ".next-fork-verify/dev/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

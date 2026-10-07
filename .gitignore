@@ -121,3 +121,4 @@ design/pi-web-design/.skeuo/verify-*.html
 /dist/
 # 3) 其它 agent 工具的 plan 目录（本仓 plan 放 docs/ 与已忽略的 .pi/）
 /.zcode/
+.local/agent-work/
