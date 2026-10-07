@@ -383,6 +383,16 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 * **browser-notifications 必须零相对导入**：普通 `node --test` 解析器跟不了扩展名省略
   的相对导入（本仓测试直接 strip-types 跑 TS）。壳的通知层用注册式接入
   （`setMobileNotifyProvider`），不许改成 import 式。
+* **出门 5G · 双栈绑定 + quick tunnel**：LAN 绑定居 `0.0.0.0` → `::`（双栈：v6only=0 时
+  同时收 v4/v6；国内 5G 与家宽普遍有 IPv6，手机蜂窝可直接连 `http://[家宽IPv6]:30141`，入站若
+  不通是电信网关的 IPv6 防火墙，需网关超管放行）。零账号的兜底是 **`npm run tunnel`**：
+  cloudflared 经 npm 国内镜像装（`npm i -g cloudflared`，绕开 brew 卡死），脚本起隧道→解析地址→
+  调 `POST /api/tunnel` 把 host 追加进运行时放行名单（该接口 `isLoopbackRequest` 硬闸仅本机可调；
+  名单每请求现读 env 免重启）。**两个坑**：① 本机 /etc/hosts 缺 localhost 会让 cloudflared 的
+  metrics 监听失败并退出——脚本显式传 `--metrics 127.0.0.1:36500` 绕过；② 重跑隧道 = 新地址 =
+  host-only cookie 失配，手机重填地址+输一次码（error.html 有「地址变了？重新输入」→ 跳板页
+  `?reset=1` 兜底）。`*.trycloudflare.com` 国内可达性时好时坏；Deno 自建中继完整实现在 git
+  历史 04937244，有公网主机可捡回。
 * **Phase 2（未做）**：手机独立 runtime（Android proot+Alpine+node+pi，借鉴 Aether 的
   集成形状；GPL-3.0 代码不可抄，APK 挂 Release 分发需附 GPL 组件源码指引）、
   `POST /api/sync/session/[id]/append` 上推回流、本地渲染层。

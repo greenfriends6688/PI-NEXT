@@ -163,6 +163,10 @@
 
   // ---- 入口：记住过地址就直接跳（扫到 /pair#code 的 full 地址会自动带入配对码） ----
   var saved = savedUrl();
+  if (window.location.search.indexOf("reset=1") >= 0) {
+    try { localStorage.removeItem(KEY); } catch (err) {}
+    saved = null;
+  }
   if (saved) { window.location.replace(saved); return; }
 })();
 </script>

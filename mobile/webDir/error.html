@@ -60,6 +60,7 @@
     <h1><span class="dot"></span>连不上你的电脑</h1>
     <p>检查电脑是否开机、PI NEXT 是否在跑（npm run prod），<br />以及手机是否连得上同一网络 / Tailscale 是否在线。</p>
     <button id="retry">重试</button>
+    <button id="changeAddr" class="secondary" style="margin-left:10px;background:transparent;color:inherit;border:1px solid #c9c9c5;">地址变了？重新输入</button>
     <div class="hint" id="target"></div>
   </div>
 <script>
@@ -75,6 +76,11 @@
       try { url = url || localStorage.getItem("pinext.serverUrl"); } catch (e) {}
       if (url) window.location.replace(url);
       else window.location.reload();
+    });
+
+    document.getElementById("changeAddr").addEventListener("click", function () {
+      try { localStorage.removeItem("pinext.serverUrl"); } catch (err) {}
+      window.location.replace("index.html?reset=1");
     });
 
     // 地址可达时自动回去（比如网络刚刚恢复）：每 4 秒悄悄试一次，成功即跳。
