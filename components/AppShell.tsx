@@ -3667,15 +3667,13 @@ export function AppShell() {
           {!isMobile && renderChatToolbarActions(false)}
           {/* fork:v5-frame-audit-2026-10-05 —— 顶栏右端的次序按画板 D-02b 帧 A 的
               「顶栏动作全景」：会话动作（历史 / 命名 / 子代理 / 分支 / 导出 / ⋯）
-              → `div.d-sep-v` 竖分隔 → 扩展状态。分隔线把「对这条会话做什么」和
-              「扩展状态」分成两段。
-              2026-10-07 用户裁定：MCP 那一枚去掉（顶栏不再重复设置 → MCP 的清单），
-              只剩插件一枚。 */}
+              → 扩展状态。
+              2026-10-07 用户裁定两次：① MCP 那一枚去掉（顶栏不再重复设置 → MCP 的清单），
+              只剩插件一枚；② 它前面那条 `div.d-sep-v` 也去掉 —— 用户实拍「icon 右边
+              有条竖线，麻烦帮我去掉」。分隔线原来把「对这条会话做什么」和「扩展状态」
+              分成两段，而现在右边只剩一枚图标，一条为单独一枚钮画的竖线读起来只是噪声。 */}
           {!isMobile && showChat && (
-            <>
-              <div className="d-sep-v" />
-              <PluginStatusButton cwd={selectedSession?.cwd ?? newSessionCwd ?? null} statuses={pluginStatuses} widgets={extensionWidgets} />
-            </>
+            <PluginStatusButton cwd={selectedSession?.cwd ?? newSessionCwd ?? null} statuses={pluginStatuses} widgets={extensionWidgets} />
           )}
           {!isMobile && renderChatToolbarTail()}
           {isMobile && sessionHasBranches && (

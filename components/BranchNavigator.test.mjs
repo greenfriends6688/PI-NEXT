@@ -204,23 +204,30 @@ test("subtreeContains sees through server-side compressed chains and survives de
   assert.equal(subtreeContains(linearTree(6000), "e5999"), true);
 });
 
-test("顶栏芯片只剩中间那枚图标：.d-branch 壳 + .d-branch-n（无 chevron）", async () => {
+test("顶栏分支钮不再套描边盒子：.d-iconbtn + git-fork（无 .d-branch 壳）", async () => {
   const { readFile } = await import("node:fs/promises");
   const source = await readFile(new URL("./BranchNavigator.tsx", import.meta.url), "utf8");
-  const start = source.indexOf('<span className="d-branch">');
-  const chip = source.slice(start, source.indexOf("</span>", start));
-  // 中间那格：span → button（铁律一允许的两处之一），类名一字不动。
-  // fork:branch-fixed-icon（2026-10-05 用户裁定）—— 里面不是会跳动的 `2 / 3`
-  // 序号，而是一枚固定的 git-fork 图标（同一格、同一动作：开分支树）。
-  assert.match(chip, /className="d-branch-n"/);
-  assert.match(chip, /<i data-ico="git-fork" data-size="13"/);
-  assert.doesNotMatch(chip, /shownIndex/);
-  // 旧的两套 UI 不再并存：顶栏不再有 `.d-chipbtn` 的「会话分支」文字芯片。
-  assert.doesNotMatch(chip, /d-chipbtn/);
+  // fork:branch-icon-no-box（2026-10-07 用户裁定）—— 用户原话「这个 icon 不需要边框，
+  // 就正常显示 icon 就行了」。桌面那一支原先的 `.d-branch` 壳（描边 + 圆角）与
+  // `button.d-branch-n` 一并退场，换成顶栏历史 / ⋯ 同款的 `.d-iconbtn`：无描边、
+  // 无圆角盒子、28px。图标仍是固定的 `git-fork`（承接 fork:branch-chip-icon-only /
+  // fork:branch-fixed-icon 的连续裁定）。
+  //
+  // 断言定位：`<i data-ico="git-fork" data-size="13">` 是桌面触发钮独有的一处
+  // （compact 那一支用的是 size 14 的 `branchIcon`），向上取最近一个 `<button>` 即触发钮。
+  const iconIdx = source.indexOf('<i data-ico="git-fork" data-size="13"');
+  assert.notEqual(iconIdx, -1, "桌面触发钮的固定 git-fork 图标应保留");
+  const trigger = source.slice(source.lastIndexOf("<button", iconIdx), source.indexOf("</button>", iconIdx));
+  assert.match(trigger, /d-iconbtn/);
+  assert.doesNotMatch(trigger, /d-branch/);
+  // 旧的两套 UI 不再并存：没有 `.d-branch` 壳、没有 `.d-chipbtn` 文字芯片。
+  assert.doesNotMatch(source, /className="d-branch"/);
+  assert.doesNotMatch(source, /className="d-branch-n"/);
+  assert.doesNotMatch(trigger, /d-chipbtn/);
   // fork:branch-chip-icon-only（2026-10-06 用户裁定）—— 两侧那两枚
   // `.d-branch-btn`（上一条 / 下一条兄弟分支）连同 chevron 图标一起撤掉：同一件事在
   // 分支树浮层里点一行更快，顶栏右端没有 40px 让给它。分支树浮层本身不受影响。
-  assert.doesNotMatch(chip, /d-branch-btn/);
-  assert.doesNotMatch(chip, /chevron-left/);
-  assert.doesNotMatch(chip, /chevron-right/);
+  assert.doesNotMatch(trigger, /d-branch-btn/);
+  assert.doesNotMatch(trigger, /chevron-left/);
+  assert.doesNotMatch(trigger, /chevron-right/);
 });

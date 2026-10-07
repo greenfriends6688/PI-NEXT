@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { BranchPreview, SessionEntry, SessionTreeNode } from "@/lib/types";
 import { useI18n } from "@/hooks/useI18n";
 
@@ -124,10 +125,11 @@ export function subtreeContains(node: SessionTreeNode, entryId: string | null): 
 /**
  * fork:v5-landing —— 当前激活的是第几条兄弟分支（0 基），找不到给 -1。
  *
- * 顶栏的 `.d-branch` 芯片（画板 D-03 帧 A 那一段 `chevron-left | 2 / 3 | chevron-right`，
- * 产品按 fork:branch-chip-icon-only 只留中间那枚图标）与抽屉里那枚 `.m-branch` 读的是
- * 同一口径：`selectTopLevelBranches` 的**顶层**就是兄弟分支列表，当前分支 = 子树命中
- * `activeLeafId` 的那一条。
+ * 顶栏那枚分支钮（原先是 `.d-branch` 芯片，画板 D-03 帧 A 的
+ * `chevron-left | 2 / 3 | chevron-right`；fork:branch-chip-icon-only 只留中间那枚图标，
+ * fork:branch-icon-no-box / 2026-10-07 起换成无描边的 `.d-iconbtn`）与抽屉里那枚
+ * `.m-branch` 读的是同一口径：`selectTopLevelBranches` 的**顶层**就是兄弟分支列表，
+ * 当前分支 = 子树命中 `activeLeafId` 的那一条。
  */
 export function findSiblingIndex(nodes: SessionTreeNode[], activeLeafId: string | null): number {
   return nodes.findIndex((node) => subtreeContains(node, activeLeafId));
@@ -302,36 +304,37 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
             {branchIcon}
           </button>
         ) : (
-          /* fork:branch-chip-icon-only（2026-10-06 用户裁定）—— 画板 D-03 帧 A 那一段是
-             `chevron-left ｜ 2 / 3 ｜ chevron-right` 三格；用户只留下中间那枚图标。
-             两枚 chevron 是「上/下一条兄弟分支」的快捷键，但同一件事在分支树浮层里点一行
-             更快，而顶栏右端已经排到最右、每 20px 都在抢位置 —— 于是 `.d-branch` 壳
-             （描边与圆角仍是库里的）保留，里面只剩一枚 `button.d-branch-n`，点它开同一个
-             浮层。这是 `fork:branch-fixed-icon`（2026-10-05 把 `2 / 3` 换成固定
-             git-fork 图标）的连续裁定：中间那格本来就是「开浮层」的唯一入口。 */
-          <span className="d-branch">
-            <button
-              ref={btnRef}
-              type="button"
-              className="d-branch-n"
-              onClick={toggle}
-              aria-expanded={open}
-              aria-pressed={open}
-              aria-label={t("i18n.branches")}
-              title={t("i18n.branches")}
-              /* UA 归零（铁律二允许的那一档）：只清掉按钮自带的边框 / 底色与
-                 字体族。**不写 `font: inherit`** —— 那会把 `.d-branch-n` 自己的
-                 `font-size: var(--nx-fs-xs)` 与颜色一起压掉（同一视觉两个来源）。 */
-              style={{ border: 0, background: "none", fontFamily: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center" }}
-            >
-              {/* fork:branch-fixed-icon（2026-10-05 用户裁定）—— 中间那一格不写
-                  `2 / 3`：序号会随分支增减跳动，扫读时是噪声。换成固定的 git-fork
-                  图标（点它开分支树，与原来同一格同一动作），`d-branch-n` 的尺寸不变。 */}
-              <i data-ico="git-fork" data-size="13" aria-hidden="true"></i>
-            </button>
-          </span>
+          /* fork:branch-icon-no-box（2026-10-07 用户裁定）—— 用户原话：「这个 icon
+             不需要边框，就正常显示 icon 就行了」。桌面那一支原先套着 `.d-branch` 的
+             描边 + 圆角盒子（里面是一枚 `button.d-branch-n`），现在整只壳退场，换成
+             顶栏历史 / ⋯ / 面板钮同款的 `.d-iconbtn`（28px、`border:0; background:none`）。
+             图标仍是固定的 `git-fork`（承接 `fork:branch-chip-icon-only` / 2026-10-05
+             `fork:branch-fixed-icon` 的连续裁定：这一格只干「开分支树浮层」一件事）。
+             `.d-iconbtn` 自带 UA 归零，原先挂 `.d-branch-n` 上那段内联归零样式随之退场；
+             `aria-*` / `title` / `onClick` / `ref` 一字不动。窄屏 `compact` 那一支本来
+             就是 `.d-iconbtn`，不受影响。 */
+          <button
+            ref={btnRef}
+            type="button"
+            className={`d-iconbtn${open ? " is-on" : ""}`}
+            onClick={toggle}
+            aria-expanded={open}
+            aria-pressed={open}
+            aria-label={t("i18n.branches")}
+            title={t("i18n.branches")}
+          >
+            <i data-ico="git-fork" data-size="13" aria-hidden="true"></i>
+          </button>
         )}
-        {open && dropdownPos && (
+        {open && dropdownPos && createPortal(
+          // fork:branch-pop-portal（2026-10-07）—— 用户原话：「会话分支这个浮窗也是，
+          // 给我弄的不正常了，看不到了啊」。根因：皮肤块（`app/fork-ui.css`）给顶栏
+          // `.main-workspace-header` 加了 `backdrop-filter`，而**带 `backdrop-filter`
+          // 的祖先会让后代的 `position: fixed` 相对该祖先定位、而不是视口**——于是
+          // `dropdownPos` 算出的视口坐标被顶栏偏移再叠一次，浮窗右缘被推到视口外裁掉。
+          // 改法：`createPortal(…, document.body)` 把浮窗挂到 body（同 ContextMenu /
+          // PortalDropdown / ThemeSkinStudio 的既有先例），`fixed` 重新相对视口，
+          // 上面那套定位算法一个字都不用改。
           // fix:branch-popover —— 浮窗 = 画板 D-02b 帧 C 的 `.d-pop-float`
           //（320 宽 / 圆角 / 唯一一种阴影 / 1px 描边）。面板自己成列：标题行固定，树体自滚。
           <div
@@ -364,7 +367,8 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
                 <div className="d-menu-row" style={{ cursor: "default" }}><span className="d-t-faint">{noBranchReason}</span></div>
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     );
