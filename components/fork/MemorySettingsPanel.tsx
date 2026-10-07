@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useI18n } from "@/hooks/useI18n";
+import { localCopy, type LocalCopy } from "../settings-disabled-reasons";
 import { SettingsPage } from "../SettingsUi";
 
 /**
@@ -15,12 +17,28 @@ import { SettingsPage } from "../SettingsUi";
  * （用户 2026-10-07 裁定：「只影响 PI NEXT」）。包里那条全局状态只读地摆在下面。
  *
  * **默认关着**：开之前它一个字节都不会写进 `~/.pi/agent/pi-hermes-memory/`。
- * 切换对**新会话**生效（扩展是会话启动时加载的），所以开关旁常驻「新会话生效」徽标。
+ * 切换对**新会话**生效（扩展是会话启动时加载的），所以下面常驻「新会话生效」徽标。
+ *
+ * fork:memory-docs（2026-10-07 用户实拍）—— 这一页改成**能看、能改**：
+ *   · 说明段、「记忆扩展」小标题、`pi-hermes-memory` 这一行文字都撤掉（用户裁定）；
+ *   · 主开关挪到页头（与标题同一排）；
+ *   · 「存在哪」那串拼成一行的文件名换成**文档列表**：全局 + 每个项目各一份
+ *     `MEMORY.md`（项目那一列显示项目名），点开进弹窗读全文、改、保存。
+ *   列表与读写走 `/api/memory`（`documents`）与 `/api/memory/document`；
+ *   路径校验只在服务端 `lib/memory-docs.ts` 一处，面板不拼路径。
  *
  * DOM 照 `design/v5/web/boards/D-36-settings-memory.html` 抄：
- * `.d-set-sec` / `.d-set-row` / `.d-grow-last` / `.d-badge` / `.d-switch` / `.d-banner`，
- * 不新增任何 `d-*` 类，也不写内联几何。
+ * `.d-set-sec` / `.d-set-row` / `.d-grow-last` / `.d-badge` / `.d-switch` / `.d-table` /
+ * `.d-modal`，不新增任何 `d-*` 类，也不写内联几何。
  */
+
+interface MemoryDocumentView {
+  scope: "global" | "project";
+  project: string | null;
+  name: string;
+  bytes: number;
+  mtimeMs: number;
+}
 
 interface MemoryStateView {
   source: string;
@@ -35,7 +53,48 @@ interface MemoryStateView {
   files: { name: string; bytes: number }[];
   projectsDir: string;
   configPath: string;
+  /** fork:memory-docs —— 可读可改的记忆文档（只含 `.md`）。 */
+  documents: MemoryDocumentView[];
 }
+
+/** 弹窗里那份文档的全文。 */
+interface MemoryDocView {
+  scope: "global" | "project";
+  project: string | null;
+  name: string;
+  path: string;
+  content: string;
+  bytes: number;
+  mtimeMs: number;
+}
+
+/* 这一轮新加的文案走**组件内本地表**（`lib/i18n/messages/**` 正被另一路改动占着，
+   与 `McpLogModal` / `settingsHub.ts` 同一处置：先在这里落字，键位表稳定后整体迁回 `t()`）。 */
+const DOC_COPY = {
+  section: { en: "Memory documents", "zh-CN": "记忆文档", "zh-TW": "記憶文件" },
+  empty: {
+    en: "No memory documents yet. The extension writes them once it is on and a session runs.",
+    "zh-CN": "还没有记忆文档。开着它并跑一轮会话之后，扩展才会写进来。",
+    "zh-TW": "還沒有記憶文件。開著它並跑一輪工作階段之後，擴充功能才會寫進來。",
+  },
+  colName: { en: "Document", "zh-CN": "文档", "zh-TW": "文件" },
+  colProject: { en: "Project", "zh-CN": "项目", "zh-TW": "專案" },
+  colSize: { en: "Size", "zh-CN": "大小", "zh-TW": "大小" },
+  colMtime: { en: "Updated", "zh-CN": "更新于", "zh-TW": "更新於" },
+  global: { en: "Global", "zh-CN": "全局", "zh-TW": "全域" },
+  loadFailed: { en: "Could not read this document", "zh-CN": "这份记忆读不出来", "zh-TW": "這份記憶讀不出來" },
+  save: { en: "Save", "zh-CN": "保存", "zh-TW": "儲存" },
+  saving: { en: "Saving…", "zh-CN": "保存中…", "zh-TW": "儲存中…" },
+  saved: { en: "Saved", "zh-CN": "已保存", "zh-TW": "已儲存" },
+  cancel: { en: "Cancel", "zh-CN": "取消", "zh-TW": "取消" },
+  close: { en: "Close", "zh-CN": "关闭", "zh-TW": "關閉" },
+  open: { en: "Open", "zh-CN": "打开", "zh-TW": "開啟" },
+  edited: {
+    en: "Saving rewrites the file the extension reads back next session.",
+    "zh-CN": "保存会直接改写扩展下次会话读回的那份文件。",
+    "zh-TW": "儲存會直接改寫擴充功能下次工作階段讀回的那份文件。",
+  },
+} satisfies Record<string, LocalCopy>;
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -44,11 +103,20 @@ function formatBytes(bytes: number): string {
 }
 
 export function MemorySettingsPanel() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [state, setState] = useState<MemoryStateView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
+
+  // 弹窗：哪一份、全文、草稿、保存状态。
+  const [openDoc, setOpenDoc] = useState<MemoryDocumentView | null>(null);
+  const [doc, setDoc] = useState<MemoryDocView | null>(null);
+  const [draft, setDraft] = useState("");
+  const [docError, setDocError] = useState<string | null>(null);
+  const [docBusy, setDocBusy] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const closeRef = useRef<HTMLButtonElement | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -65,6 +133,68 @@ export function MemorySettingsPanel() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  const closeDoc = useCallback(() => {
+    setOpenDoc(null);
+    setDoc(null);
+    setDraft("");
+    setDocError(null);
+    setSaveState("idle");
+  }, []);
+
+  const { dialogRef, dialogProps } = useDialogA11y({
+    open: openDoc !== null,
+    onClose: closeDoc,
+    initialFocusRef: closeRef,
+  });
+
+  const openDocument = useCallback(async (target: MemoryDocumentView) => {
+    setOpenDoc(target);
+    setDoc(null);
+    setDraft("");
+    setDocError(null);
+    setSaveState("idle");
+    const params = new URLSearchParams({ scope: target.scope, name: target.name });
+    if (target.project) params.set("project", target.project);
+    try {
+      const response = await fetch(`/api/memory/document?${params.toString()}`);
+      const data = await response.json() as MemoryDocView & { error?: string };
+      if (!response.ok) throw new Error(data.error ?? `HTTP ${response.status}`);
+      setDoc(data);
+      setDraft(data.content);
+    } catch (error) {
+      setDocError(error instanceof Error ? error.message : String(error));
+    }
+  }, []);
+
+  const saveDocument = useCallback(async () => {
+    if (!openDoc) return;
+    setDocBusy(true);
+    setDocError(null);
+    try {
+      const response = await fetch("/api/memory/document", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          scope: openDoc.scope,
+          ...(openDoc.project ? { project: openDoc.project } : {}),
+          name: openDoc.name,
+          content: draft,
+        }),
+      });
+      const data = await response.json() as { ok?: boolean; bytes?: number; mtimeMs?: number; error?: string };
+      if (!response.ok || !data.ok) throw new Error(data.error ?? `HTTP ${response.status}`);
+      setDoc((current) => (current
+        ? { ...current, content: draft, bytes: data.bytes ?? current.bytes, mtimeMs: data.mtimeMs ?? current.mtimeMs }
+        : current));
+      setSaveState("saved");
+      await load();
+    } catch (error) {
+      setDocError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDocBusy(false);
+    }
+  }, [draft, load, openDoc]);
 
   const toggle = async (enabled: boolean) => {
     setBusy(true);
@@ -88,7 +218,7 @@ export function MemorySettingsPanel() {
 
   if (loadError) {
     return (
-      <SettingsPage title={t("settings.memory")} sub={t("settings.memorySub")}>
+      <SettingsPage title={t("settings.memory")}>
         <div className="d-set-inner">
           <div className="d-set-sec">
             <div className="d-banner err">
@@ -102,36 +232,33 @@ export function MemorySettingsPanel() {
   }
   if (!state) return null;
 
-  const fileList = state.files.map((file) => `${file.name} · ${formatBytes(file.bytes)}`).join(" · ");
+  const documents = state.documents ?? [];
+  const dirty = doc !== null && draft !== doc.content;
 
   return (
-    <SettingsPage title={t("settings.memory")} sub={t("settings.memorySub")}>
+    <SettingsPage
+      title={t("settings.memory")}
+      actions={
+        <>
+          {state.installed
+            ? <span className="d-badge mute">{t("settings.memoryVersion", { version: state.version ?? "" })}</span>
+            : <span className="d-badge bad">{t("settings.memoryNotInstalled")}</span>}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={state.enabled}
+            aria-busy={busy || undefined}
+            aria-label={t("settings.memoryToggle")}
+            title={t("settings.memoryToggle")}
+            disabled={busy || !state.installed}
+            className={`d-switch${state.enabled ? " on" : ""}`}
+            onClick={() => void toggle(!state.enabled)}
+          />
+        </>
+      }
+    >
       <div className="d-set-inner">
         <div className="d-set-sec">
-          <div className="d-set-sec-t">{t("settings.memoryExtSection")}</div>
-          <div className="d-set-row">
-            <div className="d-set-row-box">
-              <div className="d-set-row-t">{t("settings.memoryExtTitle")}</div>
-            </div>
-            {/* 切换后要新开（或重载）会话才生效 —— 常驻徽标，面板不假装它当场生效。 */}
-            <span className="d-grow-last">
-              {state.installed
-                ? <span className="d-badge mute">{t("settings.memoryVersion", { version: state.version ?? "" })}</span>
-                : <span className="d-badge bad">{t("settings.memoryNotInstalled")}</span>}
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={state.enabled}
-              aria-busy={busy || undefined}
-              aria-label={t("settings.memoryToggle")}
-              title={t("settings.memoryToggle")}
-              disabled={busy || !state.installed}
-              className={`d-switch${state.enabled ? " on" : ""}`}
-              onClick={() => void toggle(!state.enabled)}
-            />
-          </div>
-
           {toggleError ? (
             <div className="d-banner err">
               <i data-ico="circle-alert" data-size="14"></i>
@@ -172,6 +299,60 @@ export function MemorySettingsPanel() {
           </div>
         </div>
 
+        {/* fork:memory-docs —— 文档列表：全局 + 每个项目（项目名单独一列）。 */}
+        <div className="d-set-sec">
+          <div className="d-set-sec-t">{localCopy(DOC_COPY.section, locale)}</div>
+          {documents.length === 0 ? (
+            <div className="d-set-row">
+              <div className="d-set-row-box">
+                <div className="d-set-row-s">{localCopy(DOC_COPY.empty, locale)}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="d-card">
+              <table className="d-table">
+                <thead>
+                  <tr>
+                    <th>{localCopy(DOC_COPY.colName, locale)}</th>
+                    <th>{localCopy(DOC_COPY.colProject, locale)}</th>
+                    <th>{localCopy(DOC_COPY.colSize, locale)}</th>
+                    <th>{localCopy(DOC_COPY.colMtime, locale)}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((entry) => (
+                    <tr
+                      key={`${entry.scope}:${entry.project ?? ""}:${entry.name}`}
+                      tabIndex={0}
+                      role="button"
+                      title={localCopy(DOC_COPY.open, locale)}
+                      onClick={() => void openDocument(entry)}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        void openDocument(entry);
+                      }}
+                    >
+                      <td><span className="d-mono">{entry.name}</span></td>
+                      <td>
+                        {entry.project
+                          ? <span className="d-badge mute">{entry.project}</span>
+                          : <span className="d-t-xs d-t-faint">{localCopy(DOC_COPY.global, locale)}</span>}
+                      </td>
+                      <td><span className="d-t-xs d-t-faint">{formatBytes(entry.bytes)}</span></td>
+                      <td>
+                        <span className="d-t-xs d-t-faint">
+                          {new Date(entry.mtimeMs).toLocaleString()}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         <div className="d-set-sec">
           <div className="d-set-sec-t">{t("settings.memoryStorageSection")}</div>
           <div className="d-set-row">
@@ -179,13 +360,7 @@ export function MemorySettingsPanel() {
               <div className="d-set-row-t">{t("settings.memoryDirTitle")}</div>
               <div className="d-set-row-s d-mono">{state.memoryDir}</div>
             </div>
-            <span className="d-grow-last">
-              {state.memoryDirExists && state.files.length > 0
-                ? <span className="d-badge ok">{t("settings.memoryFileCount", { count: state.files.length })}</span>
-                : <span className="d-badge mute">{t("settings.memoryEmpty")}</span>}
-            </span>
           </div>
-          {fileList ? <span className="d-t-xs d-t-faint d-mono">{fileList}</span> : null}
 
           <div className="d-set-row">
             <div className="d-set-row-box">
@@ -202,6 +377,73 @@ export function MemorySettingsPanel() {
           </div>
         </div>
       </div>
+
+      {openDoc ? (
+        <div
+          ref={dialogRef}
+          {...dialogProps}
+          className="d-modal is-open"
+          onClick={(event) => { if (event.target === event.currentTarget) closeDoc(); }}
+          aria-label={openDoc.name}
+        >
+          <div className="d-modal-box wide" style={{ width: "min(880px, calc(100vw - 32px))" }}>
+            <div className="d-modal-head d-row">
+              <i data-ico="brain" data-size="16" aria-hidden="true" />
+              <span className="d-grow d-mono">{openDoc.name}</span>
+              {openDoc.project ? <span className="d-badge mute">{openDoc.project}</span> : null}
+              <button
+                ref={closeRef}
+                type="button"
+                className="d-iconbtn"
+                onClick={closeDoc}
+                title={localCopy(DOC_COPY.close, locale)}
+                aria-label={localCopy(DOC_COPY.close, locale)}
+              >
+                <i data-ico="x" data-size="14" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="d-modal-body">
+              {docError ? (
+                <div className="d-banner err">
+                  <i data-ico="circle-alert" data-size="14"></i>
+                  <span>{docError}</span>
+                </div>
+              ) : null}
+              {doc === null && !docError ? (
+                <div className="d-t-xs d-t-faint">{t("i18n.loading")}</div>
+              ) : (
+                <textarea
+                  className="d-textarea d-mono"
+                  style={{ width: "100%", minHeight: "min(46vh, 420px)" }}
+                  aria-label={openDoc.name}
+                  value={draft}
+                  disabled={docBusy}
+                  onChange={(event) => { setDraft(event.target.value); setSaveState("idle"); }}
+                />
+              )}
+            </div>
+
+            <div className="d-modal-foot d-row">
+              <span className="d-t-xs d-t-faint d-grow">
+                {saveState === "saved" ? localCopy(DOC_COPY.saved, locale) : localCopy(DOC_COPY.edited, locale)}
+              </span>
+              <button type="button" className="d-btn ghost" onClick={closeDoc}>
+                {localCopy(DOC_COPY.cancel, locale)}
+              </button>
+              <button
+                type="button"
+                className="d-btn primary"
+                disabled={docBusy || doc === null || !dirty}
+                onClick={() => void saveDocument()}
+              >
+                <i data-ico="check" data-size="13" aria-hidden="true" />
+                {docBusy ? localCopy(DOC_COPY.saving, locale) : localCopy(DOC_COPY.save, locale)}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </SettingsPage>
   );
 }

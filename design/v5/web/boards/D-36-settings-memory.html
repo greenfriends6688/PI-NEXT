@@ -31,7 +31,7 @@
 
 <!-- ───────────────────────────────────────────────────────────────────────── -->
 <section class="d-scene">
-  <div class="d-frame-label"><b>帧 A</b> · 已装未开（默认态）<span class="d-grow"></span>开关就是那个包，不假装当场生效</div>
+  <div class="d-frame-label"><b>帧 A</b> · 已装未开（默认态）<span class="d-grow"></span>开关在页头；下面的文档列表点开就能改</div>
   <div class="d-frame">
     <div class="d-frame-body">
       <div class="d-shell two">
@@ -61,8 +61,8 @@
   <div class="d-modal-box wide" style="width:78%">
     <div class="d-modal-head">
       <span class="d-grow">设置 · 记忆</span>
-
-      <span class="d-badge mute">未开启</span>
+      <span class="d-badge mute">已安装 v0.9.10</span>
+      <button class="d-switch" role="switch" aria-checked="false" aria-label="在 PI NEXT 里启用记忆扩展"></button>
     </div>
     <div class="d-modal-body">
       <div class="d-set">
@@ -90,19 +90,6 @@
               <div class="d-set-inner">
 
                 <div class="d-set-sec">
-                  <div class="d-set-sec-t">记忆扩展</div>
-                  <div class="d-set-row">
-                    <div class="d-set-row-box">
-                      <div class="d-set-row-t">pi-hermes-memory</div>
-                      <div class="d-set-row-s">跨会话记住事实（MEMORY.md / USER.md）、全文检索历史会话、把重复做法沉淀成技能、发现纠正时立刻记下。关掉 = PI NEXT 里不加载这个扩展（别的运行时照旧）。</div>
-                    </div>
-                    <span class="d-grow-last"><span class="d-badge mute">已安装 v0.9.10</span></span>
-                    <button class="d-switch" role="switch" aria-checked="false" aria-label="在 PI NEXT 里启用记忆扩展"></button>
-                  </div>
-                  <div class="d-banner">
-                    <i data-ico="info" data-size="14"></i>
-                    <span>关着：PI NEXT 里不加载这个扩展，也不会写任何记忆文件。终端与其它运行时不受这个开关影响。打开后对新会话生效。</span>
-                  </div>
                   <div class="d-set-row">
                     <div class="d-set-row-box">
                       <div class="d-set-row-t">终端 / 其它运行时</div>
@@ -120,13 +107,28 @@
                 </div>
 
                 <div class="d-set-sec">
+                  <div class="d-set-sec-t">记忆文档</div>
+                  <div class="d-card">
+                    <table class="d-table">
+                      <thead>
+                        <tr><th>文档</th><th>项目</th><th>大小</th><th>更新于</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr tabindex="0" role="button" title="打开"><td><span class="d-mono">MEMORY.md</span></td><td><span class="d-t-xs d-t-faint">全局</span></td><td><span class="d-t-xs d-t-faint">5.0 KB</span></td><td><span class="d-t-xs d-t-faint">今天 16:10</span></td></tr>
+                        <tr tabindex="0" role="button" title="打开"><td><span class="d-mono">failures.md</span></td><td><span class="d-t-xs d-t-faint">全局</span></td><td><span class="d-t-xs d-t-faint">2.1 KB</span></td><td><span class="d-t-xs d-t-faint">今天 16:10</span></td></tr>
+                        <tr tabindex="0" role="button" title="打开"><td><span class="d-mono">MEMORY.md</span></td><td><span class="d-badge mute">PI NEXT</span></td><td><span class="d-t-xs d-t-faint">1.2 KB</span></td><td><span class="d-t-xs d-t-faint">今天 14:51</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
                   <div class="d-set-sec-t">存在哪</div>
                   <div class="d-set-row">
                     <div class="d-set-row-box">
                       <div class="d-set-row-t">记忆目录</div>
                       <div class="d-set-row-s d-mono">~/.pi/agent/pi-hermes-memory</div>
                     </div>
-                    <span class="d-grow-last"><span class="d-badge mute">还没有记忆</span></span>
                   </div>
                   <div class="d-set-row">
                     <div class="d-set-row-box">
@@ -166,6 +168,10 @@
         与「内置子代理总开关默认关」同一条口径。</li>
     <li><b>不假装当场生效</b>：扩展是会话启动时加载的，所以开关旁边常驻「新会话生效」徽标，
         不画那种「界面变了、行为没变」的假开关。</li>
+    <li><b>记忆是能看能改的</b>（2026-10-07 用户裁定）：说明段与「记忆扩展 / pi-hermes-memory」那些字都撤掉，
+        主开关挪到页头与标题同排；「存在哪」里原来拼成一行的文件名换成**文档列表** ——
+        全局 + 每个项目各一份（项目那一列显示项目名），点开进弹窗读全文、改、保存。
+        列表只收 `.md`：同目录里还躺着 `sessions.db` 与扩展自己的锁文件，它们不是给人改的。</li>
     <li><b>本页只做开关，不做细项表单</b>：整理频率 / 限额 / 自动整理等几十项留在扩展自己的
         <code>hermes-memory-config.json</code> 里。这一页回答的是「开不开、存在哪」。</li>
   </ul>
