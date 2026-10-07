@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useI18n } from "@/hooks/useI18n";
@@ -97,22 +97,57 @@ const DOC_COPY = {
   },
   tabRender: { en: "Rendered", "zh-CN": "渲染", "zh-TW": "渲染" },
   tabRaw: { en: "Source", "zh-CN": "原文", "zh-TW": "原文" },
+  entryCount: { en: "entries", "zh-CN": "条", "zh-TW": "條" },
 } satisfies Record<string, LocalCopy>;
 
+/** 一条记忆（从存储格式里解出来的）。 */
+interface MemoryEntry {
+  text: string;
+  /** `created=…` 里的日期；旧格式从行内 `<!-- 2026-09-20 … -->` 取。 */
+  created: string | null;
+  /** `last=…`：最近一次被引用。 */
+  last: string | null;
+}
+
+/** 尾巴上那条 `<!-- created=…, last=…[, project64=…] -->`。
+ *  （不用 `s` 标志：本仓的 tsconfig target 低于 es2018，`.` 不跨行。） */
+const ENTRY_META = /^([\s\S]*?)\s*<!--\s*created=([^,]+),\s*last=([^,>]+)(?:,[^>]*)?\s*-->\s*$/;
+/** 旧条目把日期写在**开头**（`<!-- 2026-09-20 17:40:50 [01a0bd3a] -->`）——
+ *  那是条目的头，不是正文，所以连带那个注释一起切掉，只留日期。 */
+const LEGACY_HEAD = /^\s*<!--\s*(\d{4}-\d\d-\d\d)[^>]*-->\s*/;
+
 /**
- * fork:memory-docs —— **只给渲染那一栏用**：把扩展的存储格式翻成人读的版式。
+ * fork:memory-docs —— **只给渲染那一栏用**：把扩展的存储格式翻成人读的条目列表。
  *
  * 文件本身的格式一个字都不能改：`pi-hermes-memory` 用 `\n§\n`（`ENTRY_DELIMITER`）
  * 切条目、每条尾巴上挂 `<!-- created=…, last=… -->`（`store/memory-store.ts`）。
- * 所以「排版」只能发生在显示层 —— `§` 换成一条分隔线、注释收掉、多余空行合并；
- * 编辑与保存走的仍是原文（textarea 里的那个值）。
+ * 所以「排版」只能发生在**显示层** —— 切出来的条目一条一块，日期单独一行小字，
+ * 正文交给 `MarkdownBody`；编辑与保存走的仍是原文。
  */
-function prettyMemoryMarkdown(content: string): string {
-  return content
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/\n§\n/g, "\n\n---\n\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+function parseMemoryDoc(content: string): { lead: string; entries: MemoryEntry[] } {
+  const chunks = content.split("\n§\n").map((chunk) => chunk.trim()).filter(Boolean);
+  let lead = "";
+  let body = chunks;
+  // 文件头（`# Memory` + 一句说明）与第一条记忆**同属第一个 chunk**（它们之间只有空行）。
+  // 头后面一定跟着空行 + 条目，所以用「连着两个空行」或第一条注释当分界。
+  if (chunks[0]?.startsWith("#")) {
+    const cut = chunks[0].search(/\n\n\n|<!--/);
+    if (cut > 0) {
+      lead = chunks[0].slice(0, cut).trim();
+      const rest = chunks[0].slice(cut).trim();
+      body = rest ? [rest, ...chunks.slice(1)] : chunks.slice(1);
+    }
+  }
+  return {
+    lead,
+    entries: body.map((raw) => {
+      const meta = raw.match(ENTRY_META);
+      if (meta) return { text: meta[1].trim(), created: meta[2].trim(), last: meta[3].trim() };
+      const legacy = raw.match(LEGACY_HEAD);
+      if (legacy) return { text: raw.slice(legacy[0].length).trim(), created: legacy[1], last: null };
+      return { text: raw, created: null, last: null };
+    }),
+  };
 }
 
 function formatBytes(bytes: number): string {
@@ -137,6 +172,8 @@ export function MemorySettingsPanel() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   /** 渲染（读） / 原文（改）—— 与技能内容弹窗同一套分段。 */
   const [tab, setTab] = useState<"render" | "raw">("render");
+  /* 渲染那一栏的条目表：只随草稿变（编辑时也要跟着变，所以不能只算一次）。 */
+  const parsed = useMemo(() => parseMemoryDoc(draft), [draft]);
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
   const load = useCallback(async () => {
@@ -168,7 +205,6 @@ export function MemorySettingsPanel() {
     onClose: closeDoc,
     initialFocusRef: closeRef,
   });
-
   const openDocument = useCallback(async (target: MemoryDocumentView) => {
     setOpenDoc(target);
     setDoc(null);
@@ -447,6 +483,12 @@ export function MemorySettingsPanel() {
                     {localCopy(DOC_COPY.tabRaw, locale)}
                   </button>
                 </div>
+                <span className="d-grow" aria-hidden="true" />
+                {doc !== null ? (
+                  <span className="d-t-xs d-t-faint">
+                    {parsed.entries.length} {localCopy(DOC_COPY.entryCount, locale)}
+                  </span>
+                ) : null}
               </div>
               {docError ? (
                 <div className="d-banner err">
@@ -457,8 +499,21 @@ export function MemorySettingsPanel() {
               {doc === null && !docError ? (
                 <div className="d-t-xs d-t-faint">{t("i18n.loading")}</div>
               ) : tab === "render" ? (
+                /* fork:memory-docs —— 条目化：一条一块（分隔线 + 日期小字 + 正文）。
+                   日期是扩展自己记的（`created=` / `last=`），正是判断「这条还新鲜吗」的依据；
+                   文件头（`# Memory` + 一句说明）单独当引言，不跟第一条记忆搵在一起。 */
                 <div className="d-md">
-                  <MarkdownBody>{prettyMemoryMarkdown(draft)}</MarkdownBody>
+                  {parsed.lead ? <MarkdownBody>{parsed.lead}</MarkdownBody> : null}
+                  {parsed.entries.map((entry, index) => (
+                    <Fragment key={index}>
+                      <div className="d-sep" aria-hidden="true" />
+                      <span className="d-t-xs d-t-faint d-mono">
+                        {entry.created ?? `#${index + 1}`}
+                        {entry.last && entry.last !== entry.created ? ` · ${entry.last}` : ""}
+                      </span>
+                      <MarkdownBody>{entry.text}</MarkdownBody>
+                    </Fragment>
+                  ))}
                 </div>
               ) : (
                 /* 画板硬规则（同技能弹窗）：弹层内部不再套第二层滚动 —— textarea
