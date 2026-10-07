@@ -308,6 +308,15 @@
 > 对用户无用）。导入结果改为卡身里一条 `d-banner ok`。弹窗共用 `useDialogA11y`
 > 与 `createPortal(…, document.body)`（设置壳有 `overflow` + `backdrop-filter`）。
 
+> **2026-10-07 用户第三次裁定（当前形态）**：那张「确认导入」卡**整块去掉**（截图原话
+> 「第二张图的这一整块」）—— 页面上只剩扫描卡一张（`components/ImportPanel.test.mjs`
+> 锁 `className="d-card"` 只出现 1 次）。随卡一起下来走的：
+> 「清空选择 / 确认导入」只剩细选弹窗 foot（`confirmImportButton` 本来就只有一份实现）；
+> 导入结果那一行 `d-banner ok` 挪到页首错误横幅旁边（不然 apply 完没有任何反馈）；
+> 「冲突策略」/「导入说明」两枚入口失去宿主，两个弹窗组件还在但暂时点不到。
+> **复活条件**：要卡片回来就照 D-21 帧 B 重抄；要那两枚入口回来就给它们找个新宿主
+> （扫描卡卡尾），不要靠删掉这条注记。
+
 | 画板那一格 | 产品形态 | 理由 / 复活条件 |
 |---|---|---|
 | 冲突策略 `d-seg` 三档（覆盖 / 跳过 / 保留两份） | **只画「跳过」一档**（`d-seg` 里一个 disabled 按钮 + 徽标「只有『跳过』这一档」） | `lib/import/apply.ts` 写死「an existing destination is always skipped, never merged or overwritten」，画一个切不动的三档分段器就是画死控件。**复活条件**：落盘层开覆盖/保留两份（并在 DIVERGENCE 另记一条不可撤销口径）。 |
@@ -455,6 +464,7 @@
 | D-01/D-02 `.d-side-nav > .d-row` 行尾 `.d-kbd`（⌘N） | 印着 ⌘N（桌面 `.d-kbd` + 窄屏 `.m-badge mute`） | **删掉** | `lib/shortcuts.ts` 里 `newSession` 的真实键位是 `Ctrl+Alt+N`（⌥⌘N）。⌘N 什么都不是 —— 用户 2026-10-05 原话「那个根本就不是他的快捷命令」。库里那枚 `.d-kbd` 留着（板面还在用），只是产品不再印 |
 | D-02 品牌行 `.d-logo` / `.d-wordmark` | 20 / 16 | **17 / 13** | 用户 2026-10-05「logo 弄小点，现在稍微有点大」（此前已从 24/20 缩过一轮） |
 | D-01 帧 A 空态 `.d-empty-ico`（44×44 方盒里一枚 60% 的图 = 小矩形 logo） | 那个方盒 | 换成 `.fork-brand-lockup`：`.d-logo` + `.d-wordmark` 横排，24 / 20 | 用户「第一张图右边这个矩形的 logo 去掉，把左上角那个 logo+品牌也在这里展示」 |
+| D-01 帧 A 空态 `.d-empty-t`（「在 … 里做点什么？」大标题） | 品牌行下面那一行 | **删掉** | 用户 2026-10-07 图一裁定「红框里的这句话帮我去掉」。随标题一起掉的还有它读的 `cwd` basename（`NewSessionHome` 的 `cwdBasename()`）；`chat.homeTitle` / `chat.homeTitleGeneric` 两条 i18n 键留着未删（改回来是一行） |
 | D-01 帧 D `.d-cardgrid`（`auto-fill` + 220 下限） | 宽主区排成 3 + 1，右边空一格 | `.fork-home-grid` 固定 **一行两个**，窄屏回一列 | 用户「一行显示两个，对称一点」 |
 | D-02 顶部动作行（28px / fs-body 的密集 `.d-row`） | 密集行 | `.fork-side-action`：行高 36 / fs-lg / 图标 17；并在**新建任务下面**加一行「搜索」（与抽屉头那枚放大镜同一个 handler） | 用户给了参考稿：「新建任务」按参考稿放大 + 搜索加在下面 |
 | M-06 帧 D / M-12 帧 C | 「调用轨迹」在板面上是**本轮时间线**（工具调用 / 命令 / 写文件合成一条，done / run / fail 三态）；产品是 pi 导出的**完整历史页**（同源 iframe） | 无 —— 这是 2026-10-04 用户明确裁定并登记在 `fork:trace-frame` 的产品行为：「调用轨迹」就是「完整历史」那一页，只是换了位置。要改回板面形态得先推翻那条裁定 |
@@ -972,3 +982,10 @@ U7 登记的三件（导航轨 / 行内引用标 / 顶栏副标题）在用户�
 | 模型浮窗尺寸 | `placement` 默认 `up` → `auto`（只在下面真放不下且上方更大时才朝上）+ 高度封顶 400px（旧实测 540px 顶到屏幕顶） | 「这个模型的悬浮窗你啥时候给我改到这里了啊」+「不需要占这么多位置」 |
 | 思考强度 | 从输入行搬进**模型浮窗页脚**（`ModelSelector` 新增可选 `thinkingSection` 节点槽位，不传则连分隔线都不画） | 「请你把这个思考强度也帮我融合进这浮窗中去」 |
 | 导入细选弹窗 | 补上「确认导入」（与页面卡**同一处实现**）+ 弹窗内可搜（同一个 `query`）+ 入口钮 `ghost` → `primary` | 「弹窗上没有导入按钮……细选条目的按钮麻烦给我弄明显点」 |
+
+## AA · 2026-10-07 第五批实拍（设置分节的重复标题 + 语音输入整体下线）
+
+| 图 | 用户原话 | 处置 |
+|---|---|---|
+| 联网搜索 / 语音输入两节 | 「这些重复的帮我去掉」 | 一节里同一个词出现三遍：`SettingsPage` 的页标题（`.d-t-lg.d-t-b`）、分节自己的 `.d-set-sec-t`、开关行的 `.d-set-row-t`。中间那一条（`.d-set-sec-t`）整行退场 —— 页标题与开关行标签都留下。只有这两节中招：全仓扫「页标题文案 == 本页任一 `.d-set-sec-t` 文案」，命中的只有 `settings.websearch`↔`section` 与 `settings.voice`↔`section`（两组四个 key 文案本来就一模一样）。**对画板 D-37 的偏离**：板面第一块 `.d-set-sec` 带 `.d-set-sec-t`（板面没有页标题，所以板上不重复）；`settings.websearchSection` 留着未删（要恢复就是一行） |
+| 语音输入 | 「语音输入你帮我去掉吧，我感觉这个还不行，请你帮我删除吧」 | **整个特性下线**（不是隐藏）：`components/VoiceInputButton.tsx`、`components/fork/VoiceSettingsPanel.tsx`、`hooks/useVoiceInput.ts`、`hooks/useLocalVoiceInput.ts`、`lib/voice/**`、`app/api/voice/**`、`public/vendor/voice/**`（ORT wasm + transformers，~55MB）、画板 `D-38-settings-voice.html` 全部删除；设置导航 / hub 分组 / 设置壳 / `ChatInput`（两处麦克风钮 + 识别错误横幅）/ 三语 45 条 `settings.voice*`、`voice.*` 文案 / `@huggingface/transformers` 依赖一并退场。**D-04 输入框板面上那三枚「语音输入（浏览器识别）」钮保留不改**（板面是设计稿，产品主动下线，与 D-21 记忆与知识同一口径） |
