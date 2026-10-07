@@ -10,6 +10,8 @@
 // （`provider/modelId`，斜杠形式）仍只有这一处定义。
 export interface PiWebPreferences {
   thinkingLevelMemory?: Record<string, string>;
+  /** fork:memory —— 「设置 → 记忆」里那个开关（**只影响 PI NEXT**，不动 pi 的 packages）。 */
+  memoryExtensionEnabled?: boolean;
 }
 
 /** per-model 记忆的 key 约定：`provider/modelId`（斜杠形式）。 */

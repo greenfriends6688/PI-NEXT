@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-36 · 记忆 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-36 · 记忆</h1>
+  <p>
+    记忆能力整个来自第三方扩展 <b>pi-hermes-memory</b>（<code>pi install npm:pi-hermes-memory</code>）。
+    这一页的开关是<b>本应用自己的偏好</b>（<code>pi-web-preferences.json</code>）：关着时 PI NEXT 在会话创建时
+    把这个扩展从加载结果里摘掉，<b>不动 pi 的 <code>packages</code></b> —— 终端与其它运行时照旧用它自己的那份记忆。
+    包里那条全局状态只读地摆在下面。<b>默认关着</b>——开之前它一个字节都不会写。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 记忆</span>
+    <span class="d-tag">组件：MemorySettingsPanel · /api/memory · lib/memory-package.ts</span>
+    <span class="d-tag">开关范围：只影响 PI NEXT（不动 pi 的 packages）</span>
+    <span class="d-tag">状态：未安装 / 已装未开（默认）/ 已开启</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 已装未开（默认态）<span class="d-grow"></span>开关就是那个包，不假装当场生效</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">PI NEXT</span>
+          <span class="d-badge mute">记忆</span>
+        </div>
+        <div class="d-md"><p>记忆是「跨会话替你记住」的能力，代价是它会在你没盯着的时候写文件。所以它默认关着，开关与状态都摆在明面上。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住令牌与类名</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 记忆">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · 记忆</span>
+
+      <span class="d-badge mute">未开启</span>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <button class="d-set-navitem"><i data-ico="image" data-size="14"></i>生图模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem is-on"><i data-ico="brain" data-size="14"></i>记忆</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">记忆扩展</div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">pi-hermes-memory</div>
+                      <div class="d-set-row-s">跨会话记住事实（MEMORY.md / USER.md）、全文检索历史会话、把重复做法沉淀成技能、发现纠正时立刻记下。关掉 = PI NEXT 里不加载这个扩展（别的运行时照旧）。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge mute">已安装 v0.9.10</span></span>
+                    <button class="d-switch" role="switch" aria-checked="false" aria-label="在 PI NEXT 里启用记忆扩展"></button>
+                  </div>
+                  <div class="d-banner">
+                    <i data-ico="info" data-size="14"></i>
+                    <span>关着：PI NEXT 里不加载这个扩展，也不会写任何记忆文件。终端与其它运行时不受这个开关影响。打开后对新会话生效。</span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">终端 / 其它运行时</div>
+                      <div class="d-set-row-s">这一条是 pi 的 packages 里的全局状态（本页只读）。PI NEXT 的开关不写它 —— 别的运行时想不想用记忆，由它们自己决定。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge ok">会加载</span></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">生效时机</div>
+                      <div class="d-set-row-s">扩展是会话启动时加载的：切换只影响新会话 —— 正在跑的会话要新开一个，或重载当前会话。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge mute">新会话生效</span></span>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">存在哪</div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">记忆目录</div>
+                      <div class="d-set-row-s d-mono">~/.pi/agent/pi-hermes-memory</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge mute">还没有记忆</span></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">项目记忆</div>
+                      <div class="d-set-row-s d-mono">~/.pi/agent/projects-memory</div>
+                    </div>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">扩展配置</div>
+                      <div class="d-set-row-s d-mono">~/.pi/agent/hermes-memory-config.json</div>
+                    </div>
+                  </div>
+                  <span class="d-t-xs d-t-faint">本页只做开关。整理频率、条数上限、是否自动整理这些细项写在上面的文件里（扩展自己读它）。</span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+          </div>
+          </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>开关是「本应用自己的」，不是 pi 的包开关</b>：关着时 PI NEXT 在会话创建时把这个扩展从
+        加载结果里摘掉（<code>extensionsOverride</code>），<b>不动 pi 的 <code>packages</code></b> ——
+        终端与其它运行时照旧用它自己的那份记忆（用户 2026-10-07 裁定：「只影响 PI NEXT」）。
+        包里那条全局状态在本页只读地摆着。</li>
+    <li><b>默认关着</b>：装完不自动开。记忆会在用户没盯着的时候写文件，先默认关、由他自己打开 ——
+        与「内置子代理总开关默认关」同一条口径。</li>
+    <li><b>不假装当场生效</b>：扩展是会话启动时加载的，所以开关旁边常驻「新会话生效」徽标，
+        不画那种「界面变了、行为没变」的假开关。</li>
+    <li><b>本页只做开关，不做细项表单</b>：整理频率 / 限额 / 自动整理等几十项留在扩展自己的
+        <code>hermes-memory-config.json</code> 里。这一页回答的是「开不开、存在哪」。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

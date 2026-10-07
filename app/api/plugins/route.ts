@@ -10,6 +10,15 @@ import {
   type ResolvedResource,
 } from "@earendil-works/pi-coding-agent";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-access";
+// fork:memory —— 记忆包不在插件页露面（开关只由「设置 → 记忆」控制）。
+import { MEMORY_PACKAGE_SOURCE } from "@/lib/memory-package";
+// fork:memory —— `packages` 条目形状（停用 / 启用）只有一份实现，与「设置 → 记忆」共用。
+import {
+  disabledPackageEntry,
+  enabledPackageEntry,
+  getPackageSource,
+  isDisabledPackage,
+} from "@/lib/plugin-package-entry";
 import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
 import { getProjectTrustStatus } from "@/lib/project-trust";
 import { isPluginSourceCheckable } from "@/lib/plugin-updates";
@@ -38,20 +47,6 @@ function toPluginScope(scope: string): PluginScope {
 
 function keyFor(source: string, scope: PluginScope): string {
   return `${scope}\0${source}`;
-}
-
-function getPackageSource(entry: PackageSource): string {
-  return typeof entry === "string" ? entry : entry.source;
-}
-
-function isDisabledPackage(entry: PackageSource): boolean {
-  if (typeof entry === "string") return false;
-  return (
-    Array.isArray(entry.extensions) && entry.extensions.length === 0 &&
-    Array.isArray(entry.skills) && entry.skills.length === 0 &&
-    Array.isArray(entry.prompts) && entry.prompts.length === 0 &&
-    Array.isArray(entry.themes) && entry.themes.length === 0
-  );
 }
 
 function getDisabledPackages(settingsManager: SettingsManager): Map<string, boolean> {
@@ -108,22 +103,8 @@ function setPackagesDisabled(
       return entry;
     }
     changed = true;
-    if (disabled) {
-      return {
-        ...(typeof entry === "string" ? { source: entry } : entry),
-        extensions: [],
-        skills: [],
-        prompts: [],
-        themes: [],
-      };
-    }
-    if (typeof entry === "string") return source;
-    const rest = { ...entry };
-    delete rest.extensions;
-    delete rest.skills;
-    delete rest.prompts;
-    delete rest.themes;
-    return Object.keys(rest).length > 1 ? rest : source;
+    if (disabled) return disabledPackageEntry(entry);
+    return enabledPackageEntry(entry);
   });
   if (changed) {
     if (scope === "project") settingsManager.setProjectPackages(next);
@@ -361,7 +342,12 @@ async function readPlugins(cwd: string): Promise<PluginsResponse> {
     });
   }
 
-  const packages = packageManager.listConfiguredPackages().map((pkg) => {
+  const packages = packageManager.listConfiguredPackages()
+    /* fork:memory —— 记忆包**不在插件页露面**：它的开关只由「设置 → 记忆」那一节控制。
+       两处各摆一个开关就是两个入口同一件事，用户看到的是一份列表里混着两种控制面。
+       包本身没变（还在 settings.json 的 packages 里、插件页的 API 也照样能改），只是不列。 */
+    .filter((pkg) => pkg.source !== MEMORY_PACKAGE_SOURCE)
+    .map((pkg) => {
     const scope = toPluginScope(pkg.scope);
     const key = keyFor(pkg.source, scope);
     const disabled = disabledByPackage.get(key) ?? false;
@@ -396,9 +382,25 @@ async function readPlugins(cwd: string): Promise<PluginsResponse> {
   return {
     packages,
     standaloneExtensions,
-    totals,
+    // 计数跟着列表走：被藏起来的那一条不能还算进「已装 N」里。
+    totals: subtractHiddenTotals(totals, countsByPackage),
     diagnostics,
     projectResourcesLoaded: projectTrust.trusted,
+  };
+}
+
+/** 插件页头部那些「已装 / 启用 / 各资源数」的合计 —— 减掉不露面的记忆包。 */
+function subtractHiddenTotals(
+  totals: PluginResourceCounts,
+  countsByPackage: Map<string, PluginResourceCounts>,
+): PluginResourceCounts {
+  const hidden = countsByPackage.get(keyFor(MEMORY_PACKAGE_SOURCE, "global"));
+  if (!hidden) return totals;
+  return {
+    extensions: totals.extensions - hidden.extensions,
+    skills: totals.skills - hidden.skills,
+    prompts: totals.prompts - hidden.prompts,
+    themes: totals.themes - hidden.themes,
   };
 }
 
