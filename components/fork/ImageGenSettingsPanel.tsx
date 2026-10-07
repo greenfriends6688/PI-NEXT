@@ -159,7 +159,7 @@ export function ImageGenSettingsPanel() {
 
   if (loadError) {
     return (
-      <SettingsPage title={t("settings.imagegen")} sub={t("settings.imagegenSub")}>
+      <SettingsPage title={t("settings.imagegen")}>
         <div className="d-set-inner">
           <div className="d-set-sec">
             <div className="d-banner err">
@@ -185,7 +185,6 @@ export function ImageGenSettingsPanel() {
   return (
     <SettingsPage
       title={t("settings.imagegen")}
-      sub={t("settings.imagegenSub")}
       actions={
         <>
           <button type="button" className="d-btn sm" onClick={() => void runTest()} disabled={testState === "running"}>

@@ -24,7 +24,6 @@ const {
   UsageDailyBars,
   UsageHeatmap,
   UsageListRow,
-  UsageRequestsErrors,
   UsageShareBar,
 } = await jiti.import("./usage-charts.tsx");
 
@@ -51,9 +50,10 @@ test("the stat cards and every chart card ride the board 45 primitives", () => {
   assert.match(panelSource, /<span className=\{`d-badge \$\{tone\}`\}>\{badge\}<\/span>/);
   assert.match(panelSource, /<div className="d-t-title d-num">\{value\}<\/div>/);
   assert.match(panelSource, /<div className="d-t-xs d-t-faint">\{hint\}<\/div>/);
-  // 七个图表卡：热力图 / 最费的天 / 每日 token / 输入输出拆分 / 每日费用 /
-  // 请求与错误 / 按项目，全是画板 D-19 的 `.d-chart`。
-  assert.equal(panelSource.match(/<div className="d-chart"/g).length, 7);
+  // 六个图表卡：热力图 / 最费的天 / 每日 token / 输入输出拆分 / 每日费用 / 按项目，
+  // 全是画板 D-19 的 `.d-chart`。
+  // 用户 2026-10-07 实拍「请求与错误帮我去掉」—— 帧 D 的「请求与错误」卡已整块退场。
+  assert.equal(panelSource.match(/<div className="d-chart"/g).length, 6);
   // 帧 A 的两节：模型占比（.d-card + .d-bar）与口径说明（.d-set-row + 徽章）。
   assert.match(panelSource, /<div className="d-card">/);
   assert.match(panelSource, /<div className="d-bar">/);
@@ -64,7 +64,10 @@ test("the stat cards and every chart card ride the board 45 primitives", () => {
   // 「重播入场」是真接线（换 key 重挂载），两处帧头各一枚。
   assert.equal(panelSource.match(/\{replayButton\}/g).length, 2);
   // 三件套：页头 + 工具栏（周期芯片）+ 内容区。
-  assert.match(panelSource, /<SettingsPage[\s\S]*?sub=\{t\("usage\.subtitle"\)\}/);
+  // 用户 2026-10-07 实拍「设置里面菜单下面这种提示文字…全部帮我去掉」——
+  // `SettingsPage` 的页头说明行（`sub`）已整件退场。
+  assert.match(panelSource, /<SettingsPage/);
+  assert.doesNotMatch(panelSource, /sub=\{t\("usage\.subtitle"\)\}/);
   assert.match(panelSource, /className="d-grid2"/);
 
   for (const cls of ["d-bars", "d-bar-rise", "d-heat-grid", "d-mono", "d-grow", "d-t-faint"]) {
@@ -117,7 +120,10 @@ test("年度热力图占一整行，不塞进 570 的一栏", () => {
   const grids = [...panelSource.matchAll(/className="d-grid2"/g)]
     .map((m) => m.index)
     .filter((index) => index > desktopAt);
-  assert.equal(grids.length, 2, "桌面骨架只有两处并排块（输入/输出拆分 + 每日费用、请求与错误 + 按项目）");
+  // 用户 2026-10-07 实拍「按项目这个帮我扩宽点」—— 帧 D 剩下「按项目」一张表，
+  // 从两栏改成整行（`.d-grid2` → `.d-col`），所以桌面只剩一处并排块
+  // （输入/输出拆分 + 每日费用）。
+  assert.equal(grids.length, 1, "桌面骨架只剩一处并排块（输入/输出拆分 + 每日费用）");
   const heatAt = panelSource.indexOf("<UsageHeatmap", desktopAt);
   assert.ok(heatAt > 0, "热力图必须在用量页里");
   assert.ok(
@@ -142,8 +148,7 @@ test("the panel keeps its own chrome: range buttons, metric toggle, empty and er
     "usage.range7d", "usage.range30d", "usage.range1y", "usage.rangeAll",
     "usage.refresh", "usage.scannedHint", "usage.loading", "usage.error", "usage.empty",
     "usage.heatmap", "usage.metricSessions", "usage.metricTokens", "usage.less", "usage.more",
-    "usage.byModel", "usage.modelShare", "usage.requestsErrors", "usage.requestsLegend",
-    "usage.errorsLegend", "usage.dailyTokens", "usage.byProject", "usage.moreProjects",
+    "usage.byModel", "usage.modelShare", "usage.dailyTokens", "usage.byProject", "usage.moreProjects",
   ]) {
     // 区间按钮的 key 走 RANGE_KEYS 映射表（`"7d": "usage.range7d"`），其余直接
     // `t("…")` —— 两种写法都算「key 还在」。
@@ -223,30 +228,6 @@ test("a long range samples the x axis every nth day plus the last one", () => {
   assert.deepEqual(labels, ["04-01", "04-03", "04-05", "04-07", "04-09", "04-11", "04-12"]);
 });
 
-test("requests and errors share one max, keep both series' titles and the legend", () => {
-  const html = render(
-    React.createElement(UsageRequestsErrors, {
-      days: [day("2026-05-01", 1, 0, 0, 0), day("2026-05-02", 1, 10, 0, 0), day("2026-05-03", 1, 20, 0, 5)],
-      label: "请求与错误",
-      requestsLabel: "请求",
-      errorsLabel: "错误",
-    }),
-  );
-
-  assert.match(html, /role="img"/);
-  assert.match(html, /aria-label="请求与错误"/);
-  assert.equal(html.match(/class="d-bars"/g).length, 2);
-  assert.match(html, /<div class="d-row d-t-xs"/);
-  // 两条序列共用 max=20：请求 0/10/20 → 2%/50%/100%，错误 0/0/5 → 2%/2%/25%。
-  assert.match(html, /title="2026-05-01 · 请求 0"[^>]*style="height:2%/);
-  assert.match(html, /title="2026-05-02 · 请求 10"[^>]*style="height:50%/);
-  assert.match(html, /class="d-bar-rise" title="2026-05-03 · 请求 20"[^>]*style="height:100%/);
-  assert.match(html, /title="2026-05-03 · 错误 5"[^>]*style="height:25%;background:var\(--nx-surface-hi\)/);
-  // 零错误的格子不挂 title（与旧实现一致：只有真的有失败才提示）。
-  assert.doesNotMatch(html, /title="2026-05-01 · 错误/);
-  // 图例仍然可读，且在 role="img" 之外。
-  assert.match(html, /<div class="d-row d-t-xs"[\s\S]*?请求[\s\S]*?错误/);
-});
 
 test("charts only use the board's three colours (画板 45：accent 主 / n-border 次 / n-hover 底)", () => {
   // 画板 D-19 注记：「图表只用三种色……不引入新色相」。失败序列原来是

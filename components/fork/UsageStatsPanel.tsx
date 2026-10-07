@@ -9,7 +9,6 @@ import {
   UsageDailyBars,
   UsageHeatmap,
   UsageListRow,
-  UsageRequestsErrors,
   UsageShareBar,
 } from "./usage-charts";
 import type { UsageRange, UsageStatsSummary } from "@/lib/usage-stats";
@@ -328,7 +327,6 @@ export function UsageStatsPanel(): ReactNode {
             <div className="m-cardgroup">
               <PwaSetRow
                 label={t("usage.metricTokens")}
-                sub={t("usage.subtitle")}
                 trailing={
                   <span className="m-hist-row">
                     <button
@@ -357,15 +355,6 @@ export function UsageStatsPanel(): ReactNode {
                 metricLabel={metric === "sessions" ? t("usage.metricSessions") : t("usage.metricTokens")}
                 lessLabel={t("usage.less")}
                 moreLabel={t("usage.more")}
-              />
-            </div>
-
-            <div className="m-cardgroup">
-              <UsageRequestsErrors
-                days={summary.days}
-                label={t("usage.requestsErrors")}
-                requestsLabel={t("usage.requestsLegend")}
-                errorsLabel={t("usage.errorsLegend")}
               />
             </div>
 
@@ -430,7 +419,6 @@ export function UsageStatsPanel(): ReactNode {
        （筛选）与扫描计数 —— 62 的页头规则：计数进工具栏的等宽读数，不进 sub。 */
     <SettingsPage
       title={t("usage.title")}
-      sub={t("usage.subtitle")}
       actions={
         <button
           type="button"
@@ -745,27 +733,12 @@ export function UsageStatsPanel(): ReactNode {
                   </div>
                 </div>
 
-                {/* 帧 D · 请求与错误（两条序列共用一个 max）+ 按项目表。
-                    画板帧 D 左边那张是**逐条请求**的明细表；`.jsonl` 只按天聚合，
-                    没有逐条请求这一层，所以这里留真实存在的两条日序列，不编明细。
+                {/* 用户 2026-10-07 实拍：「请求与错误帮我去掉，然后按项目这个帮我扩宽点」——
+                    帧 D 的「请求与错误」卡整块退场（`.jsonl` 只按天聚合，那张图本来
+                    就只有两条日序列）；剩下的「按项目」表从两栏的右栏改成整行
+                    （`.d-grid2` → `.d-col`），表格的「成本」列不再被裁。
                     「未绑定工作区」单列成一行，不按比例摊给别的项目。 */}
-                <div className="d-grid2">
-                  <div className="d-chart">
-                    <div className="d-chart-head">
-                      <i data-ico="activity" data-size="15" aria-hidden="true" />
-                      <span className="d-grow">{t("usage.requestsErrors")}</span>
-                      <span className="d-t-xs d-t-faint">{t(RANGE_KEYS[range])}</span>
-                    </div>
-                    <div className="d-chart-body" key={`req-${replay}`}>
-                      <UsageRequestsErrors
-                        days={summary.days}
-                        label={t("usage.requestsErrors")}
-                        requestsLabel={t("usage.requestsLegend")}
-                        errorsLabel={t("usage.errorsLegend")}
-                      />
-                    </div>
-                  </div>
-
+                <div className="d-col">
                   {projects.length > 0 && (
                     <div className="d-chart">
                       <div className="d-chart-head">

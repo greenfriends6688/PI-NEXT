@@ -1794,7 +1794,6 @@ export function SkillsConfig({
       {isMobile ? (
       <SettingsPage
         title={t("common.skills")}
-        sub={t("skills.pageSub")}
         actions={
           <>
             {skills.some((skill) => Boolean(skill.install)) && (

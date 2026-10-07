@@ -578,15 +578,16 @@ export function ConfigStatusDot({ active, color }: { active?: boolean; color?: s
 
 export function SettingsPage({
   title,
-  sub,
   actions,
   toolbar,
   fill = false,
   children,
 }: {
   title: string;
-  /** 一句「这页是干嘛的」。**不写数据** —— 计数进工具栏的等宽徽章。 */
-  sub?: string;
+  /* 用户 2026-10-07 实拍「设置里面菜单下面这种提示文字…全部帮我去掉」——
+     页头那一行说明（原 `sub`）**整件退场**，设置每一节只剩标题 + 控件。
+     行内的字段说明（`.d-set-row-s` / `PwaSetRow` 的 sub）不动：它们解释的是
+     单个控件，不是「这页是干嘛的」。 */
   /** 页级动作，最多 2 个（1 primary + 1 outline），永远在页头右端。
    *  省略即**不渲染**右槽 —— 空槽不是缺陷（见上方契约说明）。 */
   actions?: ReactNode;
@@ -604,7 +605,6 @@ export function SettingsPage({
       <>
         <div className="m-hero">
           <span className="m-t-lg m-t-b">{title}</span>
-          {sub ? <span className="m-t-cap m-t-dim">{sub}</span> : null}
         </div>
         {toolbar ? <div className="m-cardgroup m-fieldrow">{toolbar}</div> : null}
         {actions ? <div className="m-cardgroup m-fieldrow">{actions}</div> : null}
@@ -625,7 +625,6 @@ export function SettingsPage({
           {/* ① 页级动作（动作四级归位 ①）：右端对齐由 `.d-grow` 顶出，不另加 margin。 */}
           {actions ? <div className="d-row">{actions}</div> : null}
         </div>
-        {sub ? <div className="d-t-xs d-t-faint">{sub}</div> : null}
       </div>
       {toolbar ? <div className="d-row">{toolbar}</div> : null}
       <div className={fill ? "d-set" : "d-col"}>{children}</div>

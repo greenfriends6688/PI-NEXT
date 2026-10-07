@@ -2788,7 +2788,6 @@ export function PluginsConfig({
           900px 窄视口下也仍是单行不换行（`.pw-shead-acts` 是 `flex-wrap:nowrap`）。 */}
       <SettingsPage
         title={mcpOnly ? t("mcp.sectionTitle") : t("common.plugins")}
-        sub={mcpOnly ? t("mcp.pageSub") : t("plugins.pageSub")}
         actions={
           mcpOnly && !isMobile ? undefined : mcpOnly ? (
             <>

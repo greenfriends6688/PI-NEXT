@@ -83,7 +83,7 @@ export function PhoneAndPushPanel() {
   }
 
   return (
-    <SettingsPage title={t("phonePush.title")} sub={t("phonePush.pageSub")}>
+    <SettingsPage title={t("phonePush.title")}>
       <div
         style={{
           display: "grid",

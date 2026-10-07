@@ -566,7 +566,6 @@ export function AgentsConfig({
           没有一处 `.d-sess` 列表。 */}
       <SettingsPage
         title={t("common.agents")}
-        sub={t("agents.pageSub")}
         toolbar={
           <>
             <PwSearch

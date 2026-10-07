@@ -1377,7 +1377,7 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
             分节，就是一根 `.d-set-inner`，**不再需要 `fill`**（画板帧 A 的归档页只有
             一列内容，没有列表列 + 详情列）。窄屏那支仍是列表 + `.m-sheet`。 */}
         {sectionHost("archived", (
-          <SettingsPage title={t("settings.archivedTitle")} sub={t("settings.archivePageDescription")}>
+          <SettingsPage title={t("settings.archivedTitle")}>
             <ProjectArchivePanel onOpenSession={onOpenSession} onSessionsChanged={onSessionReloaded} onCloseRequest={onClose} />
           </SettingsPage>
         ))}

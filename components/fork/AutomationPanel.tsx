@@ -616,9 +616,6 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
     >
       <SettingsPage
         title={viewTitle}
-        sub={historyFor
-          ? `${historyFor.name} · ${describeSchedule(historyFor, t, locale)}`
-          : t("automation.subtitle")}
         actions={view !== "list" ? (
           /* 画板四帧各自是一个弹层页，产品是同一节里的三个视图 —— 板面上没有
              「返回」这一件，它是产品行为的最小接线（与 ModelsConfig 的钻入列同款）。 */
