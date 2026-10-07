@@ -630,6 +630,17 @@ export const zhCNLocale: LocalePlugin = {
     "phonePush.quickOpen": "手机与推送",
     "phonePush.lanTitle": "把手机连到这台电脑",
     "phonePush.botTitle": "聊天 Bot 通道（入站）",
+    // fork:mobile-shell —— 5G 控制（出门隧道）。
+    "tunnel.cardTitle": "5G 控制",
+    "tunnel.hint": "在公网开一条临时隧道，出门 5G 也能连回家。地址随机，重启后重新生成并重新配对一次。",
+    "tunnel.status": "状态",
+    "tunnel.addr": "出门地址",
+    "tunnel.qrLabel": "手机扫码，出门直接打开",
+    "tunnel.start": "启动 5G 控制",
+    "tunnel.stop": "停止",
+    "tunnel.off": "未启动",
+    "tunnel.on": "已启动",
+    "tunnel.starting": "启动中…",
     // fork:mobile-shell —— 壳内镜像库（离线会话）。
     "phonePush.mirrorTitle": "镜像库（离线会话）",
     "phonePush.mirrorHint": "把电脑上的全部会话镜像到手机，断网也能翻历史。回前台自动增量同步，也可手动同步。",

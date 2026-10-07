@@ -621,6 +621,17 @@ export const enLocale: LocalePlugin = {
     "phonePush.quickOpen": "Phone & push",
     "phonePush.lanTitle": "Pair a phone on this network",
     "phonePush.botTitle": "Chat bot channels (inbound)",
+    // fork:mobile-shell —— 5G 控制（出门隧道）。
+    "tunnel.cardTitle": "5G control",
+    "tunnel.hint": "Open a temporary public tunnel so your phone on cellular can reach this Mac. The address is random and changes on restart — re-pair once after it changes.",
+    "tunnel.status": "Status",
+    "tunnel.addr": "Away address",
+    "tunnel.qrLabel": "Scan to open on your phone",
+    "tunnel.start": "Start 5G control",
+    "tunnel.stop": "Stop",
+    "tunnel.off": "Not running",
+    "tunnel.on": "Running",
+    "tunnel.starting": "Starting…",
     // fork:mobile-shell — in-shell mirror library (offline sessions).
     "phonePush.mirrorTitle": "Mirror library (offline sessions)",
     "phonePush.mirrorHint": "Mirror every session from the computer so history works offline. Incremental sync runs on foreground; sync manually any time.",

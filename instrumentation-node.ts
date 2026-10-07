@@ -47,6 +47,14 @@ export async function registerNodeInstrumentation(): Promise<void> {
   // 这行括号注释（“定时任务已下线”）是 fork:proma-43-automation 把调度器接回来之前
   // 留下的，位置又刚好贴在这段 shutdown 说明下面，读起来像是说上面那个
   // `startAutomationScheduler()` 已经没了 —— 它就在 8 行之上活着。删掉，不修辞。
+  /* fork:mobile-shell —— 「5G 控制」隧道：enabled 配置在就随进程自启（地址每次都变）；
+     关停时杀掉 cloudflared 子进程，防止孤儿隧道占着旧地址。 */
+  const { maybeAutoStartTunnel, stopTunnelProcess } = await import("@/lib/tunnel-manager");
+  void maybeAutoStartTunnel();
+  const stopTunnelChild = () => stopTunnelProcess();
+  process.on("SIGINT", stopTunnelChild);
+  process.on("SIGTERM", stopTunnelChild);
+
   const { closeAllAgentEventStreams } = await import("@/lib/agent-event-stream");
   const shutdownStreams = () => closeAllAgentEventStreams();
   process.on("SIGINT", shutdownStreams);
