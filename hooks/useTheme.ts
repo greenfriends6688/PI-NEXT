@@ -2,7 +2,6 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { isDarkTheme, isThemePreference, type ThemePreference, type ResolvedTheme } from "@/lib/theme";
-import { applyStoredBorderDepth, clearDepthOverrides, resetBorderDepthSnapshot } from "@/hooks/useBorderDepth";
 import { applyStoredUiDensity } from "@/hooks/useUiDensity";
 // fork:zn-15 — 侧边栏半透明也随主题生效（主题切换会重算这一层）。
 import { applyStoredRailTranslucent } from "@/hooks/useRailTranslucent";
@@ -53,13 +52,6 @@ function applyDomTheme(theme: ResolvedTheme): void {
   if (typeof document === "undefined") return;
   document.documentElement.dataset.theme = theme;
   document.documentElement.classList.toggle("dark", isDarkTheme(theme));
-  // A new palette invalidates a derived layer that blends off its colours: the
-  // border-depth snapshot. The inline depth blend has to go first —
-  // `ensureBorderOrig()` reads the computed cascade, which would otherwise
-  // still see the previous blend.
-  clearDepthOverrides();
-  resetBorderDepthSnapshot();
-  applyStoredBorderDepth();
   applyStoredUiDensity();
   applyStoredRailTranslucent();
   applyStoredUiFont();

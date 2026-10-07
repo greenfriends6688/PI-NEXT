@@ -37,6 +37,8 @@ import { UsageStatsPanel } from "./fork/UsageStatsPanel";
 import { PhoneAndPushPanel } from "./fork/PhoneAndPushPanel";
 // fork:imagegen —— 生图模型档案（全局节；generate_image 工具与标书配图读同一份配置）。
 import { ImageGenSettingsPanel } from "./fork/ImageGenSettingsPanel";
+// fork:memory —— 设置 → 记忆（画板 D-36）。
+import { MemorySettingsPanel } from "./fork/MemorySettingsPanel";
 import { setupPushSubscription } from "@/lib/push-client";
 import { SkillsConfig } from "./SkillsConfig";
 /* fork:disabled-reasons —— 「为什么不能点」的文案。与 AgentsConfig
@@ -69,7 +71,6 @@ import { ShortcutGuideEntry } from "./fork/ShortcutGuideEntry";
 import { THEME_SKIN_DEFAULT_ID, currentSkinMode } from "@/lib/theme-skins";
 import { ProjectArchivePanel } from "./ProjectArchivePanel";
 import { ImportPanel } from "./ImportPanel";
-import { useBorderDepth } from "@/hooks/useBorderDepth";
 import { useUiDensity } from "@/hooks/useUiDensity";
 // fork:v5-landing Wave B · M-05 —— 手机端设置的两层导航：hub 卡片表（分组、副行、
 // 「需项目」徽章）。窄屏才渲染，桌面那条左导航一个字不动。
@@ -100,7 +101,6 @@ import {
   setStepCategoryExpanded,
   type StepExpansion,
 } from "@/lib/process-step-expansion";
-import { BORDER_DEPTH_MAX, BORDER_DEPTH_MIN } from "@/lib/border-depth";
 
 interface Props {
   cwd: string | null;
@@ -140,6 +140,8 @@ const SECTION_ICON_BY_ID: Record<string, string> = {
   models: "cpu",
   // fork:imagegen —— 生图模型档案（画板 D-31 左导航的 `image`）。
   imagegen: "image",
+  // fork:memory —— 记忆扩展（画板 D-36 左导航的 `brain`）。
+  memory: "brain",
   skills: "box",
   agents: "bot",
   plugins: "blocks",
@@ -587,7 +589,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
      桌面那一支的类名与结构一个字不动，这里只把窄屏那一支换成 `m-*`。 */
   const isMobile = useIsMobile();
   const { preference, setThemePreference } = useTheme();
-  const { borderDepth, setBorderDepth } = useBorderDepth();
   const { uiDensity, setUiDensity } = useUiDensity();
   // fork:zn-15 — Zeno 外观页的四项：侧边栏半透明 / 侧边栏宽度 / UI 字体 / UI 字号。
   const { railTranslucent, setRailTranslucent } = useRailTranslucent();
@@ -793,30 +794,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             {localCopy(THEME_PANE_COPY[mode], locale)}
           </PwPaneCard>
         ))}
-        <PwField
-          label={t("settings.borderDepth")}
-          hint={t("settings.borderDepthDescription")}
-          htmlFor="settings-border-depth"
-          badge={{ text: String(borderDepth), tone: "mute" }}
-          slider={{
-            id: "settings-border-depth",
-            value: borderDepth,
-            min: BORDER_DEPTH_MIN,
-            max: BORDER_DEPTH_MAX,
-            ariaLabel: t("settings.borderDepth"),
-            onChange: setBorderDepth,
-          }}
-          control={
-            <button
-              type="button"
-              className={btnSm}
-              title={t("settings.borderDepthTheme")}
-              onClick={() => setBorderDepth(50)}
-            >
-              {t("settings.reset")}
-            </button>
-          }
-        />
       </PwBlock>
 
       {/* fork:zn-19 / fork:design-system SW-07 —— 主题皮肤：卡片条 + 导入 / 导出 /
@@ -1658,6 +1635,8 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
         {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} focusSlug={focusSkillSlug ?? null} />)}
         {cwd && sectionHost("agents", <AgentsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
         {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
+        {/* fork:memory —— 记忆扩展。全局页（与项目无关）：开关那一个包，与「插件」同一个状态。 */}
+        {sectionHost("memory", <MemorySettingsPanel />)}
         {/* fork:mcp-section — global pages, no project needed. */}
         {sectionHost("mcp", <McpConfig cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
         {/* fork:proma-43-automation — 定时任务。全局页：cwd 只决定新建任务时的
