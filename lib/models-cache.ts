@@ -13,7 +13,22 @@ export interface ThinkingProfileInputs {
 
 export interface ModelsData {
   models: Record<string, string>;
-  modelList: { id: string; name: string; provider: string; input?: string[] }[];
+  modelList: {
+    id: string;
+    name: string;
+    provider: string;
+    input?: string[];
+    /* fork:models-catalog-override —— 起草「目录/内置模型的 models.json 覆盖」用的种子。
+       pi 的 `models[]` 是整条替换而不是合并，所以这几个字段必须带上。 */
+    contextWindow?: number;
+    maxTokens?: number;
+    reasoning?: boolean;
+    api?: string;
+    cost?: unknown;
+    thinkingLevelMap?: Record<string, string | null>;
+    compat?: Record<string, unknown>;
+    inputLimits?: unknown;
+  }[];
   defaultModel: { provider: string; modelId: string } | null;
   thinkingLevels: Record<string, string[]>;
   thinkingLevelMaps: Record<string, Record<string, string | null>>;

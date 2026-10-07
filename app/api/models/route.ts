@@ -62,6 +62,18 @@ async function loadModels(cwd: string): Promise<ModelsData> {
     name: m.name,
     provider: m.provider,
     input: m.input,
+    /* fork:models-catalog-override —— 为「给目录/内置模型建一条 models.json 覆盖」提供种子：
+       pi 的 `models[]` 是**整条替换**而不是合并（见 `lib/builtin-models.ts`），
+       所以覆盖条目必须把目录里的实际值一并带上，否则保存一次就把上下文窗口、
+       定价、thinking 档、compat 全丢了。这几个字段就是面板起草覆盖时要的那几个。 */
+    contextWindow: m.contextWindow,
+    maxTokens: m.maxTokens,
+    reasoning: m.reasoning,
+    api: m.api,
+    cost: m.cost,
+    ...(m.thinkingLevelMap ? { thinkingLevelMap: m.thinkingLevelMap } : {}),
+    ...(m.compat ? { compat: m.compat } : {}),
+    ...(m.inputLimits ? { inputLimits: m.inputLimits } : {}),
   })).sort(compareModelEntries);
   for (const m of visible) {
     const key = `${m.provider}:${m.id}`;

@@ -22,7 +22,7 @@ import type { ModelInputLimits, ModelPromptCache } from "@earendil-works/pi-ai";
 import type { ModelCatalogPreset, ModelCatalogRecommendation } from "@/lib/model-catalog";
 import type { DiscoveredModel } from "@/lib/model-discovery";
 // 用量概览：本机日志的口径（/api/usage-stats）。
-import type { ThinkingProfileInputs } from "@/lib/models-cache";
+import type { ModelsData, ThinkingProfileInputs } from "@/lib/models-cache";
 import { describeThinkingRequestFromFields, type ThinkingModelFields } from "@/lib/thinking-request-core";
 // fork:pr17-favorites —— 与输入框模型选择器共用同一份 store；增删在选择器里，这里只读。
 import {
@@ -1010,13 +1010,12 @@ function ModelDiscovery({ providerId, provider, onAddModels, onClose }: {
 
 // ── 模型详情 ──────────────────────────────────────────────────────────────────
 
-function ModelDetail({ providerName, provider, model, onChange, onDelete, onBack, cwd }: {
+function ModelDetail({ providerName, provider, model, onChange, onDelete, cwd }: {
   providerName: string;
   provider: ProviderEntry;
   model: ModelEntry;
   onChange: (m: ModelEntry) => void;
   onDelete: () => void;
-  onBack: () => void;
   /** The project cwd; `/api/models` only answers for an allowed root. */
   cwd: string | null;
 }) {
@@ -1239,10 +1238,7 @@ function ModelDetail({ providerName, provider, model, onChange, onDelete, onBack
 
   return (
     <div className="d-set-inner">
-      <ConfigButton variant="ghost" size="small" onClick={onBack}>
-        <i data-ico="arrow-left" data-size="13" aria-hidden="true" />
-        {t("models.backToList")}
-      </ConfigButton>
+      {/* fork:models-detail-modal —— 不再有「← 返回」：这一页已经是弹窗，关窗就是返回。 */}
 
       <div className="d-set-sec">
         <SectionHeading
@@ -1826,6 +1822,9 @@ function AddProviderPicker({ oauthProviders, apiKeyProviders, existingIds, onPic
   const [customId, setCustomId] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { const timer = setTimeout(() => inputRef.current?.focus(), 30); return () => clearTimeout(timer); }, []);
+  /* fork:models-detail-modal —— 列表还没到时（面板刚挂载 / `/api/auth/providers` 还在路上）
+     不要报「没有可用服务商」，那会让用户以为装的东西没了；先报「正在加载」。 */
+  const loading = oauthProviders.length === 0 && apiKeyProviders.length === 0;
 
   const needle = search.trim().toLocaleLowerCase();
   // A dual-auth provider appears in both lists; whichever the user picks is the
@@ -1859,7 +1858,9 @@ function AddProviderPicker({ oauthProviders, apiKeyProviders, existingIds, onPic
         />
       </div>
 
-      {totalCount === 0 ? (
+      {loading ? (
+        <div className="d-t-xs d-t-faint" role="status">{t("i18n.loading")}</div>
+      ) : totalCount === 0 ? (
         <div className="d-t-xs d-t-faint">{t("i18n.noProviders")}</div>
       ) : (
         <div className="d-col">
@@ -2191,6 +2192,8 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   const [view, setView] = useState<View>(readRememberedView);
   const [oauthProviders, setOauthProviders] = useState<OAuthProvider[]>([]);
   const [apiKeyProviders, setApiKeyProviders] = useState<ApiKeyProvider[]>([]);
+  /** fork:models-catalog-override —— 运行时模型目录（起草目录模型覆盖的种子）。 */
+  const [runtimeModels, setRuntimeModels] = useState<ModelsData["modelList"]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   /** Provider whose upstream import list is open, or null. */
   const [discoveryFor, setDiscoveryFor] = useState<string | null>(null);
@@ -2237,8 +2240,14 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     void refreshAuthProviders();
+    /* fork:models-catalog-override —— 运行时目录：起草「目录模型覆盖」时要带着它的实际值
+       （上下文窗口 / 定价 / thinking 档 / compat…）。与 ModelDetail 自己的那一份同源。 */
+    void fetch(cwd ? `/api/models?cwd=${encodeURIComponent(cwd)}` : "/api/models")
+      .then((response) => response.json())
+      .then((d: { modelList?: ModelsData["modelList"] }) => { if (!cancelled) setRuntimeModels(d.modelList ?? []); })
+      .catch(() => {});
     return () => { cancelled = true; };
-  }, [refreshAuthProviders]);
+  }, [cwd, refreshAuthProviders]);
 
   useEffect(() => {
     setLastSettingsSelection("models", JSON.stringify(view));
@@ -2291,6 +2300,39 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     const provider = config.providers?.[providerName];
     openModel(providerName, (provider?.models?.length ?? 0));
   }, [config.providers, openModel]);
+
+  /**
+   * fork:models-catalog-override —— 为目录/内置模型起草一条 models.json 覆盖条目并打开它。
+   *
+   * pi 的 `models[]` 是**整条替换**而不是合并（见 `lib/builtin-models.ts`），所以草稿必须
+   * 带着运行时那份实际值 —— 否则用户改一个字段再保存，上下文窗口 / 定价 / thinking 档 /
+   * compat 全部归零。值来自 `/api/models` 的 `modelList`（与 ModelDetail 自己读的那份同源），
+   * 取不到就只写 id/name（“填入模型信息”按钮还能从 models.dev 补）。
+   */
+  const createCatalogOverride = useCallback((providerName: string, modelId: string, name?: string) => {
+    const runtime = runtimeModels.find((entry) => entry.provider === providerName && entry.id === modelId);
+    const seed: ModelEntry = { id: modelId };
+    const label = name?.trim() || runtime?.name?.trim();
+    if (label && label !== modelId) seed.name = label;
+    if (runtime?.api) seed.api = runtime.api;
+    if (typeof runtime?.reasoning === "boolean") seed.reasoning = runtime.reasoning;
+    if (runtime?.thinkingLevelMap) seed.thinkingLevelMap = { ...runtime.thinkingLevelMap };
+    if (runtime?.input) seed.input = [...runtime.input];
+    if (runtime?.inputLimits) seed.inputLimits = runtime.inputLimits as ModelEntry["inputLimits"];
+    if (typeof runtime?.contextWindow === "number") seed.contextWindow = runtime.contextWindow;
+    if (typeof runtime?.maxTokens === "number") seed.maxTokens = runtime.maxTokens;
+    if (runtime?.cost) seed.cost = runtime.cost as ModelEntry["cost"];
+    if (runtime?.compat) seed.compat = { ...runtime.compat };
+    const index = config.providers?.[providerName]?.models?.length ?? 0;
+    setConfig((prev) => {
+      const provider = prev.providers?.[providerName] ?? {};
+      return {
+        ...prev,
+        providers: { ...(prev.providers ?? {}), [providerName]: { ...provider, models: [...(provider.models ?? []), seed] } },
+      };
+    });
+    openModel(providerName, index);
+  }, [config.providers, openModel, runtimeModels]);
 
   const addDiscoveredModels = useCallback((providerName: string, discovered: DiscoveredModel[]) => {
     setConfig((prev) => {
@@ -2385,7 +2427,8 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
   Object.keys(config.providers ?? {}).forEach(addId);
   enabledModels.view?.providers.forEach((provider) => addId(provider.id));
 
-  const providerRows: ProviderRow[] = providerIds.map((id) => {
+  /** 一行供应商的派生形状 —— 列表与详情弹窗共用一份（未连接的服务商也能靠它进详情页）。 */
+  const buildProviderRow = (id: string): ProviderRow => {
     const oauth = oauthProviders.find((p) => p.id === id);
     const apiKey = apiKeyProviders.find((p) => p.id === id);
     const json = config.providers?.[id];
@@ -2397,7 +2440,9 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
       ...(json ? { json } : {}),
       connected: connectedIds.has(id),
     };
-  });
+  };
+
+  const providerRows: ProviderRow[] = providerIds.map(buildProviderRow);
   const providerDirty = (id: string) =>
     JSON.stringify(config.providers?.[id] ?? null) !== JSON.stringify(savedConfig.providers?.[id] ?? null);
   const chatTotal = enabledModels.view?.enabledTotal ?? 0;
@@ -2634,8 +2679,20 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
       return (
         <div key={entry.key} className="d-row">
           {entry.index === null ? (
-            /* A catalog model: the endpoint defines it, models.json has no entry to edit. */
-            <div className="d-setcard d-grow">{copy}{tags}</div>
+            /* fork:models-catalog-override —— 目录模型（models-store / 内置目录）也能配参数：
+               点开时先为它**起草**一条 models.json 覆盖条目。pi 的 `models[]` 是整条替换
+               而不是合并，所以草稿带着运行时那份实际值（见 createCatalogOverride），
+               否则保存一次就把上下文窗口 / 定价 / thinking 档 / compat 全丢了。
+               用户 2026-10-07：「opencode go 套餐里面的模型，缺少参数相关配置，别的都有」。 */
+            <button
+              type="button"
+              className="d-setcard d-grow"
+              title={t("models.createOverride")}
+              onClick={() => createCatalogOverride(row.id, entry.id, entry.name)}
+            >
+              {copy}{tags}
+              <i data-ico="chevron-right" data-size="14" aria-hidden="true" />
+            </button>
           ) : (
             <button
               type="button"
@@ -2654,10 +2711,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
 
     return (
       <div className="d-set-inner">
-        <ConfigButton variant="ghost" size="small" onClick={() => openProvider(null)}>
-          <i data-ico="arrow-left" data-size="13" aria-hidden="true" />
-          {t("models.backToList")}
-        </ConfigButton>
+        {/* fork:models-detail-modal —— 不再有「← 返回」：这一页已经是弹窗，关窗就是返回。 */}
 
         <SectionHeading
           title={<span className="d-row"><ProviderIcon id={row.id} size={16} />{row.label}</span>}
@@ -2707,14 +2761,22 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         <div className="d-set-sec">
           <SectionHeading
             title={<>{t("models.sectionModelsTitle")} <ConfigBadge tone="mute">{modelRows.length}</ConfigBadge></>}
-            actions={json && (
+            actions={(
               <>
+                {/* fork:models-catalog-override —— 「刷新目录」对目录型服务商也要有：
+                    它写的是 models-store.json，本来就不需要 models.json 条目，
+                    而 opencode-go 这类套餐此前整组动作都被 `json &&` 吞掉了
+                    （用户 2026-10-07：「少一个刷新列表的功能吧，之前有」）。 */}
                 <CatalogRefreshButton providerId={row.id} onDone={enabledModels.refresh} />
-                <ConfigButton size="small" onClick={() => setDiscoveryFor(row.id)}>
-                  <i data-ico="download" data-size="13" aria-hidden="true" />
-                  {t("models.importFromUpstream")}
-                </ConfigButton>
-                <ConfigButton size="small" onClick={() => addModel(row.id)}>{t("i18n.addModel")}</ConfigButton>
+                {json && (
+                  <>
+                    <ConfigButton size="small" onClick={() => setDiscoveryFor(row.id)}>
+                      <i data-ico="download" data-size="13" aria-hidden="true" />
+                      {t("models.importFromUpstream")}
+                    </ConfigButton>
+                    <ConfigButton size="small" onClick={() => addModel(row.id)}>{t("i18n.addModel")}</ConfigButton>
+                  </>
+                )}
               </>
             )}
           />
@@ -2772,29 +2834,20 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     );
   };
 
-  const renderPage = () => {
-    if (!view.provider) return renderProviderList();
-    const row = providerRows.find((entry) => entry.id === view.provider);
-    if (!row) return renderProviderList();
-    if (typeof view.modelIndex === "number") {
-      const model = config.providers?.[row.id]?.models?.[view.modelIndex];
-      if (model) {
-        return (
-          <ModelDetail
-            key={`${row.id}-${view.modelIndex}`}
-            providerName={row.id}
-            provider={config.providers?.[row.id] ?? {}}
-            model={model}
-            cwd={cwd}
-            onChange={(next) => updateModel(row.id, view.modelIndex!, next)}
-            onDelete={() => removeModel(row.id, view.modelIndex!)}
-            onBack={() => openProvider(row.id)}
-          />
-        );
-      }
-    }
-    return renderProviderPage(row);
-  };
+  /* fork:models-detail-modal（用户 2026-10-07 裁定）—— 详情一律弹窗：页内那两处
+     「← 返回」的位置别扭（截图反馈），而详情本来就是「看一眼 / 改两格就走」的东西。
+     页面本体永远是供应商列表，详情叠在它上面。 */
+  /* 未连接的服务商（「添加供应商」里刚点进来的那个）也要能进详情页：providerRows 只含
+     已连接 / models.json / 当前可见模型里的，之前找不到就静默回落成列表 —— 用户
+     2026-10-07：「点了对应的列表后，无法输入 apikey，弹窗直接就消失了」。 */
+  const detailRow = view.provider
+    ? providerRows.find((entry) => entry.id === view.provider) ?? buildProviderRow(view.provider)
+    : null;
+  const detailModel = detailRow && typeof view.modelIndex === "number"
+    ? config.providers?.[detailRow.id]?.models?.[view.modelIndex]
+    : undefined;
+
+  const renderPage = () => renderProviderList();
 
   const statusMessage = loadError
     ? t("models.configUnreadable", { error: loadError })
@@ -2811,14 +2864,13 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
       >
         <SettingsPage
           title={t("common.models")}
-          sub={t("models.pageSub")}
           actions={(
             <>
               <ConfigButton
                 variant="secondary"
                 size="small"
                 className="fork-pwa-ms-page fork-pwa-ms-models"
-                onClick={() => setPickerOpen(true)}
+                onClick={() => { setPickerOpen(true); void refreshAuthProviders(); }}
               >
                 <i data-ico="plus" data-size="13" aria-hidden="true" />
                 {t("models.addProvider")}
@@ -2835,11 +2887,11 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
                     <i data-ico="check" data-size="14" aria-hidden="true" />
                   </span>
                 )}
-                <span>{savedOk ? t("i18n.saved") : saving ? t("i18n.saving") : t("models.saveModelsJson")}</span>
+                <span>{savedOk ? t("i18n.saved") : saving ? t("i18n.saving") : t("i18n.save")}</span>
               </ConfigButton>
             </>
           )}
-          toolbar={view.provider === null && (
+          toolbar={(
             <>
               <span className="d-t-xs d-t-faint">{t("models.summary", { count: chatTotal })}</span>
               <span className="d-grow" aria-hidden="true" />
@@ -2881,6 +2933,30 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
           )}
         </SettingsPage>
       </ConfigPanelShell>
+
+      {/* fork:models-detail-modal —— 供应商详情与模型详情都是弹窗（页面本体永远是列表）。
+          模型弹窗叠在供应商弹窗之上；两层各自处理 Esc（`Modal` 里 `stopPropagation`）。 */}
+      {detailRow && (
+        <Modal title={detailRow.label} onClose={() => openProvider(null)}>
+          {renderProviderPage(detailRow)}
+        </Modal>
+      )}
+      {detailRow && detailModel && typeof view.modelIndex === "number" && (
+        <Modal
+          title={detailModel.name || detailModel.id || t("models.untitledModel")}
+          onClose={() => openProvider(detailRow.id)}
+        >
+          <ModelDetail
+            key={`${detailRow.id}-${view.modelIndex}`}
+            providerName={detailRow.id}
+            provider={config.providers?.[detailRow.id] ?? {}}
+            model={detailModel}
+            cwd={cwd}
+            onChange={(next) => updateModel(detailRow.id, view.modelIndex!, next)}
+            onDelete={() => removeModel(detailRow.id, view.modelIndex!)}
+          />
+        </Modal>
+      )}
 
       {pickerOpen && (
         <AddProviderPicker

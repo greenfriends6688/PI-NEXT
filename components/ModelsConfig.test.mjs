@@ -114,8 +114,11 @@ test("the page is a provider list with one level of drill-in", () => {
   assert.match(code, /t\("models\.summary", \{ count: chatTotal \}\)/);
   assert.match(code, /t\("models\.pickChatModels"\)/);
   assert.match(code, /onClick=\{\(\) => openProvider\(row\.id\)\}/);
-  // 钻入页按「连接 / 端点 / 模型」三段摆，每段都回得去列表。
-  assert.match(code, /onClick=\{\(\) => openProvider\(null\)\}/);
+  // 钻入页按「连接 / 端点 / 模型」三段摆。
+  // fork:models-detail-modal（2026-10-07 用户裁定）—— 钻入不再是页内视图：详情是弹窗，
+  // 「← 返回」随之取消（关窗就是返回）。
+  assert.match(code, /<Modal title=\{detailRow\.label\} onClose=\{\(\) => openProvider\(null\)\}>/);
+  assert.doesNotMatch(code, /models\.backToList/);
   assert.match(code, /t\("models\.sectionConnection"\)/);
   assert.match(code, /t\("models\.sectionEndpoint"\)/);
   assert.match(code, /t\("models\.sectionEndpointOverride"\)/);
@@ -152,7 +155,8 @@ test("page-level actions live in the page header, with no footer", () => {
   const actionsBlock = code.slice(code.indexOf("actions={"), code.indexOf("toolbar={"));
   assert.match(actionsBlock, /t\("models\.addProvider"\)/);
   assert.match(actionsBlock, /variant="primary"[\s\S]*?onClick=\{handleSave\}/);
-  assert.match(actionsBlock, /t\("models\.saveModelsJson"\)/);
+  // 2026-10-07 用户裁定：主钮就叫「保存」（副标题已经写着 ~/.pi/agent/models.json）。
+  assert.match(actionsBlock, /t\("i18n\.save"\)/);
   assert.doesNotMatch(code, /<ConfigFooter/);
 });
 
