@@ -115,14 +115,15 @@ test("keeps the session stats in the context-ring popover, not a bottom strip", 
   const chatWindow = await readFile(new URL("./ChatWindow.tsx", import.meta.url), "utf8");
   assert.match(chatWindow, /statsDetails=\{sessionStats\}/);
   // fix:mcp-topbar-icons（用户裁定 2026-09-30）—— 扩展状态（MCP / 插件）从「聊天区
-  // 右上角胶囊浮标」搬去顶栏两枚图标：ChatWindow 只负责把 statuses / widgets 上报，
-  // 浮窗由 AppShell 的 McpStatusButton / PluginStatusButton 渲染。
+  // 右上角胶囊浮标」搬去顶栏图标：ChatWindow 只负责把 statuses / widgets 上报，
+  // 浮窗由 AppShell 的 PluginStatusButton 渲染。
+  // 2026-10-07 用户裁定去掉 MCP 那一枚（顶栏不再重复「设置 → MCP」的服务器清单）。
   assert.match(chatWindow, /onExtensionStatusChange\?\.\(statuses, widgets\)/);
   assert.doesNotMatch(chatWindow, /<ExtensionStatusFloat/);
-  assert.match(source, /<McpStatusButton[\s\S]{0,120}?statuses=\{mcpStatuses\}/);
-  // fork:mcp-topbar-dedupe-status —— 状态行按种类分派，两个浮窗不再各渲染整份
-  // statuses（`ponytail: FULL` 与 `MCP: … enabled` 曾同时出现在两个浮窗里）。
-  assert.match(source, /splitStatusesByKind\(extensionStatuses\)/);
+  assert.doesNotMatch(source, /McpStatusButton/, "顶栏不再有 MCP 图标与它的浮窗");
+  assert.doesNotMatch(source, /mcpStatuses/);
+  // fork:mcp-topbar-dedupe-status —— 状态行按种类分派（MCP 那几行不再进顶栏浮窗）。
+  assert.match(source, /splitStatusesByKind\(extensionStatuses\)\.others/);
   assert.doesNotMatch(source, /statuses=\{extensionStatuses\}/);
   assert.match(source, /<PluginStatusButton[\s\S]{0,160}?widgets=\{extensionWidgets\}/);
   assert.doesNotMatch(chatWindow, /<ExtensionStatusBar[\s\S]*?statuses=\{extensionStatuses\}[\s\S]*?widgets=\{extensionWidgets\}[\s\S]*?\/>/);
@@ -149,13 +150,14 @@ test("places trust warnings below the mobile toolbar and the file toggle in tool
 //      任何地方都不消失，非得再点一次那枚钮；② MCP 那枚浮窗指针扫过顶栏就弹。
 const popoverSource = await readFile(new URL("./TopBarPopovers.tsx", import.meta.url), "utf8");
 
-test("the top-bar panels dismiss on an outside click and MCP opens on click only", () => {
+test("the top-bar panels dismiss on an outside click", () => {
   assert.match(source, /import \{ useDismissOnOutside \} from "\.\/PortalDropdown";/);
   assert.match(source, /useDismissOnOutside\(Boolean\(activeTopPanel\), topPanelAnchorRef, topPanelRef, closeTopPanel\)/);
   assert.match(source, /<div ref=\{topPanelRef\} className="anim-popover-down d-pop-float"/);
 
-  // MCP 走 `openOnHover={false}`；插件那枚保留悬停开（用户只点了 MCP 这一枚）。
-  assert.match(popoverSource, /icon="server"[\s\S]{0,120}?openOnHover=\{false\}/);
+  // MCP 那一枚（`icon="server"` + `openOnHover={false}`）已于 2026-10-07 用户裁定去掉：
+  // 顶栏不再重复「设置 → MCP」的服务器清单。悬停开合那套仍然活在插件的 `HoverPopover` 里。
+  assert.doesNotMatch(popoverSource, /icon="server"/);
   assert.match(popoverSource, /const open = openOnHover \? hovered \|\| pinned : pinned;/);
   assert.match(popoverSource, /onMouseEnter=\{openOnHover \? holdOpen : undefined\}/);
   // 那一族判据本身仍是共享实现（点外面 + Esc）。

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useI18n } from "@/hooks/useI18n";
 import { stripAnsi } from "@/lib/ansi";
 import type { ExtensionStatusItem, ExtensionWidgetItem } from "@/lib/types";
-import type { McpResponse, McpServerInfo, PluginsResponse } from "@/lib/api-types";
+import type { PluginsResponse } from "@/lib/api-types";
 import { AnsiText } from "./AnsiText";
 import { ExtensionWidgets } from "./ExtensionWidgets";
 import { PortalDropdown, useDismissOnOutside } from "./PortalDropdown";
@@ -17,9 +17,11 @@ import { PortalDropdown, useDismissOnOutside } from "./PortalDropdown";
  *      带下拉箭头的芯片，也就是工作区（worktree）切换器。产品里它原本是个
  *      **没有 onClick 的 span**（用户实测「这个 main 点不了」）。
  *
- *   2. **MCP / 插件 两枚图标 + 浮窗**：原来 MCP / ponytail 是聊天区右上角一枚
- *      常驻 mono 胶囊（`ExtensionStatusFloat`）。用户要求改成顶栏两枚图标，
- *      悬停或点击出浮窗。图标取自画板 43 自己的词汇：MCP = `server`，插件 = `blocks`。
+ *   2. **插件一枚图标 + 浮窗**：原来 MCP / ponytail 是聊天区右上角一枚
+ *      常驻 mono 胶囊（`ExtensionStatusFloat`）。用户要求改成顶栏图标，
+ *      悬停或点击出浮窗。图标取自画板 43 自己的词汇：插件 = `blocks`。
+ *      （MCP 那一枚是 2026-10-07 用户裁定去掉的：它只在顶栏重复一遍
+ *      设置 → MCP 已经写清楚的服务器清单，浮窗一关就少一处重复。）
  *
  * 浮窗一律走 `PortalDropdown`（body + fixed），顶栏本身有 `overflow` 与 z 叠层，
  * 绝对定位的浮窗会被裁。
@@ -249,87 +251,6 @@ export function BranchChip({
         </div>
       </PortalDropdown>
     </>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// 2 · MCP 图标
-// ---------------------------------------------------------------------------
-
-function serverDetail(server: McpServerInfo): string {
-  if (server.kind === "url") return server.url ?? "url";
-  if (server.kind === "socket") return server.socket ?? "socket";
-  return [server.command, ...server.args].filter(Boolean).join(" ");
-}
-
-/**
- * 从扩展上报的 MCP 状态文本里取「已启用几台」。原来的常驻胶囊写的是
- * `MCP: 3 servers enabled` —— 那台数就是这个徽标的来源。取不到数字就**不显示**
- * 徽标（浮窗里的列表仍然是权威），所以文案变了也不会错得离谱。
- */
-function enabledCountFromStatus(statuses: ExtensionStatusItem[]): number {
-  for (const status of statuses) {
-    const match = stripAnsi(status.text).match(/(\d+)/);
-    if (match) return Number(match[1]);
-  }
-  return 0;
-}
-
-export function McpStatusButton({ cwd, statuses }: { cwd: string | null; statuses: ExtensionStatusItem[] }) {
-  const { t } = useI18n();
-  const [open, setOpen] = useState(false);
-  const url = open && cwd ? `/api/mcp?cwd=${encodeURIComponent(cwd)}` : null;
-  const { data, failed } = useLazyJson<McpResponse>(open, url);
-  const servers = data?.servers ?? [];
-  // 没打开过浮窗时用状态文本里的台数（零请求）；打开过就以真实配置为准。
-  const enabled = data ? servers.filter((server) => !server.disabled).length : enabledCountFromStatus(statuses);
-  // fork:zh-topbar —— 提示框只说本地话：扩展自己打的状态行是英文（“🔌 MCP: 3 servers
-  // enabled”），那串原文留在浮窗正文（StatusRows）里，不拿到 title 上。
-  const title = enabled > 0
-    ? `${t("topbar.mcp")} · ${t("topbar.enabledCount", { count: enabled })}`
-    : t("topbar.mcp");
-
-  return (
-    <HoverPopover
-      label={t("topbar.mcp")}
-      icon="server"
-      title={title}
-      openOnHover={false}
-      onOpenChange={setOpen}
-      badge={enabled > 0 ? (
-        <span className="d-badge info" style={{ position: "absolute", top: 1, right: 1, minWidth: 13, height: 13, padding: "0 3px" }}>
-          {enabled}
-        </span>
-      ) : undefined}
-    >
-      {() => (
-        <>
-          <div className="d-pop-title">{t("topbar.mcpServers")}</div>
-          <StatusRows statuses={statuses} />
-          {failed && <div className="d-menu-row" style={{ cursor: "default" }}>{t("topbar.mcpLoadFailed")}</div>}
-          {!failed && !data && <div className="d-menu-row" style={{ cursor: "default" }}>{t("sidebar.loading")}</div>}
-          {!failed && data && servers.length === 0 && <div className="d-menu-row" style={{ cursor: "default" }}>{t("topbar.mcpNone")}</div>}
-          {servers.map((server) => (
-            <div key={`${server.scope}:${server.name}`} className="d-menu-row" title={serverDetail(server)} style={{ cursor: "default" }}>
-              <i
-                data-ico={server.disabled ? "unplug" : "plug"}
-                data-size="14"
-                aria-hidden="true"
-                style={{ color: server.disabled ? "var(--nx-text-3)" : "var(--nx-success)" }}
-              ></i>
-              <span className="d-grow" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {server.name}
-              </span>
-              <span className="d-badge mute">{server.scope === "project" ? t("mcp.scopeProject") : t("mcp.scopeGlobal")}</span>
-              {server.disabled && <span className="d-badge warn">{t("mcp.itemDisabled")}</span>}
-            </div>
-          ))}
-          {data && data.diagnostics.length > 0 && (
-            <div className="d-pop-foot">{data.diagnostics[0]}</div>
-          )}
-        </>
-      )}
-    </HoverPopover>
   );
 }
 

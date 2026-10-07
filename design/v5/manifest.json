@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-07T07:36",
+  "generatedAt": "2026-10-07T08:53",
   "boards": [
     {
       "id": "D-01",
@@ -33,7 +33,7 @@
       "form": "web",
       "group": "core",
       "title": "D-02b · 顶栏浮窗合集（九枚）",
-      "desc": "D-02 画的是顶栏长什么样，这一张画它按下之后挂出来的东西：九枚浮窗，按帧铺开。 它们绝大多数是信息型的 —— 看一眼就跑，不在里面填表；同一条顶栏上 同时只开一块（agents / branches / system / tools 四选一，互斥）。 每格都写清两件事：从哪枚钮进来、什么条件下消失。 MCP 与插件是顶栏两枚图标（悬停",
+      "desc": "D-02 画的是顶栏长什么样，这一张画它按下之后挂出来的东西：八枚浮窗，按帧铺开。 它们绝大多数是信息型的 —— 看一眼就跑，不在里面填表；同一条顶栏上 同时只开一块（agents / branches / system / tools 四选一，互斥）。 每格都写清两件事：从哪枚钮进来、什么条件下消失。 插件是顶栏一枚图标（悬停出窗、点击",
       "tags": [
         "页面：工作台 · 顶栏浮窗",
         "组件：TopBarPopovers · SystemPromptPanel · ToolDefinitionsPanel · AgentSessionPanel · BranchNavigator · ConversationFindBar",

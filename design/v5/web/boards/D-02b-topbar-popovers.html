@@ -16,11 +16,11 @@
 <header class="d-board-head">
   <h1>D-02b · 顶栏浮窗合集（九枚）</h1>
   <p>
-    D-02 画的是顶栏<b>长什么样</b>，这一张画它<b>按下之后挂出来的东西</b>：九枚浮窗，按帧铺开。
+    D-02 画的是顶栏<b>长什么样</b>，这一张画它<b>按下之后挂出来的东西</b>：八枚浮窗，按帧铺开。
     它们绝大多数是<b>信息型</b>的 —— 看一眼就跑，不在里面填表；同一条顶栏上
     <b>同时只开一块</b>（agents / branches / system / tools 四选一，互斥）。
     每格都写清两件事：<b>从哪枚钮进来</b>、<b>什么条件下消失</b>。
-    MCP 与插件是顶栏两枚图标（悬停出窗、点击钉住），其余都挂在动作区或 ⋯ 菜单里。
+    插件是顶栏一枚图标（悬停出窗、点击钉住），其余都挂在动作区或 ⋯ 菜单里。（MCP 那一枚 2026-10-07 用户裁定去掉：顶栏不再重复「设置 → MCP」的清单。）
   </p>
   <div class="d-tags" data-board-tags>
     <span class="d-tag">页面：工作台 · 顶栏浮窗</span>
@@ -48,7 +48,6 @@
             <button class="d-iconbtn" title="子代理"><i data-ico="bot" data-size="15"></i><span class="d-badge mute">3</span></button>
             <button class="d-iconbtn" title="分支导航"><i data-ico="git-fork" data-size="15"></i></button>
             <div class="d-sep-v"></div>
-            <button class="d-iconbtn" title="MCP"><i data-ico="server" data-size="15"></i></button>
             <button class="d-iconbtn" title="插件"><i data-ico="blocks" data-size="15"></i></button>
             <button class="d-iconbtn" title="导出 Markdown"><i data-ico="download" data-size="15"></i></button>
             <button class="d-iconbtn" title="会话动作"><i data-ico="ellipsis" data-size="15"></i></button>
@@ -335,7 +334,7 @@ inside the user's project.
 <!-- ───────────────────────────────────────────────────────────────────────── -->
 <!-- 帧 C · 只读状态三枚 -->
 <section class="d-scene">
-  <div class="d-frame-label"><b>帧 C</b> · 只读状态：已有分支 · MCP · 插件<span class="d-grow"></span>分支列表可点选，选中行不是第一行</div>
+  <div class="d-frame-label"><b>帧 C</b> · 只读状态：已有分支 · 插件<span class="d-grow"></span>分支列表可点选，选中行不是第一行</div>
   <div class="d-frame sheet">
     <div class="d-frame-body">
       <div class="d-shell">
@@ -343,11 +342,10 @@ inside the user's project.
           <header class="d-topbar">
             <div class="d-tb-stack">
               <span class="d-tb-title">顶栏动作全景</span>
-              <span class="d-tb-sub">MCP / 插件两枚：悬停出窗、点击钉住；其余点一下开、点外面关</span>
+              <span class="d-tb-sub">插件一枚：悬停出窗、点击钉住；其余点一下开、点外面关</span>
             </div>
             <div class="d-tb-spacer"></div>
             <button class="d-iconbtn is-on" title="分支导航"><i data-ico="git-fork" data-size="15"></i></button>
-            <button class="d-iconbtn" title="MCP"><i data-ico="server" data-size="15"></i><span class="d-badge info">2</span></button>
             <button class="d-iconbtn" title="插件"><i data-ico="blocks" data-size="15"></i></button>
           </header>
 
@@ -407,49 +405,11 @@ inside the user's project.
 
               <div class="d-grid2">
 
-                <!-- ⑥ MCP -->
-                <div class="d-card">
-                  <div class="d-card-head">
-                    <i data-ico="server" data-size="15"></i>
-                    <span>⑥ MCP 状态浮窗 · 已连 / 已禁用 / 首条诊断 / 空态</span>
-                    <span class="d-grow"></span>
-                    <span class="d-badge info">角标 2</span>
-                  </div>
-                  <div class="d-card-body">
-                    <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
-                      <div class="d-row">
-                        <button class="d-iconbtn" title="MCP" data-demo-open="mcp-c"><i data-ico="server" data-size="15"></i><span class="d-badge info">2</span></button>
-                        <span class="d-t-xs d-t-dim">顶栏 server 图标 · 悬停出窗，点击钉住</span>
-                        <span class="d-grow"></span>
-                        <span class="d-t-xs d-t-faint">悬停延迟 160ms 收</span>
-                      </div>
-
-                      <div class="d-pop-float is-open" data-demo-pop="mcp-c" style="position:relative;min-width:300px">
-                        <div class="d-pop-title">MCP 服务器</div>
-                        <div class="d-menu-row"><span class="d-mono d-t-xs">MCP: 2 servers enabled</span></div>
-                        <div class="d-menu-row"><i data-ico="plug" data-size="14"></i><span class="d-grow">filesystem</span><span class="d-badge mute">项目</span></div>
-                        <div class="d-menu-row"><i data-ico="plug" data-size="14"></i><span class="d-grow">github</span><span class="d-badge mute">用户</span></div>
-                        <div class="d-menu-row"><i data-ico="unplug" data-size="14"></i><span class="d-grow d-t-faint">playwright</span><span class="d-badge mute">项目</span><span class="d-badge warn">已禁用</span></div>
-                        <div class="d-pop-foot">playwright：未配置 API Token，已跳过本次启动。诊断只取第一条，多了会把浮窗撑成一屏日志。</div>
-                      </div>
-
-                      <div class="d-pop-float" style="position:relative;min-width:300px">
-                        <div class="d-pop-title">MCP 服务器 · 空态</div>
-                        <div class="d-menu-row"><span class="d-mono d-t-xs">MCP: 0 servers enabled</span></div>
-                        <div class="d-menu-row"><span class="d-t-faint">未配置 MCP 服务器</span></div>
-                        <div class="d-pop-foot">浮窗内一律只读：启停与作用域去「设置 · MCP」改。空态不给按钮 —— 这里没有任何东西可操作。</div>
-                      </div>
-
-                      <div class="d-t-xs d-t-faint">出现：指针移上去 / 点一下；消失：移开（160ms 宽限）/ 再点一下 / 点浮层外。角标数字取自扩展状态文本里的第一个数字，取不到就整个不显示。</div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- ⑦ 插件 -->
+                <!-- ⑥ 插件 -->
                 <div class="d-card">
                   <div class="d-card-head">
                     <i data-ico="blocks" data-size="15"></i>
-                    <span>⑦ 插件状态浮窗 · 扩展状态 / widget / 包列表 / 合计</span>
+                    <span>⑥ 插件状态浮窗 · 扩展状态 / widget / 包列表 / 合计</span>
                     <span class="d-grow"></span>
                     <span class="d-badge mute">数据懒加载</span>
                   </div>
@@ -457,7 +417,7 @@ inside the user's project.
                     <div class="d-anchor d-col" style="gap:var(--nx-sp-3)">
                       <div class="d-row">
                         <button class="d-iconbtn is-on" title="插件" data-demo-open="plug-c"><i data-ico="blocks" data-size="15"></i></button>
-                        <span class="d-t-xs d-t-dim">顶栏 blocks 图标 · 与 MCP 同一套悬停 + 钉住</span>
+                        <span class="d-t-xs d-t-dim">顶栏 blocks 图标 · 悬停出窗、点击钉住</span>
                         <span class="d-grow"></span>
                         <span class="d-t-xs d-t-faint">widget 一次只展开一个</span>
                       </div>
@@ -487,7 +447,7 @@ inside the user's project.
                         <div class="d-pop-foot">3 扩展 · 2 技能 · 1 命令 · 0 主题</div>
                       </div>
 
-                      <div class="d-t-xs d-t-faint">出现 / 消失与 MCP 完全一致。数据是懒的：没打开过只读扩展上报的状态文本（零请求），打开过一次才以真实配置为准。</div>
+                      <div class="d-t-xs d-t-faint">出现 / 消失：移开（160ms 宽限）/ 再点一下 / 点浮层外 / Esc。数据是懒的：没打开过只读扩展上报的状态文本（零请求），打开过一次才以真实配置为准。</div>
                     </div>
                   </div>
                 </div>
@@ -661,10 +621,10 @@ inside the user's project.
 <div class="d-notes">
   <b>这一张在定什么：</b>
   <ul>
-    <li><b>九枚浮层分三类</b>：只读诊断（系统提示词 / 工具定义，入口都收在 ⋯ 菜单里，不再占顶栏图标位）、会话内切换（子代理 / 分支）、只读状态（MCP / 插件）。三类的共同点是<b>看一眼就跑</b> —— 一枚浮层里不放需要填表的表单。</li>
-    <li><b>同一时刻只开一块</b>：agents / branches / system / tools 四块共用一个「当前开着的顶栏浮窗」状态，点谁开谁、开新的关旧的。MCP 与插件走另一套（悬停出窗 + 点击钉住），所以它们不和前四块抢。</li>
-    <li><b>每枚浮层都写清两件事</b>：从哪枚钮进来、什么条件下消失。「消失条件」不许只写「点外面」—— 分支树要写「选中一条即关」，MCP 要写「移开 160ms 宽限后再关」，自动命名则根本<b>没有浮层</b>，它只有图标与提示文字的切换。</li>
-    <li><b>数据一律懒加载</b>：打开才开始拉，关掉不卸载；没打开过时 MCP / 插件只读扩展上报的状态文本，零请求。角标数字取不到就不显示，宁可没有也不要一个过期的台数。</li>
+    <li><b>八枚浮层分三类</b>：只读诊断（系统提示词 / 工具定义，入口都收在 ⋯ 菜单里，不再占顶栏图标位）、会话内切换（子代理 / 分支）、只读状态（插件）。三类的共同点是<b>看一眼就跑</b> —— 一枚浮层里不放需要填表的表单。</li>
+    <li><b>同一时刻只开一块</b>：agents / branches / system / tools 四块共用一个「当前开着的顶栏浮窗」状态，点谁开谁、开新的关旧的。插件走另一套（悬停出窗 + 点击钉住），所以它不和前四块抢。</li>
+    <li><b>每枚浮层都写清两件事</b>：从哪枚钮进来、什么条件下消失。「消失条件」不许只写「点外面」—— 分支树要写「选中一条即关」，自动命名则根本<b>没有浮层</b>，它只有图标与提示文字的切换。</li>
+    <li><b>数据一律懒加载</b>：打开才开始拉，关掉不卸载；没打开过时插件只读扩展上报的状态文本，零请求。角标数字取不到就不显示，宁可没有也不要一个过期的台数。</li>
     <li><b>查找条不占布局</b>：它悬浮在转录上方居中，有结果给 <span class="d-mono">3 / 7</span>，无结果整条转警告色；关闭时把焦点还给打开它的那个元素。</li>
     <li><b>最近会话这一格标了「已撤除」</b>：用户 2026-10-01 裁定顶栏标题不再当下拉触发钮（切会话是侧栏的活）。画板留这一格是为了把「为什么顶栏没有它」写在纸上，而不是等下一个人再画一遍。</li>
   </ul>

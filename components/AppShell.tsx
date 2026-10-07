@@ -67,7 +67,7 @@ import { InstallPromptBanner, PwaOfflineBanner, PwaUpdateBanner } from "./fork/I
 import { DirectoryPicker } from "./DirectoryPicker";
 import { BranchNavigator, findSiblingIndex, hasSessionBranches } from "./BranchNavigator";
 // fix:mcp-topbar-icons —— 顶栏右侧两枚状态图标（MCP / 插件）+ 可点的分支芯片。
-import { BranchChip, McpStatusButton, PluginStatusButton, splitStatusesByKind } from "./TopBarPopovers";
+import { BranchChip, PluginStatusButton, splitStatusesByKind } from "./TopBarPopovers";
 import { MobileActionPanel } from "./fork/MobileActionPanel";
 // fix:new-session-pick-dir / topbar-chip-clickable —— 工作区芯片复用输入框上方那枚
 // `.pw-chip`（项目列表 + 打开文件夹）。NewSessionTargets 类型来自 ProjectChip。
@@ -643,11 +643,10 @@ export function AppShell() {
      useAgentSession），顶栏那两枚图标读这里。原来这块内容挂在聊天区右上角的常驻
      胶囊上，用户要求改成顶栏两枚 icon + 悬停/点击出浮窗。 */
   const [extensionStatuses, setExtensionStatuses] = useState<ExtensionStatusItem[]>([]);
-  // fork:mcp-topbar-dedupe-status —— 两个浮窗原先各自渲染**整份** statuses，于是
-  // `ponytail: FULL` 与 `MCP: 5 servers enabled` 在两个浮窗里各出现一次（用户截图）。
-  // `splitStatusesByKind` 一直是死代码：MCP 的进 MCP 浮窗，其余进插件浮窗，按 key/文案
-  // 里有没有 "mcp" 判。接线点只有这一处，别再把全量数组递进任何一个浮窗。
-  const { mcp: mcpStatuses, others: pluginStatuses } = useMemo(() => splitStatusesByKind(extensionStatuses), [extensionStatuses]);
+  // fork:mcp-topbar-dedupe-status —— 状态行按种类分派（MCP 的进 MCP 浮窗，其余进插件浮窗）。
+  // 2026-10-07 用户裁定去掉 MCP 浮窗后，只剩插件浮窗一处：这里取 `others`，
+  // MCP 那几行不再在顶栏重复（服务器清单与开关在 设置 → MCP）。
+  const pluginStatuses = useMemo(() => splitStatusesByKind(extensionStatuses).others, [extensionStatuses]);
   const [extensionWidgets, setExtensionWidgets] = useState<ExtensionWidgetItem[]>([]);
   const handleExtensionStatusChange = useCallback((statuses: ExtensionStatusItem[], widgets: ExtensionWidgetItem[]) => {
     setExtensionStatuses(statuses);
@@ -3668,13 +3667,13 @@ export function AppShell() {
           {!isMobile && renderChatToolbarActions(false)}
           {/* fork:v5-frame-audit-2026-10-05 —— 顶栏右端的次序按画板 D-02b 帧 A 的
               「顶栏动作全景」：会话动作（历史 / 命名 / 子代理 / 分支 / 导出 / ⋯）
-              → `div.d-sep-v` 竖分隔 → MCP（server）· 插件（blocks）。
-              分隔线把「对这条会话做什么」和「扩展状态」分成两段；产品此前既没有
-              这一件，两簇图标也是反过来的（扩展在前、动作在后）。 */}
+              → `div.d-sep-v` 竖分隔 → 扩展状态。分隔线把「对这条会话做什么」和
+              「扩展状态」分成两段。
+              2026-10-07 用户裁定：MCP 那一枚去掉（顶栏不再重复设置 → MCP 的清单），
+              只剩插件一枚。 */}
           {!isMobile && showChat && (
             <>
               <div className="d-sep-v" />
-              <McpStatusButton cwd={selectedSession?.cwd ?? newSessionCwd ?? null} statuses={mcpStatuses} />
               <PluginStatusButton cwd={selectedSession?.cwd ?? newSessionCwd ?? null} statuses={pluginStatuses} widgets={extensionWidgets} />
             </>
           )}

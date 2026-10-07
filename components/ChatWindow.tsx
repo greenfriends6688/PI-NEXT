@@ -2220,8 +2220,8 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       </div>
 
       {/* fix:mcp-topbar-icons —— 原来聊天区右上角的扩展状态胶囊（MCP / 插件）整块搬去
-          顶栏的两枚图标（AppShell 渲染 `McpStatusButton` / `PluginStatusButton`，
-          悬停或点击出画板 22 的浮窗）。这里不再有常驻浮标，转录区右上角让给通知条。 */}
+          顶栏的图标（AppShell 渲染 `PluginStatusButton`，悬停或点击出画板 22 的浮窗）。
+          这里不再有常驻浮标，转录区右上角让给通知条。 */}
 
       <div
         /* fork:design-components —— 转录区宿主：内部滚动容器用画板 D-03 的 `.d-chat`
