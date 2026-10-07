@@ -3340,3 +3340,18 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   transition: opacity 90ms var(--nx-ease);   /* 淡入，不是延迟：出场即到 */
 }
 [data-tip-layer][data-on] { opacity: 1; }
+
+/* fork:models-… · 滚到最新钮的位置（用户 2026-10-07：「放右边显得不协调，挪到输入框上面」）——
+   `.d-jump` 是画板 D-35 帧 A 的类，它自带 `position:absolute` + right/bottom（板面舞台里
+   挂在右下角）；产品里这枚钮住在**输入卡上方那条居中定位带**里（ChatWindow 的
+   `.d-composer-wrap` 内的 flex 条），两套定位叠在一起时板面的 right/bottom 会赢，
+   按钮就从居中跑到聊天栏右缘。这里把板面那套定位收掉、退回流内，位置交给产品那条带
+   （放在 fork-ui.css：它永远最后加载，不必与板面层比 0-2-0）。
+   注意：同样的规则写在 globals.css 里时**没进构建产物**（实测 16:30 的 CSS chunk 里没有），
+   所以别再搬回去。 */
+.chat-scroll-to-bottom.d-jump {
+  position: static;
+  right: auto;
+  bottom: auto;
+  padding: 0;
+}
