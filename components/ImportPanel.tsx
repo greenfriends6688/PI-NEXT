@@ -19,30 +19,36 @@
  * 一列**卡片**，不再有工具栏、列表列与详情列：
  *
  *   d-col（gap sp-4）
- *     ├ d-card 第一步 · 扫描（只读）  卡头：图标 + 标题 + `POST /api/import/scan` 徽标
+ *     ├ d-card 扫描（只读）          卡头：图标 + 标题 + `POST /api/import/scan` 徽标
  *     │                              + 「来源是怎么定的」浮层 + 重新扫描
  *     │   卡身：四类芯片（= 页签）→ 搜索 → **d-table**（一行一个来源，点行整批勾）
- *     │        → 「细选」d-sess 行（逐条去掉）→ 一段脚注
- *     ├ d-card 同名条目冲突时怎么办  产品只有「跳过」一档（apply 层写死）
- *     ├ d-card 第二步 · 确认落盘    `d-statgrid` 四张 + 确认导入 + 「只送 id」横幅
- *     └ d-grid3 凭据 / 结果分三段 / 重复导入
+ *     │        → 「细选具体条目」入口（开弹窗）→ 一段脚注
+ *     ├ d-card 确认导入              卡头：图标 + 标题 + `POST /api/import/apply` 徽标
+ *     │                              + 「冲突策略」/「导入说明」两枚弹窗入口
+ *     │   卡身：上次结果横幅（有才画）+ 清空选择 / 确认导入
+ *     └ 三个 portal 弹窗：细选 / 冲突策略 / 导入说明
  *
- * 四条照抄画板的判定：
- *   1. 表格里是**候选**不是结果，落盘数量由第二步的「确认导入」给；
- *   2. 一条都没勾时确认钮是灰的（D-21：跳过试运行也允许，但按钮得说清）；
- *   3. 「结果分三段」—— imported / skipped / failed 分别报，不用「全部成功」盖；
+ * 2026-10-07 用户裁定（覆盖 10-06 的帧 B 形态）：冲突策略卡、`d-statgrid` 四张统计卡、
+ * 末尾 `d-grid3` 三张口径卡全部收进弹窗，页面上只留按钮；卡片不再编号（「第一步/第二步」
+ * 对用户没用）。弹窗走 `useDialogA11y` + `createPortal(…, document.body)`。
+ *
+ * 四条判定：
+ *   1. 表格里是**候选**不是结果，落盘数量由「确认导入」按钮给出；
+ *   2. 一条都没勾时确认钮是灰的；
+ *   3. 「结果分三段」—— imported / skipped / failed 在结果横幅里分别报，不用「全部成功」盖；
  *   4. 界面只送候选 id，服务端重扫反查，所以从界面改不出任何路径。
  *
- * 三处**已登记偏离**（DIVERGENCE §K）：冲突只有「跳过」一档（apply 层写死，没开覆盖/保留两份）；
- * 没有试运行端点，所以第二步的三张统计卡写「导入后才知道」而不是「预估」；
- * 扫描结果不含体积，落盘体积那一格是「—」。
+ * 两处**已登记偏离**（DIVERGENCE §K）：冲突只有「跳过」一档（apply 层写死，没开覆盖/保留两份）；
+ * 没有试运行端点，所以结果只有真实的三段数，不编预估。
  *
  * fork:v5-landing Wave B · M-05 · 窄屏那一支不动（M-05 只画了 hub 一行「导入」）。
  */
 
 import { Fragment, useCallback, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useI18n } from "@/hooks/useI18n";
 import { PwaBanner, PwaPage, PwaSetRow, PwaSwitchRow } from "@/components/pwa/PwaPage";
 import { PortalDropdown } from "@/components/PortalDropdown";
@@ -253,8 +259,21 @@ export function ImportPanel() {
   // ── 桌面：画板 D-21 帧 B ────────────────────────────────────────────────
   // 两个画板没画、产品要留的接线：来源说明浮层 + 逐条细选（整批勾上之后还能去掉）。
   const [showPick, setShowPick] = useState(false);
+  const [showConflicts, setShowConflicts] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const [showSourcesPop, setShowSourcesPop] = useState(false);
   const sourcesAnchorRef = useRef<HTMLDivElement | null>(null);
+
+  // 三个弹窗共用一套焦点约束（同一时刻只开一个，所以共用 ref 与关闭回调）。
+  const closeDialogs = useCallback(() => {
+    setShowPick(false);
+    setShowConflicts(false);
+    setShowNotes(false);
+  }, []);
+  const { dialogRef, dialogProps } = useDialogA11y({
+    open: showPick || showConflicts || showNotes,
+    onClose: closeDialogs,
+  });
 
   // fork:v5-landing Wave B · M-05 · 窄屏：两段式不变成新页面 —— **扫描**仍是页头右端那枚
   // `scan-search`，第二段（挑 + 导入）直接跟在下面：四类页签 `.m-cats`、搜索 `.m-searchfield`、
@@ -443,6 +462,14 @@ export function ImportPanel() {
     : activeState.candidates;
   // 细选按项目分（会话）；其余三类只有来源一个维度。来源这一维已经由上面的表格承担。
   const pickGroups = filtered ? groupCandidates(filtered, active === "sessions" ? "project" : "source") : [];
+  /** 勾 / 取消单条。抽成具名函数是为了让 `.d-sess` 行的勾选盒紧跟在 `className`
+   *  之后（`ImportPanel.test.mjs` 的 multi-select-row 约束用这段距离判定子节点顺序）。 */
+  const togglePickItem = (id: string) => {
+    const next = new Set(activeState.selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setKind(active, { selected: next });
+  };
   // 表格一行一个来源 —— **没找到的来源也列一行**：扫不到是常态，藏起来空列表就像坏了。
   const sourceRows = (activeState.sources ?? []).map((source) => {
     const items = (activeState.candidates ?? []).filter((item) => item.source === source.source);
@@ -454,7 +481,7 @@ export function ImportPanel() {
   });
 
   return (
-    <SettingsPage title={t("import.title")} sub={t("import.description")}>
+    <SettingsPage title={t("import.title")}>
       <div className="d-col" style={{ gap: "var(--nx-sp-4)" }}>
         {activeState.error && (
           <div role="alert" className="d-banner err">
@@ -625,84 +652,18 @@ export function ImportPanel() {
                   </tbody>
                 </table>
 
-                {/* 逐条细选：点行是整批勾上，这里能单独去掉某一条（产品能力，画板按整批计）。 */}
+                {/* 逐条细选：点行是整批勾上，弹窗里能单独去掉某一条（产品能力，画板按整批计）。 */}
                 <div className="d-row">
                   <button
                     type="button"
                     className="d-btn sm ghost"
-                    aria-expanded={showPick}
-                    onClick={() => setShowPick((current) => !current)}
+                    onClick={() => setShowPick(true)}
                   >
-                    <i data-ico={showPick ? "chevron-down" : "chevron-right"} data-size="13" aria-hidden="true" />
+                    <i data-ico="list-checks" data-size="13" aria-hidden="true" />
                     {t("import.pickTitle")}
                   </button>
                   <span className="d-t-xs d-t-faint">{t("import.pickNote")}</span>
                 </div>
-                {showPick && (
-                  <div className="d-col">
-                    {pickGroups.map((group) => {
-                      const label = group.key
-                        ? (SOURCE_LABEL_KEY[group.rawLabel] ? t(SOURCE_LABEL_KEY[group.rawLabel]) : group.rawLabel)
-                        : t("import.noProject");
-                      return (
-                        <Fragment key={group.key || "__none"}>
-                          <div className="d-group-toggle">
-                            <span className="d-t-sm d-t-b">{label}</span>
-                            <span className="d-badge mute">
-                              {t("import.selectedOf", {
-                                selected: group.items.filter((item) => activeState.selected.has(item.id)).length,
-                                total: group.items.length,
-                              })}
-                            </span>
-                            <span className="d-grow" aria-hidden="true" />
-                            <ConfigButton
-                              variant="ghost"
-                              size="small"
-                              onClick={() => setKind(active, {
-                                selected: toggleGroupSelection(activeState.selected, group.items),
-                              })}
-                            >
-                              {t("import.selectAll")}
-                            </ConfigButton>
-                          </div>
-                          <div className="d-col">
-                            {group.items.slice(0, 60).map((item) => {
-                              const picked = activeState.selected.has(item.id);
-                              return (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  className="d-sess"
-                                  title={itemModel(item, t)}
-                                  onClick={() => {
-                                    const next = new Set(activeState.selected);
-                                    if (picked) next.delete(item.id);
-                                    else next.add(item.id);
-                                    setKind(active, { selected: next });
-                                  }}
-                                >
-                                  <span role="checkbox" aria-checked={picked} className={`d-checkbox${picked ? " on" : ""}`}>
-                                    <i data-ico="check" data-size="11" aria-hidden="true" />
-                                  </span>
-                                  <span className="d-sess-t">{describeCandidate(item)}</span>
-                                  <span className="d-sess-m">
-                                    <i data-ico={KIND_ICON[item.kind]} data-size="12" aria-hidden="true" />
-                                    {itemModel(item, t)}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                          {group.items.length > 60 && (
-                            <p className="d-t-xs d-t-faint">
-                              {t("import.moreInGroup", { count: group.items.length - 60 })}
-                            </p>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </div>
-                )}
               </>
             )}
 
@@ -710,86 +671,29 @@ export function ImportPanel() {
           </div>
         </div>
 
-        {/* 卡片二 · 冲突策略。产品只有「跳过」一档（apply 层写死）。 */}
-        <div className="d-card">
-          <div className="d-card-head">
-            <i data-ico="git-merge" data-size="15" aria-hidden="true" />
-            <span>{t("import.conflictTitle")}</span>
-            <span className="d-grow" aria-hidden="true" />
-            <span className="d-badge mute">{t("import.conflictOnlySkip")}</span>
-          </div>
-          <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-3)" }}>
-            <div className="d-row">
-              <span className="d-t-sm d-t-dim">{t("import.strategyLabel")}</span>
-              <span className="d-grow" aria-hidden="true" />
-              <div className="d-seg">
-                <button type="button" className="is-on" disabled>{t("import.conflictSkipLabel")}</button>
-              </div>
-            </div>
-            <div className="d-banner">
-              <i data-ico="shield-check" data-size="14" aria-hidden="true" />
-              <span>
-                <b>{t("import.conflictSkipLabel")}</b>
-                {t("import.conflictSkipBody")}
-              </span>
-            </div>
-            <div className="d-t-xs d-t-faint">{t("import.conflictNote")}</div>
-          </div>
-        </div>
-
-        {/* 卡片三 · 第二步：确认落盘。表格给候选，这一卡给真正会写下去的数量。 */}
+        {/* 确认导入卡：冲突口径与三条说明都收进弹窗，页面上只留按钮。 */}
         <div className="d-card">
           <div className="d-card-head">
             <i data-ico="circle-play" data-size="15" aria-hidden="true" />
             <span>{t("import.stepApply")}</span>
             <span className="d-badge mute">POST /api/import/apply</span>
             <span className="d-grow" aria-hidden="true" />
+            <button type="button" className="d-btn sm ghost" onClick={() => setShowConflicts(true)}>
+              <i data-ico="git-merge" data-size="13" aria-hidden="true" />
+              {t("import.conflictButton")}
+            </button>
+            <button type="button" className="d-btn sm ghost" onClick={() => setShowNotes(true)}>
+              <i data-ico="info" data-size="13" aria-hidden="true" />
+              {t("import.notesTitle")}
+            </button>
           </div>
           <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-3)" }}>
-            <div className="d-statgrid">
-              <div className="d-stat">
-                <div className="d-row">
-                  <i data-ico="download" data-size="13" aria-hidden="true" />
-                  <span className="d-t-xs d-t-faint d-grow">{t("import.willImport")}</span>
-                  <span className="d-badge info">{t("import.badgePicked")}</span>
-                </div>
-                <div className="d-t-title d-num">{activeState.selected.size}</div>
-                <div className="d-t-xs d-t-faint">
-                  {t("import.selectedOf", {
-                    selected: activeState.selected.size,
-                    total: activeState.candidates?.length ?? 0,
-                  })}
-                </div>
+            {activeState.status && (
+              <div role="status" className="d-banner ok">
+                <i data-ico="check" data-size="14" aria-hidden="true" />
+                <span>{activeState.status}</span>
               </div>
-              <div className="d-stat">
-                <div className="d-row">
-                  <i data-ico="circle-slash" data-size="13" aria-hidden="true" />
-                  <span className="d-t-xs d-t-faint d-grow">{t("import.willSkip")}</span>
-                  <span className="d-badge mute">{t("import.afterApply")}</span>
-                </div>
-                <div className="d-t-title d-num">{activeState.lastSummary?.skipped ?? "—"}</div>
-                <div className="d-t-xs d-t-faint">{t("import.lastResultTitle")}</div>
-              </div>
-              <div className="d-stat">
-                <div className="d-row">
-                  <i data-ico="triangle-alert" data-size="13" aria-hidden="true" />
-                  <span className="d-t-xs d-t-faint d-grow">{t("import.willFail")}</span>
-                  <span className="d-badge warn">{t("import.afterApply")}</span>
-                </div>
-                <div className="d-t-title d-num">{activeState.lastSummary?.failed ?? "—"}</div>
-                <div className="d-t-xs d-t-faint">{t("import.lastResultTitle")}</div>
-              </div>
-              <div className="d-stat">
-                <div className="d-row">
-                  <i data-ico="sigma" data-size="13" aria-hidden="true" />
-                  <span className="d-t-xs d-t-faint d-grow">{t("import.willSize")}</span>
-                  <span className="d-badge mute">{t("import.sizeUnknown")}</span>
-                </div>
-                <div className="d-t-title d-num">—</div>
-                <div className="d-t-xs d-t-faint">{t("import.sizeUnknown")}</div>
-              </div>
-            </div>
-
+            )}
             <div className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
               <ConfigButton
                 variant="secondary"
@@ -812,46 +716,192 @@ export function ImportPanel() {
                   ? t("i18n.loading")
                   : t("import.confirmImport", { count: activeState.selected.size })}
               </ConfigButton>
-              <span className="d-t-xs d-t-faint">{t("import.confirmHint")}</span>
-            </div>
-
-            <div className="d-banner warn">
-              <i data-ico="shield-alert" data-size="14" aria-hidden="true" />
-              <span>{t("import.idsOnly")}</span>
             </div>
           </div>
         </div>
 
-        {/* 三条口径常驻：凭据不出服务端 / 结果分三段 / 重复导入幂等。 */}
-        <div className="d-grid3">
-          <div className="d-card">
-            <div className="d-card-head">
-              <i data-ico="key-round" data-size="15" aria-hidden="true" />
-              {t("import.cardCredential")}
+        {/* 三个弹窗都 portal 到 body：设置壳有 `overflow` 与 `backdrop-filter`，
+            留在壳里的 `position: fixed` 会被面板裁掉（同 ThemeSkinStudio 的注记）。 */}
+        {showPick && createPortal(
+          <div
+            ref={dialogRef}
+            {...dialogProps}
+            className="d-modal is-open"
+            onClick={(event) => { if (event.target === event.currentTarget) closeDialogs(); }}
+          >
+            <div className="d-modal-box wide" style={{ height: "min(640px, calc(100dvh - 48px))" }}>
+              <div className="d-modal-head d-row">
+                <i data-ico="list-checks" data-size="16" aria-hidden="true" />
+                <span className="d-grow">{t("import.pickTitle")}</span>
+                <button
+                  type="button"
+                  className="d-iconbtn"
+                  aria-label={t("i18n.close")}
+                  title={t("i18n.close")}
+                  onClick={closeDialogs}
+                >
+                  <i data-ico="x" data-size="14" aria-hidden="true" />
+                </button>
+              </div>
+              <div className="d-modal-body" style={{ flex: "1 1 auto" }}>
+                <div className="d-t-xs d-t-faint">{t("import.pickNote")}</div>
+                {pickGroups.length === 0 && <div className="d-t-xs d-t-faint">{t("import.empty")}</div>}
+                {pickGroups.map((group) => {
+                  const label = group.key
+                    ? (SOURCE_LABEL_KEY[group.rawLabel] ? t(SOURCE_LABEL_KEY[group.rawLabel]) : group.rawLabel)
+                    : t("import.noProject");
+                  return (
+                    <Fragment key={group.key || "__none"}>
+                      <div className="d-group-toggle">
+                        <span className="d-t-sm d-t-b">{label}</span>
+                        <span className="d-badge mute">
+                          {t("import.selectedOf", {
+                            selected: group.items.filter((item) => activeState.selected.has(item.id)).length,
+                            total: group.items.length,
+                          })}
+                        </span>
+                        <span className="d-grow" aria-hidden="true" />
+                        <ConfigButton
+                          variant="ghost"
+                          size="small"
+                          onClick={() => setKind(active, {
+                            selected: toggleGroupSelection(activeState.selected, group.items),
+                          })}
+                        >
+                          {t("import.selectAll")}
+                        </ConfigButton>
+                      </div>
+                      <div className="d-col">
+                        {group.items.slice(0, 60).map((item) => {
+                          const picked = activeState.selected.has(item.id);
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              className="d-sess"
+                              title={itemModel(item, t)}
+                              onClick={() => togglePickItem(item.id)}
+                            >
+                              <span role="checkbox" aria-checked={picked} className={`d-checkbox${picked ? " on" : ""}`}>
+                                <i data-ico="check" data-size="11" aria-hidden="true" />
+                              </span>
+                              <span className="d-sess-t">{describeCandidate(item)}</span>
+                              <span className="d-sess-m">
+                                <i data-ico={KIND_ICON[item.kind]} data-size="12" aria-hidden="true" />
+                                {itemModel(item, t)}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {group.items.length > 60 && (
+                        <p className="d-t-xs d-t-faint">
+                          {t("import.moreInGroup", { count: group.items.length - 60 })}
+                        </p>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </div>
+              <div className="d-modal-foot">
+                <button
+                  type="button"
+                  className="d-btn ghost"
+                  disabled={activeState.selected.size === 0}
+                  onClick={() => setKind(active, { selected: new Set() })}
+                >
+                  {t("import.clearSelection")}
+                </button>
+                <span className="d-grow" aria-hidden="true" />
+                <button type="button" className="d-btn primary" onClick={closeDialogs}>{t("i18n.close")}</button>
+              </div>
             </div>
-            <div className="d-card-body d-t-cap d-t-dim">{t("import.cardCredentialBody")}</div>
-          </div>
-          <div className="d-card">
-            <div className="d-card-head">
-              <i data-ico="layers" data-size="15" aria-hidden="true" />
-              {t("import.cardSegments")}
+          </div>,
+          document.body,
+        )}
+
+        {showConflicts && createPortal(
+          <div
+            ref={dialogRef}
+            {...dialogProps}
+            className="d-modal is-open"
+            onClick={(event) => { if (event.target === event.currentTarget) closeDialogs(); }}
+          >
+            <div className="d-modal-box">
+              <div className="d-modal-head d-row">
+                <i data-ico="git-merge" data-size="16" aria-hidden="true" />
+                <span className="d-grow">{t("import.conflictTitle")}</span>
+                <span className="d-badge mute">{t("import.conflictOnlySkip")}</span>
+              </div>
+              <div className="d-modal-body">
+                <div className="d-row">
+                  <span className="d-t-sm d-t-dim">{t("import.strategyLabel")}</span>
+                  <span className="d-grow" aria-hidden="true" />
+                  <div className="d-seg">
+                    <button type="button" className="is-on" disabled>{t("import.conflictSkipLabel")}</button>
+                  </div>
+                </div>
+                <div className="d-banner">
+                  <i data-ico="shield-check" data-size="14" aria-hidden="true" />
+                  <span>
+                    <b>{t("import.conflictSkipLabel")}</b>
+                    {t("import.conflictSkipBody")}
+                  </span>
+                </div>
+                <div className="d-t-xs d-t-faint">{t("import.conflictNote")}</div>
+              </div>
+              <div className="d-modal-foot">
+                <button type="button" className="d-btn primary" onClick={closeDialogs}>{t("i18n.close")}</button>
+              </div>
             </div>
-            <div className="d-card-body d-t-cap d-t-dim">{t("import.cardSegmentsBody")}</div>
-          </div>
-          <div className="d-card">
-            <div className="d-card-head">
-              <i data-ico="repeat" data-size="15" aria-hidden="true" />
-              {t("import.cardIdempotent")}
+          </div>,
+          document.body,
+        )}
+
+        {showNotes && createPortal(
+          <div
+            ref={dialogRef}
+            {...dialogProps}
+            className="d-modal is-open"
+            onClick={(event) => { if (event.target === event.currentTarget) closeDialogs(); }}
+          >
+            <div className="d-modal-box">
+              <div className="d-modal-head d-row">
+                <i data-ico="info" data-size="16" aria-hidden="true" />
+                <span className="d-grow">{t("import.notesTitle")}</span>
+              </div>
+              <div className="d-modal-body">
+                <div>
+                  <div className="d-t-sm d-t-b">{t("import.cardCredential")}</div>
+                  <div className="d-t-cap d-t-dim">{t("import.cardCredentialBody")}</div>
+                </div>
+                <div>
+                  <div className="d-t-sm d-t-b">{t("import.cardSegments")}</div>
+                  <div className="d-t-cap d-t-dim">{t("import.cardSegmentsBody")}</div>
+                </div>
+                <div>
+                  <div className="d-t-sm d-t-b">{t("import.cardIdempotent")}</div>
+                  <div className="d-t-cap d-t-dim">{t("import.cardIdempotentBody")}</div>
+                </div>
+                <div className="d-banner warn">
+                  <i data-ico="shield-alert" data-size="14" aria-hidden="true" />
+                  <span>{t("import.idsOnly")}</span>
+                </div>
+              </div>
+              <div className="d-modal-foot">
+                <button type="button" className="d-btn primary" onClick={closeDialogs}>{t("i18n.close")}</button>
+              </div>
             </div>
-            <div className="d-card-body d-t-cap d-t-dim">{t("import.cardIdempotentBody")}</div>
-          </div>
-        </div>
+          </div>,
+          document.body,
+        )}
       </div>
     </SettingsPage>
   );
 }
 
-/** `import.result` 的状态文案仍保留（无障碍读出用），三色统计走结构化的 `lastSummary`。 */
+/** `import.result`（"导入 X · 跳过 Y · 失败 Z"）现在是确认导入卡里那条 `d-banner ok`；
+ *  窄屏另用结构化的 `lastSummary` 三行。 */
 
 /** One line that identifies a row well enough to decide whether to import it. */
 function describeCandidate(candidate: ImportCandidate): string {
