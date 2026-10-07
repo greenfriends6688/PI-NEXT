@@ -1137,7 +1137,17 @@ html[data-rail-translucent="true"] .sidebar-container {
    （分组 / 组标签 / 行 / 行名 / 标题钮 / meta / 动作）随归档页迁画板 62 骨架 B 退役：
    会话行现在是 ConfigSidebarItem（`.pw-litem`）+ ConfigDetailHeader，零引用，
    规则删除。 */
-/* 迷你外壳：绝对定位的壁纸 + 压暗层在下，chrome 在上。 */
+/* 迷你外壳：绝对定位的壁纸 + 压暗层 + 页面层 + 阅读遮罩层在下，chrome 在上。
+ *
+ * fork:skin-preview-reading-mask（2026-10-07 · 用户实拍）—— 层序必须与真机一致。
+ * 用户原话：「页面透明度和会话阅读遮罩用不了了啊，点了没啥反应」。两个原因：
+ *   - `--preview-page` 原先画在 `.fork-skin-preview` 自己的 background 上，而壁纸
+ *     是这个盒子的**子元素**（绝对定位 inset:0），整块压在页面层上面 —— 只要选了
+ *     壁纸，「页面透明度」怎么拖都看不见；
+ *   - 阅读遮罩在预览里**根本没有对应层**，所以「会话阅读遮罩」永远没有反馈。
+ * 现在把页面层挪到壁纸之上的独立层，再补一层阅读遮罩（整条 102deg 渐变在 JS 里
+ * 算成 `--preview-reading`，与真机 `.chat-slot::before` 同角度、同色标）。
+ */
 .fork-skin-preview {
   position: relative;
   display: block;
@@ -1146,7 +1156,6 @@ html[data-rail-translucent="true"] .sidebar-container {
   overflow: hidden;
   border: 1px solid var(--preview-border);
   border-radius: var(--preview-radius);
-  background: var(--preview-page);
 }
 .fork-skin-preview-wallpaper {
   position: absolute;
@@ -1155,6 +1164,10 @@ html[data-rail-translucent="true"] .sidebar-container {
   background-position: center;
 }
 .fork-skin-preview-mask { position: absolute; inset: 0; }
+/* 页面层：`--preview-page` 原先在 `.fork-skin-preview` 上，被壁纸盖住了。 */
+.fork-skin-preview-page { position: absolute; inset: 0; pointer-events: none; background: var(--preview-page); }
+/* 阅读遮罩层：与真机 `.chat-slot::before` 同一档方向性渐变。 */
+.fork-skin-preview-reading { position: absolute; inset: 0; pointer-events: none; background: var(--preview-reading); }
 .fork-skin-preview-shell {
   position: relative;
   display: grid;

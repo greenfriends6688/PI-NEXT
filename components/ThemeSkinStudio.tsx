@@ -68,7 +68,8 @@ import { PwField, PwRadio, PwRange, PwSelectBox } from "./SettingsUi";
 import { localCopy, type LocalCopy } from "./settings-disabled-reasons";
 import type { Locale } from "@/lib/i18n/types";
 import { BuiltinWallpaperPicker, builtinIdForWallpaperUrl } from "./BuiltinWallpaperPicker";
-import { paintingPath } from "@/lib/wallpaper-builtin";
+import { isBuiltinWallpaperId, paintingPath, type BuiltinWallpaperId } from "@/lib/wallpaper-builtin";
+import { BUILTIN_SKIN_ID_PREFIX, BUILTIN_SKIN_LABEL_KEYS, isBuiltinSkinId } from "@/lib/builtin-skins";
 import { SKIN_MODE_PALETTE, SKIN_MODE_VALUES } from "@/lib/theme-skins";
 
 /** 滑块按画板 47 的分组落位：几何 / 不透明度与遮罩 / 壁纸（右列）。 */
@@ -130,6 +131,59 @@ const COLOR_FIELDS: Array<{ key: keyof ThemeSkin; labelKey: string }> = [
 /** `<input type="color">` 只认 `#rrggbb`；基色可能是 oklch 或 color-mix，统一转一道。 */
 function toColorInputValue(value: string, fallback: string): string {
   return resolveCssColorToHex(value, fallback) || fallback;
+}
+
+/* fork:skin-builtin-identity — 内置皮肤的名字与画作**由 id 决定**，不是由可变字段。
+ *
+ * 用户实拍（2026-10-07）：「为啥我编辑蔡徐坤这个内置主题的时候，这里面会出现章若楠
+ * 的内置壁纸啊……然后还有那个名称那里是空的」。两半是同一个错：把内置皮肤当成普通
+ * 皮肤读。
+ *
+ *   1. 名称：内置皮肤的名字在目录里（`BUILTIN_SKIN_LABEL_KEYS` → i18n 键），
+ *      `skin.name` 是空串（`lib/builtin-skins.ts` 用
+ *      `createSkinDraft(builtinSkinId(id), "", …)` 造）。所以「基本信息 → 名称」空白。
+ *   2. 壁纸：内置皮肤的 `wallpaper` 是 `paintingPath(id)`，但 `parseThemeSkin` 只接受
+ *      data URL —— 用户保存过内置皮肤的覆盖后重启，路径被解析成 null，画作就丢了。
+ *      预览没有壁纸层、画廊也没有选中态，透过半透明的弹窗露出底下主题色板默认的
+ *      **章若楠**（`PALETTE_PAINTING` 两张画都指它）。这就是「壁纸串了」。
+ *
+ * 两处都从 `skin.id` 补回，且各自只有一个来源：名字查 `BUILTIN_SKIN_LABEL_KEYS`，
+ * 画作把 `builtin-<paintingId>` 前缀剥掉再用 `isBuiltinWallpaperId` 验一次。
+ */
+
+/**
+ * 内置皮肤当前用的是哪张内置画；null = 自定义图或非内置皮肤。
+ *
+ * 优先用户显式挑的那张（内置皮肤也能被改成另一张内置画），其次才按 id 回退 ——
+ * `wallpaper` 为空只可能是「路径被解析丢了」，因为用户主动清空是同一个 null，
+ * 分不开，所以这里补回的是内置皮肤的**固有身份**。
+ */
+export function builtinWallpaperIdForSkin(
+  skin: Pick<ThemeSkin, "id" | "wallpaper">,
+): BuiltinWallpaperId | null {
+  const chosen = builtinIdForWallpaperUrl(skin.wallpaper);
+  if (chosen) return chosen;
+  if (skin.wallpaper) return null;
+  if (!isBuiltinSkinId(skin.id)) return null;
+  const derived = skin.id.slice(BUILTIN_SKIN_ID_PREFIX.length);
+  return isBuiltinWallpaperId(derived) ? derived : null;
+}
+
+/** 目录里的显示名；`skin.name` 为空时按 id 查表（唯一来源，不另造映射）。 */
+export function builtinSkinDisplayName(
+  skin: Pick<ThemeSkin, "id" | "name">,
+  t: (key: string) => string,
+): string {
+  const labelKey = BUILTIN_SKIN_LABEL_KEYS[skin.id];
+  return skin.name || (labelKey ? t(labelKey) : "");
+}
+
+/** 打开编辑器时的初始草稿：把内置皮肤丢了的名字与画作补回来。 */
+function hydrateSkin(skin: ThemeSkin, t: (key: string) => string): ThemeSkin {
+  const name = builtinSkinDisplayName(skin, t);
+  const paintingId = builtinWallpaperIdForSkin(skin);
+  const wallpaper = skin.wallpaper ?? (paintingId ? paintingPath(paintingId) : null);
+  return { ...skin, name, wallpaper };
 }
 
 /** fork:v5-landing-frame · D-07 帧 C —— 四色那一段的字段说明（板面原文，缺键登记）。 */
@@ -320,7 +374,8 @@ export function ThemeSkinStudio({
 }) {
   const { locale, t } = useI18n();
   const isMobile = useIsMobile();
-  const [draft, setDraft] = useState<ThemeSkin>(skin);
+  // fork:skin-builtin-identity — 初始草稿先补齐：内置皮肤的名字/画作不在 `skin` 里。
+  const [draft, setDraft] = useState<ThemeSkin>(() => hydrateSkin(skin, t));
   const [tab, setTab] = useState<"settings" | "css">("settings");
   const [previewMode, setPreviewMode] = useState<SkinMode>(skin.mode);
   const [message, setMessage] = useState("");
@@ -328,7 +383,7 @@ export function ThemeSkinStudio({
   // 而且卡片条下方那块空间本来就窄。回到 dialog + 焦点约束。
   const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose: onCancel });
 
-  useEffect(() => { setDraft(skin); }, [skin]);
+  useEffect(() => { setDraft(hydrateSkin(skin, t)); }, [skin, t]);
   useEffect(() => { setPreviewMode(skin.mode); }, [skin.mode]);
 
   // 打开后把焦点放到名称上（弹窗里也顺手）。
@@ -392,6 +447,11 @@ export function ThemeSkinStudio({
       "--preview-panel": `color-mix(in srgb, ${pn} ${draft.cardOpacity}%, transparent)`,
       "--preview-sidebar": `color-mix(in srgb, ${pn} ${draft.sidebarOpacity}%, transparent)`,
       "--preview-page": `color-mix(in srgb, ${bg} ${draft.pageOpacity}%, transparent)`,
+      // fork:skin-preview-reading-mask — 真机 `.chat-slot::before` 的方向性阅读遮罩
+      // 照抄到预览里（102deg，三个色标 100% / 86% / 42%，基色换成预览的 `bg`）。
+      // 整条渐变在 JS 里算成一个变量，CSS 只写 `background: var(--preview-reading)`，
+      // 与真机只差一个变量名 —— 两个透明度滑块终于有对应的层可看。
+      "--preview-reading": `linear-gradient(102deg, color-mix(in srgb, ${bg} ${draft.readingMask}%, transparent) 0%, color-mix(in srgb, ${bg} calc(${draft.readingMask}% * 0.86), transparent) 52%, color-mix(in srgb, ${bg} calc(${draft.readingMask}% * 0.42), transparent) 100%)`,
       "--preview-border": `color-mix(in srgb, ${tx} ${draft.borderAlpha}%, transparent)`,
       "--preview-radius": `${draft.radius}px`,
       "--preview-blur": `${draft.blur}px`,
@@ -570,6 +630,14 @@ export function ThemeSkinStudio({
                     background: `color-mix(in srgb, ${previewStyle.background as string} ${draft.wallpaperDim}%, transparent)`,
                   }}
                 />
+                {/* fork:skin-preview-reading-mask — 层序与真机一致，用户在预览里看到的
+                    就是保存后的样子：壁纸 → 压暗层 → **页面层（`--preview-page`）** →
+                    **阅读遮罩层（`--preview-reading`）** → chrome。此前 `--preview-page`
+                    是 `.fork-skin-preview` 自己的 background（还被 inline 的基色盖住），
+                    壁纸作为子元素整块压在上面 —— 「页面透明度」拖了没反应；阅读遮罩在预览
+                    里没有对应层 —— 「会话阅读遮罩」永远没有反馈（用户实拍「点了没啥反应」）。 */}
+                <div className="fork-skin-preview-page" />
+                <div className="fork-skin-preview-reading" />
                 <div className="fork-skin-preview-shell">
                   <div className="fork-skin-preview-sidebar">
                     <span className="fork-skin-preview-brand" />
@@ -631,7 +699,7 @@ export function ThemeSkinStudio({
                   区块能选，进工作室配皮肤时挑不到，得退出去再进来。 */}
               <BuiltinWallpaperPicker
                 labelKey="settings.skinBuiltinWallpaper"
-                activeId={builtinIdForWallpaperUrl(draft.wallpaper)}
+                activeId={builtinWallpaperIdForSkin(draft)}
                 onPick={(id) => patch({ wallpaper: paintingPath(id) })}
               />
             </div>
