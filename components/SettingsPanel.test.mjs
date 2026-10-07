@@ -283,13 +283,13 @@ test("窄屏设置是 hub → 分节二级页两层（M-05），且不摆左导�
     "窄屏那一支里不许渲染左导航",
   );
   assert.match(panelSource, /<nav aria-label=\{t\("settings\.title"\)\} className="settings-section-tabs d-set-nav">/);
-  // 7. 分节清单没被改动：hub 的分组必须盖满同一份十三个分节，一个不多一个不少。
+  // 7. 分节清单没被改动：hub 的分组必须盖满同一份十四个分节，一个不多一个不少。
   const hubSource = await readFile(new URL("./pwa/settingsHub.ts", import.meta.url), "utf8");
   const groups = hubSource.slice(hubSource.indexOf("SETTINGS_HUB_GROUPS"), hubSource.indexOf("type HubCopy"));
   const groupIds = new Set([...groups.matchAll(/id: "([a-zA-Z]+)", sections/g)].map((m) => m[1]));
   const listed = [...groups.matchAll(/"([a-zA-Z]+)"/g)].map((m) => m[1]).filter((id) => !groupIds.has(id));
   const navIds = [...navSource.matchAll(/id: "([a-zA-Z]+)"/g)].map((m) => m[1]);
-  assert.equal(listed.length, 13, "hub 必须正好列十三个分节");
+  assert.equal(listed.length, 14, "hub 必须正好列十四个分节");
   assert.deepEqual(
     [...listed].sort(),
     [...navIds].sort(),

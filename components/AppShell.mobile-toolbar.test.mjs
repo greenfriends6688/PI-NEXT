@@ -24,11 +24,17 @@ test("the phone top bar carries exactly one action: the session menu", () => {
   // ⋯ 菜单抽成了函数：桌面在工具条末尾用它，手机在顶栏用它。
   assert.match(source, /const renderSessionActionsMenu = \(mobile: boolean\) => \(/);
 });
-test("the desktop toolbar keeps all five icon actions", () => {
+test("the desktop toolbar keeps its icon actions, minus the two the user removed", () => {
   // 桌面这条一行摆得下，顶栏本来就是它最快的入口 —— 只有手机瘦身。
-  for (const icon of ["history", "wand-sparkles", "download"]) {
+  // fork:tb-slim（2026-10-07 用户裁定）—— 「生成会话标题」（`wand-sparkles`）搬进
+  // 会话动作 ⋯ 菜单，「导出 Markdown」（`download`）退场（同一个动作本就在那个菜单里）；
+  // 调用轨迹那枚换了图标：`history` → `list-tree`。
+  for (const icon of ["list-tree", "bot", "git-fork"]) {
     assert.match(source, new RegExp(`data-ico="${icon}"`));
   }
+  assert.doesNotMatch(source, /data-ico="wand-sparkles"/);
+  assert.doesNotMatch(source, /data-ico="download"/);
+  assert.doesNotMatch(source, /data-ico="history"/);
   assert.match(source, /\{sessionHasBranches && \(mobile \? \(/);
 });
 
@@ -92,7 +98,12 @@ test("the composer no longer hides its context ring behind an overlay", () => {
   // 声音开关**不**进宫格：拆掉覆盖层之后它本来就常驻在行二，再给一格就是
   // 「同一块屏上摆两枚同一个动作」（AGENTS.md 那条裁定）。
   assert.doesNotMatch(source, /id: "sound"/);
-  assert.match(chatInput, /data-ico=\{soundEnabled \? "volume-2" : "volume-x"\}/);
+  // 2026-10-07 用户裁定：完成提示音那一枚**从输入卡去掉** —— 它和「设置 → 通用」里的
+  // 同一个开关（`soundEnabled` / `onSoundToggle`）重复。开关本身仍在通用分节。
+  assert.doesNotMatch(chatInput, /data-ico=\{soundEnabled \? "volume-2" : "volume-x"\}/);
+  // 2026-10-07 用户裁定：语音输入（`VoiceInputButton`）从产品里删掉，输入卡右组
+  // 不再挂麦克风钮。
+  assert.doesNotMatch(chatInput, /VoiceInputButton/);
 });
 test("keeps theme and language in settings instead of the chat toolbar", () => {
   assert.doesNotMatch(source, /renderThemeButton/);
@@ -155,9 +166,13 @@ test("the top-bar panels dismiss on an outside click", () => {
   assert.match(source, /useDismissOnOutside\(Boolean\(activeTopPanel\), topPanelAnchorRef, topPanelRef, closeTopPanel\)/);
   assert.match(source, /<div ref=\{topPanelRef\} className="anim-popover-down d-pop-float"/);
 
-  // MCP 那一枚（`icon="server"` + `openOnHover={false}`）已于 2026-10-07 用户裁定去掉：
-  // 顶栏不再重复「设置 → MCP」的服务器清单。悬停开合那套仍然活在插件的 `HoverPopover` 里。
+  // MCP 那一枚（`icon="server"`）已于 2026-10-07 用户裁定去掉：顶栏不再重复
+  // 「设置 → MCP」的服务器清单。**插件那一枚当天也改成只认点击**
+  // （`openOnHover={false}`）—— 指针扫过顶栏就弹出一整块插件包列表，扫一次弹一次。
   assert.doesNotMatch(popoverSource, /icon="server"/);
+  assert.match(popoverSource, /openOnHover={false}/);
+  // 悬停开合那套判据本身仍是共享实现（默认 `openOnHover = true`）。
+  assert.match(popoverSource, /openOnHover = true/);
   assert.match(popoverSource, /const open = openOnHover \? hovered \|\| pinned : pinned;/);
   assert.match(popoverSource, /onMouseEnter=\{openOnHover \? holdOpen : undefined\}/);
   // 那一族判据本身仍是共享实现（点外面 + Esc）。

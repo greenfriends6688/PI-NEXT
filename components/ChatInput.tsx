@@ -35,8 +35,6 @@ import { ImagePreview } from "./ImagePreview";
 import { useIsMobile, useIsCompact, useIsLandscapeShort } from "@/hooks/useIsMobile";
 import { useResizableHeight } from "@/hooks/useResizableHeight";
 import { useI18n } from "@/hooks/useI18n";
-// fork:voice —— 浏览器原生语音输入（输入框右组那枚麦克风钮）。
-import { VoiceInputButton } from "./VoiceInputButton";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 // fork:send-key（G6 · 上游 `5df8278` #1001）—— 发送键可配（Enter 直发 / Ctrl+Enter 才发）。
 import { useEnterSendMode } from "@/hooks/useEnterSendMode";
@@ -1096,7 +1094,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   compact = false,
   actionPanel,
 }: Props, ref) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const { fontSize } = useChatAppearance();
   const isMobile = useIsMobile();
   const enterSendMode = useEnterSendMode();
@@ -1186,10 +1184,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const favoriteModels = useSyncExternalStore(subscribeFavoriteModels, getFavoriteModelsSnapshot, getFavoriteModelsServerSnapshot);
   const initialDraft = draftKey ? getDraft(draftKey) : null;
   const [value, setValue] = useState(() => initialDraft?.value ?? "");
-  /* fork:voice —— 语音识别失败的原因（人话），显示在输入卡上方，点掉即消。 */
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  /* fork:voice —— 识别语言跟着 UI 语言走（SpeechRecognition 认 BCP-47：zh-CN / zh-TW / en 都合法）。 */
-  const voiceLang = locale;
   const [toolDropdownOpen, setToolDropdownOpen] = useState(false);
   const [thinkingDropdownOpen, setThinkingDropdownOpen] = useState(false);
   /* fork:think-seg-scroll —— 档位尺要能横向滚动，就得先知道「能有多宽」：浮层左缘锚在
@@ -4037,17 +4031,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             </button>
 
             {/* 完成提示音（M-03 帧 A 的 `.m-iconbtn`） */}
-            {/* fork:voice —— 语音输入（浏览器原生识别）。不支持时按钮自己不渲染；
-                识别结果只写草稿，绝不自动发送。 */}
-            <VoiceInputButton
-              value={value}
-              onTranscript={(text) => setValue(text)}
-              onError={(message) => setVoiceError(message)}
-              lang={voiceLang}
-              pwa
-            />
             {/* 用户 2026-10-07 裁定：完成提示音那一枚**从输入卡去掉** —— 它和
-                设置 → 通用 里的同一个开关重复，输入卡只留「说话」这一件事。 */}
+                设置 → 通用 里的同一个开关重复。 */}
 
             {/* 发送 / 停止：同一个钮的两种含义（M-03 帧 D-3）。判据与桌面同一个
                 `hasDraftToSubmit`：跑着 + 空草稿 = ⏸，跑着 + 有可发内容 = ↑（点了排队）。 */}
@@ -5077,21 +5062,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               <TodoChip summary={todoSummary} />
             </div>
           )}
-          {voiceError ? (
-            <div className="d-banner err" role="status">
-              <i data-ico="circle-alert" data-size="14"></i>
-              <span className="d-grow">{voiceError}</span>
-              <button
-                type="button"
-                className="d-iconbtn sm"
-                onClick={() => setVoiceError(null)}
-                aria-label={t("chat.close")}
-                title={t("chat.close")}
-              >
-                <i data-ico="x" data-size="12"></i>
-              </button>
-            </div>
-          ) : null}
           <div
             ref={inputShellRef}
             /* fork:v5-skin D-04 帧 C / D-27 帧 B —— 运行中给输入卡挂 .d-loader
@@ -5643,16 +5613,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             )}
             {contextRing}
 
-            {/* fork:voice —— 语音输入（桌面右组，紧挨声音开关）。不支持时按钮自己不渲染。 */}
-            <VoiceInputButton
-              value={value}
-              onTranscript={(text) => setValue(text)}
-              onError={(message) => setVoiceError(message)}
-              lang={voiceLang}
-            />
             {/* 用户 2026-10-07 裁定：完成提示音那一枚**从输入卡去掉** —— 它和
                 设置 → 通用 里的同一个开关重复（`soundEnabled` / `onSoundToggle`
-                就是那一个设置），输入卡只留「说话」这一件事。 */}
+                就是那一个设置）。 */}
             {/* fork:pwa-wb-composer —— 宽屏（≥1025）发送钮仍在右组里，与画板 20 一致；
                 窄屏时发送钮在工具条的 `send` 区（上方），这里不再画第二枚。 */}
             {!narrowControls && composerSendCluster}
