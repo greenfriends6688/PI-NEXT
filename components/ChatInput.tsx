@@ -35,6 +35,8 @@ import { ImagePreview } from "./ImagePreview";
 import { useIsMobile, useIsCompact, useIsLandscapeShort } from "@/hooks/useIsMobile";
 import { useResizableHeight } from "@/hooks/useResizableHeight";
 import { useI18n } from "@/hooks/useI18n";
+// fork:voice —— 浏览器原生语音输入（输入框右组那枚麦克风钮）。
+import { VoiceInputButton } from "./VoiceInputButton";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 // fork:send-key（G6 · 上游 `5df8278` #1001）—— 发送键可配（Enter 直发 / Ctrl+Enter 才发）。
 import { useEnterSendMode } from "@/hooks/useEnterSendMode";
@@ -185,8 +187,6 @@ interface Props {
   slashCommandsLoading?: boolean;
   onLoadSlashCommands?: () => Promise<SlashCommandInfo[]> | SlashCommandInfo[];
   onBuiltinCommand?: (message: string) => Promise<BuiltinSlashCommandResult>;
-  soundEnabled?: boolean;
-  onSoundToggle?: () => void;
   /** fork:design-components — 画板 20 的上下文环（.d-ring）及其浮窗的数据源。 */
   contextUsage?: { percent: number | null; contextWindow: number; tokens: number | null } | null;
   sessionStats?: { tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number }; cost: number; totalMessages: number } | null;
@@ -1084,7 +1084,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   onQueueRemove, onQueueMove, onQueuePromote, onQueueEdit,
   slashCommands, slashCommandsLoading, onLoadSlashCommands,
   onBuiltinCommand,
-  soundEnabled, onSoundToggle, onAudioUnlock,
+  onAudioUnlock,
   contextUsage, sessionStats, statsDetails = null,
   onPromptWithStreamingBehavior,
   draftKey,
@@ -1096,7 +1096,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   compact = false,
   actionPanel,
 }: Props, ref) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { fontSize } = useChatAppearance();
   const isMobile = useIsMobile();
   const enterSendMode = useEnterSendMode();
@@ -1186,6 +1186,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const favoriteModels = useSyncExternalStore(subscribeFavoriteModels, getFavoriteModelsSnapshot, getFavoriteModelsServerSnapshot);
   const initialDraft = draftKey ? getDraft(draftKey) : null;
   const [value, setValue] = useState(() => initialDraft?.value ?? "");
+  /* fork:voice —— 语音识别失败的原因（人话），显示在输入卡上方，点掉即消。 */
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  /* fork:voice —— 识别语言跟着 UI 语言走（SpeechRecognition 认 BCP-47：zh-CN / zh-TW / en 都合法）。 */
+  const voiceLang = locale;
   const [toolDropdownOpen, setToolDropdownOpen] = useState(false);
   const [thinkingDropdownOpen, setThinkingDropdownOpen] = useState(false);
   /* fork:think-seg-scroll —— 档位尺要能横向滚动，就得先知道「能有多宽」：浮层左缘锚在
@@ -4033,17 +4037,17 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             </button>
 
             {/* 完成提示音（M-03 帧 A 的 `.m-iconbtn`） */}
-            {onSoundToggle !== undefined && (
-              <button
-                type="button"
-                onClick={onSoundToggle}
-                title={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
-                aria-label={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
-                className="m-iconbtn"
-              >
-                <i data-ico={soundEnabled ? "volume-2" : "volume-x"} data-size="17"></i>
-              </button>
-            )}
+            {/* fork:voice —— 语音输入（浏览器原生识别）。不支持时按钮自己不渲染；
+                识别结果只写草稿，绝不自动发送。 */}
+            <VoiceInputButton
+              value={value}
+              onTranscript={(text) => setValue(text)}
+              onError={(message) => setVoiceError(message)}
+              lang={voiceLang}
+              pwa
+            />
+            {/* 用户 2026-10-07 裁定：完成提示音那一枚**从输入卡去掉** —— 它和
+                设置 → 通用 里的同一个开关重复，输入卡只留「说话」这一件事。 */}
 
             {/* 发送 / 停止：同一个钮的两种含义（M-03 帧 D-3）。判据与桌面同一个
                 `hasDraftToSubmit`：跑着 + 空草稿 = ⏸，跑着 + 有可发内容 = ↑（点了排队）。 */}
@@ -4273,6 +4277,125 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       </div>
     );
   };
+
+  /* fork:thinking-in-model-pop（用户 2026-10-07「把这个思考强度也帮我融合进这浮窗中，
+     我感觉不需要占这么多位置」）—— 思考强度不再在输入卡那一行单占一枚芯片，
+     整段挪进模型浮窗内部（ModelSelector 的 `thinkingSection`）。这里仍由输入区
+     构造这一段：翻卡 `.d-flap`、档位尺 `.d-seg`、运行中只改下一轮、以及
+     `fork:thinking-level-while-running` 那套 title 语义都还在这一个文件里，
+     不复制进 ModelSelector、也不引第二份状态。窄屏不传这一段 —— 窄屏的思考面板
+     本来就在能力面板里（`capSheet === "thinking"`），那条路原样保留。 */
+  const thinkingSection = (
+    <>
+            {/* fork:thinking-level-while-running（用户 2026-10-02，对齐上游 0.10）——
+                上一轮运行中这枚芯片是**只读**的（注释写着「一轮之内改不了」），于是
+                「运行中也能调推理等级」这条上游新增功能在本仓没有。上游把同一个控件在
+                流式时保持可点，只把 title 换成「当前推理档」。真要改的是**下一轮**：
+                pi 的 set_thinking_level 在 turn 中途生效于后续请求，这一轮的预算不变。 */}
+            {onThinkingLevelChange && (
+              <div ref={thinkingDropdownRef} style={{ position: "relative" }}>
+                {/* fork:design-components —— 思考档直接用画板 20/21 的 .d-select + .d-pop/.d-menu-row。 */}
+                <button
+                  type="button"
+                  onClick={() => setThinkingDropdownOpen((v) => !v)}
+                   title={isStreaming
+                    ? t("chat.currentReasoning", { level: thinkingDisplayLabel })
+                    : t("chat.changeReasoning", { level: thinkingDisplayLabel })}
+                   aria-label={t("chat.changeReasoningLabel")}
+                  className="d-select"
+                  style={{
+                    cursor: "pointer",
+                    background: thinkingDropdownOpen ? "var(--overlay-hover)" : undefined,
+                    // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
+                    // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
+                    // 把 `button.d-select` 列入 `width: 100%` 的行式拉满清单，
+                    // 而那只有在**容器宽度确定**时才咬人（grid 的 auto 列 / 1fr）。
+                    // 桌面（≥1025）工具条是 shrink-to-fit，百分比按 auto 解，
+                    // 所以这里放宽只影响平板档：实测 768 下「全自动」独占 500px。
+                    width: isMobile || viewportCompact ? "auto" : undefined,
+                  }}
+                >
+                  {/* fork:v5-wave-n1 · D-28 帧 C：`.d-flap` 外壳只包那枚图标，
+                      文字是它的兄弟节点（板上就是这样分的两列）。 */}
+                  <span className={`d-flap${flapPhase ? ` ${flapPhase}` : ""}`}>
+                    <i data-ico="brain" data-size="13"></i>
+                  </span>
+                  {!narrowControls && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
+                  {/* 2026-10-03 用户裁定 —— 有选项的芯片一律带向下箭头（与模型选择器同款
+                      chevron-down），不然分不清「可点开」与「只是读数」。 */}
+                  <i data-ico="chevron-down" data-size="12"></i>
+                </button>
+                {thinkingDropdownOpen && (
+                  <div
+                    className="anim-popover d-pop is-open fork-think-pop"
+                    style={{
+                      position: "absolute", bottom: "calc(100% + 6px)",
+                      // fork:ui-composer-pop —— 左侧组的下拉一律左缘锚定：右缘锚定会把
+                      // 320 宽的浮窗探出卡片左缘，被 overflow-x:clip 裁掉。
+                      left: 0,
+                      // fork:think-seg-scroll —— 宽度上限（见上面那个 state）：装得下时
+                      // 这条不起作用，档位尺按内容走；装不下时封顶并让档位尺横滑。
+                      maxWidth: thinkPopMaxWidth ?? undefined,
+                      // fork:v5-frame-audit D-04 帧 A —— 不写死宽度：档位尺是内容撑的
+                      // （`.d-seg` 一行排完当前模型可用的全部档位），写死 180 反而会折行。
+                      zIndex: 100,
+                    }}
+                  >
+                    {/* fork:design-components —— 画板 21 的弹层有**标题行**：
+                        `<div class="d-pop-title">思考强度</div>`（board.css:622 一行纯文本，
+                        meta 字号 / placeholder 色 / padding s2 s2 s1）。样式全部来自 board.css，
+                        这里不加内联。 */}
+                    <div className="d-pop-title">{t("chat.thinkingTitle")}</div>
+                    {/* fork:v5-frame-audit D-04 帧 A（`m-think`）—— 思考档浮层按画板原文
+                        收成**分段控件**：`.d-pop-body.d-col` 里一块 `.d-seg`，当前档 `is-on`，
+                        下面一行 `.d-t-xs.d-t-faint` 说当前档的代价（板上那句话讲的是「中档」，
+                        这里给的是用户**此刻**选中的那一档，位置与语义同格）。
+                        改前是一串 `.d-menu-row`（与权限 / 工具档同形），那是权限与工具档的形态：
+                        思考档在画板上从头到尾都不是「一列选项」，它是循环按钮展开后的档位尺。
+                        行为零变化：档位集合仍是同一份 `THINKING_LEVELS`（同样过滤
+                        `availableThinkingLevels`），回调仍是同一个 `onThinkingLevelChange`，
+                        选中态仍是 `is-on`。档位被 `thinkingLevelMap` 改过时，原来行尾那个
+                        `(lvl)` 括号注解挪到 `title` 上 —— 分段按钮放不下第二段文字，
+                        但原值仍然可读（悬停可见），信息不丢。 */}
+                    <div className="d-pop-body d-col" style={{ gap: "var(--nx-sp-1)" }}>
+                      <div className="d-seg fork-think-seg">
+                        {THINKING_LEVELS.filter((lvl) => {
+                          if (!availableThinkingLevels) return true;
+                          if (lvl === "auto") return true;
+                          return availableThinkingLevels.includes(lvl);
+                        }).map((lvl) => {
+                          const isActive = (thinkingLevel ?? "auto") === lvl;
+                          const mappedVal = (lvl !== "auto" && thinkingLevelMap) ? thinkingLevelMap[lvl] : undefined;
+                          const displayLabel = (mappedVal != null && mappedVal !== lvl) ? mappedVal : lvl;
+                          const showOriginal = mappedVal != null && mappedVal !== lvl;
+                          return (
+                            <button
+                              key={lvl}
+                              type="button"
+                              onClick={() => { setThinkingDropdownOpen(false); if (!isActive) onThinkingLevelChange(lvl); }}
+                              className={isActive ? "is-on" : undefined}
+                              title={showOriginal ? lvl : undefined}
+                              style={{ cursor: "pointer" }}
+                            >
+                              {displayLabel}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="d-t-xs d-t-faint">
+                        {t(THINKING_LEVEL_DESC_KEYS[
+                          (THINKING_LEVELS.includes(thinkingLevel ?? "auto")
+                            ? (thinkingLevel ?? "auto")
+                            : "auto") as (typeof THINKING_LEVELS)[number]
+                        ])}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+    </>
+  );
 
   return (
     <fieldset
@@ -4954,6 +5077,21 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               <TodoChip summary={todoSummary} />
             </div>
           )}
+          {voiceError ? (
+            <div className="d-banner err" role="status">
+              <i data-ico="circle-alert" data-size="14"></i>
+              <span className="d-grow">{voiceError}</span>
+              <button
+                type="button"
+                className="d-iconbtn sm"
+                onClick={() => setVoiceError(null)}
+                aria-label={t("chat.close")}
+                title={t("chat.close")}
+              >
+                <i data-ico="x" data-size="12"></i>
+              </button>
+            </div>
+          ) : null}
           <div
             ref={inputShellRef}
             /* fork:v5-skin D-04 帧 C / D-27 帧 B —— 运行中给输入卡挂 .d-loader
@@ -5217,6 +5355,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 onChange={onModelChange}
                 busy={modelSwitching}
                 isAutoSelection={isAutoModelSelection}
+                thinkingSection={thinkingSection}
               />
             )}
             {/* fork:proma-37-deferred-model —— 「已排队，下轮生效」提示。挂在选择器
@@ -5251,113 +5390,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               className="fork-pwa-wb-modes"
               style={{ display: narrowControls ? "flex" : "contents", alignItems: "center", gap: "var(--s1)", minWidth: 0, gridArea: narrowControls ? "chips" : undefined }}
             >
-            {/* fork:thinking-level-while-running（用户 2026-10-02，对齐上游 0.10）——
-                上一轮运行中这枚芯片是**只读**的（注释写着「一轮之内改不了」），于是
-                「运行中也能调推理等级」这条上游新增功能在本仓没有。上游把同一个控件在
-                流式时保持可点，只把 title 换成「当前推理档」。真要改的是**下一轮**：
-                pi 的 set_thinking_level 在 turn 中途生效于后续请求，这一轮的预算不变。 */}
-            {onThinkingLevelChange && (
-              <div ref={thinkingDropdownRef} style={{ position: "relative" }}>
-                {/* fork:design-components —— 思考档直接用画板 20/21 的 .d-select + .d-pop/.d-menu-row。 */}
-                <button
-                  type="button"
-                  onClick={() => setThinkingDropdownOpen((v) => !v)}
-                   title={isStreaming
-                    ? t("chat.currentReasoning", { level: thinkingDisplayLabel })
-                    : t("chat.changeReasoning", { level: thinkingDisplayLabel })}
-                   aria-label={t("chat.changeReasoningLabel")}
-                  className="d-select"
-                  style={{
-                    cursor: "pointer",
-                    background: thinkingDropdownOpen ? "var(--overlay-hover)" : undefined,
-                    // fork:pwa-wb-composer —— `auto` 的触发条件从 isMobile 放宽到
-                    // viewportCompact(≤1024)：app/fork-ui.css 的 `@layer fork-reset`
-                    // 把 `button.d-select` 列入 `width: 100%` 的行式拉满清单，
-                    // 而那只有在**容器宽度确定**时才咬人（grid 的 auto 列 / 1fr）。
-                    // 桌面（≥1025）工具条是 shrink-to-fit，百分比按 auto 解，
-                    // 所以这里放宽只影响平板档：实测 768 下「全自动」独占 500px。
-                    width: isMobile || viewportCompact ? "auto" : undefined,
-                  }}
-                >
-                  {/* fork:v5-wave-n1 · D-28 帧 C：`.d-flap` 外壳只包那枚图标，
-                      文字是它的兄弟节点（板上就是这样分的两列）。 */}
-                  <span className={`d-flap${flapPhase ? ` ${flapPhase}` : ""}`}>
-                    <i data-ico="brain" data-size="13"></i>
-                  </span>
-                  {!narrowControls && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
-                  {/* 2026-10-03 用户裁定 —— 有选项的芯片一律带向下箭头（与模型选择器同款
-                      chevron-down），不然分不清「可点开」与「只是读数」。 */}
-                  <i data-ico="chevron-down" data-size="12"></i>
-                </button>
-                {thinkingDropdownOpen && (
-                  <div
-                    className="anim-popover d-pop is-open fork-think-pop"
-                    style={{
-                      position: "absolute", bottom: "calc(100% + 6px)",
-                      // fork:ui-composer-pop —— 左侧组的下拉一律左缘锚定：右缘锚定会把
-                      // 320 宽的浮窗探出卡片左缘，被 overflow-x:clip 裁掉。
-                      left: 0,
-                      // fork:think-seg-scroll —— 宽度上限（见上面那个 state）：装得下时
-                      // 这条不起作用，档位尺按内容走；装不下时封顶并让档位尺横滑。
-                      maxWidth: thinkPopMaxWidth ?? undefined,
-                      // fork:v5-frame-audit D-04 帧 A —— 不写死宽度：档位尺是内容撑的
-                      // （`.d-seg` 一行排完当前模型可用的全部档位），写死 180 反而会折行。
-                      zIndex: 100,
-                    }}
-                  >
-                    {/* fork:design-components —— 画板 21 的弹层有**标题行**：
-                        `<div class="d-pop-title">思考强度</div>`（board.css:622 一行纯文本，
-                        meta 字号 / placeholder 色 / padding s2 s2 s1）。样式全部来自 board.css，
-                        这里不加内联。 */}
-                    <div className="d-pop-title">{t("chat.thinkingTitle")}</div>
-                    {/* fork:v5-frame-audit D-04 帧 A（`m-think`）—— 思考档浮层按画板原文
-                        收成**分段控件**：`.d-pop-body.d-col` 里一块 `.d-seg`，当前档 `is-on`，
-                        下面一行 `.d-t-xs.d-t-faint` 说当前档的代价（板上那句话讲的是「中档」，
-                        这里给的是用户**此刻**选中的那一档，位置与语义同格）。
-                        改前是一串 `.d-menu-row`（与权限 / 工具档同形），那是权限与工具档的形态：
-                        思考档在画板上从头到尾都不是「一列选项」，它是循环按钮展开后的档位尺。
-                        行为零变化：档位集合仍是同一份 `THINKING_LEVELS`（同样过滤
-                        `availableThinkingLevels`），回调仍是同一个 `onThinkingLevelChange`，
-                        选中态仍是 `is-on`。档位被 `thinkingLevelMap` 改过时，原来行尾那个
-                        `(lvl)` 括号注解挪到 `title` 上 —— 分段按钮放不下第二段文字，
-                        但原值仍然可读（悬停可见），信息不丢。 */}
-                    <div className="d-pop-body d-col" style={{ gap: "var(--nx-sp-1)" }}>
-                      <div className="d-seg fork-think-seg">
-                        {THINKING_LEVELS.filter((lvl) => {
-                          if (!availableThinkingLevels) return true;
-                          if (lvl === "auto") return true;
-                          return availableThinkingLevels.includes(lvl);
-                        }).map((lvl) => {
-                          const isActive = (thinkingLevel ?? "auto") === lvl;
-                          const mappedVal = (lvl !== "auto" && thinkingLevelMap) ? thinkingLevelMap[lvl] : undefined;
-                          const displayLabel = (mappedVal != null && mappedVal !== lvl) ? mappedVal : lvl;
-                          const showOriginal = mappedVal != null && mappedVal !== lvl;
-                          return (
-                            <button
-                              key={lvl}
-                              type="button"
-                              onClick={() => { setThinkingDropdownOpen(false); if (!isActive) onThinkingLevelChange(lvl); }}
-                              className={isActive ? "is-on" : undefined}
-                              title={showOriginal ? lvl : undefined}
-                              style={{ cursor: "pointer" }}
-                            >
-                              {displayLabel}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="d-t-xs d-t-faint">
-                        {t(THINKING_LEVEL_DESC_KEYS[
-                          (THINKING_LEVELS.includes(thinkingLevel ?? "auto")
-                            ? (thinkingLevel ?? "auto")
-                            : "auto") as (typeof THINKING_LEVELS)[number]
-                        ])}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
             {/* fork:proma-02-mode — 权限档位（Chat-only 会话没有意义，所以隐藏）。
                 2026-10-03 用户裁定 —— 从「点一下循环」改成下拉：三个档并列在浮窗里，
                 与思考档 / 工具档同一形态（`.d-select` + `.d-pop` / `.d-menu-row`），
@@ -5611,19 +5643,16 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             )}
             {contextRing}
 
-            {onSoundToggle !== undefined && (
-              /* fork:design-components —— 声音开关 = 画板 20 的 .d-iconbtn（volume-2 / volume-x）。 */
-              <button
-                type="button"
-                onClick={onSoundToggle}
-                 title={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
-                 aria-label={soundEnabled ? t("chat.disableSound") : t("chat.enableSound")}
-                className={`d-iconbtn fork-pwa-wb-act${soundEnabled ? "" : " is-on"}`}
-                style={{ width: "var(--control-md)", height: "var(--control-sm)", cursor: "pointer", opacity: soundEnabled ? 1 : 0.55 }}
-              >
-                <i data-ico={soundEnabled ? "volume-2" : "volume-x"} data-size="14"></i>
-              </button>
-            )}
+            {/* fork:voice —— 语音输入（桌面右组，紧挨声音开关）。不支持时按钮自己不渲染。 */}
+            <VoiceInputButton
+              value={value}
+              onTranscript={(text) => setValue(text)}
+              onError={(message) => setVoiceError(message)}
+              lang={voiceLang}
+            />
+            {/* 用户 2026-10-07 裁定：完成提示音那一枚**从输入卡去掉** —— 它和
+                设置 → 通用 里的同一个开关重复（`soundEnabled` / `onSoundToggle`
+                就是那一个设置），输入卡只留「说话」这一件事。 */}
             {/* fork:pwa-wb-composer —— 宽屏（≥1025）发送钮仍在右组里，与画板 20 一致；
                 窄屏时发送钮在工具条的 `send` 区（上方），这里不再画第二枚。 */}
             {!narrowControls && composerSendCluster}

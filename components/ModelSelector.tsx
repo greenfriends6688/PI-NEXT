@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useI18n } from "@/hooks/useI18n";
 import {
   favoriteModelKey,
@@ -35,6 +36,20 @@ interface ModelSelectorProps {
   ariaLabel?: string;
   variant?: "toolbar" | "field";
   placement?: "up" | "auto";
+  /**
+   * fork:thinking-in-model-pop（用户 2026-10-07「把这个思考强度也帮我融合进这浮窗中，
+   * 我感觉不需要占这么多位置」）—— 输入区（ChatInput）构造好的「思考强度」那一段，
+   * 挂在这里由模型浮窗渲染，好让输入卡那一行少一枚芯片。
+   *
+   * 为什么是 ReactNode 而不是一串档位数据：思考档那一套（翻卡 `.d-flap`、档位尺
+   * `.d-seg`、`fork:thinking-level-while-running` 的运行中语义、`thinkPopMaxWidth`
+   * 的宽度测量）全部长在 ChatInput 里，浮窗只负责给它一个**位置**；在这里重开一份
+   * 状态就是两套真相。
+   *
+   * 不传 = 一个字都不渲染（设置页的 `variant="field"`、窄屏的 `.m-sheet-row` 调用点
+   * 都不传）。
+   */
+  thinkingSection?: ReactNode;
 }
 
 const MODEL_FILTER_THRESHOLD = 8;
@@ -69,7 +84,8 @@ export function ModelSelector({
   isAutoSelection = false,
   ariaLabel,
   variant = "toolbar",
-  placement = "up",
+  placement = "auto",
+  thinkingSection,
 }: ModelSelectorProps) {
   const { t } = useI18n();
   // fork:ui — 行内星标的数据源（与设置页 ModelsConfig / 输入框菜单共用同一 store）。
@@ -354,10 +370,14 @@ export function ModelSelector({
         // fork:popover-anchor — 原来是 `spaceAbove > spaceBelow`，而 composer 就在视口底部，
         // 于是「上方空间大」永远成立，下拉每次都朝上展开，而且 `maxHeight` 取的是整个上方空间，
         // 弹层会一直顶到屏幕顶部（用户：「浮窗距离那么远干啥」）。
-        // 现在只在**下面确实放不下**时才朝上；否则贴着触发点向下开。
+        // fork:model-pop-size（用户 2026-10-07「这个模型的悬浮窗…占这么多位置」）——
+        // ① 默认 `placement` 从 `"up"` 收到 `"auto"`：贴着触发点开，只有下面真的放不下
+        //    （< MIN_BELOW 且上方更大）才朝上；② 高度在视口 60% 之外再封顶 400px ——
+        //    实测 1440×900 下旧值是 540px、一路顶到屏幕顶，长名单交给内部滚动区滚动。
         const MIN_BELOW = 260;
-        const openAbove = placement === "up" || spaceBelow < MIN_BELOW;
-        const maxHeight = Math.max(180, Math.min(openAbove ? spaceAbove : spaceBelow, viewportHeight * 0.6));
+        const POPOVER_MAX_HEIGHT = 400;
+        const openAbove = placement === "up" || (spaceBelow < MIN_BELOW && spaceAbove > spaceBelow);
+        const maxHeight = Math.max(180, Math.min(openAbove ? spaceAbove : spaceBelow, viewportHeight * 0.6, POPOVER_MAX_HEIGHT));
         const verticalPosition = openAbove
           ? { bottom: viewportHeight - anchorRect.top + 6 }
           : { top: anchorRect.bottom + 6 };
@@ -372,7 +392,13 @@ export function ModelSelector({
             maxWidth: Math.max(anchorRect.width, viewportWidth - Math.max(8, Math.min(anchorRect.left, viewportWidth - anchorRect.width - 8)) - 8),
           };
 
-        return (
+        // fork:model-pop-portal —— 浮窗原来是 `position: fixed` 却**渲染在触发点所在的
+        // 子树里**。主题皮肤给 `.d-composer`（app/fork-ui.css）加了 `backdrop-filter`，
+        // 而带 `backdrop-filter` 的祖先会成为后代 `position: fixed` 的包含块 ——
+        // anchorRect 算出来的视口坐标于是被整棵子树再偏移一次：
+        // 实测同一触发点，无皮肤浮窗 x=517、有皮肤 x=992（偏右 475）。
+        // 挂到 body 之后 fixed 重新相对视口，anchorRect 那套算法一个字都不用改。
+        return createPortal(
           <div
             ref={panelRef}
             role="listbox"
@@ -474,7 +500,18 @@ export function ModelSelector({
                 </div>
               ))}
             </div>
-          </div>
+            {/* fork:thinking-in-model-pop —— 「思考强度」那一段由输入区传进来，只挂
+                **宽屏浮窗**；窄屏仍走能力面板里那块既有的思考面板（见 ChatInput），
+                所以这里不重复。放滚动区之外的页脚：芯片那枚 `.d-pop` 是向上开的
+                （`bottom: calc(100% + 6px)`），页脚在底部才不会被 `overflow:hidden` 裁掉。 */}
+            {thinkingSection && (
+              <>
+                <div className="d-sep" style={{ flexShrink: 0 }} />
+                <div className="d-pop-body" style={{ flexShrink: 0 }}>{thinkingSection}</div>
+              </>
+            )}
+          </div>,
+          document.body,
         );
       })()}
     </div>
