@@ -67,7 +67,7 @@ import { InstallPromptBanner, PwaOfflineBanner, PwaUpdateBanner } from "./fork/I
 import { DirectoryPicker } from "./DirectoryPicker";
 import { BranchNavigator, findSiblingIndex, hasSessionBranches } from "./BranchNavigator";
 // fix:mcp-topbar-icons —— 顶栏右侧两枚状态图标（MCP / 插件）+ 可点的分支芯片。
-import { BranchChip, PluginStatusButton, splitStatusesByKind } from "./TopBarPopovers";
+import { PluginStatusButton, splitStatusesByKind } from "./TopBarPopovers";
 import { MobileActionPanel } from "./fork/MobileActionPanel";
 // fix:new-session-pick-dir / topbar-chip-clickable —— 工作区芯片复用输入框上方那枚
 // `.pw-chip`（项目列表 + 打开文件夹）。NewSessionTargets 类型来自 ProjectChip。
@@ -2435,6 +2435,24 @@ export function AppShell() {
     );
   };
 
+  /* fork:tb-slim（2026-10-07 用户裁定）——「生成会话标题」从顶栏那枚 `wand-sparkles`
+     图标钮搬进会话动作 ⋯ 菜单（`title.generate` 与置灰口径 / 原因文案原样搬过去）。 */
+  const autoNameMenu = (() => {
+    const hasMessages = Boolean(
+      selectedSession
+      && ((sessionStats?.userMessages ?? 0) > 0 || selectedSession.messageCount > 0),
+    );
+    const disabled = !selectedSession || selectedSession.transient || !hasMessages || autoNameStatus.kind === "naming";
+    const title = !selectedSession || selectedSession.transient
+      ? translate("title.unsaved")
+      : !hasMessages
+        ? translate("title.noMessages")
+        : autoNameStatus.kind === "error"
+          ? autoNameStatus.message
+          : translate("title.generateSession");
+    return { disabled, title };
+  })();
+
   /* fork:mobile-toolbar-slim —— 会话动作 ⋯ 菜单抽成一个函数：桌面在工具条末尾、
      手机在顶栏（它是手机顶栏上**唯一**的动作）。 */
   const renderSessionActionsMenu = (mobile: boolean) => (
@@ -2453,6 +2471,9 @@ export function AppShell() {
             : null}
           mobile={mobile}
           onRename={() => { if (selectedSession) setRenamingSessionId(selectedSession.id); }}
+          onAutoName={() => { void handleAutoName(); }}
+          autoNameDisabled={autoNameMenu.disabled}
+          autoNameTitle={autoNameMenu.title}
           onMarkUnread={() => { if (selectedSession) markSessionUnread(selectedSession.id); }}
           onReveal={() => { void revealProjectDir(selectedSession?.projectRoot ?? selectedSession?.cwd ?? ""); }}
           onCopyProjectPath={() => { void copyWithFeedback(selectedSession?.projectRoot ?? selectedSession?.cwd ?? null); }}
@@ -2524,64 +2545,9 @@ export function AppShell() {
           }}
           className="d-iconbtn"
         >
-          <i data-ico="history" data-size="15" aria-hidden="true"></i>
+          <i data-ico="list-tree" data-size="15" aria-hidden="true"></i>
 
         </button>
-        {(() => {
-          // 上下文压缩后当前消息可能不再包含 user 消息，需同时参考会话文件的消息总数。
-          const hasMessages = Boolean(
-            selectedSession
-            && ((sessionStats?.userMessages ?? 0) > 0 || selectedSession.messageCount > 0),
-          );
-          const disabled = !selectedSession || selectedSession.transient || !hasMessages || autoNameStatus.kind === "naming";
-          const isSuccess = autoNameStatus.kind === "success";
-          const isError = autoNameStatus.kind === "error";
-          const label = autoNameStatus.kind === "naming"
-            ? translate("title.generating")
-            : isSuccess
-              ? translate("title.updated")
-              : isError
-                ? translate("title.failed")
-                : translate("title.generate");
-          const title = !selectedSession || selectedSession.transient
-            ? translate("title.unsaved")
-            : !hasMessages
-              ? translate("title.noMessages")
-              : isError
-                ? autoNameStatus.message
-                : translate("title.generateSession");
-
-          return (
-            <button
-              type="button"
-              onClick={() => {
-                void handleAutoName();
-              }}
-              disabled={disabled}
-              title={title}
-              aria-label={label}
-              /* fork:design-components —— 画板 .d-iconbtn / .pw-touch；
-                 naming=loader-circle / success=check / 默认=wand-sparkles。 */
-              style={{
-                margin: 0,
-                padding: 0,
-                color: isError ? "var(--error)" : isSuccess ? "var(--accent-text)" : disabled ? "var(--text-dim)" : undefined,
-                cursor: disabled ? "not-allowed" : "pointer",
-                opacity: disabled && autoNameStatus.kind !== "naming" ? 0.45 : 1,
-              }}
-              className="d-iconbtn"
-            >
-              {autoNameStatus.kind === "naming" ? (
-                <i data-ico="loader-circle" data-size="15" aria-hidden="true" style={{ animation: "spin var(--motion-spin) linear infinite" }}></i>
-              ) : isSuccess ? (
-                <i data-ico="check" data-size="15" aria-hidden="true"></i>
-              ) : (
-                <i data-ico="wand-sparkles" data-size="15" aria-hidden="true"></i>
-              )}
-
-            </button>
-          );
-        })()}
         {hasSubagentSessions && (
           <button
             type="button"
@@ -2661,28 +2627,9 @@ export function AppShell() {
     if (!showChat) return null;
     return (
       <>
-        {/* fork:ui-14b — 导出 Markdown 从 ⋯ 菜单搬成图标：与其它四个动作同一行，
-            一眼看得见；新窗口打开（?format=md 让浏览器直接渲染，方便复制片段）。 */}
-        <button
-          type="button"
-          onClick={() => {
-            if (!selectedSession) return;
-            window.open(`/api/sessions/${encodeURIComponent(selectedSession.id)}/export?format=md`, "_blank", "noopener,noreferrer");
-          }}
-          disabled={!selectedSession}
-          title={translate("session.exportMarkdown")}
-          aria-label={translate("session.exportMarkdown")}
-          /* fork:design-components —— 画板 .d-iconbtn / .pw-touch；data-ico=download。 */
-          style={{
-            alignSelf: "center", margin: 0,
-            color: selectedSession ? undefined : "var(--text-dim)",
-            cursor: selectedSession ? "pointer" : "not-allowed",
-            opacity: selectedSession ? 1 : 0.45,
-          }}
-          className="d-iconbtn"
-        >
-          <i data-ico="download" data-size="15" aria-hidden="true"></i>
-        </button>
+        {/* fork:tb-slim（2026-10-07 用户实拍「…下载按钮的 icon 帮我去掉，因为别的地方
+            已经有了」）—— 顶栏那枚「导出 Markdown」图标钮退场：同一动作就在旁边这枚
+            ⋯ 菜单里（`session.exportMarkdown`，带图标与文字）。 */}
         {/* fork:trace-menu-2026-10-04 —— 桌面这条工具条末尾**一直缺着**会话动作 ⋯：
             `renderSessionActionsMenu` 只有 `if (mobile)` 那一处调用，所以桌面上
             置顶 / 归档 / 重命名 / 在访达中打开 / 复制路径与 ID / 导出这几项
@@ -2755,19 +2702,9 @@ export function AppShell() {
           {translate("chat.running")}
         </span>
       )}
-      {topBarBranch && (
-        /* fix:branch-chip-clickable —— 画板 01 帧 A/B / 02 帧 B：分支芯片是**可点
-           的下拉触发钮**（git-branch + 分支名 + chevron-down），点开是工作区
-           （worktree）列表。原来这里是个没有 onClick 的 `<span class="d-chipbtn">`
-           —— 用户实测「这个 main 点不了」。改用 TopBarPopovers 的 BranchChip
-           （它本来就是照画板写的，只是没接线）。选中另一个工作区 = 切目录并在
-           那里开一个新 composer，与侧栏 worktree 切换同一动作。 */
-        <BranchChip
-          branch={topBarBranch}
-          cwd={selectedSession?.cwd ?? newSessionCwd ?? ""}
-          onSelectWorkspace={(path) => void startSessionIn(path).then((failure) => { if (failure) showToast(failure); })}
-        />
-      )}
+      {/* fork:tb-slim（2026-10-07 用户实拍「顶部这块的 main…帮我去掉，因为别的地方
+          已经有了」）—— 顶栏那枚分支 / 工作区芯片（`BranchChip`）退场。分支在
+          输入卡上方的上下文条与侧栏工作区切换器里都写着，顶栏再摆一枚是第三遍。 */}
     </span>
   ) : (
     <span className="d-tb-title">{topBarSessionTitle}</span>
@@ -2800,7 +2737,7 @@ export function AppShell() {
           {
             id: "trace",
             label: translate("actionPanel.trace"),
-            icon: "history",
+            icon: "list-tree",
             disabled: !selectedSession,
             onSelect: () => handleViewFullHistory(),
           },
@@ -3054,7 +2991,7 @@ export function AppShell() {
     return [
       {
         key: TRACE_TAB_ID,
-        icon: "history",
+        icon: "list-tree",
         label: translate("trace.title"),
         description: traceOpen ? translate("trace.title") : closed,
         trailing: traceOpen ? <span className="m-dot" /> : undefined,
@@ -3830,9 +3767,9 @@ export function AppShell() {
                   : undefined}
               onInitialPromptConsumed={() => { setPendingQuotePrompt(null); setPendingNewSessionPrompt(null); }}
               newSessionTargets={newSessionTargets}
+              playDoneSound={playDoneSound}
               soundEnabled={soundEnabled}
               onSoundToggle={onSoundToggle}
-              playDoneSound={playDoneSound}
               unlockAudio={unlockAudio}
             />
           ) : initialCwdStatus === "validating" ? (
@@ -4095,8 +4032,6 @@ export function AppShell() {
         focusSkillSlug={settingsSkillSlug}
         sidebarWidth={sidebarResizer.width}
         onSidebarWidthChange={sidebarResizer.setWidth}
-        soundEnabled={soundEnabled}
-        onSoundToggle={onSoundToggle}
         quoteSelectionEnabled={quoteSelectionEnabled}
         onQuoteSelectionChange={handleQuoteSelectionChange}
         onClose={() => {

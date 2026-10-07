@@ -20,7 +20,9 @@ test("the trace tab embeds the full-history export page, not a second renderer",
   // 桌面顶栏仍有这枚钮，且宫格里有同一动作（否则手机上就再也到不了轨迹页）。
   assert.match(shell, /onClick=\{\(\) => \{\s*handleViewFullHistory\(\);/);
   assert.match(shell, /id: "trace",[\s\S]{0,240}?handleViewFullHistory\(\)/);
-  assert.match(shell, /<i data-ico="history" data-size="15" aria-hidden="true"><\/i>/);
+  // fork:tb-slim（2026-10-07 用户裁定）—— 调用轨迹的图标 `history` → `list-tree`
+  // （轨迹是一棵调用树，不是一个时钟）。
+  assert.match(shell, /<i data-ico="list-tree" data-size="15" aria-hidden="true"><\/i>/);
   assert.match(shell, /handleViewFullHistory = useCallback\(\(\) => \{[\s\S]*?setActiveFileTabId\(TRACE_TAB_ID\)/);
   assert.match(shell, /<TraceFrame[\s\S]*?sessionId=\{selectedSession\?\.id \?\? ""\}/);
 });

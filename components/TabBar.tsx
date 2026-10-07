@@ -604,7 +604,7 @@ export function TabBar({
               ) : tab.kind === "browser" ? (
                 <i data-ico="globe" data-size={13} aria-hidden="true"></i>
               ) : tab.kind === "trace" ? (
-                <i data-ico="activity" data-size={13} aria-hidden="true"></i>
+                <i data-ico="list-tree" data-size={13} aria-hidden="true"></i>
               ) : (
                 getFileIcon(tab.label, 13)
               )}

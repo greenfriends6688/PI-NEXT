@@ -33,6 +33,10 @@ export function SessionActionsMenu({
   onExportHtml,
   onExportMarkdown,
   onRename,
+  /* fork:tb-slim（2026-10-07 用户裁定）——「生成会话标题」从顶栏那枚图标钮搬进这里。 */
+  onAutoName,
+  autoNameDisabled = false,
+  autoNameTitle,
   onMarkUnread,
   onReveal,
   onCopyProjectPath,
@@ -50,6 +54,11 @@ export function SessionActionsMenu({
   onExportHtml: () => void;
   onExportMarkdown: () => void;
   onRename: () => void;
+  /** 用模型根据首条消息重新生成会话标题（原顶栏 `wand-sparkles` 钮）。 */
+  onAutoName: () => void;
+  /** 无消息 / 未落盘 / 正在生成时置灰（原因写在 `autoNameTitle`）。 */
+  autoNameDisabled?: boolean;
+  autoNameTitle?: string;
   onMarkUnread: () => void;
   /** 在文件管理器里打开项目目录；失败由调用方弹通知。 */
   onReveal: () => void;
@@ -86,6 +95,14 @@ export function SessionActionsMenu({
         label: t("session.rename"),
         icon: <i data-ico="square-pen" data-size="14" aria-hidden="true"></i>,
         onSelect: onRename,
+      },
+      {
+        /* fork:tb-slim —— 与「重命名」相邻：两个都是改标题的动作，一个手写、一个生成。 */
+        label: t("title.generate"),
+        disabled: autoNameDisabled,
+        title: autoNameTitle,
+        icon: <i data-ico="wand-sparkles" data-size="14" aria-hidden="true"></i>,
+        onSelect: onAutoName,
       },
       {
         label: t(isArchived ? "session.unarchive" : "session.archive"),
@@ -159,7 +176,7 @@ export function SessionActionsMenu({
       // 句子全部由已有 key 拼出（三行复制项 → 反馈文案），不新增 i18n。
       footer: footNote ?? `${t("session.copyPath")} · ${t("session.copyTaskPath")} · ${t("session.copyId")} → ${t("session.copied")}`,
     });
-  }, [archive, flags, footNote, onCopyProjectPath, onCopySessionFilePath, onCopySessionId, onExportHtml, onExportMarkdown, onMarkUnread, onRename, onReveal, onViewSystemPrompt, onViewTools, openMenu, pin, session, t]);
+  }, [archive, autoNameDisabled, autoNameTitle, flags, footNote, onAutoName, onCopyProjectPath, onCopySessionFilePath, onCopySessionId, onExportHtml, onExportMarkdown, onMarkUnread, onRename, onReveal, onViewSystemPrompt, onViewTools, openMenu, pin, session, t]);
 
   if (!session) return null;
 

@@ -282,6 +282,10 @@ export function PluginStatusButton({
       label={t("topbar.plugins")}
       icon="blocks"
       title={title}
+      /* fork:tb-slim（2026-10-07 用户裁定）—— 插件这一枚改成**只认点击**：
+         指针扫过顶栏就弹出一整块插件包列表，扫一次弹一次（与 MCP 那一枚
+         同因，见 `openOnHover` 的注释）。 */
+      openOnHover={false}
       onOpenChange={setOpen}
     >
       {() => (

@@ -97,7 +97,7 @@ export function TraceFrame({
   return (
     <div className="fork-trace-pane" style={{ height: "100%", minWidth: 0 }}>
       <div className={isPwa ? "fork-trace-bar" : "d-panel-head"}>
-        <i data-ico="history" data-size="14" aria-hidden="true"></i>
+        <i data-ico="list-tree" data-size="14" aria-hidden="true"></i>
         <span className={isPwa ? "m-t-b" : "d-t-b"}>{t("trace.title")}</span>
         <span className={isPwa ? "m-grow" : "d-grow"} />
         <button
@@ -140,7 +140,7 @@ export function TraceFrame({
           }}
         >
           <div className={isPwa ? "m-viewer-bar" : "d-panel-head"} style={{ flexShrink: 0 }}>
-            <i data-ico="history" data-size="14" aria-hidden="true"></i>
+            <i data-ico="list-tree" data-size="14" aria-hidden="true"></i>
             <span className={isPwa ? "m-t-b" : "d-t-b"}>{title?.trim() || t("trace.title")}</span>
             <span className={isPwa ? "m-grow" : "d-grow"} />
             <button
