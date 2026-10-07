@@ -25,18 +25,25 @@
  * 原实现（fork:ui-wallpaper / fork:zn-19）是自绘的 `settings-wallpaper-*`
  * 一排按钮 + 复选开关，已退役。
  *
- * fork:v5-wallpaper-gallery（本轮补的第三处缺口）—— 画板 D-07b「默认外观壁纸」块
- * 有**五行**，产品先前只有四行：缺的是最后那段「内置壁纸」画廊
- * （`.d-field` + `.d-store-grid` / `.d-store-card`，三格：两张内置画作 + 一格
- * 「自己带图」）。产品其实有这份组件（`BuiltinWallpaperPicker`，工作室在用），
- * 只是设置页这一处没挂 —— 于是「内置画作」在设置里只能看到两条说明横幅
- * （`wallpaperBuiltinNote` / `wallpaperBuiltinActive`），没有可点的入口。
- * 画板那段的约定「两个入口共用一份列表，不各挑一次」正是这个组件的由来，所以
- * 这里直接接它，不再造第二份清单。窄屏（M-05）走同一个组件的 `m-storecard`。
+ * fork:wallpaper-upload-not-builtin（2026-10-07 · 用户实拍）—— 撤掉这里的内置壁纸
+ * 画廊（`BuiltinWallpaperPicker`）。用户原话：「当我开启壁纸后，应该让我上传壁纸，
+ * 而不是直接显示内置壁纸，因为我上面有内置的主题了」—— 内置主题在**上面**的主题
+ * 皮肤条里已有一份，画廊摆在这儿等于同一个东西出现两次。开启壁纸后这一节要让人
+ * 上传 / 选择自己的图，也就是「当前壁纸」那一行的「选择图片」。
  *
- * 画板第三格「自己带图（JPEG / PNG / WebP · SVG 有意拒绝）」由上面那行的
- * 「选择图片」承担：它的 MIME 白名单与体积上限就是那三句话的实现
- * （`WALLPAPER_MIME_TYPES` / `fileToWallpaperDataUrl`），不另画一格点同一个动作。
+ * 这一处原先是 fork:v5-wallpaper-gallery 按画板 D-07b（五行里最后一段「内置壁纸」
+ * 画廊）挂上去的。画廊的另一个入口在皮肤工作室里（`ThemeSkinStudio` 仍挂
+ * `BuiltinWallpaperPicker`），能力没丢；代价是设置里不能再覆盖「用哪张内置画作」——
+ * 主题会按调色板自动配一张（`builtinPaintingFor`）。这条对画板 D-07b 的让步已写进
+ * 报告（本轮文件范围未含 `design/v5/DIVERGENCE.md`，待其宿主补登）。
+ *
+ * fork:wallpaper-no-explainer（2026-10-07 · 用户实拍）—— 「这种副标题也就是解释
+ * 说明的也给我去掉吧」。本组件里三条纯解释句退场：块首的 `wallpaperDescription`
+ * （「在工作区后面放一张图片…」）、「显示壁纸」行的 `WALLPAPER_ENABLED_HINT`
+ * （「关掉时下面两行整块消失…」）、「当前壁纸」行的 `WALLPAPER_CURRENT_HINT`
+ * （「没选过图时这一行只有「选择图片」…」）。口径见 DIVERGENCE §W：设置面只留
+ * 控件标签 / 当前值状态 / 会阻止动作的信息，纯解释「这个设置是什么、为什么这么
+ * 设计」的整句一律删；对应 i18n 键三语同步清掉，不留死键。
  *
  * 图片是用户数据（data URL），缩略图用 `<img>` 而不是 `background-image`（前者
  * 才能套 `ImagePreview` 点开看全图）；几何与边框来自形态表的 `.d-thumb`。
@@ -49,8 +56,6 @@ import { useWallpaper } from "@/hooks/useWallpaper";
 import { localCopy, type LocalCopy } from "./settings-disabled-reasons";
 import { PwField, PwSwitch, stateBadge } from "./SettingsUi";
 import { ImagePreview } from "./ImagePreview";
-import { BuiltinWallpaperPicker, GALLERY_HINT } from "./BuiltinWallpaperPicker";
-import { BUILTIN_WALLPAPERS, type BuiltinWallpaperId } from "@/lib/wallpaper-builtin";
 import {
   WALLPAPER_SCRIM_MAX,
   WALLPAPER_SCRIM_MIN,
@@ -69,27 +74,9 @@ const WALLPAPER_AREA_TITLE: LocalCopy = {
   "zh-TW": "各面適配",
 };
 
-const WALLPAPER_AREA_HINT: LocalCopy = {
-  en: "Letting the wallpaper reach everything makes dense surfaces such as the composer and code blocks hard to read, so each of the three surfaces picks its own level. Chips rather than a dropdown, because a dropdown folds the other two levels behind one arrow.",
-  "zh-CN": "壁纸铺满一切会让输入框与代码块这类密排面读不清，所以三个面各自选一档；用芯片排而不用下拉，是因为下拉把另外两档折进了一个箭头里。",
-  "zh-TW": "桌布鋪滿一切會讓輸入框與程式碼區塊這種密排面讀不清，所以三個面各自選一檔；用晶片排而不用下拉，因為下拉把另外兩檔摺進了一個箭頭裡。",
-};
-
-/* 板面上那两行的说明（`d-set-row-s`）：第一行解释「关掉时下面两行整块消失」，
-   第二行解释「没选过图时只有选择图片」。 */
-const WALLPAPER_ENABLED_HINT: LocalCopy = {
-  en: "Turning it off makes the two rows below (overlay strength / per-surface fit) disappear — they drive the wallpaper, and without a wallpaper there is nothing to adjust.",
-  "zh-CN": "关掉时下面两行（遮罩浓度 / 各面适配）整块消失 —— 它们驱动的是壁纸，没有壁纸就没有可调的东西。",
-  "zh-TW": "關掉時下面兩列（遮罩濃度 / 各面適配）整塊消失 —— 它們驅動的是桌布，沒有桌布就沒有可調的東西。",
-};
-
-const WALLPAPER_CURRENT_HINT: LocalCopy = {
-  en: "Before an image is picked this row only has “Choose image”; afterwards it also has “Replace” and “Remove”. An image over the limit gets a reason you can act on.",
-  "zh-CN": "没选过图时这一行只有「选择图片」；选过之后才有「更换」与「移除」。图片超限会给出可执行的原因。",
-  "zh-TW": "沒選過圖時這一行只有「選擇圖片」；選過之後才有「更換」與「移除」。圖片超限會給出可執行的原因。",
-};
-
-
+/* fork:wallpaper-no-explainer（2026-10-07 用户裁定）—— 「各面适配」下那句「为什么用
+   芯片排而不用下拉」是**纯解释**（设置面只留控件标签 / 当前值 / 会阻止动作的信息，
+   见 DIVERGENCE §W），整条退场；字段标题 `WALLPAPER_AREA_TITLE` 保留。 */
 
 /**
  * Wallpaper settings.
@@ -123,12 +110,10 @@ export function WallpaperSettings({
   const {
     enabled,
     url,
-    builtin,
     scrim,
     inputMode,
     panelMode,
     messageMode,
-    usingBuiltin,
     choose,
     remove,
     setEnabled,
@@ -136,18 +121,11 @@ export function WallpaperSettings({
     setInputMode,
     setPanelMode,
     setMessageMode,
-    setBuiltin,
   } = useWallpaper();
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  /** 当前选中的内置画作 id；空串 = 用户自己的图片（或主题自带的画作）。画廊的
-      选中态读它，所以这一处就是「哪一张内置画作在使用中」的唯一真值。 */
-  const activeBuiltinId: BuiltinWallpaperId | null = BUILTIN_WALLPAPERS.some((item) => item.id === builtin)
-    ? (builtin as BuiltinWallpaperId)
-    : null;
 
   const onPick = () => {
     setError(null);
@@ -232,15 +210,8 @@ export function WallpaperSettings({
 
   return (
     <>
-      {/* fork:v5-landing-frame · D-07b 帧 A —— 块首那句弱化说明（板面原文，单独一行，
-          不是第一行的 `d-set-row-s`）：先说清「遮罩是谁做的」，后面几行才读得懂。 */}
-      <div className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
-        {t("settings.wallpaperDescription")}
-      </div>
-
       <PwField
         label={t("settings.wallpaperEnabled")}
-        hint={localCopy(WALLPAPER_ENABLED_HINT, locale)}
         /* fork:v5-landing-frame · D-07b 帧 A —— 「显示壁纸」那一行原文是
            `.d-grow-last > .d-badge.ok`（开）+ 行尾开关；并且画板明确写着「关掉时下面
            遮罩浓度 / 各面适配整块消失」—— 产品一直就是按 `enabled` 条件挂那两段的。 */
@@ -263,7 +234,6 @@ export function WallpaperSettings({
           点一下开灯箱看全图（聊天里点图放大是同一个组件）。 */}
       <PwField
         label={t("settings.wallpaperCurrent")}
-        hint={localCopy(WALLPAPER_CURRENT_HINT, locale)}
         control={
           <span className="d-row">
             {url ? (
@@ -302,16 +272,13 @@ export function WallpaperSettings({
         }
       />
 
+      {/* fork:wallpaper-no-explainer（2026-10-07）—— 两条横幅的条件完全等价
+          （`enabled && !url` ↔ `usingBuiltin`），内容也都在说「当前显示的是内置画作」。
+          留一条（措辞更清楚的那一条），删掉 `wallpaperBuiltinActive` 与它的三语 key。 */}
       {enabled && !url ? (
         <div className={bannerClass}>
           <i data-ico="info" data-size="14" aria-hidden="true" />
           <span className={isMobile ? "m-grow" : "d-grow"}>{t("settings.wallpaperBuiltinNote")}</span>
-        </div>
-      ) : null}
-      {enabled && usingBuiltin ? (
-        <div className={bannerClass}>
-          <i data-ico="info" data-size="14" aria-hidden="true" />
-          <span className={isMobile ? "m-grow" : "d-grow"}>{t("settings.wallpaperBuiltinActive")}</span>
         </div>
       ) : null}
       {error ? (
@@ -327,7 +294,6 @@ export function WallpaperSettings({
         <>
           <PwField
             label={t("settings.wallpaperScrim")}
-            hint={t("settings.wallpaperScrimDescription")}
             htmlFor="settings-wallpaper-scrim"
             /* fork:v5-landing-frame · D-07b 帧 A —— 「遮罩浓度」那一行原文：
                `.d-grow-last > .d-badge.mute`（36%）+ 行尾 `.d-slider`。 */
@@ -342,14 +308,11 @@ export function WallpaperSettings({
             }}
             control={null}
           />
-          {/* 画板 D-07b「各面适配」：标题 + 一句为什么用芯片排（三面并排，
-              `.d-grid3`；手机档 M-05 是 `.m-grid2`，那边不动）。此前产品只有三个
-              并排的芯片组，没有字段标题与那句判据。 */}
+          {/* 画板 D-07b「各面适配」：标题 + 三个并排的芯片组（`.d-grid3`；手机档
+              M-05 是 `.m-grid2`，那边不动）。fork:wallpaper-no-explainer —— 标题下面那句
+              「为什么用芯片排」的判据退场（纯解释）。 */}
           <div className={isMobile ? "m-fieldrow" : "d-field"}>
             <span className={isMobile ? "m-t-sm" : "d-field-t"}>{localCopy(WALLPAPER_AREA_TITLE, locale)}</span>
-            <span className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
-              {localCopy(WALLPAPER_AREA_HINT, locale)}
-            </span>
             <div className={isMobile ? "m-grid2" : "d-grid3"}>
               {areaField("settings.wallpaperAreaMessage", messageMode, setMessageMode)}
               {areaField("settings.wallpaperAreaPanel", panelMode, setPanelMode)}
@@ -358,16 +321,6 @@ export function WallpaperSettings({
           </div>
         </>
       ) : null}
-
-      {/* fork:v5-wallpaper-gallery —— 画板 D-07b 壁纸块最后一段「内置壁纸」：
-          画廊与皮肤工作室共用同一份列表（`BuiltinWallpaperPicker`），选完立刻生效。
-          它不属于「开了壁纸才有意义」那一组：内置画作在没有用户图片时就是当前壁纸，
-          所以整块常驻（画板也是常驻）。 */}
-      <BuiltinWallpaperPicker
-        activeId={activeBuiltinId}
-        onPick={(id) => setBuiltin(id)}
-        hint={localCopy(GALLERY_HINT, locale)}
-      />
 
       {/* fork:v5-landing-frame · D-07b 帧 A —— 隐藏的取色/选图 `<input type=file>` 挪到
           块尾：板面上它不在 DOM 里（选图由那一行的按钮触发），但产品必须有它才能真的

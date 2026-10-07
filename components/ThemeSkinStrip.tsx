@@ -168,6 +168,11 @@ export function ThemeSkinStrip({
           type="button"
           className={mobile ? "m-btn sm" : "d-btn sm"}
           disabled={activeSkin === null}
+          /* fork:skin-studio-button-edit（2026-10-07 · 用户实拍）—— 用户原话：
+             「打开皮肤工作室帮我改成编辑俩字」。三语标签都改成「编辑」/「Edit」，
+             动作仍是同一个 onEdit（打开工作室），只换标签 —— 原来那六个字在动作行里
+             比旁边「导入 / 导出」两个双字钮长出一截。`settings.skinStudio` 全仓 grep
+             只被这一处用，所以直接改它的值，不另起键。 */
           title={activeSkin === null ? t("settings.skinActionsNeedCustom") : t("settings.skinStudio")}
           onClick={() => activeSkin && onEdit(activeSkin.id)}
         >
