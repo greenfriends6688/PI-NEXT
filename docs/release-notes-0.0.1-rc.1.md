@@ -45,3 +45,48 @@
   现在可以走系统已装的浏览器。
 - 单测有 4 条既有环境性插件用例失败，与本版无关。
 - 源码包见本页下方 Assets，只含受版本控制的源码；装完先装依赖再起生产模式，默认端口 30141。
+
+---
+
+## English
+
+First installable version. This release merges a batch of upstream improvements into the mainline, and per user feedback **rolls the motion layer and glass layer back wholesale**—the interface goes from "semi-transparent + a pile of animations" back to crisp opaque panels, with scrolling and hover also feeling more responsive.
+
+### Added
+
+- **File selection reference**: Selecting a piece of text in a file pops up a toolbar; the selection can be referenced into the current input box, or carried into a new session to ask a question (the selection expands into a file mention). It works in both the text viewer and the document preview.
+- **Auto-compact command**: Added the "/auto-compact" slash command.
+- **Top bar message count**: The top bar shows the number of messages in the current session.
+- **Mention changed files**: A "Mention" button is added to the changed-file row; long paths are elided in the middle.
+- **Preview images before sending**: The input area can preview images to be sent.
+- **Model source icons**: Each model source gets its own icon in the interface; sources registered by extensions themselves also appear in settings and authentication.
+- **Side-by-side patch diffs**: Changes from patch-type tools render as a side-by-side diff view.
+- **Images visible when collapsed**: Tool cards still show result images when collapsed; tool blocks stay expanded during streaming updates.
+
+### Changed
+
+- **Motion rolled back wholesale**: Removed entrance animations, blinking cursors, stage dots and global press transitions; focus rings, keyboard accessibility and the "reduce motion" fallback are retained.
+- **Glass layer rolled back wholesale**: Removed all background blur and glass overlays; overlays return to an opaque background color.
+- **Buttons only on hover**: Lists go back to showing rename and delete only on per-row hover; the trade-off is that after deleting a row, the next row under the cursor no longer automatically reveals these two buttons.
+- **Plugin card order**: Extension widgets keep their original order when updating.
+- **Extension dialogs**: Dialog titles support code fences, and extension dialogs can dock to the bottom.
+
+### Fixed
+
+- **Duplicated first chunk**: The first character chunk of streaming was rendered twice.
+- **Shutdown leftovers**: The event stream is closed on shutdown, no longer leaving zombie processes and 502s.
+- **Tool-heavy sessions**: The long-context window now counts only visible messages, so sessions with many tool calls no longer starve user messages.
+- **Large file uploads**: Increased the request body buffer, so uploads over 10MB no longer return 500.
+- **Usable when offline**: Falls back to the cached app shell when offline.
+- **Cross-process session reads**: Sessions written by other pi processes can be read.
+- **Large repos no longer time out**: Fetch from the remote first when creating a worktree, and relaxed the git timeout for large repos.
+- **Windows compatibility**: Plugin path separators are normalized, and plugin update checks bypass the Windows launcher.
+- **RISC-V startup**: Disabled Wasm lazy compilation.
+- **Handshake and login state**: The handshake token now uses system randomness, and the session cookie is tightened to same-site.
+- **Delete button not appearing**: The delete button would disappear after the list position changed.
+
+### Known
+
+- The end-to-end suite actually ran for the first time in this release: the previously bundled browser engine had no matching build for the local system, but now it can use the browser already installed on the system.
+- Unit tests have 4 pre-existing environment-related plugin test failures, unrelated to this release.
+- See Assets at the bottom of this page for the source package, which contains only version-controlled source; after installing, install dependencies first and then start production mode, default port 30141.

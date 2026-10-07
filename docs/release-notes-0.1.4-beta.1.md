@@ -33,3 +33,32 @@
 - 本包是**源码包**，桌面安装包（DMG / exe）不在本次发布里。
 - 更新检查只认稳定版，所以这个 beta 不会推给 0.1.4 用户。
 - 仓库里有 5 个测试失败不是本次改动引入的（3 个在改动前的基线上同样失败，2 个是环境性用例）。
+
+---
+
+## English
+
+This version lands the entire design system: 12 generic components, the chat page wired up to the thinking indicator and busy halo, unified typography and scroll fade, and fixes for real defects such as streaming appends causing old content to reflow. Zero new dependencies.
+
+### Added
+
+- **A set of generic components**: a thinking indicator (four forms + shimmer + elapsed-time timer), an input-box busy halo (three bands of light orbiting along the edge), line-by-line / block-by-block reveal, an app-level toast (queue, action buttons, hover-to-pause countdown), plus key labels, dividers, badges, chips, status dots, avatars, and the empty-state / skeleton / loading trio.
+- **Chat page wired up to the new components**: the phase row is replaced with the thinking indicator; during streaming output the input box shell background is transparent, so the busy halo is no longer covered by the base color; "running a command" shows shimmering text; new answer blocks fade in, and blocks already on screen do not replay.
+- **Typography and scroll fade**: font size / line height / paragraph flow are adjustable in three tiers, and it is agreed that old content is not reflowed during streaming appends; the fade uses a mask + scroll-driven animation with no script running, and tightens automatically at the end.
+- **Loading and error states**: the session list shows skeleton rows while loading, and shows an empty state with a "Retry" button on error; the file viewer also has skeleton rows while loading; exporting Markdown shows a success prompt.
+
+### Changed
+
+- **Animations carried over only as needed**: only the shimmer, dark shadows, table and checkbox drawing, and the thinking indicator and busy halo animations are kept; the base color, mobile input-box font size, and view transition resets are left untouched, avoiding conflicts with the existing shell.
+
+### Fixed
+
+- **Old content reflows during streaming appends**: when a new paragraph or new line arrives, the previous paragraph suddenly grows a bottom margin and the previous line's bottom border disappears; the cause was a reset rule left for the last element, which has now been removed.
+- **Dark mode follows the system instead of the app**: the dark-mode styles in components previously followed the operating system theme rather than the app's own theme switch.
+- **The design token gate kept giving false positives**: variable references in comments, Tailwind's built-in palette, and dynamically assembled names were all treated as missing tokens; each category has now been excluded, and the gate is green again.
+
+### Known
+
+- This package is a **source package**; the desktop installer package (DMG / exe) is not part of this release.
+- The update check only recognizes stable versions, so this beta will not be pushed to 0.1.4 users.
+- The 5 failing tests in the repository were not introduced by this change (3 also fail on the pre-change baseline, and 2 are environment-dependent cases).

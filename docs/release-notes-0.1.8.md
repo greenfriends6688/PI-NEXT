@@ -53,3 +53,47 @@
 
 - 定时任务的星期芯片选中态这一节不在设计画板内，形态以界面实际为准。
 - 桌面包（DMG）**本版没有重新打包** —— 这一版是源码发布，装桌面版请等下一次打包。
+
+---
+
+## English
+
+This release takes care of three backlogged items at once: **mobile went from "isomorphic" to "accurately tappable"**, **scheduled tasks and three inbound channels are wired in**, and **a batch of real font-size and layout defects are fixed**. The desktop form is untouched, down to the word.
+
+### Added
+
+- **Mobile "More Actions" grid**: actions that don't fit in the top bar on narrow screens (call trace, generate title, subagents, branch, export HTML / Markdown, send image) move into a seven-cell grid above the input card, each cell with a text label, so you no longer have to guess what an icon is.
+- **Mobile top-bar session identity subrow**: `directory name · context N%`, showing at a glance "which directory I'm in and how much context is left".
+- **Scheduled tasks**: run automatically unattended, opening a sub-session each round with tool calls auto-approved. A new "Scheduled Tasks" section in Settings lets you configure the prompt, model, interval, day of week, and exact time, and keeps run history.
+- **Three inbound channels**: Telegram, WeChat, Feishu / Lark. Works right after scanning a QR code, no pre-built app needed; the first sender is bound automatically, and afterward only people on the allowlist can start agent sessions.
+- **Outbound push**: Feishu, WeCom, DingTalk, Slack, Telegram + self-hosted webhook, so the agent can proactively send you messages.
+- **Mobile QR-code connection**: opening "Mobile & Push" for the first time generates an access token and displays a QR code / 6-digit pairing code; the toggle takes effect immediately with one click, no command line needed.
+- **agent ↔ agent mailbox**: a single `agent_mail` tool fills in the three directions child→parent, sibling↔sibling, and parent→all (previously only parent→child); messages are not lost even when the other session is currently offline.
+- **MCP switched to pi 1.0 official primitives**: config read/write, validation, and OAuth all go through the official implementation, and it supports discovering and merging existing servers from other agents (Claude Code / Codex / Cursor / VS Code). Also added codemode / tool-search exposure, secret masking, three import sources, undo, and connection logs.
+- **"Use Default Directory"**: opens a new folder per day, so first-time users don't land in a directory already piled with data.
+- **Mac skeuomorphic material skin**: a solid-panel feel rather than glass, with the dark-mode accent color retuned to pass contrast requirements.
+
+### Fixed
+
+- **Controls were "hard to hit" on mobile**: hit areas on many buttons were too small (close button 11px, overview button 28px, bare header button 24px, bottom-bar phone button 22px); all are now enlarged to finger-reachable sizes without changing the visual size.
+- **Two toolbars covered content**: the narrow-screen top-bar strip covered the session title, and the input-area second row hid the context ring and sound; both were removed and changed to always-on rows.
+- **Toolbar wrapping on short landscape screens**: in landscape, height should be a scarce resource; testing previously showed two rows eating about 150px on a 390-tall screen, and now it is always a single row.
+- **Body font-size display did not match rendering**: Settings showed 13px while body text actually rendered at 14px; this has been merged back into the five design tiers.
+- **Scheduled-task panel too cramped**: the prompt box was squeezed to a 28px single line, number inputs stretched to fill the whole column, day-of-week chips had no gaps, and run history was a bare list; all are now corrected, and four duplicated pieces of copy were cleared out.
+- **Sidebar list pull-to-refresh**: on mobile there was previously only running-state polling, and newly created sessions on PC had no refresh entry point.
+- **9 copy buttons lacked failure feedback**; **9 places did nothing when clicked** (MCP / plugin icons, the system prompt and tool definitions in the ⋯ menu, etc.) and were located one by one and fixed.
+- **Config-watch test randomly red**: `fs.watch` drops events under load; changed to "wait for condition + resend".
+- **Merge dropped comments and left dead styles behind**: comments were restored and unused CSS cleaned up.
+
+### Removed
+
+- **The "Tasks & Schedule" workspace**: the functionality returns to the to-do in the top-left of the input box, and the bottom-sticky overlay in the middle is removed.
+- The two sections **"Project Knowledge" and "Thinking-tier Token Budget"**.
+- **The change-source panel**: the right column already has a git graph page rendering the same data.
+- The two duplicate entries **"Go to Settings" and "Call Trace"** in the ⋯ menu (already in Settings and the grid).
+- **Duplicate tab rendering** (the call trace and git graph each rendered twice), and a count assertion was added to prevent recurrence.
+
+### Known
+
+- The selected state of the scheduled-task day-of-week chips is not in the design artboards; its form is as actually shown in the interface.
+- The desktop package (DMG) **was not repackaged for this release** — this is a source release; please wait for the next packaging to install the desktop version.

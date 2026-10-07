@@ -36,3 +36,38 @@
 ## 已知
 
 - 发行包不含内部规划与台账文档（docs/）。
+
+---
+
+## English
+
+This version fills in the feature surface of upstream 0.9.2, condenses appearance settings into a single place, and switches to a new app icon and name. The archiving chain is truly closed-loop this time.
+
+### Added
+
+- **Per-model toggle**: in Settings → Models you can enable / disable per model individually, and also operate in bulk by provider; existing selections and thinking-level settings are all preserved, and when a project-level configuration exists the interface clearly indicates that it is currently read-only.
+- **Refresh model catalog**: after a provider releases new models, one click gets you the latest list without waiting for an app update; when offline it clearly indicates so.
+- **Thinking level request profile**: the configuration page shows per level "what request parameters this level will actually send", recalculated in real time as you change settings.
+- **Archive history**: Settings → Archive centrally lists all archived sessions grouped by project, where they can be restored or permanently deleted.
+- **Tabs each remember their own session**: refreshing one tab will not be hijacked by the session most recently opened in another tab.
+- **Minimap enhancements**: hover preview shows how many times tools were called per turn, with the current turn marked in an accent color.
+
+### Changed
+
+- **Appearance in one place only**: wallpapers are merged into the "theme skin" card, and skin editing returns to a popover; skins support light / dark color variants, and built-in wallpapers serve directly as built-in skins in the card, taking effect with one click and remaining editable.
+- **Sidebar project rows**: a "⋯" menu (open folder / rename / remove from list) and a "+" (create a new session under that project) are added; "open folder" invokes the system folder picker; the project dropdown for new tasks and the redundant buttons in the project bar are removed.
+- **New name and new icon**: interface copy, window title, PWA name, and installer display name are all unified as PI NEXT, and the icon is new.
+- **Full history** is still opened from the export page, with no app-embedded panel.
+
+### Fixed
+
+- **Sessions go missing after archiving**: archived sessions were filtered again by the project partition, so the "Archived" section was always empty, and clicking archive was tantamount to hiding the session; now archiving and restoring are both closed-loop in archive history.
+- **The system prompt panel is blank**: prompts read from old sessions were empty; this is changed to prefer the currently effective one at runtime.
+- **Sub-agent icons are squeezed small**: a fixed button width squashed the icon into a thin strip; this is changed to expand to fit the content.
+- **The popover disappears as soon as the mouse moves**: slight jitter from the trackpad was treated as scrolling; now such tiny movements are simply ignored.
+- **Thinking levels don't match actual behavior**: the level mapping, off branch, and budget boundaries now match real behavior.
+- **Several interface details**: the session / file panel, scrollbars, extension dialog title wrapping, extension option focus ring, and login page rate-limit prompt are all fixed along with them.
+
+### Known
+
+- The distribution package does not include the internal planning and ledger documents (docs/).

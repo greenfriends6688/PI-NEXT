@@ -35,3 +35,35 @@
 
 - 本版是**源码发布，没有桌面安装包**；要装桌面版需自行打包，打包流程带构建硬门禁与冒烟检查。
 - 与 Windows 线是零冲突合流，远端此前的记忆、定时通知、思考折叠、弹层焦点等改动在本线已存在，未重复引入。
+
+---
+
+## English
+
+This release merges the Windows line into the mainline: **tool approval and three permission levels, plan mode, and rollback to any message** all land at once, plus per-item queue control, inline references, relaxed attachments, and multi-root file trees. Source-only release, no desktop installer.
+
+### Added
+
+- **Three permission levels and approval**: tool calls can be set to fully automatic / needs approval / plan. Any tool call that is not read-only first pops up an approval card, and only executes after you confirm.
+- **Plan mode**: the third level between the other two, running at the strictest permission level; calls other than read-only likewise have to pass approval first.
+- **Roll back to here**: truncate the session at any message and return to the scene at that moment. Because it is a destructive operation, it always confirms first; files already written to disk are not rolled back.
+- **Per-item queue control**: the pending queue supports withdraw, delete, drag-to-reorder, and "Send now"—the one that is sent is promoted to a steering message, meaning it jumps ahead while everything queued before it has not been sent yet.
+- **Inline references**: in the input box, `&` references sessions, `#` references MCP services, and `~` references todos; a candidate overlay appears as you type, and the selected reference is saved along with the draft and is still there after closing and reopening.
+- **Relaxed attachments**: any file type can be uploaded, and an upload limit is set; going over the limit automatically degrades to a path reference rather than failing outright; the drag-and-drop entry and other entries now behave the same.
+- **Multi-root file tree**: the file tree supports multiple roots, each with a scope badge, so you can tell at a glance which scope layer each file belongs to; in a worktree session an extra "Project" root no longer appears. Details such as empty directory display and retry are also fixed.
+
+### Changed
+
+- **Unified font sizes**: inline font sizes scattered throughout are all brought into unified size levels, so an odd one-off font size no longer appears somewhere.
+- **Patch ledger started**: the first few batches of changes each leave a separately replayable patch, along with a zero-dependency replay tool; later versions can review by batch and also roll back by batch.
+
+### Fixed
+
+- **Session restore occasionally jumps to the welcome page**: when opening with a session parameter, installations that have a workspace landed on the welcome page instead of the original session.
+- **Commands silently fail**: dev and build commands on Windows neither errored nor executed, as if nothing happened; now they run properly.
+- **Desktop package included extra files**: the packaging file exclusion rule was wrong, so extra files were packed into the desktop package.
+
+### Known
+
+- This release is a **source release with no desktop installer**; to install the desktop version you need to package it yourself, and the packaging flow includes a hard build gate and smoke checks.
+- The merge with the Windows line was zero-conflict; the remote line's earlier changes such as memory, scheduled notifications, thinking collapse, and overlay focus already exist on this line and were not re-introduced.

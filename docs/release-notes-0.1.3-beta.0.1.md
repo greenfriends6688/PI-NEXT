@@ -37,3 +37,34 @@
 - 本版是**源码发布**，没有桌面安装包，也没有现成的可执行文件；需要桌面版请自行打包。
 - 发布物是完整源码压缩包，不含依赖目录；解压后装好依赖即可运行。
 - 类型检查、测试、主题校验与对比度三套门禁全绿，生产构建通过。
+
+---
+
+## English
+
+This version replaces the entire visual language with a unified design system, and **condenses themes into three options: light / dark / follow system**: colors, font sizes, and corner radius are all supplied by the design system, light and dark follow automatically, and there is no longer an in-between state between themes where you "can't tell if it's gray or blue". Pure source release.
+
+### Added
+
+- **Full semantic color integration**: all color slots are now supplied by the design system's semantic colors, no longer hardcoded separately in each place — the same "secondary text" refers to the same value on the canvas, sidebar, and dialogs. Font size, line height, letter spacing, and font weight are likewise bound together at once by a complete set of typography styles, so text at the same level does not look different across pages, and light/dark themes follow automatically.
+- **Contrast gate**: a new automated check is added; all 8 foreground / background combinations across light and dark must reach WCAG AA, and failing that does not pass, so you no longer have to gamble with your eyes.
+- **Keyboard focus ring**: the message action row and input-area controls were previously all inline styles with no hook to attach focus to, so keyboard users could neither see where focus landed nor easily tell whether an action was available here; now wherever focus goes, it can be seen.
+- **List row entrance animation**: list rows appear with a transition; it turns off automatically when the system enables "reduce motion".
+- **Switch to the Inter font**: Latin characters use Inter, with Chinese falling back to PingFang.
+
+### Changed
+
+- **Only three themes remain**: light / dark / follow system. Light and dark follow automatically; when the system switches to night mode, the interface switches along with it, so you don't have to remember to come back and change it yourself.
+- **Corner radius redistributed**: panels and dialogs use a large 24px radius, while controls and list rows keep 10 / 6px, making the gap between the two tiers wider so you can tell at a glance which layer floats above.
+- **User bubbles and input area**: user bubbles change to a 16px radius with a light shadow; the input area changes to a 24px large-radius card, and the former "two-segment" style that welded the input box and project bar together is cancelled, making the hierarchy between the two clearer.
+- **No longer reads command-line-side themes**: themes come only from the app itself; it no longer reads the command-line side's theme directory and built-in theme registry, so the two sides' settings won't override each other and the theme you picked here won't be changed over there.
+
+### Removed
+
+- **Three old palettes**: the mist / rose / pine palettes are deleted, leaving only light / dark / follow system; already-saved old theme preferences fall back automatically, so they won't become a blank area or leave behind a settings entry that can't be read.
+
+### Known
+
+- This version is a **source release**, with no desktop installer package and no ready-made executable; if you need the desktop version, please package it yourself.
+- The release artifact is a complete source archive and does not include the dependency directory; after extracting, install the dependencies and it can run.
+- The three gates of type checking, tests, and theme validation plus contrast are all green, and the production build passes.

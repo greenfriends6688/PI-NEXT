@@ -84,3 +84,120 @@
 - **远程部署**：MCP 的 OAuth 回调只听 `127.0.0.1`；除 host-only 名单外的宿主环境变量
   仍会传给 stdio server 子进程。
 - 源码包**不含** DMG / EXE（要安装包走打包技能，产物用同一套 asset 接口补传到这个 release 上）。
+
+---
+
+## English
+
+> 123 commits after 0.1.8: the V5 design system fully landed (both Web and PWA forms swapped in one pass),
+> the settings surface redone, the phone shell and out-of-home 5G connected, plus a batch of genuinely new
+> capabilities (image generation, memory, web search, scheduled tasks, usage). This version also went from
+> "can run" to "can measure" — every form correction carries a board-alignment or structure guard, and every
+> user report is measured before it's changed.
+
+Scope: `v0.1.8..HEAD` — **906 files, +122,973 / −22,287 lines**, 123 commits.
+
+### Added
+
+- **V5 design system landed (Web · `d-*`)**: boards copied into the product one by one — workbench and new
+  session, sidebar and top bar (project tree / session three states / collapse rail / session actions ⋯),
+  the full transcript set (process timeline, tool cards, code, diff, failure retry, unread divider), input
+  box and all floating layers, right column six panels, file viewer multi-mode, all settings sections
+  (modal and full-page two hosts), command center, plan card and queue, system states and dialogs.
+- **V5 design system landed (PWA · `m-*`)**: all phone boards landed — session page and drawer, phone
+  transcript, input card and capability panel, settings two levels (hub → section secondary page), store /
+  scheduled tasks / usage three top-level pages, files and terminal (including soft keyboard key rows),
+  browser and command center, install/update trust, gestures and system states, phone right column six panels.
+- **Settings surface redone**: one column of sections (General / Models / Image generation / Skills /
+  Subagents / Plugins / Memory / Web search / MCP / Scheduled tasks / Usage / Archive / Import / Phone &
+  push), long sections truly scroll; the models page becomes a single column of clickable rows + detail
+  modal, cutting three duplicate entry points; add and edit for subagents / plugins / MCP / import all go
+  through modals.
+- **Image generation model (`generate_image`)**: a profile independent of the chat model (presets each have
+  endpoint / key / model / size, key stored and read masked), three request dialects matched word-for-word
+  against reference implementations; "Test" really produces an image; the tool returns only path and size,
+  and the image renders through the URL-source channel.
+- **Memory section**: the toggle for the third-party memory extension is **the app's own preference** (it
+  doesn't touch other runtimes), off by default; memory documents are viewable and editable, and the render
+  pane shows one block at a time with rendering and source switchable.
+- **Web search (`web_search`)**: an API-key-free provider chain (self-hosted SearXNG / Bing / DuckDuckGo /
+  Mojeek / multi-engine aggregation), failures reported honestly one by one (who got rate-limited / who
+  timed out / who isn't configured); endpoints only allow http(s), and cloud metadata addresses are always
+  rejected.
+- **Phone shell and out-of-home 5G**: a separate subproject `mobile/` (iOS / Android shells, sync,
+  notifications, mirror repo), LAN binding changed to dual-stack (`0.0.0.0` → `::`, cellular goes IPv6
+  direct), `npm run tunnel` to go out with one command, a "5G control" card on the settings page
+  (start/stop / see address / scan to pair).
+- **Instant tooltip (`InstantTooltip`)**: hovering over an icon button immediately shows its name, no more
+  waiting for the native `title`; accessibility attributes and accessible names are unaffected.
+- **Command center and device viewport**: ⌘K three-domain grouping, matched fragment highlighting, recent
+  opens; five device presets + rotation + framing.
+- **Two more font-size steps**: `--nx-f-2xs`=10, `--nx-f-xl`=18; reading body line height becomes its own
+  `--nx-lh-reading: 1.75`.
+- **Desktop shell wired to the LAN binding supervisor**: the "Start / Stop" in the UI really works in the
+  packaged build too.
+
+### Fixed
+
+- **Session row overlap** (user reported "ghosting"): row spacing was hardcoded 48/54 while v5's rows are
+  58.9. The true value is now measured from the first row's box height, with window and offset sharing the
+  same number; the height of the row-end controls is reserved in the meta grid, so row height is
+  independent of state.
+- **Timeline's two kinds of lines / vertical line ends not reaching the icons / tool card header first-line
+  alignment**: aligned value-by-value into one line, both ends landing on icon centers, and the gap between
+  the tool name and the command's first line reduced from 3.2px to 1.1px.
+- **Server-side cache not rotating** (real bug): `sw.js`'s `CACHE_VERSION` previously only took the package
+  version, which didn't change across dozens of builds during development, so a PWA installed to the home
+  screen kept eating old chunks. Changed to package version + source fingerprint.
+- **Floating windows / popovers entirely mispositioned when a skin is on** (one root cause, five symptoms):
+  an ancestor with `backdrop-filter` became the containing block for descendant `position: fixed`. The
+  model floating window, the session branch floating window, and the six popovers in settings are all
+  changed to portal to body, with the positioning algorithm unchanged by a single character.
+- **Popovers in settings are no longer "nested inside the settings modal"**; shared context menus /
+  dropdowns are no longer covered to blank by the settings modal.
+- **Wallpaper section converged**: after enabling wallpaper, uploading is offered (no longer only showing
+  built-in artwork), the explanatory sentence is retired, and the built-in gallery and skin studio no
+  longer each put up a copy.
+- **Skin studio**: two sliders were dead in the preview (layer order issue), the name was empty when
+  editing a built-in skin, and wallpapers got crossed (built-in definitions were overwritten) — fixed one
+  by one.
+- **Import page**: the detail-selection modal gains "Confirm import", the entry button is made obvious, and
+  it's searchable inside the modal; the checkbox of a multi-select row no longer takes a whole line by
+  itself.
+- **The backoff budget for service crash restarts never took effect** (always 1s, the cap never triggered).
+- Plus a batch of user screenshots changed one by one: top bar slimmed down, focus ring tiered by input
+  modality, "scroll to latest" button position, subagent sessions collapsed by default, top bar floating
+  windows close on outside click, context floating window mid-gap too wide, favorite star two readings,
+  minimap returned to its 0.1.8 form, call trace filling the pane, thinking body character-by-character
+  reveal sped up, narrow-screen toggle geometry and drawer chrome.
+
+### Removed
+
+- **Voice input**: this round had added it (browser-native recognition + local offline model), but before
+  finalizing it was taken offline entirely by user decision — the microphone button on the input card, the
+  settings section, `/api/voice`, the local model download, and the wasm runtime in `public/vendor` (about
+  55MB) all retired together.
+- **Explanatory copy on the settings surface**: the page-header description retired entirely, and pure
+  explanatory sentences in each section were removed by the same standard (the settings surface keeps only
+  control labels, current values, and information that would block an action).
+- **Duplicate entry points in the top bar**: "Generate session title" moved into the session actions ⋯
+  menu (next to "Rename"), "Export Markdown" and the MCP icon retired; Rename in the session actions ⋯
+  changed to in-place title editing.
+- **Removed form pieces**: the outline depth slider, the avatar-click version-number-roll easter egg, the
+  second "Confirm import" card on the import page, the empty-state line "Do something in …?", duplicate
+  section titles in settings, the entire Deno self-hosted relay, and the old skin layer.
+
+### Known
+
+- **Form transition period**: `verify:boards` geometric alignment coverage is 19/30 (add the spec for
+  whichever board you change); real-device Safari / iOS 16.2 and Playwright WebKit are still unverified.
+- **The style literal gate is red**: 11 keys exceed the baseline (`AgentSessionPanel` / `ChatInput` /
+  `CodeFileEditor` / `app/error.tsx` / `app/pair`, etc.). This round did not run `--update` to re-freeze the
+  baseline — that would launder new literals into "existing". To close it out, each one has to be replaced
+  with a token.
+- **PWA library gaps**: a few pieces such as code highlighting color separation, quotes, and side-by-side
+  diff are not defined in the PWA library, so on phones they fall back to the basic form or desktop classes.
+- **Remote deployment**: MCP's OAuth callback only listens on `127.0.0.1`; host environment variables
+  outside the host-only list are still passed to the stdio server child process.
+- The source package **does not include** DMG / EXE (for installers use the packaging skill, and upload the
+  artifacts to this release via the same asset interface).

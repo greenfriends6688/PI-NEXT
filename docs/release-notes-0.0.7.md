@@ -27,4 +27,33 @@
 
 ## 已知
 
-- 本版只发源码包 `pi-codex-source-v0.9.1.6.zip`，需自行安装依赖并以生产模式启动。
+- 本版只发源码包，需自行安装依赖并以生产模式启动。
+
+---
+
+## English
+
+This is the release after three consecutive rounds of landing, with four capabilities wired up at once: **todos, scheduled tasks, and long-term memory** each now have a proper entry point, and **MCP is split into its own settings menu** with one-click import from common agents; the focus of the UI this round is making long sessions easier to manage.
+
+### Added
+
+- **Todos**: the model can register todos directly in a session, and the list rolls back when branching back; there is a progress capsule above the input box, plus a read-only task panel.
+- **Scheduled tasks**: supports three cadences—daily / weekly / once—configured with a 5-field cron expression; you can set an idle window (outside the window it is deferred to the window start), time zone, task-level model and thinking level, and run history is retained.
+- **Long-term memory**: memory is persisted to disk as markdown, and can be toggled in settings; files can be created, previewed, edited by hand, and opened in the editor.
+- **MCP standalone settings menu**: split out from the plugins page, so the same set of services no longer appears in both places; it can read-only discover and one-click import from Claude Code / Codex / Cursor / VS Code / Gemini / OpenCode / Windsurf.
+- **Export Markdown**: export from the top bar ⋯ menu; tool calls are compressed into one line and results are collapsed and truncated.
+- **Title as session switcher**: clicking the session title pops up the 10 most recent, and you can create a new task directly.
+- **Turn summary**: one sentence stating how many files were changed, how many commands were run, and how many tools were used this turn.
+- **Settings search**: search within settings with matches highlighted; there are also three interface density levels and browser viewport presets.
+- **File action menu**: copy path, open in file manager, open with default app.
+- **Session status markers**: 5 selectable levels, sortable and toggleable, and can expand / collapse all with one click.
+
+### Changed
+
+- **Tab overflow collapse**: when tabs don't fit they collapse into a single button, the active tab is never hidden, and the collapse button takes up its own width.
+- **New session home page**: the empty state is condensed into a workspace capsule, and the overlay now enters in two stages.
+- **UI details**: input box hint carousel, two-state morphing of the copy icon, and typesetting line-break handling for numbers and Chinese.
+
+### Known
+
+- This release only ships a source package; you need to install the dependencies yourself and start it in production mode.

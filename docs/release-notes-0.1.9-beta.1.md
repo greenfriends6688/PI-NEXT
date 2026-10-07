@@ -51,3 +51,75 @@
 - **设置族几何规格**仍是 V1 选择器，需要一份「设置壳 V5 类名对照表」才能收口。
 - **测试基线**：3560/3569 通过；两个失败是换皮前既有问题（`lan-access` 网络绑定判定、
   `gfm-autolink-email-loader` 在路径含空格时的编码比较）。
+
+---
+
+## English
+
+> The V5 design system fully landed — both Web and PWA forms swapped in one pass.
+> Pre-release channel: features are usable, but the form transition period still has a few gaps (see "Known").
+
+### Added
+
+- **V5 design system landed (Web · `d-*`)**: 38 boards copied into the product one by one — workbench and
+  new session, sidebar and top bar (project tree / session three states / collapse rail / actions ⋯), the
+  full transcript set (process timeline, tool cards, code, diff, failure retry, unread divider), input box
+  and all floating layers, right column six panels, file viewer multi-mode, settings 11 sections (modal and
+  full-page two hosts), command center, plan card and queue, system states and dialogs.
+- **V5 design system landed (PWA · `m-*`)**: all 12 phone boards landed — session page and drawer, phone
+  transcript, input card and capability panel, settings two levels (hub → section secondary page), store /
+  scheduled tasks / usage three top-level pages, files and terminal (including soft keyboard key rows),
+  browser and command center, install/update trust, gestures and system states, phone right column six
+  panels. Added 12 narrow-screen components under `components/pwa/`.
+- **Command center completed** (⌘K): three-domain group titles, matched fragment highlighting (only bold
+  the hit, no full-row background), searching skeleton, "recent opens" for an empty query, empty state with
+  `>` `#` `@` prefix descriptions.
+- **Device viewport completed**: five device presets (iPhone 15 / 16 Pro Max / SE / Pixel 9 / Galaxy Tab),
+  rotation, logical viewport and DPR readout bottom bar; width preset / device / free size three segments
+  mutually exclusive.
+- **Plan card**: bottom bar gains the save-to-disk date.
+- **Context ring floating window**: full session details (session info / messages / Token three sections
+  side by side, narrow screens automatically fall to one column).
+
+### Fixed
+
+- **Step timeline icons lost their rings**: 13 steps read as a string of green circles; changed to vertical
+  line + icon + text to express the timeline (failed / running still use status colors).
+- **Step rows left-aligned**: in the boards it's a `div`, in the product it's a `button` with UA-default
+  centering; same-category board pieces get UA reset uniformly.
+- **Todo chip and input box left-aligned**: moved from inside the card to the context bar outside the card,
+  same width as the input card and centered the same.
+- **Context ring floating window can't be clicked open**: the floating-window class was hung on an inner
+  node, so a 316px-tall panel had 233px falling out of the viewport; after moving it to the floating host
+  itself it's fully on screen.
+- **Two real bugs**: `getServerSnapshot` created a new object every time, causing React to re-render
+  repeatedly; the app home page stylesheet had a dangling declaration block (which would make the page
+  return 500 directly).
+- **Old layer cleanup**: about 950 lines of dead CSS deleted; still-effective behavior rules (phone hit
+  areas, model chips not squashed, macOS traffic lights given way, viewer actions on the right) redirected
+  to v5 class names.
+
+### Removed
+
+- Old skin `pw-*` classes fully retired from the product DOM (ones used as selectors by scripts or tests are
+  kept and annotated one by one).
+- 21 geometric alignment specs migrated to v5 selectors; the coverage inventory now also counts V5 boards.
+
+### Known
+
+- **Form transition**: some narrow-screen parts (no corresponding piece in the PWA library) still use `d-*`
+  DOM with PWA token values; visually consistent but class names aren't split by form.
+- **PWA library gaps**: `m-tok-*` (code highlighting color separation), `m-cite`, `m-quote`, `m-tasklist`,
+  `m-mention`, `m-math`, side-by-side diff, `m-loader` (running surround light band), `m-think-*`
+  (four-state thinking) are not defined in `design/v5/pwa/system.css`, so the related content falls back to
+  the basic form or desktop classes on phones.
+- **New capabilities awaiting your decision** (boards marked "proposal", product has no data source yet,
+  not invented unilaterally): real device simulator (`simctl`/`adb`), 6-step first-run onboarding with
+  persisted onboarding progress, saved workflows, viewport screenshot capture, plan step timeline,
+  extension slot declaration table and a "each slot can be turned off" toggle, and a third directory-trust
+  state "never trust".
+- **Settings family geometry specs** are still V1 selectors and need a "settings shell V5 class name mapping
+  table" to close out.
+- **Test baseline**: 3560/3569 passing; the two failures are pre-existing issues before the reskin
+  (`lan-access` network binding determination, `gfm-autolink-email-loader` encoding comparison when the path
+  contains spaces).

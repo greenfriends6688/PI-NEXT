@@ -38,3 +38,36 @@
 - 源码包见本页下方 Assets，只含受版本控制的源码；装完先装依赖再起生产模式，默认端口 30141。
 - 单测有 4 条既有环境性插件用例失败，与本版无关；桌面与手机两轮端到端用例全通过，
   另做了一轮覆盖式人工巡检，控制台无报错。
+
+---
+
+## English
+
+This release reworks the workspace: **the file tree goes from "a fallback inside the panel" to a right-side tree column alongside the document**, **the built-in browser panel officially launches**, and **the light theme reverts from warm sand to pure white**.
+
+### Added
+
+- **Built-in browser panel**: The globe icon in the top bar creates a new browser tab; the panel has an address bar (bare domains automatically get https, local addresses get http), forward/back, refresh and "Open in new window"; it is built the same way as terminal tabs, and switching tabs does not reload.
+- **Two viewer buttons**: One is true fullscreen, and one expands within the column (giving the file tree's space to the document); the two do not interfere with each other.
+- **Tree header shows the directory name**: The file tree header shows the name of the currently listed directory, with the full path on hover.
+
+### Changed
+
+- **Light theme back to pure white**: The warm-sand background of the previous release actually looked dirty; it has now reverted to pure white with neutral gray interaction layers; mist and rose still keep a very faint color cast, but only when that palette is actively selected.
+- **File tree can coexist with documents**: The layout becomes four columns—session sidebar, chat, document, file tree—and chat is no longer moved away; when the panel is narrower than 760px the tree column automatically hides.
+- **Sidebar line spacing**: Row height and pill inset are readjusted, adjacent rows no longer stick together, and the project title is separated from the first session.
+- **Opening a file no longer expands the secondary area**: Only when the panel is too narrow does it widen once to the smaller of 58% of the viewport and 1020px.
+- **Text editing opened up**: The editability check changes from a whitelist to a blacklist—archived, binary, image, audio/video and office documents are not editable, and everything else (including unknown extensions) can be edited as text.
+
+### Fixed
+
+- **Preview completely blank**: The editor that the Markdown preview depends on is lazy-loaded, and a load failure left a permanent white screen with no error (the typical scenario is an old page requesting files that have been replaced after a service rebuild); a loading skeleton and error boundary are now added, falling back to a static preview with "Reload" on failure.
+- **Failure disguised as an empty directory**: The file tree used to treat "no file list in the response" as an empty directory too, falsely reporting "No files found"; now it reports the real reason directly.
+- **Editor silently becomes read-only**: The fallback view now states it explicitly and offers one-click reload.
+- **Toggle unclickable in the empty state**: The workspace boundary toggle was covered by chat area elements in the empty state; it has been raised to a non-overlapping layer.
+
+### Known
+
+- The capability boundary of the built-in browser: pure web can only use an iframe, and sites that declare X-Frame-Options or frame-ancestors will white-screen and cannot be embedded; the panel already shows a notice and gives a way out; local services (dev servers and local addresses) are reliable.
+- See Assets at the bottom of this page for the source package, which contains only version-controlled source; after installing, install dependencies first and then start production mode, default port 30141.
+- Unit tests have 4 pre-existing environment-related plugin test failures, unrelated to this release; both rounds of end-to-end tests on desktop and mobile pass fully, and an additional exhaustive round of manual inspection found no console errors.

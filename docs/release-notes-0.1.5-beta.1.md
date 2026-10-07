@@ -37,3 +37,37 @@
 
 - 源码包：解压后自行安装依赖构建，或沿用上一版的桌面安装包。
 - 上面「设置保存不下来」那条修在桌面版上，需要重装 / 重启后才生效。
+
+---
+
+## English
+
+This version's themes are **catching up with upstream** (file management, opening the workspace in the system file manager, skill marketplace) and **fixing those old problems that were never clearly explained** — among them, the root cause of settings "not saving" has finally been found.
+
+### Added
+
+- **File management**: the file tree's right-click menu can open, download, create file / folder, rename, and delete, as well as extract and compress ZIP / tar; all changes stay within the same root-directory whitelist.
+- **Open system folder**: a button on the file panel toolbar; on macOS it opens Finder, on Windows File Explorer, and on Linux it goes through the system default.
+- **SkillHub skill marketplace**: the Skills page can switch to SkillHub, listing a screen of skills by rating, and leaving the search box empty browses; packages are downloaded and installed directly, without depending on any command-line tool.
+- **Step expansion controlled by category**: three switches in settings (reasoning / commands / tool calls), with the current state (expanded or collapsed) shown on the right.
+
+### Changed
+
+- **Links no longer jump out of the app**: external links in the body text, processing details, and file preview all go through the in-app browser panel; holding Cmd / Ctrl / Shift or middle-clicking still uses the system browser, and clicking the same link repeatedly reuses the existing tab.
+- **Process display keeps only the timeline**: the "tiled list / tabs" views are removed, and a conversation is always one timeline.
+- **Permission level follows the session**: previously, switching to another session carried over the previous session's level, and after refreshing everything reverted to the default.
+
+### Fixed
+
+- **Settings don't save**: the desktop app picked a random port on every launch, so the window origin changed each time, and browser local storage is partitioned by origin — so themes, language, chat width, process display, and so on all effectively "stopped working". Now a fixed set of ports is used, falling back to a random port with a warning only when they are occupied. **This one requires reinstalling / restarting the desktop app to take effect.**
+- **The file tree and Git status do not auto-refresh**: the list does not update after creating, renaming, or deleting.
+
+### Removed
+
+- The **MCP panel** in the top bar: settings already has a complete MCP editor (add / delete / modify / scope / handshake test), and the two entries were redundant.
+- The **"process display" dropdown** in settings: the timeline is already fixed.
+
+### Known
+
+- Source package: after extracting, install dependencies and build yourself, or keep using the previous version's desktop installer.
+- The "settings don't save" item above is fixed on the desktop app and takes effect only after reinstalling / restarting.

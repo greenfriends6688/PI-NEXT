@@ -41,3 +41,36 @@
 ## 已知
 
 - 本版是**纯源码发布，没有 dmg**，需要自行打包。
+
+---
+
+## English
+
+This release first resolves a packaging-level root cause of "installed but unusable": **after packaging the window is still there and the UI is still there, but all APIs silently fail**, and clicking anything feels broken. Afterwards the Markdown streaming render stutter was eliminated, scheduled tasks got a lifecycle, and the memory panel can auto-save and is no longer silently overwritten by the agent.
+
+### Added
+
+- **Scheduled task lifecycle**: repeated runs reuse the same session, failures auto-pause, plus two gates—a run count limit and a run timeout; completion notifications are wired to Web Push, which by default only fire on failure and can be switched among four levels.
+- **Memory panel**: auto-saves about one second after the editor stops typing; when the agent has changed the memory file on disk it no longer silently overwrites but instead shows a conflict banner and allows reloading; also adds a "weekly memory checkup invitation"—it only reminds when it has been more than three days without tidying, there is a new session, and the cooldown has passed; it only invites and never writes on your behalf.
+- **Image and PDF preview zoom**: Ctrl/⌘ + scroll wheel to zoom, drag to pan, double-click to reset; unrecognized binaries and unknown types now use a fallback card that lists metadata and can be opened with the system app.
+- **Thinking block auto-expand**: automatically expands during streaming and collapses one second after it ends; hovering prefetches.
+- **MCP handshake before enabling**: really connect once before turning on a service, so a failure no longer pretends it has been enabled.
+- **Built-in skill catalog**: after license review, 2 redistributable skills are included; they are seeded explicitly when needed and are not automatically pushed to you.
+- **Session auto-naming and notification sounds**: sessions are automatically named after the first reply, plus 4 types of semantic notification sounds.
+- **Performance probing and error boundary**: adding a query parameter opens performance probing; an app-level error boundary is also added, so problems no longer blank out the whole page.
+
+### Changed
+
+- **Markdown streaming performance**: text throttling, staggered code highlighting, no synchronous formula typesetting during streaming, preview line numbers generated on demand; long sessions with 500+ messages no longer stutter while streaming and reading.
+- **File tree and git status**: the file tree is wired to a real-time subscription for directory changes, so edits appear in the tree immediately; git status is debounced separately and no longer stutters along with other refreshes.
+- **Font sizes and colors consolidated**: a batch of inline font sizes and hardcoded colors is moved into unified design variables, and each of the five themes gets its own set of danger / success state contrast colors.
+- **Overlay focus management**: move focus on open, Tab cycling, Esc to close, non-interactive background, and focus restoration on close—all modal overlays are now wired in.
+- **Contrast and touch**: secondary text contrast in the three light themes is fixed to WCAG AA and wired into a gate, and touch targets are brought up to 44px.
+
+### Fixed
+
+- **"Buttons can't be clicked" after packaging**: the packaging exclusion rule mistakenly hit the runtime code directory, so hook loading failed and the embedded service couldn't start, showing up as the window still being there but all APIs silently failing. Fixed and re-verified with a fresh package, plus a hard build-time gate, nine API smoke checks, and navigation-interception logging to avoid another silent release.
+
+### Known
+
+- This release is a **source-only release with no dmg**, and you need to package it yourself.

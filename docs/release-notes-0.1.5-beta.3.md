@@ -44,3 +44,40 @@
 
 - **上游 0.9.1 → 0.9.2 合并评估**：已完成，冲突面实测 **107 个文件**（上次 10 个）。
   **本版尚未合并上游。**
+
+---
+
+## English
+
+This release reworks the entire interface appearance, plus three layout adjustments directly specified by users. Zero new dependencies across the board (no icon library, no component library, no drag-and-drop library).
+
+### Added
+
+- **Theme skins**: one skin = 4 base colors + 11 geometry/material knobs + one wallpaper + a block of custom CSS, and **all 11 sliders genuinely take effect in the interface**, not UI-only with no effect.
+  - Card strip: horizontally scrolling mini shell thumbnails (wallpaper + glass block + accent bar), left/right scroll buttons, and at the bottom `New Theme / Import / Edit / Export`; import automatically assigns a new id, export produces JSON.
+  - Edit theme dialog: two pages `Theme Settings / Custom CSS`, with an interface preview on the left (light/dark toggle + true·mini shell + choose wallpaper + fill mode), 4 color values + 11 two-column sliders on the right, and `Cancel / Restore Defaults / Save` at the bottom.
+  - A skin stores only 4 base colors; the remaining colors (hover / selected / secondary text / three-tier borders) are derived automatically at apply time — change one base color and the whole set follows, and when exporting to someone else you won't get a dozen color values the user has never seen.
+  - **Wallpaper-theme fusion**: the wallpaper fills the whole window; the sidebar / session column / top bar / input area are each semi-transparent + blurred, and the session column adds a reading mask on top (most opaque on the body side, most transparent on the edge side).
+- **Four new Settings page items** (labels and descriptions on the left, controls at the top right, inset dividers between rows)
+  - **UI font**: truly enumerates local fonts, not just the three tiers "System Default / Serif / Monospace".
+  - **UI font size**, **Sidebar translucency**, **Sidebar width** (drag the sidebar directly).
+- **Notification settings**: a toggle matrix (desktop notifications / task completed / task failed / only when the window is unfocused / notification sound) + `Send Test Notification` / `Open System Notification Settings`. The toggles are **genuinely wired into all three delivery paths**.
+- **Minimap hover tooltip**: hovering a tick on the session track shows the role and body preview of that turn.
+
+### Changed
+
+- **Sidebar**:
+  - Unified row spec: hover and selected use the **same fill**, selected adds no font weight, and the count badge is right-aligned.
+  - Row inset unified to 10px (previously 0 / 6 / 10, so row fills did not line up).
+  - Default width 272 → **300**, drag range 232–360.
+  - Section order changed to **Projects → Chats**; a new left/right segmented toggle for "Projects / Chats".
+  - **The collapse button moved from the rail's right edge into the brand row** (it used to half-overlap the main-area top bar and compete for the same line with that row of icons); **the collapsed state became a compact strip of three icons** (expand / search / new chat).
+  - Removed the two rows "Plugins / Skills" — Settings already has these two sections, so another copy on the rail is a duplicate entry point.
+
+### Fixed
+
+- **With a wallpaper enabled, the sidebar and secondary area were fully transparent**: the wallpaper mask's percentage syntax does not hold in Chrome, so the entire background fails at the computed-value stage and falls back to transparent. This bug was masked for a long time by the appearance of "seeing the wallpaper through it", and only surfaced once skins made the wallpaper fill the whole window.
+
+### Other
+
+- **Upstream 0.9.1 → 0.9.2 merge assessment**: completed, conflict surface measured at **107 files** (10 last time). **This release has not merged upstream yet.**

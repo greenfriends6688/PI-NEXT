@@ -34,3 +34,35 @@
 - **推理块少一层折叠**：去掉多余的「展开全文」第二层。
 - **报错里的链接可点**：供应商报错里给出的链接（如 opt-in 地址）现在可以直接点开；
   输入框里那个点不动的上下文圆环也已去掉。
+
+---
+
+## English
+
+This release is a big sweep of layout and wallpaper: the conversation column width, message alignment, settings navigation, and the dialog form on mobile have all been redefined, **wallpaper went from "set but not working" to actually usable**, and **two stutters were measured and fixed**.
+
+### Added
+
+- **New session empty-state home page**: logo + current directory title + a row of 4 starter cards (clicking only fills the content into the input box), and the input area is now fixed at the bottom.
+- **Mobile dialog changed to a bottom drawer**: the layout switches accordingly when the keyboard pops up.
+- **Wallpaper panel reveal master knob**: the overlay slider also controls how much the panel shows through, so you don't have to adjust it in each place.
+- **File tree "Changes" button**: the toolbar merges into one row and is always displayed when there are no changes.
+
+### Changed
+
+- **Body column width**: 860 → 800, messages are right-aligned and width-limited (desktop 70% / 620px, mobile 92%), and the two-row action area below messages is now always visible.
+- **Settings changed to left-column navigation**: vertical column layout, and section labels are no longer truncated by a fixed width.
+- **Top bar consolidation**: "System prompt / Tool definitions" moved into the ⋯ menu, and the three boundary buttons at the top are now vertically centered; the sidebar is slightly wider, the footer is icon-based, the tab bar is taller, and the close button now appears on hover.
+- **Wallpaper's three levels truly work now**: "Transparent" is truly transparent (the panel no longer builds its own surface), and "Frosted glass" is semi-transparent plus blur; chat, input box, and panel can each be selected separately.
+- **API and first-screen speedup**: one endpoint used to take 3.7 seconds and return 3.6MB; now it is 0.16 seconds cold and 0.007 seconds on a cache hit; the first screen drops from 3.6 seconds to 0.75–0.95 seconds.
+- **Wallpaper saves bandwidth**: when wallpaper is off, the built-in artwork is no longer downloaded.
+
+### Fixed
+
+- **Wallpaper set but not working**: the shell and chat column painted an opaque background color, pressing the image underneath.
+- **Filled in four missed solid surfaces**: the top bar wrapper layer, file tree, thumbnail preview, and settings dialog; under wallpaper these places no longer show white.
+- **File tree width bouncing back on its own**: dragging to widen it would exceed the responsive upper limit and then bounce back; it is now clamped within the limit.
+- **Side-by-side tree and enlarge button**: the side-by-side file tree in the document area and the "Enlarge display area" button had stopped working; both are restored.
+- **Enlarging no longer takes over the whole screen**: the button that triggered fullscreen was removed, changed to expanding within the column.
+- **Reasoning block has one less fold layer**: the redundant second-level "Expand full text" was removed.
+- **Links in errors are clickable**: links given in provider errors (such as the opt-in address) can now be opened directly; the unclickable context ring in the input box has also been removed.

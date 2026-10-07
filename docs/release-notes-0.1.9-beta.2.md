@@ -83,3 +83,115 @@
   变量仍会传给 stdio server 子进程。
 - 源码包**不含** DMG / EXE（要安装包走 `mac-dmg-packaging-arm` /
   `windows-exe-packaging` 两个技能，产物用同一套 asset 接口补传到这个 release 上）。
+
+---
+
+## English
+
+> 31 commits after 0.1.9-beta.1: settings page redone, V5 board family finished up, PWA phone frames completed,
+> plus a round of form corrections reported and measured one by one by users (timeline, sidebar, floating
+> windows, favorite star).
+> Pre-release channel: features are usable, the form transition period still has a few gaps (see "Known").
+
+Scope: `v0.1.9-beta.1..HEAD` — **500 files, +34,830 / −12,931 lines**, 31 commits.
+
+### Added
+
+- **Settings: models page redone** — list page + one level of drill-in, cutting three duplicate entry points;
+  cross-provider model selector, default model saved to disk, directory refresh and per-model testing.
+- **Settings shell and skills panel redone**: sections layered (hub → secondary page), long sections truly
+  scroll (the embedded host layer no longer clips height or limits height), and the skills panel is wired to
+  three real data streams: load / search / install.
+- **V5 board family landed continued**: transcript family (D-03 / D-03d / D-03e), subagents one column five
+  sections (D-12), plugins and MCP (D-13 / D-15), scheduled tasks four frames (D-17), usage frames A→D
+  (D-19), archive and import (D-21) — board DOM copied into the product node by node.
+- **PWA phone frames completed**: M-05 settings layering, M-07 / M-08 / M-09 / M-10 / M-11 frames, right
+  column six panels, narrow-screen gesture primitives and i18n copy.
+- **Instant tooltip (`InstantTooltip`)**: hovering over an icon button immediately shows its name, no more
+  waiting for the native `title` (native tooltips are slow and their style is uncontrollable). In
+  implementation, the moment it enters it moves `title` to `data-tip` and draws its own fixed floating
+  layer, restoring it as-is on leave — accessibility attributes and accessible names are unaffected.
+- **Two more font-size steps**: `--nx-f-2xs`=10 (badges / counts / very weak meta info), `--nx-f-xl`=18
+  (first-level reading headings); reading body line height is separated from UI's 1.60 into
+  `--nx-lh-reading: 1.75`.
+- **Desktop shell wired to the LAN binding supervisor**: the "Start / Stop" in the UI really works in the
+  packaged build too.
+
+### Fixed
+
+- **Session row overlap** (user reported "ghosting"): the root cause is row spacing hardcoded 48/54, while
+  v5's rows are 58.9. The true value is now changed to **measure the first row's box height**, with window
+  and offset sharing the same number; the height of the row-end controls is reserved in the meta grid, so
+  row height is therefore independent of state (hovering an action no longer stacks another one).
+- **Timeline "two kinds of lines"**: the expanded tool card drew its own line with `left:9px` + v1 tokens,
+  differing by 1px from `.d-step::before`'s `left:10px` + `--nx-line`; now aligned value-by-value into one
+  line, and the card inset is changed back to the same left edge as the step row text (22 → 27px).
+- **Vertical line ends not reaching the icons**: the first line missed the icon's `margin-top`, and the last
+  line's `:last-child` never took effect because its sibling is a collapsed shell (the line tail hung 6px
+  extra). Both ends now land on icon centers.
+- **Tool card header first-line alignment**: the old rule only moved badges / params / icons down by
+  `--nx-sp-1`, missing the tool name, and that 4px pushed the 13px icon box above the first line's baseline
+  — the gap between icon / tool name and the command's first line is reduced from 3.2px to 1.1px (multi-line
+  commands no longer float the whole cluster to the middle of two lines).
+- **"PI NEXT only appears at the end"**: when there's no body text yet in this round (those few minutes
+  while tools are running), the host only mounts the process card, and the identity row waits for the first
+  body text. The identity row is extracted into a component and drawn first when there's no body text; the
+  interrupted branch gets the same treatment.
+- **Subagent sessions collapsed by default**: previously they were all spread open by default, and one
+  screen got eaten by sub-sessions; the collapse arrow moved from the meta info row to the top-right corner
+  of the row (it was previously squeezed between "N messages" and the four hover actions, and its own hover
+  background drew a second box inside the row).
+- **Top bar floating windows don't close on outside click**: tool definitions / system prompts previously
+  only had the trigger button's toggle, and clicking anywhere beside it wouldn't dismiss it — wired to the
+  shared "click outside + Esc" predicate.
+- **MCP floating window pops on hover**: the pointer sweeping across the top bar popped up a whole server
+  list; changed to click-only (the plugins one keeps hover-to-open).
+- **Context floating window middle blank too large**: the two sections were capped at 260px from
+  `minmax(180px,1fr)`, with labels fixed-width and values immediately after — the value column still aligns
+  into one vertical line, and the blank space returns to within one column.
+- **Favorite star two readings**: it was previously `star` / `star-off` (a star with a **strikethrough**),
+  which read as "broken" in long lists; now hollow = not favorited, filled = favorited, unified across three
+  entry points.
+- **Server worker cache not rotating** (real bug): `public/sw.js`'s `CACHE_VERSION` is taken from
+  `NEXT_PUBLIC_APP_VERSION`, which is the version number from package.json — it didn't change across dozens
+  of builds during development, so the static / shell two caches never rotated, and a PWA installed to the
+  home screen kept eating old chunks (user reported "changes have no effect"). Changed to **package version
+  + source fingerprint** (git short sha + dirty flag), falling back to package version if there's no `.git`
+  in the packaged artifact.
+- **`.m-switch` pushed to 48×36 on phones**: DSN-04's `min-height: 36px` overrode the hardcoded
+  `height: 29px` in the library. Reverted the min-height; and moved it out of `app/design/v5-forms.css` —
+  that `@import` aggregation layer was measured to **drop the last section**, so a rule written there is as
+  good as not written.
+- **Opening a file makes the right column swap the same tree's slot**: the root cause of the tree going
+  empty + the viewer slowing down.
+- **Shared context menus / dropdowns covered to a blank block by the settings modal**: stacking
+  relationship fixed.
+- **Transcript minimap** returned to the 0.1.8 board 53 form (dot rail + left-attached shadow + 32px compact
+  header row).
+- Frame-by-frame alignment to v5 boards: top alignment, spacing, file tree default state and transcript
+  area.
+
+### Removed
+
+- **"Click avatar to roll version number" easter egg**: clicking the wordmark swapped it to
+  `0.1.9-beta.1+…p1.0.0` rolling for 3 seconds, sticking out of the row and squeezing out the search and
+  collapse buttons (user's exact words: "the version number exploded"). The version number has a place in
+  the sidebar bottom bar, which is where it belongs; `useScramble` was deleted along with it.
+- **The three duplicate entry points on the models page** (models / providers / directory) merged into one
+  level of drill-in.
+- Dead assets and one-off debug scripts (including the zero-reference `.pw-*` shell).
+
+### Known
+
+- **Form transition period**: `npm run design:v5:land` still lists board classes not yet in the product;
+  `verify:boards` geometric alignment coverage is 19/30 (add the spec for whichever board you change).
+  Real-device Safari / iOS 16.2 and Playwright WebKit are still unverified.
+- **The style literal gate is red**: 11 keys exceed the baseline (`AgentSessionPanel` / `ChatInput` /
+  `CodeFileEditor` / `app/error.tsx` / `app/pair`, etc.). This round did not run `--update` to re-freeze the
+  baseline — that would launder new literals into "existing". To close it out, each one has to be replaced
+  with a token.
+- **Remote deployment**: MCP's OAuth callback only listens on `127.0.0.1`; host environment variables
+  outside the host-only list are still passed to the stdio server child process.
+- The source package **does not include** DMG / EXE (for installers use the two skills
+  `mac-dmg-packaging-arm` / `windows-exe-packaging`, and upload the artifacts to this release via the same
+  asset interface).

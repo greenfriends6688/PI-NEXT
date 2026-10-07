@@ -48,3 +48,48 @@
 
 - 源码包：解压后自行安装依赖构建，或自行打桌面包。
 - 发行包不含内部规划与对比文档（docs/）。
+
+---
+
+## English
+
+This version is a large batch of capability additions: in-session search, right-column tab overview, local usage stats, keyboard shortcut table, custom commands, scheduled task enhancements, table and attachment previews, and sidebar grouping/sorting all land at once, plus 5 root-cause-level issues fixed. All with zero new dependencies.
+
+### Added
+
+- **In-session search**: hit count and previous / next stepping (Enter / Shift+Enter) with highlighting; when a hit is in unloaded history it automatically extends the render window past it, and when a hit is in a collapsed thinking / tool output it automatically expands that block.
+- **Right-column tab overview**: a popover listing all tabs, with filtering and bulk close / close others; closed tabs can be restored with one click from "Recently closed", and file tabs return to the original file and original scroll position.
+- **Local usage stats**: daily heatmap, model share, Token trend, with ranges of 7 days / 30 days / all; reads only local session files.
+- **Keyboard shortcut table**: the single list of in-app shortcuts, supporting recording new key combinations, restoring a single row or all to default, and instant conflict warnings; shortcuts for the sidebar, right column, themes, etc. all go through this table.
+- **Custom commands**: manage your own Markdown prompt templates, and after saving they are immediately available in the slash panel.
+- **Memory directory view**: filter by file name, showing size and modification time, with both daily reports and recovery directories previewable.
+- **Scheduled task enhancements**: run history (status / duration / output summary / one-click jump to that session), skip-on-miss with a recorded reason, exponential backoff retries, and a "plain-language frequency editor" (every N minutes/hours, weekly on a given day, monthly on a given date or the nth weekday, yearly + end date).
+- **Table and attachment previews**: CSV / TSV with sticky headers and windowed rendering, with warnings for mismatched column counts and truncation; images, PDF, DOCX, audio/video, and the first several lines of text can all be opened from the input area.
+- **Word-level inline diff**: side-by-side diffs mark exactly which words changed within a changed line, with overlong lines falling back to whole-line coloring.
+- **Sidebar grouping and drag-to-sort**: projects can be drag-sorted and grouped into custom groups, with animated reordering.
+- **Three starting paths with zero sessions**: choose a folder / use a recent project (can read the local history of VS Code, Zed, Claude Code, Codex, OpenCode) / paste a session link.
+
+### Changed
+
+- **Collapsed blocks no longer jump instantly**: expanding and collapsing thinking blocks, tool details, and process steps changes to a line-height animation, and the body is unloaded only after the collapse animation ends.
+- **Scrolling behaves better**: when you page upward, streaming appends no longer pull you back to the bottom, and fade masks are added at both ends of the message column.
+- **Waiting for the first token is no longer a bare line of text**: it changes to a serial scroll of the preparing / thinking / calling-tools phases.
+- **Tab bar and numbers**: the active item changes to a sliding indicator, and numbers such as Token / cost roll digit by digit when they change, so the row width does not jitter.
+- **Entrance animations**: new content fades in with a per-item stagger, the same block plays only once, and switching back to a session does not replay the whole screen.
+
+### Fixed
+
+- **Tool result location points to the wrong block**: jumping by block would land on an unrelated block, manifesting as no highlight and no expansion when jumping to a hit of the tool-output kind.
+- **Search "count moves but screen doesn't"**: when a hit lands outside the render window, the window would not be extended.
+- **Phase rows leave an invisible gap**: the row still occupies space when the phase is empty.
+- **The memory read error is wrong**: a nonexistent file was originally reported as "outside the directory"; now it is "not found".
+- **File management paths on Windows**: Git path comparison and conversion were previously unreliable on Windows.
+
+### Removed
+
+- **The search box in settings**: it duplicated sidebar session search and file tree search; after removal, settings are still browsed across 11 sections.
+
+### Known
+
+- Source package: after extracting, install dependencies and build yourself, or package the desktop app yourself.
+- The distribution package does not include the internal planning and comparison documents (docs/).

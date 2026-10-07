@@ -34,4 +34,35 @@
 
 - 下载随本页发布的 arm64 安装包，拖进「应用程序」；**仅 Apple Silicon（arm64）**。
 - 应用为 ad-hoc 签名、未公证，**首次打开请右键 →「打开」**。
-- 源码包见 `pi-codex-source-v0.9.1.9.zip`。
+- 源码包随本页 Assets 发布。
+
+---
+
+## English
+
+This is the second round of fixes for the macOS desktop package, all three from real usage feedback: **in the packaged build the left and right workspace toggles can't be clicked**, **two notifications pop up**, and **changing the process display setting only takes effect after the current turn ends**. The file tree, preview, and first-screen size fixes from the previous round are also kept in the package.
+
+### Added
+
+- **Desktop native capabilities**: native notifications, Dock badge, window position and size memory, and screen-sleep prevention.
+- **Branding**: the app name is unified as PI NEXT, and the sidebar brand is moved to the right of the traffic lights.
+
+### Changed
+
+- **First-screen size**: after packaging, the first-screen JS dropped from 3128KB to 2384KB, and syntax highlighting is moved out of the first screen and loaded on demand.
+- **File tree appearance condition**: once the panel is wider than a certain threshold the tree column shows; while in the middle range the tree column is fixed at 200px wide, so "opened a file but the tree is gone" no longer happens.
+
+### Fixed
+
+- **Toggles unclickable in the packaged build**: the left and right workspace toggles in the top bar were layered on top of the top bar, while the drag region performs hit testing first and only punches holes for explicitly marked elements—sibling nodes layered above it were not within the hole-punching range—so it couldn't be reproduced in the browser. Now fixed structurally: the top bar itself is no longer a drag region; instead there is a drag strip inside the top bar inset 28px on each side, and the three boundary toggles exactly occupy the first and last 28px each, so the two have zero geometric intersection, with a measured intersection count of 0 across all four panel states.
+- **Two notifications pop up**: in the desktop build a native notification and a browser notification (with the local address, browser icon, and a "Settings" button) used to appear at the same time. Now only the native notification is kept in the desktop environment; the browser version's behavior is unchanged.
+- **Process display toggle not real-time**: streaming messages always used flat rendering, so a settings change only took effect after the current turn ended; now streaming messages are also split into process / answer, and the process part uses grouped rendering in real time, with testing showing that at about 5 seconds into streaming it is already the timeline view.
+- **Too little process information**: the collapsed reasoning row used to only say "Reasoning"; now it carries a first-line preview of the model's actual words; in tab mode, during streaming it automatically shows the latest step's content instead of waiting for a click.
+- **Markdown files default to preview**: after manually switching to the source view, it is no longer dragged back to preview.
+- **Memory plugin prompt repeatedly popping up**: the same prompt text now pops up only once within a 10-minute window, and no longer appears every time you switch sessions.
+
+### Known
+
+- Download the arm64 installer published with this page and drag it into "Applications"; **Apple Silicon (arm64) only**.
+- The app is ad-hoc signed and not notarized; **on first open, right-click → "Open"**.
+- The source package is published under Assets on this page.

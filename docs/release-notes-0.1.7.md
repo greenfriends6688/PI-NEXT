@@ -68,3 +68,46 @@
 - 用量统计里 fork 出来的会话会把父会话的历史再算一遍，总 token/成本比真实支出偏高。
 - 画板几何自动比对只覆盖了部分画板，没写规则的那几张仍靠人眼比。
 - 真机旧版 Safari / iOS 与 Playwright WebKit 没跑过，白屏修复只在源码层验证。
+
+---
+
+## English
+
+This release wraps up the late-September round of reskinning and mobile adaptation, and merges in the backlog of upstream changes. Three big things: **the design system now has a single source of style and a gate** (colors/spacing/icons are no longer compared by eye), **mobile / PWA went from "usable" to "accurately tappable"**, and **the pi SDK was upgraded to 1.0.0** (tool exposure rules, message delivery method, and the built-in MCP extension are all aligned with the new contract).
+
+### Added
+
+- **Design system**: 29 interface artboards + a specification document are the single source of style for the interface; colors are no longer hard-coded in product styles. Accompanying automated checks: style literals, motion tokens, icon names, contrast, and **per-artboard geometry measurement** (one rule per board, running a real browser to compare element by element). Desktop >1024px moves not a single pixel.
+- **Two mobile / PWA tiers** (≤640 phone, 641–1024 tablet): on phones the workbench input area collapses to a fixed two rows and the send key returns to the toolbar (previously at tablet width it was rendered into a hidden layer, effectively leaving no send key); sidebar inline actions have a 40×40 hit area, session-row actions collapse into a persistent `⋯`, and the drawer gains Esc and swipe-left-to-close; the file panel header is tiered into inline + `⋯`; each Settings subsection (models / skills / subagents / plugins) converts its table into cards page by page and raises buttons to the touch tier.
+- **New in Settings**: configurable send key (Enter sends directly / Ctrl+Enter to send), context compaction budget, thinking-tier token budget (four tiers), retry parameters, and enable/disable all skills and plugins by group.
+- **Model configuration**: the compatibility toggle table expands by protocol (26 fields no longer need manual JSON editing), a tiered-pricing editor, an api protocol dropdown covering all known protocols, model specs can be backfilled from the provider itself, and new sessions remember and preselect the thinking tier per model.
+- **Provider quota chip on the input toolbar**: shows the remaining amount of the tightest quota window for the provider the current model belongs to (≤10% red, ≤30% orange); hover to see all windows; if it cannot be found, nothing is rendered.
+- **Files**: when a symlinked directory points outside the project it is explicitly allowed (one link at a time, expires on restart); which entries show in the file tree is now decided by Git (ignored ones are hidden, tracked ones show as usual); archive zip / unzip; dropping in an absolute path becomes a relative mention.
+- **MCP switched to pi 1.0's official implementation**: reading/writing/deleting/editing configuration, validation, and the OAuth entry point all go through the official implementation (the ability to discover existing servers from Claude Code / Codex / Cursor / VS Code is retained, since pi lacks it); sessions can actually connect to a local stdio server and get tools, while "just glancing at a session" (switching sessions to fetch the tool list, auto-naming, prewarming) does not spin the server up and keep it resident. Child-process environment variables are sanitized (the entire environment is no longer handed over).
+
+### Changed
+
+- **pi SDK upgraded to 1.0.0**: tool exposure rules (give directly to the model / search only in scripts / load on demand / withdraw) and the message delivery method are aligned with the new contract; the range of available models is now resolved by the SDK itself.
+- **The 12 Settings sections converge onto two skeletons** (list page / detail page), and unused styles are retired.
+- **Sessions and streams**: a parent session with a background subagent running is no longer mistakenly killed by idle reclamation (previously it would be reclaimed while running, and the subagent's results could never be retrieved).
+- **MCP's validation and authentication entry points were renamed and redefined**: the test button now only reports **whether the structure is valid** (no longer performs a real handshake); OAuth login goes through the official command; the two transports `socket` and legacy `sse` are no longer supported. Disabled items in old configurations are still treated as disabled.
+- **fork can now be done while a session is running**: the copy takes only completed records and no longer rewrites the original session state in place.
+- **Subagents**: retrieval markers are recorded per run, orphans after a restart are reported as "interrupted", and recovered reports state their source clearly; the extension denylist now resolves against real extension sources (aliases and npm-scoped forms can no longer slip past).
+- **Brand unified as PI NEXT**: the window title, PWA manifest, app icon, and the desktop app's application directory are all renamed; the desktop package migrates user data from the old version's directory over.
+
+### Fixed
+
+- **White home screen on old Safari / iOS 16.2**: syntax in this repo that the browser cannot parse was changed, and the one in a dependency is bypassed with a bundler plugin; the compile target for old browsers was lowered to 16.2.
+- **Path authorization too broad**: strings in MCP / extension tool results can no longer be used to read files; opening a folder first checks the allowlist before deciding, instead of guessing whether a path exists from a status code.
+- **Saving is disabled when `models.json` cannot be read**, no longer overwriting the user configuration with empty content.
+- **Rendering**: currency amounts next to inline formulas are no longer swallowed, Chinese punctuation immediately following a link is no longer pulled into the link, and layouts arranged with Shift+Enter in user messages are no longer collapsed into one line.
+- **During compaction** it now reports "compacting" instead of perpetually reporting waiting for the model; multiple approval prompts popping up at the same time no longer displace each other.
+- **9 copy points got failure feedback wired up** (previously 8 were unresponsive when clicked).
+- **Toggles were stretched out of shape on mobile**: the minimum height added to all buttons in the touch tier squashed the 30×17 toggle in the panel into a 30×36 ellipse (the "crescent" a user photographed) — now the toggle returns to the panel geometry and the hit area is expanded outward instead.
+
+### Known
+
+- **MCP still has no per-prompt connection management**: connections stay resident while the browser session is open and are closed by idle reclamation; there is no layer that "compares configuration before each message send". Remote deployment also needs separately handling the OAuth callback (which listens only on the local loopback) and directory trust for project configuration.
+- In usage statistics, forked sessions recount the parent session's history, so total token/cost is higher than actual spending.
+- The automated artboard geometry comparison covers only some artboards; the ones without rules written still rely on comparison by eye.
+- Old Safari / iOS on real devices and Playwright WebKit have not been run; the white-screen fix was verified only at the source level.

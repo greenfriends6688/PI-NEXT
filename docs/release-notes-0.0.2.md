@@ -29,3 +29,31 @@
 - 单测有 4 条既有环境性插件用例失败，与本版无关；桌面与手机两轮端到端用例全通过，
   覆盖分页、分支、markdown、代码与工具卡、会话压缩导航，以及扩展弹窗的键盘与超时、聊天外观的持久化；
   类型检查干净，五套主题做了真实浏览器渲染核对。
+
+---
+
+## English
+
+This release takes in six upstream improvements: **you can see the reasoning level at runtime**, **the input area gains a "Scroll to latest" above it**, and **explicit notice when output is truncated**. Also, per user feedback, the **light theme is changed back to pure white**.
+
+### Added
+
+- **Reasoning level while running**: When the agent is running, a read-only reasoning level appears above the input box; it cannot be changed while running, so it was not made into a button.
+- **Scroll to latest**: When scrolling up through history, a circular down arrow appears above the input box; one click returns to the latest.
+- **Load earlier**: Hovering over the session thumbnail on the right adds "Load earlier" at the top of the preview box.
+- **Output truncation notice**: When model output is truncated by the limit, a note appears below the message, so you no longer have to guess why the sentence was cut off.
+- **Extension font size setting**: A new extension widget font-size tier is added in settings.
+
+### Changed
+
+- **Light theme pure white**: The warm-sand background of the previous release actually looked dirty rather than warm; this release changes it to achromatic: the background is pure white, panels are roughly light gray, and text, hover and borders are all neutral gray. mist and rose still keep a very faint color cast—they are deliberately chosen palettes, not the default background.
+
+### Fixed
+
+- **Selection toolbar obscured**: The floating toolbar that pops up when selecting text in a file used to be covered by the session sidebar; it is no longer obscured.
+
+### Known
+
+- Two upstream changes are deferred in this release: the full-width toggle for the file panel and the PDF page-number anchors, which overlap with the reworked layout structure and the viewer tab state respectively; forcing them in would break already-verified parts, so they have moved to the manual grafting queue.
+- See Assets at the bottom of this page for the source package, which contains only version-controlled source; after installing, install dependencies first and then start production mode, default port 30141.
+- Unit tests have 4 pre-existing environment-related plugin test failures, unrelated to this release; both rounds of end-to-end tests on desktop and mobile pass fully, covering pagination, branching, markdown, code and tool cards, session compaction navigation, as well as keyboard and timeout for extension dialogs and persistence of chat appearance; type checking is clean, and five themes were verified with real browser rendering.

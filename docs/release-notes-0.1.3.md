@@ -34,3 +34,35 @@
 - 本版是**源码发布，没有桌面安装包**；要装桌面版需自行打包。
 - 有意保留的差异：侧栏的「三入口 + 徽标」结构、设置的整页路由、项目的整页管理都按本产品原样保留，未照搬别家。
 - 仍不引入第三方组件库与现成 UI 套件，界面元素全部自绘。
+
+---
+
+## English
+
+The previous round only changed metrics such as line height and corner radius, and user testing judged it "not good enough" — the retrospective conclusion: what truly determines "looking different at a glance" is the material, not the metrics. This version swaps out the material itself: **all 6 palettes are recast into neutral gray + flat material**, and the corner radius, shadows, font sizes, sidebar and input area are all redone along with it.
+
+### Changed
+
+- **All six palettes recast**: warm brown-black is replaced with neutral graphite, the body foreground with near-pure white, and secondary text with solid gray. The interactive layer moves from translucent overlays to solid color — the same "6% hover" used to compute a different gray on each of the canvas, sidebar, and popover backgrounds, looking like three different colors; now one intent maps to one gray value. The other three palettes (mist / rose / pine) keep their own hues and are likewise changed to solid surfaces.
+- **Code blocks step back**: the code background changes from "brighter than the canvas" to "darker than the canvas", so code no longer floats above the body text.
+- **Corner radius tightened**: seven radius steps are reduced to three: 6 / 10 / 12, and the input box goes from a "capsule" to a "panel".
+- **Shadows thinned**: the four-level warm-black stack is compressed into a single layer, leaving only a hairline; the input card has no shadow at all, and focus uses a ring of light instead.
+- **Body text enlarged**: the global UI and chat body text default from 13px to 14px, still adjustable in settings.
+- **Sidebar densified**: the row height tightens to a full-width 32px (removing the inset capsule and row gaps), the brand text is enlarged to 18px, and the default width increases from 244px to 272px; section titles are heavier, action groups appear only on hover, and overlong titles fade out at the end.
+- **No top bar in the empty state**: the top bar is not rendered when there are no messages, the main visual mark is enlarged from 40px to 48px, and the title is enlarged and bolded too.
+- **Input area as two segments**: the project bar and the input card are welded into one, the project tag loses its outline, the send key is made smaller, and the asymmetric padding on the right side is removed.
+- **Message rows tightened**: user bubbles become solid with no border; the action row is hidden by default and appears only on hover or focus (always visible on touch); assistant line spacing widens to 26px.
+- **Top bar slimmed down**: the desktop "rollback history / generate title" items move into the ⋯ menu, leaving only the title, branch, ⋯ and session info.
+- **Settings sectioned into cards**: sections become cards with hairline outlines, and the search box changes from a 28px box to a 36px capsule.
+- **Running tool rows have a sheen**: the row that is running gets a light swept across it; when the system enables "reduce motion" it becomes a static solid color.
+
+### Fixed
+
+- **The style token audit was always red**: the audit script missed reading one style file, and the new tokens all lived there, so any newly added custom token was falsely reported as "undefined".
+- **Theme validation used the wrong measure**: it used to compare colors by literal text, while the build chain rewrites one color notation into another, so the "expected value" and "actual value" never matched; now it samples the actual pixels on the canvas to compare, independent of notation.
+
+### Known
+
+- This version is a **source release with no desktop installer package**; to install the desktop version you need to package it yourself.
+- Intentionally retained differences: the sidebar's "three entries + badge" structure, the full-page routing for settings, and the full-page project management are kept as they are in this product, not copied from others.
+- Third-party component libraries and ready-made UI kits are still not introduced; all interface elements are custom-drawn.

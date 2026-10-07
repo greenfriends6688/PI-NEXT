@@ -37,3 +37,37 @@
 ## 已知
 
 - 本版为源码发布，未附桌面包；需要桌面版请自行打包。
+
+---
+
+## English
+
+This release completes the entire appearance customization line: **you can read pi's command-line theme, adjust border depth, and set a wallpaper**; **the process display supports two groupings, timeline / tabs**; sessions gain pinning and archiving; and places that actually feel sticky in use—context menus, theme switching and process grouping—are fixed as well.
+
+### Added
+
+- **pi CLI theme**: Reads pi's terminal theme, maps it to the 34 color variables this project requires, and layers it over the six built-in palettes as inline variables; it includes a first-paint script so a refresh does not flash the wrong colors. A theme directory inside the project works too; the entry point is Settings → Appearance.
+- **Border depth**: One slider controls three levels of border thickness, blended from the original value; dragging back and forth will not make it thicker or drift.
+- **Wallpaper**: 6 built-in artworks, or replace with a custom image; the chat area, input box and panel each independently choose none / semi-transparent / blurred, plus a mask strength.
+- **Process grouping display**: A turn's process can be rendered grouped by "Timeline" or "Tabs", including step categories, file tags and reasoning collapse fade-out; the default is still flat, to be enabled when needed.
+- **Session pinning and archiving**: Right-click to pin or archive; once archived it goes into a collapsed "Archived" section in the sidebar and can be recovered as-is.
+- **General context menu**: Automatically flips when near the screen edge; supports arrow keys and Home/End, submenus, and shows feedback text after an action.
+- **Standalone chat workspace**: Conversations that do not belong to any project get their own column and are no longer mixed into projects.
+- **Desktop capability**: The desktop shell and DMG packaging configuration are in place; the desktop package can be built yourself.
+
+### Changed
+
+- **Cleaner project self-checks**: Code checks and type checks scan only this project and no longer pull in reference projects too (which previously ran endlessly), and type checking no longer runs out of memory from counting reference projects.
+
+### Fixed
+
+- **Context menu entirely invisible**: The menu shipped with structure but no styles; Home / End did not work inside the menu; errors thrown by actions became unhandled promises.
+- **In-project themes silently not working**: Theme resolution did not include the current directory, so selecting one had no effect.
+- **Switching themes resets border depth**: Switching back to a built-in palette still left the previous depth blend behind.
+- **Returning to built-in did not clear the custom image**: Switching back to a built-in artwork showed the two images stacked.
+- **Process grouping losing content**: Custom messages were rendered as unreadable text, image blocks were dropped entirely, and empty reasoning lines.
+- **Cannot unarchive after archiving**: The unarchive entry was attached to an "Archived" row that never displays.
+
+### Known
+
+- This release is a source release and does not include a desktop package; build it yourself if you need the desktop version.

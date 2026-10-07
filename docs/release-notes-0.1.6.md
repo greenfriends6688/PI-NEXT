@@ -39,3 +39,30 @@
 - 用量统计里 fork 出来的会话会把父会话的历史**再算一遍**，
   所以总 token/成本比真实支出偏高。
 - 「按项目」列表里同名的两个目录（不同路径、同末级名）会显示成同一个名字。
+
+---
+
+## English
+
+This release brings in a backlog of late-September work (import, file preview rework, model catalog), and fixes six interface issues based on user feedback: the sidebar project row, Settings page whitespace, the usage page turned into a dashboard, the default file-tree width, full-screen file preview, and the session-rendering problem where "a render window cut in the middle of a turn degrades into a running log". Still zero new dependencies.
+
+### Added
+
+- **Import (Settings → Import)**: bring over things from other agents on this machine, with one tab for each of four categories — chats, model providers, skills, MCP servers. Nothing is read from disk until you click "Scan", nothing is written until you click "Import"; credentials are never copied (please re-enter the API key in the destination).
+- **Usage page turned into a dashboard** (Settings → Usage): a row of metric cards at the top (Token / sessions / messages / active days / current streak / most-used model / cached tokens / tool success rate / cost), and below that an activity heatmap (**fixed to the last 12 months**, not shrinking with the range buttons), per-model share bars and list, request and error scatter plot, daily Token bar trend, and per-project list. Added a "1 year" range. All numbers come from local session files: "errors" counts only failed tool results, and metrics that are not in session files, such as time to first token / output speed, **are hidden rather than fabricated**.
+- **Per-project statistics**: the usage page now aggregates by the directory a session belongs to, so you can see which project burns the most money.
+- **Full-screen file preview**: the ⤢ button in the preview header now fills the document across the **entire app window** (not OS full screen); press Esc or click it again to exit.
+
+### Changed
+
+- **File preview rework**: removed the built-in markdown editor (along with 8 related dependencies); the file panel is reduced to two states "Source / Preview" + compare with HEAD.
+- **Sidebar project row**: the collapse arrow moved to the right of the project name, and `⋯` and `⊕` are merged into one group pinned to the row's end; when not hovering, there is no longer an empty gap between the number and the arrow. In the project row menu you can archive/restore, open the folder, rename, and remove from the list.
+- **Default file-tree panel width**: reduced from "half the window" to 420px (it widens on demand to the width needed for side-by-side when a document is open).
+- **Settings page whitespace**: the Archive History and Import pages now get the shared page frame used by each page, no longer sitting flush against the left navigation; the keyboard focus ring on navigation rows is now inset, no longer drawn past the divider into the content area.
+- **Session rendering**: the render window is cut by item count, so long turns get cut in the middle — that segment used to be tiled item by item (a tool row + a token-usage row for each assistant message), making the whole screen look like a running log; it is now isomorphic to a normal turn, collapsed into a single timeline.
+- **Model catalog**: after a provider releases a new model you can refresh, and the configuration page enables/disables each model individually.
+
+### Known
+
+- In usage statistics, forked sessions **recount** the parent session's history, so total token/cost is higher than actual spending.
+- In the "By Project" list, two directories with the same name (different paths, same last segment) are displayed as the same name.
