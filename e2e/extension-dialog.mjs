@@ -28,7 +28,9 @@ export async function checkExtensionDialogs(page, artifacts, width) {
   page.on("request", onRequest);
   const start = async (mode) => {
     await page.mouse.move(0, 0);
-    await page.locator("[data-minimap-preview-box]").waitFor({ state: "hidden" });
+    // fork:v6-landing —— 导轨的悬停卡是 `.d-navpop`（`[data-minimap-tooltip]`）；
+    // board 53 的 320px 大纲面板（`[data-minimap-preview-box]`）已退场。
+    await page.locator("[data-minimap-tooltip]").waitFor({ state: "hidden" });
     const input = page.locator("textarea").last();
     await input.fill(`/e2e-dialog ${mode}`);
     await page.getByRole("button", { name: "Send", exact: true }).click();

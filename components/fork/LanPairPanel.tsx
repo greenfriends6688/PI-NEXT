@@ -339,6 +339,11 @@ export function LanPairBody() {
           <div className="d-set-sec-t">{t("lanPair.codeLabel")}</div>
           <div className="d-card">
             <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-3)" }}>
+              {/* fork:lan-pair-hint-line（2026-10-07 用户实拍「这个放这里可以吗」）——
+                  那句说明原来与 6 枚键帽同排、被夹在 `.d-grow` 垫片与行尾之间：
+                  `.d-col` 没有 flex-shrink 控制，空间被垫片吃干后就只剩
+                  min-content 宽，中文于是**一字一行竖着排**（截图里那一竖行）。
+                  改成键帽行下面独占一行（同一段文案、同一个类，只换位置）。 */}
               <div className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
                 {pair.code.split("").map((digit, index) => (
                   <span
@@ -349,11 +354,8 @@ export function LanPairBody() {
                     {digit}
                   </span>
                 ))}
-                <span className="d-grow" aria-hidden="true" />
-                <span className="d-col" style={{ gap: "var(--nx-sp-1)" }}>
-                  <span className="d-t-xs d-t-faint">{t("lanPair.sub")}</span>
-                </span>
               </div>
+              <span className="d-t-xs d-t-faint">{t("lanPair.sub")}</span>
               <div className="d-row">
                 <span className="d-badge warn">
                   <i data-ico="clock" data-size="12" aria-hidden="true" />

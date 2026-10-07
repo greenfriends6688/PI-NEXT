@@ -340,14 +340,17 @@ try {
       const rect = await node.boundingBox();
       assert.ok(rect);
       await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
-      const preview = page.locator("[data-minimap-preview-box]");
-      await preview.getByRole("button", { name: "E2E compaction anchor", exact: true }).waitFor();
-      await preview.getByRole("button", { name: "E2E compacted heading", exact: true }).click();
+      // fork:v6-landing —— 悬停出画板 D-32 的 `.d-navpop` 小卡；board 53 的 320px
+      // 大纲面板（`.pw-minimap-pop`）与大纲级跳转已退场，点刻度 = 跳到那一轮。
+      const card = page.locator("[data-minimap-tooltip]");
+      await card.waitFor();
+      assert.ok((await card.innerText()).includes("E2E compaction anchor"), "悬停卡带这一轮的用户消息");
+      await node.click();
       await page.waitForFunction(() => {
-        const heading = document.querySelector("[data-entry-id='answer'] h2");
-        const scroll = heading?.closest(".overflow-y-auto");
-        return heading && scroll && Math.abs(heading.getBoundingClientRect().top
-          - scroll.getBoundingClientRect().top - scroll.clientHeight * 0.3) < 5;
+        const anchor = document.querySelector("[data-entry-id='compact']");
+        const scroll = anchor?.closest(".overflow-y-auto");
+        return anchor && scroll && Math.abs(anchor.getBoundingClientRect().top
+          - scroll.getBoundingClientRect().top - scroll.clientHeight * 0.3) < 8;
       });
       await page.screenshot({ path: join(artifacts, "compaction-minimap.png") });
 

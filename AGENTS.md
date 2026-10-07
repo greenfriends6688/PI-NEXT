@@ -336,18 +336,64 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 * **客户端与服务端必须拆开**：设置页是 `"use client"`，只能 import `lib/im-bridge-shared.ts` 与 `lib/chat-channel-shared.ts`；`lib/im-bridge.ts` / `lib/chat-channel.ts` 里的 `node:fs` + pi SDK 一碰客户端依赖图，`lib/client-graph-purity.test.mjs` 就红。
 * **入口**：设置里的「手机与推送」分节，外加侧栏底栏版本徽章左边那枚手机钮（同一个分节，快捷入口）。导轨几何是画板 02 登记过的，所以手机钮是底栏里的**兄弟**而不是第五枚导轨按钮。
 
-### 生图（fork:imagegen，2026-10-06）
+### 生图（fork:imagegen，2026-10-06 首版 · 2026-10-07 定形）
 
-计划与调研全文在 `docs/imagegen-plan-2026-10-06.md`（G1/G2 = 标书套件 B1）。不变量：
+形态三轮，**最终这轮才是现状**（前两轮的教训都记在 `design/v5/DIVERGENCE.md §T`～`§T4`）：
+预设表与请求方言**照参考项目的实测实现抄**，每个预设档自带端点、密钥、模型、尺寸与测试状态，
+档案在 `~/.pi/agent/imagegen.json`（0600，staging+rename）。不变量：
 
-* **生图档案独立于对话模型**：`~/.pi/agent/imagegen.json`（0600，staging+rename），`GET /api/imagegen` 掩码、`PUT` 掩码值或字段缺失 = 沿用已存密钥（与 im-bridge 同一条铁律）。不进模型选择器、不吃 `enabledModels`。
-* **端点与密钥默认引用、不复制**（fork:imagegen-ref，用户 2026-10-06 裁定）：`ImageGenProfile.providerId` 非空即引用态，端点与密钥从 `models.json` 活取，`writeImageGenConfig` 强制把这两项置空 —— **本档一个字节都不存**，所以那边轮换密钥立刻生效（第一版让人重填一遍，那正是「轮换不生效」的根因）。解析只有一处：`resolveImageGenProfile()`（`lib/imagegen-config.ts`），工具 / 测试路由 / 设置面板三处共用，谁都不许自己拼 `baseUrl`；解析不出来 fail closed 并如实报错（引用的服务商被删 / 缺密钥 / 缺模型名）。引用态落在 `custom` 档，下拉分两组（已配服务商 / 内置预设），引用态不渲染 Base URL 与 API Key 两格，换成一条 `.d-set-row` 报「端点与密钥来自谁」。
-  · 四个内置预设（OpenAI / 金龙中转 / 硅基流动 / 火山方舟）保留独立档：它们是生图专用端点，平时不会出现在「设置 → 模型」的列表里，没有可引用的对象。
-* **为什么不走 SDK**：pi-ai 1.0 有 `generateImages()` / `ImageModel`，但 `KnownImageApi` **只有一个成员 `openrouter-images`**（内置 57 个 image 模型全走它，`openai` 的 image 模型数是 0），且 **models.json 不收 image 模型** —— 实测写一个 `type: "image"` 进去，SDK 把它当 chat 收下（`getModelsOfType("image")` 返回空）。所以直连 OpenAI 兼容 `POST /images/generations`（OpenAI/金龙/硅基流动/火山方舟一个协议全覆盖，与标书功能/PI-Desktop 同路）。响应兼容 `b64_json` 与 `url` 两种载荷，**url 一律当场下载落盘**（外链会过期）。
+* **生图档案独立于对话模型**：形状 `{version:3, active, providers:{<预设>: {baseUrl, apiKey, model, size, concurrency, status}}}`。
+  不进对话模型选择器、不吃 `enabledModels`。`GET /api/imagegen` 只回**掩码**密钥，
+  `PUT` 的掩码值 = 沿用已存密钥（与 im-bridge 同一条铁律）；显式空串才是清掉。
+* **预设表与三种方言一律照参考项目写，不要照官方文档重写一遍**（`lib/imagegen-shared.ts` 头注列了出处）：
+  · `openai` 方言（火山方舟 / OpenAI / 自定义）—— `POST {base}/images/generations`，body `{model, prompt, size}`；
+    `response_format` **只给 DALL·E**（GPT Image 传它会 400 —— PI-Desktop 的规矩）。
+  · `agnes` 方言（Agnes 国内 `api.agnes-ai.cn/v1` / 国际 `apihub.agnes-ai.com/v1`）—— 同一条路，但
+    `response_format` 走 **`extra_body`**（顶层会被拒），2.1-flash 另带 `ratio`；尺寸是档位（`1K/2K/3K/4K`），2.0 才是像素。
+  · `google` 方言（Google AI Studio）—— `POST {base}/models/{model}:generateContent`，请求头 **`x-goog-api-key`**（不认 Bearer），
+    body 带 `generationConfig.responseModalities:[TEXT,IMAGE]`，图在 `candidates[].content.parts[].inlineData`。
+  金龍中轉**按用户要求不入表**（要它就用自定义填 `img-api.jlaudeapi.com/v1`）；ComfyUI 也**没入表** ——
+  它是另一套协议（workflow + `/prompt` + 轮询），参考项目里它有专门的 workflow 字段，要做得另开一条通道。
+* **换端点或换模型就把该档重置成未测试**（`writeImageGenConfig`）：上一次的「可用」是那套配置的结论，
+  换掉后它就是错的背书，而标书自动配图**只认 `available`**。「测试」是真的出一张图并落盘。
+* **旧档案迁移只按 id 取回同名档**：v1 的 `{active, providers}` 里 `openai`/`volcengine`/`custom` 的
+  端点与密钥能活下来，表外档位（金龙 / 硅基流动）与 v2 引用档的 `providerId` 直接丢掉。
+* **别再走「引用设置 → 模型里已配服务商」那条路**（fork:imagegen-ref，2026-10-07 上午做过、当天下掉）：
+  它能选到 `opencode-go` 这类目录型套餐（模型在 `models-store.json`、凭证在 `auth.json`），但**那些套餐
+  根本没有 `/images/generations`** —— 实测 `opencode.ai/zen/go/v1/images/generations` 回 404 官网 HTML。
+  生图服务商和对话服务商是两拨人，混在一起只会多一层“为什么测试失败”的解释。
+* **为什么不走 SDK**：pi-ai 1.0 有 `generateImages()` / `ImageModel`，但 `KnownImageApi` **只有一个成员 `openrouter-images`**（内置 57 个 image 模型全走它，`openai` 的 image 模型数是 0），且 **models.json 不收 image 模型** —— 实测写一个 `type: "image"` 进去，SDK 把它当 chat 收下（`getModelsOfType("image")` 返回空）。OpenRouter 那 57 个走 `chat/completions` + `modalities`，不是 `/images/generations`，本模块也接不上。所以直连各家自己的生图接口（三种方言见上），响应兼容 `b64_json` / `url` / `inlineData`，**url 一律当场下载落盘**（外链会过期）。
 * **工具 `generate_image`**（`lib/imagegen-extension.ts`，extensionFactories 注册）：content **永不含 base64**（只回路径+尺寸+字节，模型可读可引用），图片元数据进 `details.images`；消息流由 `MessageView` 借 `ResultImages` 的 URL 来源通道渲染（→ `/api/files`），会话文件只存路径。默认落 `~/.pi/agent/generated-images/`（工具工厂里 `allowFileRoot` 幂等登记），`dest` 只许会话 cwd 内（`resolveDestWithinCwd`；标书配图直落 `bid/<项目>/images/`）。
 * **审批零改动**：工具无命令参数、不在只读名单 → ask/plan 模式下自动落「unclassified → 需审批」；默认 bypass 放行不弹卡。
-* **测试状态是硬闸门**：`POST /api/imagegen {provider}` 真出一张小图并把 `status`（untested / available / unavailable + 最近失败原因）落盘 —— 标书自动配图只认 `available`。密钥掩码在浏览器侧回显，测试用已存明文密钥。
+* **测试状态是硬闸门**：`POST /api/imagegen` 真出一张小图并把 `status`（untested / available / unavailable + 最近失败原因）落盘 —— 标书自动配图只认 `available`。换服务商或换模型（`PUT` 时 providerId/model 变了）会把状态重置成 untested，不让上一次的「可用」替另一张档案背书。
 * **设置分节是登记制**：新增分节要同步 15 张设置画板左导航 + `SettingsPanel.boardnav.test.mjs` 的条数与同构清单（本次 11→12）＋ `SETTINGS_HUB_GROUPS` 分组与 hub 文案。生图分节画板 = `D-31-settings-imagegen.html`，偏离登记在 `DIVERGENCE.md §T`。
+
+### 记忆（fork:memory，2026-10-07）
+
+记忆能力**整个来自第三方扩展** `pi-hermes-memory`（`pi install npm:pi-hermes-memory`），
+我们没有自己写记忆系统。设置里给它单独一节（左导航 `memory`，画板 `D-36-settings-memory.html`）。
+
+* **开关是本应用自己的偏好，不是 pi 的包开关**（用户 2026-10-07 裁定，推翻当天早些时候的第一版）：
+  存在 `~/.pi/agent/pi-web-preferences.json` 的 `memoryExtensionEnabled`（默认 **false**），
+  关着时在 `rpc-manager` 的 `extensionsOverride` 链上把那个扩展从加载结果里摘掉
+  （`withoutDisabledMemoryExtension()`，主会话与子代理两处都接）。
+  **不动 pi 的 `packages`** —— 终端与其它运行时照旧加载它。
+  为什么不能写 `packages`：那个文件是 pi 自己的 schema，写它等于替别的运行时做决定；
+  第一版就是这么做的，用户看到「关掉会连带影响其它运行时」后推翻了它。
+* **包里那条全局状态只读**：面板上另有一行「终端 / 其它运行时」，显示它在 pi 的 `packages` 里是否启用
+  （`packageEnabledInList()`），并在被全局停用时给一条提示。这一页**不写**那一条。
+* **默认关着**：装完不自动开（与内置子代理总开关同一条口径）。记忆会在用户没盯着的时候写文件，
+  先默认关、由他自己打开。
+* **插件页不再列它**（`app/api/plugins` 的 `readPlugins` 过滤 + `totals` 同减）：同一件事两个入口
+  就是「一份列表里混着两种控制面」，用户原话是「显得乱七八糟的」。包本身没动，只是不在那一列露面；
+  装 / 卸 / 更新写在记忆页的提示里（`pi install|remove npm:pi-hermes-memory`）。
+  **它从来没出现在 MCP 页** —— MCP 页只列 `mcp.json` 的服务器，别把这两个页面混为一谈。
+* **不假装当场生效**：扩展是会话启动时加载的，所以开关旁常驻「新会话生效」徽标；
+  `/api/memory` 只读状态 + 写开关，不做细项表单（那些留给扩展自己的配置文件）。
+* **数据目录是既有的**：`~/.pi/agent/pi-hermes-memory/`（MEMORY.md / USER.md / sessions.db …）
+  与 `~/.pi/agent/projects-memory/`。用户可能已经在别的运行时里用了很久，所以这一页只报状态、不动数据。
+* **`pi-web-preferences.json` 的读写只有一处**（`lib/pi-web-preferences.ts`）：原先内联在
+  `lib/thinking-level-memory.ts` 里，现在两个模块共用 —— 同一个文件两个写入者各自读-改-写会互相抹键。
 
 ### 移动端壳与同步（fork:mobile-shell，2026-10-06）
 

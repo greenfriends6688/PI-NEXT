@@ -64,6 +64,9 @@ import {
   createSubagentExtension,
   preferPiWebSubagentExtension,
 } from "./subagent-extension";
+// fork:memory —— 「设置 → 记忆」那个开关只影响本应用：关着时把这个扩展从加载结果里摘掉，
+// 不动 pi 的 packages（终端 / 其它运行时照旧用它自己的那份记忆）。
+import { withoutDisabledMemoryExtension } from "./memory-package";
 import { createTodoExtension } from "./todo-extension";
 // fork:im-bridge — 把消息推到 IM 群机器人（飞书 / 企微 / 钉钉 / Slack / Telegram / 自建）。
 import { createImExtension } from "./im-extension";
@@ -2480,6 +2483,8 @@ export async function startRpcSession(
               : {}),
             appendSystemPrompt: subagentResources.appendSystemPrompt,
             ...(usesExactSystemPrompt ? { extensionFactories: [exactSystemPromptExtension] } : {}),
+            // fork:memory —— 子代理也是 PI NEXT 的一部分：开关关着时同样不加载它。
+            extensionsOverride: (base) => withoutDisabledMemoryExtension(base),
           }
         : chatOnly
           ? { ...CHAT_ONLY_RESOURCE_LOADER_OPTIONS, extensionFactories: [exactSystemPromptExtension] }
@@ -2555,7 +2560,7 @@ export async function startRpcSession(
                 ? []
                 : [createReadOnlyMcpPolicyExtension()]),
             ],
-            extensionsOverride: (base) => preferUserBashExtension(preferPiWebSubagentExtension(base)),
+            extensionsOverride: (base) => preferUserBashExtension(preferPiWebSubagentExtension(withoutDisabledMemoryExtension(base))),
           },
       ...(trustReloadOptions ? { resourceLoaderReloadOptions: trustReloadOptions } : {}),
     });

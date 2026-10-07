@@ -629,7 +629,7 @@ M-05 帧 C 整帧是「通用 › **权限与信任**」二级页（`.m-perm` �
 
 | 项 | 处置 |
 |---|---|
-| 新分节画板 | `design/v5/web/boards/D-31-settings-imagegen.html`（两帧：帧 A = 独立档（内置预设 / 自定义），帧 B = 引用「设置 → 模型」里已配的服务商；D-28/30 已被动效与键盘板占用，编号取 31）。表单 DOM 抄 D-08 的 `.d-set-sec` / `.d-grid2` / `.d-field` / `.d-input` / `.d-select` 那一套，密钥字段用掩码值示意 |
+| 新分节画板 | `design/v5/web/boards/D-31-settings-imagegen.html`（初版两帧：帧 A = 独立档（内置预设 / 自定义），帧 B = 引用「设置 → 模型」里已配的服务商；**T3 收敛为单帧，只留引用那一路**。D-28/30 已被动效与键盘板占用，编号取 31）。表单 DOM 抄 D-08 的 `.d-set-sec` / `.d-grid2` / `.d-field` / `.d-input` / `.d-select` 那一套 |
 | 导航扩容 | 15 张设置画板（13 张在 boardnav 测试清单里 + D-07b + D-25 计划队列里的设置壳）的**每一处** `<nav class="d-set-nav">` 插入同一枚 `<button class="d-set-navitem"><i data-ico="image" data-size="14"></i>生图模型</button>`。「11 条 / 11 枚图标」的测试断言随画板改为 12（`SettingsPanel.boardnav.test.mjs`），D-31 进入同构清单；hub 文案与「十二个分节」计数同步（`SettingsPanel.test.mjs`） |
 | 新类 | `.d-test-img`（测试回显图：等比上限 + `--nx-r-sm` 圆角）—— 进 `web/system.css` 并出现在 D-31 板面上（判据⑦）。产品侧 `ImageGenSettingsPanel` 全部复用已有 `d-*` 原子，零内联几何 |
 | 已登记不改 | 生图档案独立于对话模型（不进模型选择器、不吃 `enabledModels`）；结果卡复用 `ResultImages` 的 URL 来源通道（`details.images` → `/api/files`），不新增聊天流类名 |
@@ -643,8 +643,226 @@ M-05 帧 C 整帧是「通用 › **权限与信任**」二级页（`.m-perm` �
 |---|---|
 | 为什么不直接拿那个服务商去生图 | pi-ai 的 `KnownImageApi` 只有一个成员 `openrouter-images`，而 **models.json 不收 image 模型** —— 实测把一个 `type: "image"` 的模型写进去，SDK 把它当 chat 收下（`getModelsOfType("image")` 返回空）。所以请求仍由 `lib/imagegen-config.ts` 直发，**能复用的就是端点与密钥** |
 | 契约 | `ImageGenProfile.providerId`：非空即引用态，`baseUrl` / `apiKey` 被忽略且**绝不落盘**（`writeImageGenConfig` 强制置空）。解析集中在 `resolveImageGenProfile()`，工具 / 测试路由 / 面板三处共用；解析不出来 fail closed 并如实报错（服务商被删 / 缺密钥 / 缺模型名） |
-| 控件 | 服务商下拉分两组：已配服务商（`ref:<id>`，落在 `custom` 档）与内置预设；引用态**不渲染** Base URL / API Key 两格，换成一条 `.d-set-row`（「端点与密钥来自」+ 端点 + `.d-badge` 密钥状态） |
-| 引用态为何挂在 `custom` 档 | 四个内置预设各带固定端点，没有可引用的对象；`custom` 本就是「不是那四个内置预设」的那一格 |
+| 控件 | 服务商下拉分两组：已配服务商（`ref:<id>`，落在 `custom` 档）与内置预设；引用态**不渲染** Base URL / API Key 两格，换成一条 `.d-set-row`（「端点与密钥来自」+ 端点 + `.d-badge` 密钥状态）。**T3 推翻了分组与两格的存在** |
+| 引用态为何挂在 `custom` 档 | 四个内置预设各带固定端点，没有可引用的对象；`custom` 本就是「不是那四个内置预设」的那一格。**T3 取消了档位概念本身** |
+
+### T3 · 只引用已添加的模型，删掉内置预设与手填密钥（2026-10-07 · fork:imagegen-ref 第二轮）
+
+用户原话：「把它内置的选择哪几个模型给我去掉…我想让你和我已经添加的模型有关系…比如我已经添加了 opencode go 的套餐了，
+那么你就直接让我选择套餐里的模型就行了，不需要在生图模型那里再输入 api key 了」。
+
+**这里的根因不是 UI 分组，是引用来源选错了文件**：T2 只读 `~/.pi/agent/models.json`，而 `opencode-go`
+这类**目录型套餐**的模型在 `~/.pi/agent/models-store.json`（上游目录缓存）、凭证在 `auth.json` ——
+用户「已经添加的模型」根本不在 models.json 里，所以怎么调下拉都选不到。
+
+| 项 | 处置 |
+|---|---|
+| 引用来源 | 换成 pi 的 `ModelRuntime`（`ModelRuntime.create({refreshOnCreate:false})`）：内置目录 + models-store 缓存 + models.json + auth.json 已由它合成一份。服务商列表 = `getAuth()` 解析得出来的那些，模型列表 = 该服务商的 `getModels()` |
+| 删除 | 四个内置预设及其常量（`IMAGEGEN_PRESET_*`）、面板的 Base URL / API Key 两格、`IMAGEGEN_KEY_MASK` 与写入时的掩码合并 —— 档案里不再有任何密钥。要生图专用端点就在「设置 → 模型」里加一个服务商 |
+| 档案形状 | `{version:2, profile:{providerId, model, size, concurrency}, status}`（v1 读入时按当时 `active` 那一档迁移，端点与密钥不带过来）。解析器改名为 `resolveImageGenTarget()`，返回带 baseUrl / apiKey / headers 的 target |
+| 端点与登录态 | 端点取**所选模型自己的** `baseUrl`，取不到再回落 `provider.baseUrl`；`getAuth()` 的 `headers`（OAuth 登录态）随 target 带上，且**优先于**自己拼的 `Bearer` |
+| 模型下拉的空列表 | 生图专用中转常常不列 chat 模型 —— 清单为空时回落手填输入框，已存但不在清单里的模型留一条额外选项，不静默丢 |
+| 画板 | D-31 帧 A 删除，只剩一帧（引用 + 生成参数 + 连接测试）；`节点与密钥来自` 那条 `.d-set-row` 改成「端点来自」+ `N 个模型` 徽标 |
+| 测试与状态 | `POST /api/imagegen` 不再收 `{provider}`（只测当前档案）；`PUT` 时 providerId 或 model 变了就把 status 重置成 untested —— 不让上一次的「可用」替另一张档案背书 |
+
+### T4 · 推翻 T3：预设档回到生图页，端点与密钥自带（2026-10-07 当天 · fork:imagegen 第三轮）
+
+用户原话：「就弄到生图页就行了，不需要保留「引用已配服务商」那条路」，同一条消息里给了方向：
+「你帮我找找 pi参考项目 里面项目的这块的生图模型的配置吧，帮我预设一下，金龙不要加，不过 agens 可以加」。
+
+**T3 的根因诊断对，结论错**：目录型套餐确实没有生图接口（实测 `opencode.ai/zen/go/v1/images/generations`
+回 404 官网 HTML，同一个网关的 `/chat/completions` 回正经 401 JSON）。所以问题不在「引用来源选哪个文件」，
+而在**生图服务商与对话服务商本来就是两拨人** —— 把生图寄在「已配模型」下面，只会多一层
+「为什么测试失败」的解释。
+
+| 项 | 处置 |
+|---|---|
+| 预设表 | 回到生图页自己的档位，**照参考项目的实测实现**（`pi参考项目/标书功能/client/electron/services/aiService.cjs` 的 `OPENAI_IMAGE_PROVIDER_META` + `createOpenAICompatibleImageRequestBody` + `createGoogleImageRequestBody`，`pi参考项目/MusePi-main` 的 Agnes 分支）：Agnes 国内 `api.agnes-ai.cn/v1` / Agnes 国际 `apihub.agnes-ai.com/v1` / 火山方舟 `ark.cn-beijing.volces.com/api/v3` / Google AI Studio `generativelanguage.googleapis.com/v1beta` / OpenAI / 自定义。**金龙不入表**（用户），硅基流动也随之去掉 |
+| 三种方言 | `openai`（`{model,prompt,size}`，`response_format` 只给 DALL·E）、`agnes`（`extra_body.response_format` + 2.1-flash 的 `ratio`，尺寸是 1K/2K/3K/4K 档位）、`google`（`models/<model>:generateContent` + `x-goog-api-key` + `responseModalities`，图在 `inlineData`）。响应解析相应多一条 `candidates[].content.parts[]` 分支 |
+| 删除 | `listImageGenProviders()` / `resolveImageGenTarget()` / `ModelRuntime` 接线、服务商 `modelsProviders` / `refError` / `refBaseUrl` 三个派生字段、面板里的两组下拉与「端点来自」那一条 `.d-set-row` |
+| 档案形状 | `{version:3, active, providers:{<预设>:{baseUrl, apiKey, model, size, concurrency, status}}}`（0600、掩码合并回来）。v1 老文件按 id 取回同名档（金龍/硅基流动丢掉），v2 引用档没有对应语义 → 回默认 |
+| 状态闸门 | 换端点或换模型就把该档重置成 untested（T3 留下的规矩保留）；「测试」仍是真出一张图并落盘，标书自动配图只认 available |
+| 未入表 | ComfyUI：另一套协议（workflow + `/prompt` + 轮询），参考项目里它有专门的 `comfyui_workflow` 字段 —— 要做得另开一条通道，不能拿 `/images/generations` 冒充 |
+| 画板 | D-31 回到「预设档」单帧（服务商 / Base URL / API Key / 模型名称 + 参数 + 测试），帧 A 标签与 d-notes 同步改 |
+| 运行时空验证 | 隔离 agent 目录起 30247 实测：GET 六档预填正确、密钥掩码回显且不泄漏、PUT 落盘、POST 用假 key 打真 Agnes 得到 `HTTP 401 无效的令牌`（说明 URL / 头 / body 被对方认下、只差真 key）、未配置档 409 |
+
+
+## U · V6 提案：agent 会话的 beUI 借鉴（2026-10-07 · D-32 / D-33）
+
+用户要「参考 beUI AI Agents 组（18 件，MIT，beui.dev，作者 Saurabh Chauhan，LICENSE 已核）做一版 V6 画板看效果」。
+评估结论先行：18 件里 13 件与本仓现有功能重叠（Message / Code Block / File Diff / AI Sidebar / Chat App 全家桶等），
+**只借 6 件的「信息组织与交互形态」，实现全部 V5 化**——与 BoardUI 采纳清单同一条纪律（抄规格不抄实现）。
+
+| 项 | 处置 |
+|---|---|
+| 画板 | `D-32-v6-conversation.html`（帧 A = 1440×900 运行中会话剧照；帧 B = 新件深色抽查）与 `D-33-v6-agent-parts.html`（部件规格台：任务清单四态 / 审批卡三变体 / 生图三阶段 / 导航轨与行内引用） |
+| 新类（web/system.css 23 段） | `.d-todo*`（beUI todo-list：折叠头进度计数 + 行三态，勾选盒**复用** `.d-checkbox`）· `.d-approve*`（approval-card：决策卡三钮横排，卡身中性，危险只在命令与拒绝钮）· `.d-imgen*`（image-generation：三阶段共用 stage 盒，高度不变）· `.d-navrail/.d-navtick/.d-navpop`（preview-rail：右缘细刻度按距离定长 + 悬停预览卡）· `.d-orb`（voice-orb 的 CSS 近似：呼吸 + 波纹；产品化换 canvas）· `.d-cite-mark`（citations：正文上标；来源集合复用 `.d-cite`） |
+| 新关键帧（base.css） | `nx-orb` / `nx-orb-ring` / `nx-reveal` —— 关键帧属两端共用，定义只在 base.css；reduced-motion 全部停终态 |
+| 借了什么 | 折叠头自带进度（todo-list）、决策卡的三钮编排与多步计数（approval-card）、无布局偏移的三阶段占位（image-generation）、刻度距离梯度 + 消息预览卡（preview-rail）、「活动度越高呼吸越快」（voice-orb） |
+| 不引入什么 | beUI 全库依赖 motion / Tailwind / shiki / lucide-react，一个都不进：动效用 CSS 关键帧，类与令牌用 V5 自己的，高亮继续 react-syntax-highlighter，图标走 `data-ico`。beUI 的 favicon 拉取（citations）也不引入，来源以本仓 `@路径` 引用为主 |
+| 不借鉴的件 | Message / Message Bubble / Streaming Response / Tool Result / Agent Activity / AI Sidebar（本仓 MessageView / TraceFrame / SessionSidebar + V5 画板已覆盖）；Code Block / File Diff（shiki 与本仓 RSH 双引擎冲突，且「流式不上色、结束后错峰」本仓已实现）；Chat App（11K 行全家桶 demo，跑起来看动效用，不装） |
+| 探针协同 | 「重播显影」按钮的教训：`nx-reveal` 带 `both` 填充，动画结束后 `currentTime` 为 null，shoot 探针的时钟比较失效；藏在页签 pane 里的目标在解开 `hidden` 时时钟还会被重置。处置 = 重播目标指向 stage 容器（子树含无限扫掠，时钟恒增）+ 三阶段改并排展示不进 pane |
+
+### U2 · 18 件收齐：D-34 / D-35（2026-10-07 · 用户裁定「剩余 13 件也上，加交互」）
+
+D-32/33 落了 7 件之后，用户要求把剩余 13 件全部画出来并加交互。两板全部用 V5 既有原语组装，
+**只新增三个类**：`.d-msg-user.warn / .bad`（beUI message-bubble 的 visual tones，语义色底）与
+`.d-jump`（message-scroller 的「滚到最新」悬浮钮，毛玻璃 pill）。分组（message）、流式与来源摘要
+（streaming-response）、行号与复制反馈（code-block）、词级渐入 diff（file-diff）、工具结果三态
+（tool-result）、记住授权（tool-approval）、三种加载（loading-states）、跟随/释放视口
+（message-scroller）、发送⇄停止与队列（prompt-input）、混合时间线（agent-activity）、
+右栏引用上下文（ai-sidebar）全部复用既有 `d-*`；chat-app 的对应物就是 D-32 整张工作台（18 件收齐表在 D-35 帧 D）。
+交互全走 demo.js 既有 12 类接线（append 模拟流式输出并滚底、switch 切记住授权、stream 打字机、
+motion 重播渐入——渐入因此类化为 `.d-diff.in`，重播按钮走 `data-demo-motion-class` 通路）。
+
+### U3 · 动效补齐与 BoardUI composer-loader 采纳（2026-10-07 · 用户裁定「我也喜欢它的动效」）
+
+| 项 | 处置 |
+|---|---|
+| 虹彩环绕光带（D-35 帧 E） | BoardUI §A 采纳件「输入框环绕光带」的**原版厚度**：三层光（锐线 2.5 / 紧辉光 8 / 宽 bloom 30）沿 pill 边缘行进，软层头依次拖后 —— 相位差 = 常数 animation-delay（循环动画的 delay 即相位）。V6 映射：四色 teal/blue/pink/green → 语义四色 success→info→accent→warning（色相不增，SVG 渐变全 var()）；SVG 原生 feGaussianBlur 照搬（WebKit 忽略 SVG 元素上的 CSS filter）；taper 未搬（round 端帽代之）。新类 `.d-loader-iris*` + `.d-composer.iris-pill`，开合走 480ms 透明度（data-demo-motion-class="is-off"） |
+| navtick 悬停 | `.d-navtick:hover` scaleX(1.5) + rail hover 全体变 accent —— beUI preview-rail 弹簧缩放的 CSS 近似 |
+| 未搬的动效 | beUI 的 motion 弹簧（action-swap / flap / morph）不进仓；已落 demo 的动效全是 CSS 关键帧（nx-orb / nx-reveal / nx-list-in / nx-shimmer / nx-num / nx-dash + demo.js 重播），曲线用 V5 自己的 --nx-ease 族 |
+| settings-modal / sidebar（BoardUI） | 不加板：settings-modal ≈ V5 的 `.d-modal-box` + `.d-set`（D-07~21 全家）；floating sidebar ≈ `.d-side` / `.d-rail`（D-02），折叠 morph 属 D-02 领域不在 V6 插手 |
+
+### U4 · Motion 库进画板家具层 + beUI PWA 调查（2026-10-07 · 用户裁定「直接加 motion 看效果」）
+
+| 项 | 处置 |
+|---|---|
+| vendor | `design/v5/assets/vendor/motion.js`（motion 12 UMD，139KB，MIT，全局 `window.Motion`）—— **画板家具层专用**，与 `.d-frame` 同级，产品运行时不引用；D-35 帧 F 是唯一使用者 |
+| 接线 | demo.js 第 12 类：`data-demo-spring="#target" data-demo-spring-kind="pop|flip|rise" data-demo-spring-mode="spring|tween"` —— 声明式，画板零手写脚本。**Motion 12 的 spring 只吃单值目标**（keyframes 数组静默不跑，实测），所以是两段式：弹出到极值 → finished 后弹簧回位，过冲发生在回程（实测轨迹 1.21 → 0.96 → 1） |
+| 帧 F | D-35「弹簧物理对照台」：三组件（徽章 pop / 勾选盒 flip / 消息行 rise）× 两按钮（Motion 弹簧 vs V5 缓动），同一动作两种物理并排。产品化要 motion/react（React hook），是否进产品另行裁定 |
+| beUI PWA | **没有**。beUI 三分类 Agents(18) / Components(51) / Blocks(23)，无 mobile/PWA 形态；沾边的只有 Bottom Sheet（vaul 式拖拽吸附）与 Drawer（侧滑面板）两件。V5 的 PWA 体系（`m-*` 12 张板，M-01~12）是本仓自有，beUI 无可搬的 PWA 画板 |
+
+### U5 · 交互动效全面切到 Motion(2026-10-07 · 用户裁定「应该都有 Motion 吧,不可能只有三个」)
+
+D-32~35 的**全部交互重播与入场动效**统一升级为 Motion 驱动(demo.js 12/12b 类),CSS 关键帧退役为回退:
+
+| 交互 | 驱动 |
+|---|---|
+| D-32 生图显影重播 | `data-demo-spring kind="reveal"`(Motion tween 900ms,blur+opacity——出现类动效过冲会怪,弹簧不适用但驱动仍归 Motion) |
+| D-33 计数重播 | `kind="pop"` 弹簧(scale 过冲回弹,实测 1.22) |
+| D-33 / D-32 导航轨刻度悬停 | `data-demo-spring-hover="1.5"`(demo.js 12b:enter/leave 双弹簧,实测过冲 1.55;CSS :hover transform 让位) |
+| D-34 diff 渐入重播 | `kind="stagger"`(子元素逐个弹簧浮入,40ms 错峰,y 轴过冲) |
+| D-35 追加消息 | `data-demo-append-spring="1"`(新节点弹簧浮入 -8→0) |
+| 常驻环境动画(orb 呼吸 / 虹彩光带 / shimmer / think-dots) | **留在 CSS 关键帧** —— 循环动画的正确工具就是 CSS,Motion 的价值在交互弹簧;两套共存,产品化时同样只把交互层换 motion/react |
+
+### U6 · V6 落地进产品 DOM(2026-10-07 · 用户裁定「按新增加的落地」,先去掉光带)
+
+用户的两个前置:①帧 E 虹彩光带与输入框描边跑光全部退场(画板 D-32/D-35 删帧与 svg,`.d-loader-iris*`/`.iris-pill` 随之出库,`nx-dash` 留给存量);②整体认可,按 LANDING 四步法落地。
+
+| 件 | 产品落点 |
+|---|---|
+| todo 卡 `.d-todo*` | MessageView `TodoCard`(新组件):折叠头(状态徽章 + Motion 弹簧计数)+ 行三态,勾选盒复用 `.d-checkbox`;`.d-plan` 的 foot「第 N 步进行中」退场(run 行自身表达)。PlanRail 留在 PlanDocumentCard 服务计划文档卡 |
+| 生图卡 `.d-imgen*` | MessageView `GeneratedImagesCard`(新组件):stage 固定高 + `nx-reveal` 显影 + meta(文件名 + 已落盘徽章),点图仍走 ImagePreview 灯箱;23c 段选择器放宽为后代(`.d-imgen-stage img`) |
+| 审批卡 `.d-approve*` | ChatWindow `ApprovalCardBody`(新组件):ExtensionDialog 的 select 态在「审批请求」时渲染决策卡(辨识口径 = title 固定首行 + 选项恰为 APPROVAL_CHOICES),三钮横排、danger ghost=拒绝,挂载 springEnter 入场;其余 select 仍走通用对话框,审批时不再渲染 modal-foot(Esc=拒绝语义不变) |
+| 语音球 `.d-orb` | AppShell 顶栏运行中芯片:orb.live 替代同位 spinner(d-run 语义重复),文字保留 |
+| 滚到最新 `.d-jump` | ChatWindow:按钮加挂 `d-jump`(毛玻璃 pill + 图标 + 文字),显隐/定位仍由 `chat-scroll-to-bottom` 的 is-visible 通道管,zm-03 状态机没动 |
+| Motion 产品化 | `motion@12` 进 dependencies;`lib/motion-pop.ts`(`springPop`/`springEnter`,两段式绕开「spring 不吃 keyframes 数组」,尊重 prefers-reduced-motion)——只服务交互弹簧,环境循环动画仍走 CSS 关键帧 |
+| 未落地(登记待裁定) | `.d-navrail/.d-navtick/.d-navpop`(落地 = 重写 ChatMinimap,单独一轮)、`.d-cite-mark/.d-cites`(产品尚无引用功能)、`.d-tb-sub`(顶栏副标题无数据源) |
+| 测试 | 四个旧断言按「新的等价约束」改写(D03TranscriptLanding / MessageView / PlanDocumentCard / ChatWindow.scroll-to-latest),全量 3787 tests 0 fail |
+
+### U7 · 收尾三件的处置(2026-10-07 · 用户「一口气弄完」)
+
+| 件 | 处置 |
+|---|---|
+| `.d-cites`(来源集合行) | **已落**:TurnWrittenFiles 的 chips 行 `.d-chips` → `.d-cites` —— 一轮写过的文件就是这轮回答的「来源」,芯片语法与 D-33 帧 D 同一套;PWA 仍 `.m-tray` |
+| `.d-navrail/.d-navtick/.d-navpop` | **不落,登记**:落地 = 重写 ChatMinimap(983 行,虚拟列表锚点 + e2e `data-minimap-*` 钩子),且与 **2026-10-05 用户裁定「minimap 形态退回画板 53」** 直接冲突 —— 要换 navrail,先撤那条裁定,单独一轮 |
+| `.d-tb-sub`(顶栏副标题) | **不落,登记**:**2026-10-05 fork:no-tb-sub 用户裁定**已把这一行从桌面顶栏撤掉(「项目名在侧栏/文件面板/输入卡已写三遍,顶栏再写是第四遍」)—— V6 画板帧 A 画了它,产品侧维持裁定 |
+| `.d-cite-mark`(正文上标) | **不落**:上标编号需要「回答引用了哪些来源」的数据模型,产品没有引用功能;画板保留为将来引用功能的规格 |
+
+### U8 · 真机验收(2026-10-07)
+
+prod(30141)重启后以临时验收会话(含 todo set / generate_image / 文件落盘数据,验后即删)在真浏览器里过:
+todo 卡(`.d-todo` 折叠头「待办 · 进行中 · 2/3」+ 行三态 + 折叠交互可点)、生图卡(`.d-imgen` stage + meta「logo.png · 已落盘」)、
+顶栏/侧栏/过程组全部正常,零页面错误。验收途中撞上的「服务读到旧数据」是**三个 next-server 并存**
+(8:07 / 9:39 / 10:13,IPv6/IPv4 各占一边,响应打到持有旧缓存的旧进程)—— 全部清掉起一个后数据即正确。
+注:这与本仓代码无关;多个手工 `next start` 并存时会出这种事,`npm run prod` 的自动换挡不杀别的进程。
+
+### U9 · V6 收尾三件全落（2026-10-07 · 用户裁定「三件全落（含恢复顶栏副标题）」）
+
+U7 登记的三件（导航轨 / 行内引用标 / 顶栏副标题）在用户明确裁定后全部落地，D-32~D-35 四张画板
+的落地率随之到 **100%**（`design:v5:land`：3616/3630 个类）。其中两件**推翻了用户自己的旧裁定**，
+依据是这次更晚的裁定，逐条记明：
+
+| 件 | 产品落点 | 推翻了什么 |
+|---|---|---|
+| `.d-navrail` / `.d-navtick` / `.d-navpop` / `.d-navpop-t` | `ChatMinimap`：导轨容器挂 `.pw-minimap-rail .d-navrail`（双类 0-2-0 覆盖，几何归产品列）；节点从 board 53 的 6px 圆点换成 V6 细刻度（过去 `done.near` / 当前 `now.mid` / 未来 `far`）；悬停预览卡从 `.pw-card` 换成 `.d-navpop` + `.d-navpop-t`（工具数徽标改 `.d-badge.mute`）。`data-minimap-*` 四个钩子、悬停拖拽、定位锁、加载更早、大纲跳转全部不动 | **fork:minimap-board53**（2026-10-05「minimap 形态退回画板 53」）—— 导轨刻度形态改回 V6；面板（`.pw-minimap-pop` / `.pin` / `.load-earlier` / `.turn`）仍是画板 53 |
+| `.d-cite-mark` | `MarkdownBody` 新增 `CiteSourcesContext` + `MarkdownAnchor`：这一轮**写过的文件**（与底部 `.d-cites` 同一份 `writtenFiles`）就是来源集合，正文里指向来源文件的本地链接右上角带编号（位次从 1 起），与 `.d-cites` 芯片顺序一一对应。窄屏不渲染（PWA 库没有 `m-cite-mark`，V6 画板也只做了桌面） | U7「产品没有引用数据模型」的结论 —— 现在用「本轮写过的文件」当来源，不新造数据模型 |
+| `.d-tb-sub` | `AppShell` 桌面顶栏 `.d-tb-stack` 恢复副行（`desktopTopBarSubtitle` = `项目 · 上下文 %`）—— **当天稍后又被用户全删**：`fork:no-tb-sub-everywhere`（见下方 V2），`topBarSubtitle` / `desktopTopBarSubtitle` 两个取值函数与两条渲染点一并删除。所以 U9 落地后 D-32 又回到 76/77（`d-tb-sub` 是有意不落，不是漂移） | 先推翻 **fork:no-tb-sub**（2026-10-05），随后被 V2 再推翻 |
+
+**只标链接、不猜裸路径**：一句话「支持了哪个来源」需要锚点，靠文件名做模糊匹配会误标，
+所以正文里手写的裸路径（`` `check-v5.mjs` ``）不加标 —— 这是有意的边界，不是漏做。
+
+**同日用户实拍四条修正（2026-10-07 第二轮）：**
+
+| 用户原话 | 处置 |
+|---|---|
+| 「为啥还有导轨啊」（右缘那条带底色 + 左边线的竖轨） | 画板 `.d-navrail` 是**浮在转录右缘的透明细刻度**（无底色、无边线），而 board 53 的 `.pw-minimap-rail` 是一条竖轨。`.pw-minimap-rail.d-navrail` 里把 `background` 与 `border-left-color` 隐掉（保留 1px 边框宽度以免列宽跳变），只留刻度 |
+| 「这些横杆不是从顶部开始的，应该是最右侧的上下居中屏幕的位置吧」 | `layoutNodes` 从「从 `MINIMAP_PADDING` 起往下排」改成**刻度组垂直居中**（画板 `.d-navrail` 就是 `justify-content: center`）；单轮会话那颗落正中（`topRatio: 0.5`）。组高超出可用高度时回落成贴顶（与旧行为一致） |
+| 「这些间距不对啊…太宽了」 | `MAX_NODE_GAP` 50 → **10**：画板刻度的节奏是 `gap: var(--nx-sp-2)`（8px）+ 刻度高 2px ⇒ 中心距 10px。命中仍靠 `findNearestNode` 取整，10px 相邻也选得中 |
+| 「这个浮窗，你也没有按照设计的来啊」（320px 大纲面板） | board 53 的 **320px 面板整块退场**：`.pw-minimap-pop` / `.pin` / `.load-earlier` / `.turn` / `.gutter` / `AssistantOutline` 与 `previewPinned` 状态、`scrollToAssistant` / `scrollToHeading` 全部删除；悬停直接出画板 D-32 的 `.d-navpop` 小卡，点刻度跳到那一轮。卡头行也改成画板的「第 N 轮 · 你 / PI NEXT」（新增 i18n `chatMinimap.turnUser` / `turnAssistant`，三语齐全），不再是「用户消息 / 助手回复」。「加载更早」本来就有「滚到顶自动加载」兑底（ChatWindow 的 sentinel IntersectionObserver），大纲级跳转一并退场。`ChatMinimap` 的 `hasEarlierMessages` / `loadingEarlier` / `onLoadEarlier` 三个 props 随之退场 |
+| 「你只需要箭头就行了，为啥还有文字啊」（滚到最新钮） | `.d-jump` 去掉文字，只留箭头（`.chat-scroll-to-bottom` 是定宽方钮，文字在里面会被挤成竖排）；文案仍在 `title` / `aria-label` 上。`.chat-scroll-to-bottom.d-jump { padding: 0 }` 双类覆盖把 `.d-jump` 的「图标 + 文字」内边距收掉 |
+
+门禁：`design:v5` 44+12 张画板 0 错误；`design:v5:land` D-33/D-34/D-35 **100%**，D-32 76/77
+（剩的 `d-tb-sub` 是有意不落，见 V2），无漂移类；`check-icons` / `check-boards` / `check-align` 全绿；
+`tsc` 0 错；eslint 本批文件 0 error；全量测试 0 fail（7 skipped）。
+`check-style-literals` 与 `check-motion-tokens` 的两条红是**存量**（违规文件在本批之前就存在，
+`app/fork-ui.css:3334` 等，本批一字未动）。
+
+## V · 第四轮用户实拍（2026-10-06 · fork:pwa-drawer-brand / pwa-drawer-foot-icon / pwa-topbar-align / pwa-menu-toggle）
+
+| 图 | 用户原话 | 处置 |
+|---|---|---|
+| 1 | 「logo 后面有两个 PI NEXT，都帮我去掉，换成图片的那种」 | 抽屉品牌位原来发三件同名的东西：`.m-brand` 图标 + `.m-t-b` 实色文本 + `.m-badge mute` 项目名（本仓的 cwd 恰好也叫 PI NEXT）。文本与徽章撤掉，字标换成与桌面同一张 `pi-next-wordmark.png`（新增窄屏对位件 `.m-wordmark`，高度取 `.d-wordmark` 的 20px）。**这是对画板 M-01/M-04 的偏离**（板面那一行是 `<img class="m-brand">` + `<span class="m-t-b">` + 模型名徽章），依据是用户裁定 |
+| 1 | 「下面那个手机 icon 为啥有个圆形，帮我去掉」 | `.m-drawer-foot` 那枚「手机与推送」从 `.m-top-btn` 换成无底的 `.m-iconbtn`（`--nx-ctl-sm`）。`.m-top-btn` 是**浮在内容上的顶栏钮**（玻璃圆底 + 光晕），放进底栏就多出一圈没有语义的圆。**这是对 M-04 帧 A 的偏离**，依据是用户裁定 |
+| 1 | 「那三个点点不了」（项目行 / 会话行的 ⋯） | 根因不在命中区，在**浮层根本没显形**：`PortalDropdown` 的窄屏浮层件是 `.m-pop-float`（库定义 `display:none`，靠 `.is-open` 显形），而该组件用 opacity/transform 自己管显隐、从不发 `is-open` —— 侧栏三只 portal 浮层（会话行 ⋯ / 项目 ⋯ / 工作区切换）在手机上全是 `display:none`。`AnimatedDropdown` 在 `mounted` 期间补 `is-open`。实测会话行 ⋯ 菜单从 `display:none` 变为 200×195 可见 |
+| 2 | 「上面三个按钮帮我对齐，那三个点老是偏下一点」 | `mobileToolbarRef` 的内联 `alignItems: "stretch"` 让定高 44px 的子项按 flex-start 落在 53px 的行里：右栏面板钮 y=0、抽屉钮与 ⋯ y=4（实测差 4px）。改 `center` |
+| 2 | 「下面输入框位置的按钮也是如此，请帮我对齐」 | `.m-composer-row` 是 `align-items: flex-end`：底边对齐，但 34/36/40 三种高度下圆心各不相同（发送钮 40 比其余高 4px）。改 `center` |
+| 2 | 「标题下面那个 PI NEXT 帮我去掉」 | 手机副行的 cwd 读数撤掉（`pathBasename(cwd)`），只留上下文占用 —— 与桌面 `fork:no-tb-sub`（2026-10-05）同因：项目名在抽屉、文件面板头、输入卡上已写三遍 |
+| 3 | 「点了之后不容易消失，再次点击按钮也不消失」 | 共享 `ContextMenu` 的 pointerdown 在触发钮上先 `closeMenu()`，同一个 click 随后又走 `openMenu()` = 关了立刻重开。新增可选 `chrome.anchor`（触发钮）：`onPointerDown` 点回锚点就关并记一笔，`openMenu` 在 500ms 内吞掉那一下的尾巴。`SessionActionsMenu` 传 `anchor: event.currentTarget` |
+| 3 | 「浮窗有点大，帮我变小点」 | 窄屏 `.m-menu-row` 从 `--nx-ctl-md`(44) 收到 `--nx-ctl-sm`(36)、字号 `--nx-fs-body` → `--nx-fs-cap`，`.m-sep` 上下边距 4 → 2，浮窗再封 `min(66dvh, 560px)` 上限（超出靠它自己的 overflow-y 滚）。12 行的会话动作菜单实测 633 → 约 520px |
+
+### V2 · 顶栏副行整件删除 + 配对码说明换行（2026-10-07 · fork:no-tb-sub-everywhere / lan-pair-hint-line）
+
+| 图 | 用户原话 | 处置 |
+|---|---|---|
+| 1 | 「这个放这里可以吗」（圈的是配对码卡片里竖排的那句说明） | 桌面 `.d-card` 的键帽行是 `6 枚 .d-kbd · .d-grow 垫片 · .d-col(说明)`：`.d-col` 没有 flex-shrink 控制，空间被垫片吃干后只剩 min-content 宽，中文于是**一字一行竖着排**。说明改成键帽行下面独占一行（同一段文案、同一个类，只换位置）。**这是对画板 D-20 帧 A 的偏离**（帧 A 把说明画在键帽右侧），依据是用户实拍 |
+| 2 | 「这种副标题帮我去掉吧，你啥时候加的副标题啊」 | 顶栏副行**整件删除**：`topBarSubtitle` / `desktopTopBarSubtitle` 两个取值函数与两条渲染点一起删。历史：fork:mobile-tb-subtitle（2026-10-03，窄屏）→ fork:no-tb-sub（2026-10-05，撤桌面）→ fork:v6-landing（2026-10-07 上午，按画板恢复桌面）→ 本轮全删。**这是对画板 D-01/D-02/D-32 帧 A 的偏离**（板面都有一行 `d-tb-sub`），依据是用户第二次裁定 |
+
+## V · 记忆分节落地 D-36（2026-10-07 · fork:memory）
+
+用户：「`pi install npm:pi-hermes-memory` … 我想让你在设置中给我单独加一个这个记忆的相关页面，
+就用这个就行，然后帮我放个开关，默认是关着的」；随后：「不想他在 mcp 页面里展示了，
+而是在记忆页面进行单独控制，不然显得乱七八糟的」。
+
+| 项 | 处置 |
+|---|---|
+| 新分节画板 | `design/v5/web/boards/D-36-settings-memory.html`（单帧：已装未开 = 默认态）。D-32～D-35 已被 V6 提案占用，编号取 36。DOM 全用已有 `d-*` 原子（`.d-set-sec` / `.d-set-row` / `.d-grow-last` / `.d-badge` / `.d-switch` / `.d-banner`），零新类、零内联几何 |
+| 导航扩容 | 16 张带 `<nav class="d-set-nav">` 的设置画板逐处插入 `<button class="d-set-navitem"><i data-ico="brain" data-size="14"></i>记忆</button>`（位置：能力段「插件」之后、「MCP」之前）。`SettingsPanel.boardnav.test.mjs` 的条数断言 12→13（两处 + 标题 + 同构清单加 D-36），`SettingsPanel.test.mjs` 的 hub 分节数 12→13 |
+| 开关的实质 | 不是自建布尔值：`pi-hermes-memory` 没有 enabled 字段，所以开关 = **那一个包在 `settings.json` 的 `packages` 里的启停**（停用形状由 `lib/plugin-package-entry.ts` 单点定义，与插件页共用）。默认关（`packageEnabledInList()` 里「没配 = 关」） |
+| 插件页不再列它 | `app/api/plugins` 的 `readPlugins` 过滤掉这个 source，`totals` 同减 —— 同一件事只留一个入口。**MCP 页从未列过它**（那一页只列 `mcp.json` 的服务器），用户把两个页面混说时的实际落点是插件页 |
+| 不假装当场生效 | 扩展是会话启动时加载的，所以开关旁常驻「新会话生效」徽标；面板只做开关 + 只读状态（记忆目录 / 项目记忆 / 扩展配置文件路径），不做细项表单 |
+| 运行时空验证 | `GET /api/memory` 实测 `{installed:true, enabled:false, version:"0.9.10"}` 且列出既有记忆目录；`GET /api/plugins` 实测列表里不再有 `hermes`、`totals` 未虚增 |
+
+### V2 · 开关改成「只影响 PI NEXT」（2026-10-07 当天 · 用户裁定）
+
+用户：「你的 `pi-hermes-memory/` 是既有数据…所以「关掉」也会影响你在其它运行时里的记忆写入。
+想让它继续在别的运行时里工作、只在 PI NEXT 里关，那得改成我们自己的开关 + 加载时过滤」→「行，那你帮我改吧」。
+
+| 项 | 处置 |
+|---|---|
+| 开关本体 | `~/.pi/agent/pi-web-preferences.json` 的 `memoryExtensionEnabled`（**默认 false**）。pi 的 `packages` 一个字都不写 —— 终端与其它运行时照旧加载它 |
+| 关掉的落点 | `lib/memory-package.ts` 的 `withoutDisabledMemoryExtension(base)` 接在 `rpc-manager` 的 `extensionsOverride` 上（主会话链 + 子代理那支），只摘那一个扩展，别的扩展 / 错误原样留着。匹配法照 `preferPiWebSubagentExtension`（包名或路径段） |
+| 全局状态只读 | 面板新增一行「终端 / 其它运行时」＝ pi 的 `packages` 里那一条的状态（`packageEnabledInList()`），全局被停用时另给一条提示；本页不写它 |
+| 顺带收敛 | `pi-web-preferences.json` 的读写抽到 `lib/pi-web-preferences.ts`（原先内联在 `lib/thinking-level-memory.ts`）—— 两个模块共用同一个文件，各写各的读-改-写会互相抹键 |
+| 验证 | `lib/memory-package.test.mjs` 7 条（含「摘掉的只有它」「开着时原样返回」「偏好文件不碰别的键」）+ `lib/thinking-level-memory.test.mjs` 4 条仍绿；运行时空验证见提交说明 |
+
+### V3 · 用量热力图改成周历（2026-10-07 · fork:usage-heat-year）
+
+| 图 | 用户原话 | 处置 |
+|---|---|---|
+| 1 | 「这张图别显示这么大吧，你看看第二张是 zcode 的，帮我变小点就行啊」 | 年度热力图原来是 **26 列 × 14 行**（`index % 26`）：格子宽走 `1fr`，跟着设置弹窗的宽度一起放大 —— 1440 视口实测 27px，用户宽窗口下 42px，比图例那枚 11px 的色块大四倍；而且月份标签也按 `index % 26` 定位，26 天一行 / 一个月约 30 天，标签落到随机列上（实拍读到「10月 6月 2月 7月 1月 8月…」）。改成 GitHub / ZCode 那一档的**周历：53 列 × 7 行**（列 = 周、行 = 星期，`lead` = 首日是星期几），格子回到 11px、整块 677×108（原 677×444），月份标签也回到真实列上。`.d-heat` 同时改成 `repeat(53, minmax(0, 1fr))` —— `minmax(0, …)` 不能省：行 1 的月份标签是 `nowrap` 的格子项，`1fr` = `minmax(auto, 1fr)`，它的最小内容宽会把轨道顶宽。文案同步改成「最旧的一周在左」（三种语言 + 画板 D-19 帧 B）。**这是对画板 D-19 帧 B 的偏离**（板面画的是 26 列 × 14 行），依据是用户实拍 |
+
 
 ## W · 设置面不再摆说明性文案（2026-10-06 · fork:settings-no-explainer）
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-06T16:35",
+  "generatedAt": "2026-10-07T07:17",
   "boards": [
     {
       "id": "D-01",
@@ -502,11 +502,78 @@
       "form": "web",
       "group": "sys",
       "title": "D-31 · 生图模型",
-      "desc": "生图模型是独立于对话模型的一张档案：同一个页面只管「图从哪来」——服务商、端点、密钥、 默认尺寸与并发。它不进对话模型选择器，也不吃 enabledModels； 会话里的 generate_image 工具读这里的状态，标书配图也吃同一份。 密钥掩码存取，「测试」是真的生成一张小图并把状态落盘——「看起来配好了」不算数。",
+      "desc": "生图模型是独立于对话模型的一张档案：预设档（Agnes 国内/国际、火山方舟、Google AI Studio、 OpenAI、自定义）各有自己的端点、密钥、模型名与默认尺寸，密钥掩码存取。它不进对话模型选择器， 也不吃 enabledModels；会话里的 generate_image 工具读这里的状态， 标书配图也吃同一份。「测试」是",
       "tags": [
         "页面：设置 / 生图模型",
         "组件：ImageGenSettingsPanel · /api/imagegen · generate_image",
-        "状态：未测试 / 可用 / 不可用"
+        "状态：未测试 / 可用 / 不可用",
+        "预设与方言：参考项目实测（标书功能 / MusePi）"
+      ]
+    },
+    {
+      "id": "D-32",
+      "file": "D-32-v6-conversation.html",
+      "form": "web",
+      "group": "sys",
+      "title": "D-32 · V6 提案 · Agent 会话全景",
+      "desc": "V5 的骨架不动（三栏 / 发丝线 / 唯一强调色），把 beUI「AI Agents」组（MIT）的四个会话件 融进一轮真实跑动：任务清单（todo-list）、审批卡（approval-card）、生成图片卡（image-generation）、 消息导航轨（preview-rail），外加语音球（voice-orb）与行内引用标（c",
+      "tags": [
+        "页面：工作台 / 转录区",
+        "组件：TodoCard · ApproveCard · ImageGenCard · NavRail · VoiceOrb（beUI 借鉴）",
+        "状态：运行中 · 审批待决策 · 生图显影 · 流式光标"
+      ]
+    },
+    {
+      "id": "D-33",
+      "file": "D-33-v6-agent-parts.html",
+      "form": "web",
+      "group": "sys",
+      "title": "D-33 · V6 提案 · Agent 部件规格台",
+      "desc": "D-32 剧照里四个新件的多状态全集，每件都标了 beUI 原件（MIT）与 V6 的取舍。 四条纪律：① 任务清单的折叠头自带进度，行状态只有 done / run / 待做三态，不做第五种颜色； ② 审批卡的卡身永远中性，危险语义只落在命令代码与「拒绝」钮上； ③ 生图卡三阶段共用同一个 stage 盒，高度不变 —— 排队是骨架、显",
+      "tags": [
+        "页面：转录区 / 组件规格",
+        "组件：TodoCard · ApproveCard · ImageGenCard · NavRail · CiteMark（beUI 借鉴）",
+        "状态：收起 / 进行 / 完成 · 待决策 / 已决策 · 排队 / 显影 / 完成"
+      ]
+    },
+    {
+      "id": "D-34",
+      "file": "D-34-v6-message-parts.html",
+      "form": "web",
+      "group": "core",
+      "title": "D-34 · V6 提案 · 消息与响应件",
+      "desc": "beUI「AI Agents」剩余件的 V5 化全集（一）：消息表面与模型输出。八件全部用 V5 现有原语组装， 只新增三个类（语气变体两档、滚到最新悬浮钮）。四条纪律： ① 分组共用一个头像位，连续同发送者的内容块收进一条消息，不再逐块带头像； ② 语气变体只动底色，warn / bad 走语义色，不新增色相； ③ 代码块流式期间不上色",
+      "tags": [
+        "页面：转录区 / 组件规格",
+        "组件：MessageBubble · Message · StreamingResponse · CodeBlock · FileDiff · ToolResult · ToolApproval · LoadingStates（beUI 借鉴）",
+        "状态：tone 三档 · 分组 · 流式 · 复制反馈 · 渐进行 · 折叠 · 三种加载"
+      ]
+    },
+    {
+      "id": "D-35",
+      "file": "D-35-v6-workbench-parts.html",
+      "form": "web",
+      "group": "core",
+      "title": "D-35 · V6 提案 · 工作台件",
+      "desc": "beUI「AI Agents」剩余件的 V5 化全集（二）：视口与输入。四条纪律： ① 跟随是默认，释放是显式动作 —— 追加一条消息就贴底（点「模拟输出」看），用户上滚后右下角出现「滚到最新」悬浮钮； ② 输入框的发送与停止是同一枚键的两个态，不是两枚键； ③ 活动时间线只有一条，思考 / 检索 / 工具 / 输出混排，不按类型分栏； ",
+      "tags": [
+        "页面：转录区 / 输入框 / 右栏",
+        "组件：MessageScroller · PromptInput · AgentActivity · AiSidebar · ChatApp（beUI 借鉴）",
+        "状态：跟随 / 释放 · 发送 / 停止 · 时间线混排 · 引用上下文"
+      ]
+    },
+    {
+      "id": "D-36",
+      "file": "D-36-settings-memory.html",
+      "form": "web",
+      "group": "core",
+      "title": "D-36 · 记忆",
+      "desc": "记忆能力整个来自第三方扩展 pi-hermes-memory（pi install npm:pi-hermes-memory）。 这一页的开关是本应用自己的偏好（pi-web-preferences.json）：关着时 PI NEXT 在会话创建时 把这个扩展从加载结果里摘掉，不动 pi 的 packages —— 终端与其它运行时照旧用",
+      "tags": [
+        "页面：设置 / 记忆",
+        "组件：MemorySettingsPanel · /api/memory · lib/memory-package.ts",
+        "开关范围：只影响 PI NEXT（不动 pi 的 packages）",
+        "状态：未安装 / 已装未开（默认）/ 已开启"
       ]
     },
     {

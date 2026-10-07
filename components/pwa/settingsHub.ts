@@ -21,7 +21,8 @@ export const SETTINGS_HUB_GROUPS: ReadonlyArray<{
 }> = [
   // fork:imagegen —— 生图模型档案跟「模型」同段（基础）：都是模型配置面。
   { id: "base", sections: ["general", "models", "imagegen"] },
-  { id: "capability", sections: ["skills", "agents", "plugins", "mcp"] },
+  // fork:memory —— 记忆扩展跟「插件」同段（能力）：它就是一个包。
+  { id: "capability", sections: ["skills", "agents", "plugins", "memory", "mcp"] },
   { id: "runtime", sections: ["automation", "usage"] },
   { id: "data", sections: ["archived", "import", "phonePush"] },
 ];
@@ -78,11 +79,17 @@ const SECTION_HINTS: Record<string, HubCopy> = {
     "zh-CN": "供应商与认证 · 启用模型 · 思考钉 · 成本档",
     "zh-TW": "供應商與認證 · 啟用模型 · 思考釘 · 成本檔",
   },
-  // fork:imagegen —— 生图模型档案的一句副行。
+  // fork:imagegen —— 生图模型档案的一句副行（没有密钥：只引用「设置 → 模型」里那一份）。
   imagegen: {
-    en: "Image generation profile · provider · key · size · connection test",
-    "zh-CN": "生图档案 · 服务商 · 密钥 · 尺寸 · 连接测试",
-    "zh-TW": "生圖檔案 · 服務商 · 密鑰 · 尺寸 · 連線測試",
+    en: "Image generation profile · provider & model · size · connection test",
+    "zh-CN": "生图档案 · 服务商与模型 · 尺寸 · 连接测试",
+    "zh-TW": "生圖檔案 · 服務商與模型 · 尺寸 · 連線測試",
+  },
+  // fork:memory —— 记忆扩展的一句副行。
+  memory: {
+    en: "Persistent memory extension · on/off · where it stores",
+    "zh-CN": "持久记忆扩展 · 开关 · 存在哪",
+    "zh-TW": "持久記憶擴充 · 開關 · 存在哪",
   },
   skills: {
     en: "Loaded · disable model calls · install from the store",

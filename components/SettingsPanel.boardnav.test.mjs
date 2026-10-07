@@ -92,9 +92,9 @@ function columnOf(nav) {
   ));
 }
 
-test("产品左导航的分组 + 12 条文案与图标，逐条等于画板 D-07 的 .d-set-nav", () => {
+test("产品左导航的分组 + 13 条文案与图标，逐条等于画板 D-07 的 .d-set-nav", () => {
   const productNav = readProductNav();
-  assert.equal(boardItems.length, 12, "画板 D-07 的左导航应当是 12 条");
+  assert.equal(boardItems.length, 13, "画板 D-07 的左导航应当是 13 条");
   assert.equal(boardSeps.length, 4, "画板 D-07 的左导航应当是四段分组");
   assert.deepEqual(
     // `is-on`（当前项）是另一条断言的事，这里比的是「那一列长什么样」。
@@ -109,7 +109,7 @@ test("画板上那一列的图标名与尺寸取自板面原文，且都在设�
   assert.ok(boardItems.every((item) => item.size === "14"));
   const productIcons = readProductNav().filter((entry) => entry.kind === "item").map((entry) => entry.ico);
   assert.deepEqual(productIcons, boardItems.map((item) => item.ico));
-  assert.equal(new Set(productIcons).size, 12, "12 枚图标不能重名（重名即抄错行）");
+  assert.equal(new Set(productIcons).size, 13, "13 枚图标不能重名（重名即抄错行）");
 });
 
 test("画板左导航是一族分节画板的同一份：只差哪一项带 is-on", async () => {
@@ -129,6 +129,7 @@ test("画板左导航是一族分节画板的同一份：只差哪一项带 is-o
     "D-20-settings-phone-push.html",
     "D-21-settings-archive-import.html",
     "D-31-settings-imagegen.html",
+    "D-36-settings-memory.html",
   ];
   const shape = boardNav.map((entry) => entry.label);
   for (const file of files) {
