@@ -2118,8 +2118,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       todoSummary={todoSummary}
       // fork:gap06-references — 让 `&` 建议列表知道当前会话，把它自己剔除
       currentSessionId={session?.id ?? null}
-      soundEnabled={soundEnabled}
-      onSoundToggle={onSoundToggle}
       // fork:design-components — 画板 20 的上下文环（.pw-ring）与它的浮窗数据。
       contextUsage={contextUsage ?? sessionStats?.contextUsage ?? null}
       sessionStats={sessionStats}
