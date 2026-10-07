@@ -814,7 +814,7 @@ function EndpointForm({ providerId, provider, builtIn, onChange }: {
 
   return (
     <div className="d-grid2">
-      <DField label={t("models.baseUrl")} hint={t("models.baseUrlCatalogFallbackHint")}>
+      <DField label={t("models.baseUrl")}>
         <TextInput
           mono
           value={provider.baseUrl ?? ""}
@@ -831,14 +831,14 @@ function EndpointForm({ providerId, provider, builtIn, onChange }: {
           onChange={(value) => set("api", builtIn ? (value || undefined) : value)}
         />
       </DField>
-      <DField label={t("models.apiKeyLabel")} hint={t("models.apiKeyHint")}>
+      <DField label={t("models.apiKeyLabel")}>
         <SecretTextInput
           value={provider.apiKey ?? ""}
           placeholder="ENV_VAR_NAME, !shell-command, or literal key"
           onChange={(value) => set("apiKey", value || undefined)}
         />
       </DField>
-      <DField label={t("models.headers")} hint={t("models.providerHeadersHint")}>
+      <DField label={t("models.headers")}>
         <HeaderListEditor headers={provider.headers} onChange={(headers) => set("headers", headers)} />
       </DField>
       <div className="d-t-xs d-t-faint" style={{ gridColumn: "1 / -1" }}>
@@ -1255,10 +1255,10 @@ function ModelDetail({ providerName, provider, model, onChange, onDelete, onBack
           )}
         />
         <div className="d-grid2">
-          <DField label={t("models.fieldModelId")} hint={t("models.fieldModelIdHint")}>
+          <DField label={t("models.fieldModelId")}>
             <TextInput mono value={model.id} placeholder="model-id" onChange={(value) => set("id", value)} />
           </DField>
-          <DField label={t("models.fieldName")} hint={t("models.fieldNameHint")}>
+          <DField label={t("models.fieldName")}>
             <TextInput
               value={model.name ?? ""}
               placeholder={model.id || t("models.fieldName")}
@@ -1315,7 +1315,6 @@ function ModelDetail({ providerName, provider, model, onChange, onDelete, onBack
         <div className="d-set-row">
           <div className="d-set-row-box">
             <div className="d-set-row-t">{t("models.reasoningCapability")}</div>
-            <div className="d-set-row-s">{t("models.reasoningCapabilityHint")}</div>
           </div>
           <span className="d-grow-last">
             <ConfigSwitch
@@ -1328,7 +1327,6 @@ function ModelDetail({ providerName, provider, model, onChange, onDelete, onBack
         <div className="d-set-row">
           <div className="d-set-row-box">
             <div className="d-set-row-t">{t("models.imageInput")}</div>
-            <div className="d-set-row-s">{t("models.modalityHint")}</div>
           </div>
           <span className="d-grow-last">
             <ConfigSwitch
@@ -1350,14 +1348,14 @@ function ModelDetail({ providerName, provider, model, onChange, onDelete, onBack
           )}
         />
         <div className="d-grid2">
-          <DField label={t("models.contextWindow")} hint={t("models.contextWindowHint")}>
+          <DField label={t("models.contextWindow")}>
             <NumInput
               value={model.contextWindow !== undefined ? String(model.contextWindow) : ""}
               placeholder="128000"
               onChange={(value) => set("contextWindow", value ? Number.parseInt(value, 10) : undefined)}
             />
           </DField>
-          <DField label={t("models.maxOutputTokens")} hint={t("models.maxTokensHint")}>
+          <DField label={t("models.maxOutputTokens")}>
             <NumInput
               value={model.maxTokens !== undefined ? String(model.maxTokens) : ""}
               placeholder="16384"
@@ -1404,7 +1402,7 @@ function ModelDetail({ providerName, provider, model, onChange, onDelete, onBack
 
         {advancedOpen && (
           <div id="model-advanced" className="d-col">
-            <DField label={t("models.apiOverride")} hint={t("models.apiOverrideHint")}>
+            <DField label={t("models.apiOverride")}>
               <Select
                 ariaLabel={t("models.apiOverride")}
                 value={model.api ?? ""}
@@ -1413,15 +1411,15 @@ function ModelDetail({ providerName, provider, model, onChange, onDelete, onBack
               />
             </DField>
 
-            <DField label={t("models.headers")} hint={t("models.headersHelp")}>
+            <DField label={t("models.headers")}>
               <HeaderListEditor headers={model.headers} onChange={(headers) => set("headers", headers)} />
             </DField>
 
-            <DField label={t("models.samplingParams")} hint={t("models.samplingParamsHint")}>
+            <DField label={t("models.samplingParams")}>
               <SamplingParamsEditor value={model.samplingParams} onChange={(next) => set("samplingParams", next)} />
             </DField>
 
-            <DField label={t("models.inputLimitsTitle")} hint={t("models.inputLimitsHint")}>
+            <DField label={t("models.inputLimitsTitle")}>
               <ModelInputLimitsFields
                 inputLimits={model.inputLimits}
                 promptCache={model.promptCache}
@@ -1444,7 +1442,6 @@ function ModelDetail({ providerName, provider, model, onChange, onDelete, onBack
                   onChange={(value) => set("thinkingLevelMap", value)}
                   describeLevel={describeThinkingLevel}
                 />
-                <div className="d-t-xs d-t-faint">{t("models.thinkingLevelMapHint")}</div>
                 {rememberedThinking && (
                   <div className="d-row">
                     <span className="d-t-xs d-t-faint">
@@ -1459,7 +1456,7 @@ function ModelDetail({ providerName, provider, model, onChange, onDelete, onBack
               </>
             )}
 
-            <SectionHeading title={t("models.compatibility")} hint={t("models.compatProviderHint")} />
+            <SectionHeading title={t("models.compatibility")} />
             <div className="d-set-row">
               <div className="d-set-row-box">
                 <div className="d-set-row-t">{t("models.deepSeekThinkingCompat")}</div>
@@ -1649,9 +1646,6 @@ function OAuthDetail({ provider, onRefresh }: { provider: OAuthProvider; onRefre
         </span>
       </div>
 
-      {loginState.phase === "idle" && !provider.loggedIn && (
-        <div className="d-t-xs d-t-faint">{t("models.oauthConnectHint", { name: provider.name })}</div>
-      )}
       {loginState.phase === "connecting" && <div className="d-t-xs d-t-faint">{t("i18n.openingBrowser")}</div>}
       {loginState.phase === "progress" && <div className="d-t-xs d-t-faint">{loginState.message}</div>}
       {loginState.phase === "select" && (
@@ -1793,11 +1787,6 @@ function ApiKeyDetail({ provider, onRefresh }: { provider: ApiKeyProvider; onRef
           </span>
         )}
       </div>
-      {provider.configured || apiKey ? null : (
-        <div className="d-t-xs d-t-faint">
-          {t("models.apiKeyPrompt", { name: provider.displayName, count: provider.modelCount })}
-        </div>
-      )}
       <div className="d-row">
         <SecretTextInput
           value={apiKey}
@@ -2101,7 +2090,6 @@ function ModelRolesSection({ cwd }: { cwd: string | null }) {
     {
       role: "default" as const,
       label: t("models.roleDefault"),
-      sub: t("models.roleDefaultSub"),
       value: defaultModel ? `${defaultModel.provider} / ${defaultModel.modelId}` : t("models.roleUnset"),
       picker: t("models.pickDefault"),
       foot: t("models.pickDefaultFoot"),
@@ -2109,7 +2097,6 @@ function ModelRolesSection({ cwd }: { cwd: string | null }) {
     {
       role: "title" as const,
       label: t("models.roleTitle"),
-      sub: t("models.roleTitleSub"),
       value: titleModel ? `${titleModel.provider} / ${titleModel.modelId}` : t("models.roleSessionModel"),
       picker: t("models.pickTitle"),
       foot: t("models.pickTitleFoot"),
@@ -2118,13 +2105,12 @@ function ModelRolesSection({ cwd }: { cwd: string | null }) {
 
   return (
     <div className="d-set-sec">
-      <SectionHeading title={t("models.defaultsSection")} hint={t("models.defaultsHint")} />
+      <SectionHeading title={t("models.defaultsSection")} />
       {rows.map((row) => (
         <div key={row.role} className="d-anchor">
           <div className="d-set-row">
             <div className="d-set-row-box">
               <div className="d-set-row-t">{row.label}</div>
-              <div className="d-set-row-s">{row.sub}</div>
             </div>
             <span className="d-grow-last d-mono d-t-xs d-t-faint">{row.value}</span>
             <ConfigButton size="small" onClick={() => setOpenRole(openRole === row.role ? null : row.role)}>
@@ -2464,7 +2450,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
     const busy = enabledModels.pending !== null;
     return (
       <div className="d-set-sec">
-        <SectionHeading title={t("models.visibilitySection")} hint={t("models.enabledPinHint")} />
+        <SectionHeading title={t("models.visibilitySection")} />
         <div className="d-set-row">
           <div className="d-set-row-box">
             <div className="d-set-row-t">{t("models.settingsFileRow")}</div>
@@ -2479,7 +2465,6 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         <div className="d-set-row">
           <div className="d-set-row-box">
             <div className="d-set-row-t">{t("models.clearPatternsRow")}</div>
-            <div className="d-set-row-s">{t("models.clearPatternsHint")}</div>
           </div>
           <span className="d-grow-last d-row">
             <ConfigBadge tone="mute">{t("models.enabledCount", { enabled: view.enabledTotal, total: view.availableTotal })}</ConfigBadge>
@@ -2722,7 +2707,6 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         <div className="d-set-sec">
           <SectionHeading
             title={<>{t("models.sectionModelsTitle")} <ConfigBadge tone="mute">{modelRows.length}</ConfigBadge></>}
-            hint={t("models.chatSwitchHint")}
             actions={json && (
               <>
                 <CatalogRefreshButton providerId={row.id} onDone={enabledModels.refresh} />
@@ -2753,7 +2737,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
 
         {json && builtIn && (
           <div className="d-set-sec">
-            <SectionHeading title={t("models.sectionEndpointOverride")} hint={t("models.sectionOverrideHint")} />
+            <SectionHeading title={t("models.sectionEndpointOverride")} />
             <EndpointForm
               providerId={row.id}
               provider={json}
@@ -2765,7 +2749,7 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
 
         {json && (
           <div className="d-set-sec">
-            <SectionHeading title={t("models.compatibility")} hint={t("models.compatProviderHint")} />
+            <SectionHeading title={t("models.compatibility")} />
             <CompatFlagsEditor
               compat={json.compat}
               api={json.api}

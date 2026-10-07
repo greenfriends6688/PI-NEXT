@@ -34,17 +34,6 @@ import {
 /** 运行中任务额外轮询的间隔（ms）。任务空闲时不轮询。 */
 const RUNNING_POLL_MS = 5_000;
 
-/* fork:v5-landing 逐帧核对（M-09 帧 B）—— 画板那一屏的第一件是 `.m-banner`：
- * 「手机上只管看与开关：调度在桌面端跑，手机连不连都不影响。」
- * 产品此前只在调度器停了 / 出错时才出横幅，平时没有这句口径 ——
- * 而手机上最需要说清的就是「关掉手机它照跑」。本地三语表（不动 i18n 消息包，
- * 口径与 `components/pwa/settingsHub.ts` / `McpLogModal` 同一做法）。 */
-const MOBILE_SCOPE_NOTE: Record<string, string> = {
-  en: "On the phone you only look and toggle: the scheduler runs on the desktop, and closing the phone changes nothing.",
-  "zh-CN": "手机上只管看与开关：调度在桌面端跑，手机连不连都不影响。",
-  "zh-TW": "手機上只管看與開關：調度在桌面端跑，手機連不連都不影響。",
-};
-
 interface SchedulerStatus {
   started: boolean;
   activeRunIds: string[];
@@ -327,7 +316,6 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
           </button>
         }
       >
-        <PwaBanner icon="info">{MOBILE_SCOPE_NOTE[locale] ?? MOBILE_SCOPE_NOTE.en}</PwaBanner>
         {!scheduler.started && (
           <PwaBanner icon="triangle-alert" tone="warn">{t("automation.schedulerStopped")}</PwaBanner>
         )}
@@ -848,14 +836,6 @@ export function AutomationPanel({ cwd, readOnly = false }: AutomationPanelProps)
                   })}
                 </div>
               )}
-
-              {/* 帧 A 底部那条口径横幅：把「跳过」与「失败」分开 —— 混进失败率会让人
-                  以为任务坏了，进而把好的那条删掉。产品没有画板那档「已延后」
-                  （没有错峰执行），所以这里只说两种。 */}
-              <div className="d-banner">
-                <i data-ico="info" data-size="14" aria-hidden="true" />
-                <span className="d-grow">{t("automation.outcomes")}</span>
-              </div>
             </div>
           </div>
         )}

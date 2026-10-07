@@ -588,7 +588,6 @@ export function AgentsConfig({
             <div className="d-set-row">
               <div className="d-set-row-box">
                 <div className="d-set-row-t">{t("agents.builtInTitle")}</div>
-                <div className="d-set-row-s">{t("agents.builtInDescription")}</div>
               </div>
               {/* 「需重载会话」常驻在开关旁边（画板帧 A）：面板不假装它立刻生效。 */}
               <span className="d-grow-last">
@@ -641,7 +640,6 @@ export function AgentsConfig({
             <div className="d-set-row">
               <div className="d-set-row-box">
                 <div className="d-set-row-t">{t("agents.maxConcurrent")}</div>
-                <div className="d-set-row-s">{t("agents.maxConcurrentDescription")}</div>
               </div>
               <span className="d-grow-last">
                 <input
@@ -666,7 +664,6 @@ export function AgentsConfig({
             <div className="d-set-row">
               <div className="d-set-row-box">
                 <div className="d-set-row-t">{t("agents.profilesTitle")}</div>
-                <div className="d-set-row-s">{t("agents.profilesHint")}</div>
               </div>
               <span className="d-grow-last">
                 <Btn variant="primary" size="small" onClick={beginCreate}>
@@ -915,7 +912,6 @@ export function AgentsConfig({
                   不画 —— 见 scripts/board-specs/d-12-settings-agents.mjs 的 knownDiffs。 */}
               <div className="d-set-sec">
                 <div className="d-set-sec-t">{t("agents.tools")}</div>
-                <div className="d-t-xs d-t-faint">{t("agents.toolsDefaultDeny")}</div>
 
                 <div className="d-field">
                   <span className="d-field-t">{t("agents.toolsBuiltin")}</span>
@@ -939,7 +935,6 @@ export function AgentsConfig({
                     <ToolChip selected={draft.loadSkills} disabled={disabled} onClick={() => update("loadSkills", !draft.loadSkills)}>{t("agents.loadSkills")}</ToolChip>
                     <ToolChip selected={draft.loadExtensions} disabled={disabled} onClick={() => update("loadExtensions", !draft.loadExtensions)}>{t("agents.loadExtensions")}</ToolChip>
                   </div>
-                  <span className="d-t-xs d-t-faint">{t("agents.resourcesHint")}</span>
                 </div>
 
                 <div className="d-row">
@@ -949,7 +944,6 @@ export function AgentsConfig({
                   </span>
                   <span className="d-badge mute">{t("agents.toolsWrite", { count: String(writeToolCount) })}</span>
                   <span className="d-grow" aria-hidden="true" />
-                  <span className="d-t-xs d-t-faint">{t("agents.toolsHint")}</span>
                 </div>
 
                 <div className="d-banner warn">

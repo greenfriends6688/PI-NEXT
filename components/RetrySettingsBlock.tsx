@@ -46,15 +46,9 @@ const NUMERIC_FIELDS: readonly { key: NumericKey; min: number; max: number; step
 type NumericDrafts = { maxRetries: string | null; baseDelayMs: string | null };
 const NO_DRAFTS: NumericDrafts = { maxRetries: null, baseDelayMs: null };
 
-/* fork:v5-landing-frame · D-07 帧 B —— 块首那句弱化说明与「自动重试」那一行的状态徽章
-   （板面写的是「开 · 最多 3 次」）。语言包里没有这两个键（`lib/i18n/**` 不在本轮文件
+/* fork:v5-landing-frame · D-07 帧 B —— 「自动重试」那一行的状态徽章
+   （板面写的是「开 · 最多 3 次」）。语言包里没有这个键（`lib/i18n/**` 不在本轮文件
    范围），走本地表（与 `settings-disabled-reasons` 同一口径）。 */
-const RETRY_LEAD: LocalCopy = {
-  en: "Retrying is for failures that are worth waiting out. Which ones are worth waiting for has to be spelled out — otherwise the user only sees the same error three times.",
-  "zh-CN": "重试是给「等一下就好」的失败准备的。哪些失败值得等，必须写清 —— 不然用户只会看到同一个错误重复三遍。",
-  "zh-TW": "重試是給「等一下就好」的失敗準備的。哪些失敗值得等，必須寫清 —— 不然使用者只會看到同一個錯誤重複三遍。",
-};
-
 const RETRY_BADGE: LocalCopy = {
   en: "{state} · up to {count} times",
   "zh-CN": "{state} · 最多 {count} 次",
@@ -152,11 +146,8 @@ export function RetrySettingsBlock({ cwd }: { cwd: string | null }) {
 
   return (
     <PwBlock icon="refresh-cw" title={t("settings.retryBlock")}>
-      {/* fork:v5-landing-frame · D-07 帧 B —— 块首那句弱化说明（板面原文）。 */}
-      <div className="d-t-xs d-t-faint">{localCopy(RETRY_LEAD, locale)}</div>
       <PwField
         label={t("settings.retryEnabled")}
-        hint={t("settings.retryEnabledHint")}
         badge={{
           text: localCopy(RETRY_BADGE, locale, {
             state: localCopy(RETRY_BADGE_STATE[settings.enabled ? "on" : "off"], locale),
@@ -184,7 +175,7 @@ export function RetrySettingsBlock({ cwd }: { cwd: string | null }) {
               ? t("settings.retryMaxRetries")
               // 毫秒这个单位挂在标签上：画板 40 把单位放在 `.pw-mono` 读数位里，
               // 这里是可编辑的 input，没有读数位（见 DIVERGENCE V-2）。
-              : <>{t("settings.retryBaseDelayMs")}<small>{t("settings.retryBaseDelayHint")}</small></>}
+              : <>{t("settings.retryBaseDelayMs")}</>}
             htmlFor={inputId}
             control={
               <PwCtl>

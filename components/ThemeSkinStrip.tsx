@@ -175,7 +175,6 @@ export function ThemeSkinStrip({
           {t("settings.skinStudio")}
         </button>
         <span className={mobile ? "m-grow" : "d-grow"} />
-        <span className={mobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>{t("settings.skinNote")}</span>
         <input
           ref={fileInputRef}
           type="file"

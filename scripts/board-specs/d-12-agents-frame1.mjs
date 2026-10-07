@@ -41,6 +41,14 @@ const LH_GAP = "**全局行高差（与子代理落地无关）**：板面 `.d-b
   + "v1 `board.css` 的 `body.pw { line-height: var(--lh-body) }` = 1.50（迁移期两套并存，"
   + "v1 在后）。字号 / 高度 / 间距 / 圆角逐项相同，只有继承来的行高差这一条。";
 
+/** fork:settings-no-explainer（用户 2026-10-06 裁定）：设置页不再摆说明性副行。
+ *  `.d-set-row-s` 那一格讲的是「这个设置是什么意思 / 为什么这么设计」——产品整条删掉、
+ *  板面保留，所以它是**已登记的意图**，不是「还没换肤」。要重建同样的信息，正确落点是
+ *  行内状态或「会阻止你完成动作」的提示（缺项 / 错误 / 需重载），不是一格说明文字。 */
+const NO_EXPLAINER = "**fork:settings-no-explainer（用户 2026-10-06 裁定）**：设置页不再摆说明性副行"
+  + "（说明这个设置是什么意思的那一格）。产品整条删除、板面保留 —— 「产品里没有」是已登记的意图，"
+  + "不是没换肤；要重建同样的信息，落点是行内状态或会阻止你完成动作的提示。";
+
 export default {
   name: "子代理 · profile 表与细节（画板 D-12 · 帧 B）",
   board: "v5/web/boards/D-12-settings-agents.html",
@@ -78,6 +86,9 @@ export default {
       `${A4} .d-set-row`, `${A4} .d-set-row-box`, `${A4} .d-set-row-t`,
       `${A4} .d-set-row-s`, `${A4} .d-grow-last`,
     ].map((sel) => ({ sel, reason: LH_GAP })),
+    // 同上：这两个选择器在产品里整个节点都没有了，覆盖成真正的原因。
+    { sel: `${A3} .d-set-row-s`, reason: NO_EXPLAINER },
+    { sel: `${A4} .d-set-row-s`, reason: NO_EXPLAINER },
   ],
   tolerance: { box: 2, fontSize: 0 },
 };

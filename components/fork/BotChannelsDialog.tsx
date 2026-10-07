@@ -319,7 +319,6 @@ export function BotChannelsDialog({
                   </button>
                 }
               />
-              <PwaSetRow label={t("botChannel.dialogTitle")} sub={t(`botChannel.desc.${selectedChannel.id}`)} />
             </div>
 
             {SCANNABLE.includes(selectedChannel.id) && (
@@ -409,7 +408,7 @@ export function BotChannelsDialog({
                   onChange={(event) => setDraft((current) => ({ ...current, allowFrom: event.target.value }))}
                 />
               </div>
-              <PwaSetRow label={t("botChannel.sessionId")} sub={t("botChannel.sessionHint")} />
+              <PwaSetRow label={t("botChannel.sessionId")} />
               <div className="m-doc-body">
                 <input
                   className="m-input m-mono"
@@ -535,7 +534,6 @@ export function BotChannelsDialog({
                     {selectedChannel.running ? t("botChannel.stop") : t("botChannel.start")}
                   </button>
                 </div>
-                <p className="d-t-xs d-t-faint" style={{ margin: 0 }}>{t(`botChannel.desc.${selectedChannel.id}`)}</p>
 
                 {SCANNABLE.includes(selectedChannel.id) && (
                   <div className="d-card">
@@ -629,7 +627,6 @@ export function BotChannelsDialog({
                       placeholder="01a0fcaf-…"
                       onChange={(event) => setDraft((current) => ({ ...current, sessionId: event.target.value }))}
                     />
-                    <span className="d-t-xs d-t-faint">{t("botChannel.sessionHint")}</span>
                   </div>
                   <div className="d-row" style={{ justifyContent: "flex-end" }}>
                     <button

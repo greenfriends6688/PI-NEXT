@@ -267,7 +267,10 @@ test("catalog fill, connection test and upstream import all still have a reachab
   assert.match(code, /<ModelDiscovery/);
   // fork:discover-catalog-endpoint：入口不按 baseUrl 为空禁用。
   assert.doesNotMatch(code, /disabled=\{!json\?\.baseUrl\?\.trim\(\)/);
-  assert.match(code, /t\("models\.baseUrlCatalogFallbackHint"\)/);
+  /* fork:settings-no-explainer（用户 2026-10-06 裁定）—— `models.baseUrlCatalogFallbackHint`
+     那句解释（「baseUrl 为空时目录会回落到官方端点」）删了；**入口可达**这条约束由上面
+     的 `doesNotMatch` 守住，不再靠一句提示文字证明。 */
+  assert.doesNotMatch(code, /t\("models\.baseUrlCatalogFallbackHint"\)/);
 });
 
 test("discovered model specs land in models.json instead of only the id", () => {

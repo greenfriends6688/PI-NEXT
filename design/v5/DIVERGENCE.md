@@ -646,3 +646,22 @@ M-05 帧 C 整帧是「通用 › **权限与信任**」二级页（`.m-perm` �
 | 控件 | 服务商下拉分两组：已配服务商（`ref:<id>`，落在 `custom` 档）与内置预设；引用态**不渲染** Base URL / API Key 两格，换成一条 `.d-set-row`（「端点与密钥来自」+ 端点 + `.d-badge` 密钥状态） |
 | 引用态为何挂在 `custom` 档 | 四个内置预设各带固定端点，没有可引用的对象；`custom` 本就是「不是那四个内置预设」的那一格 |
 
+## W · 设置面不再摆说明性文案（2026-10-06 · fork:settings-no-explainer）
+
+用户实拍：「我看页面里有很多这样的提示『跟随系统：系统外观变化时立即生效。改动落在
+`~/.pi/agent/settings.json`。』『宽度只改轨道，不改正文列的排版宽度 —— 侧栏变宽不会让
+聊天内容跟着变宽，两者各自有各的旋钮。』『关掉 ≠ 卸载。关掉只是这一轮不加载，文件、
+依赖与版本都还在原地，下次打开还是这一份。』类似于这种，请帮我去掉。」
+
+| 项 | 处置 |
+|---|---|
+| 口径 | 设置面只留三类文字：**控件标签** · **当前值 / 状态**（徽标、计数、时间、状态名）· **会阻止你完成动作的信息**（缺项、错误、失败原因、需重载、破坏性操作的后果、安全提示）。纯解释「这个设置是什么意思 / 为什么这么设计」的整句删掉 |
+| 删的四种形态 | ① `PwField` / `ConfigField` 调用点的 `hint=`；② `<span/div className="d-t-xs d-t-faint">` 说明行；③ 只起解释作用的 `.d-banner` / `PwaBanner`（info / 默认档）；④ 专为说明而存在的局部文案常量**连同它的渲染块**（不留死代码，如 `THEME_PANE_COPY` / `SIDEBAR_WIDTH_BANNER` / `PROVIDER_HINTS` / `GOOGLE_PRESETS`） |
+| 明确保留 | 状态与错误（`d-banner err`、失败原因、缺项提示「还需要 Base URL…」、`reloadRequired`）、破坏性操作确认（卸载 / 删除前后果）、安全提示（配对码失效时机、白名单后果、令牌范围、凭证要求）、统计口径与单位、空态（「还没有 X」）、`aria-label` / `title`、所有控件标签 |
+| 页面副标题 | `SettingsPage sub=` **保留** —— 它是「这一页管什么」的页面身份，与单条设置的说明不是一回事（各设置页一致） |
+| 手机端 hub | `components/pwa/settingsHub.ts` 的每节一句副行**没动** —— 那是分节导航线索，不是单条设置的说明 |
+| 范围 | 桌面设置分节：`SettingsPanel` / `RetrySettingsBlock` / `ThemeSkinStrip` / `SkillsConfig` / `PluginsConfig` / `AgentsConfig` / `ModelsConfig` / `fork/{Automation,UsageStats,PhoneAndPush,ImBridge,Memory,ImageGen,Tunnel,BotChannels}`。`SettingsUi` 只留共享 API（`hint` 属性本身保留，别处还在用） |
+| 画板 | **一个字都没改**。板面继续摆这些说明句，产品不摆 —— 这是本仓「画板是唯一真值」允许的让步，代价记在这里 |
+| 对位 | `d-12-agents-frame{0,1}` 的 `.d-set-row-s` 在产品里**整个节点不存在**：由 `knownDiffs` 覆盖登记成 `NO_EXPLAINER`（board-diff 判「已登记分歧」而不是 FAIL）。板面那个选择器仍在，只是不再被要求出现在产品里 |
+| i18n | **只删用法，键全部保留**（三语键位表不动）。这些键现在是孤儿键，等设置面文案口径定稿后统一收 |
+| 测试 | 四条锁文案的结构断言改成锁「它真的不在了」（`doesNotMatch`），另加结构断言保住原来的真意图：`AgentsConfig`（总开关行）、`SkillsConfig`（未信任目录横幅；原「关掉≠卸载」横幅已删）、`PluginsConfig`（计数行）、`ModelsConfig`（入口不按 baseUrl 为空禁用）。`SettingsPanel.test.mjs` 原来拿弹窗脚那句 `{isMobile ? null : (…)}` 当「窄屏不渲染左导航」的探针 —— 那句被删了，改成直接钉「窄屏那一支里没有 `d-set-nav`，左导航在 `) : (` 之后」 |

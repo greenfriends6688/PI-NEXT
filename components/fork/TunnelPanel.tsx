@@ -89,7 +89,6 @@ export function TunnelBody() {
         {t("tunnel.cardTitle")}
       </div>
       <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-3)" }}>
-        <p className="d-t-xs d-t-faint" style={{ margin: 0 }}>{t("tunnel.hint")}</p>
         <div className="d-t-xs" style={{ color: running ? "#16a34a" : "#8a8a86" }}>
           {t("tunnel.status")}：{statusText}
         </div>

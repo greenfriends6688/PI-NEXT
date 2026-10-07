@@ -407,9 +407,8 @@ function SkillDetail({
           </Btn>
         )}
       </div>
-      {(!enabled || saveError || c.revealError) && (
+      {(saveError || c.revealError) && (
         <div className="d-row">
-          {!enabled && <span className="d-t-xs d-t-faint">{t("i18n.hiddenButInvocable")}</span>}
           {saveError && <Badge tone="bad">{saveError}</Badge>}
           {c.revealError && <Badge tone="bad">{c.revealError}</Badge>}
         </div>
@@ -569,10 +568,6 @@ function SkillDetail({
                   aria-label={`${t("skills.content")} · ${skill.name}`}
                   onChange={(event) => setDraft(event.target.value)}
                 />
-                <div className="d-banner info">
-                  <i data-ico="info" data-size="14" aria-hidden="true"></i>
-                  <span className="d-grow">{t("skills.contentHint")}</span>
-                </div>
               </>
             ) : content !== null ? (
               <div className="d-md">
@@ -807,10 +802,6 @@ function SkillContentModal({
                         aria-label={`${t("skills.content")} · ${skill.name}`}
                         onChange={(event) => c.setDraft(event.target.value)}
                       />
-                      <div className="d-banner info">
-                        <i data-ico="info" data-size="14" aria-hidden="true"></i>
-                        <span className="d-grow">{t("skills.contentHint")}</span>
-                      </div>
                     </>
                   ) : c.content !== null ? (
                     <div className="d-md">
@@ -840,7 +831,6 @@ function SkillContentModal({
               <div className="d-set-row">
                 <div className="d-set-row-box">
                   <div className="d-set-row-t">{t("skills.frontmatter")}</div>
-                  <div className="d-set-row-s">{t("skills.frontmatterHint")}</div>
                 </div>
                 <button
                   type="button"
@@ -1193,11 +1183,9 @@ function InstallSkillsModal({
               </span>
             </div>
             {/* 画板 D-11 帧 B 的底部信息条：安装走 npx、需要网络。 */}
-            <div className="d-t-xs d-t-faint">
-              {source === "skillhub"
-                ? (skillhubTotal > 0 ? t("skills.skillhubTotal", { total: skillhubTotal }) : t("skills.skillhubHint"))
-                : t("skills.installHint")}
-            </div>
+            {skillhubTotal > 0 && (
+              <div className="d-t-xs d-t-faint">{t("skills.skillhubTotal", { total: skillhubTotal })}</div>
+            )}
           </div>
 
           {/* Errors */}
@@ -1267,18 +1255,6 @@ function InstallSkillsModal({
                   </div>
                 );
               })}
-            </div>
-          )}
-          {results.length === 0 && !searchError && !searching && (
-            <div className="d-banner info">
-              <i data-ico="info" data-size="14"></i>
-              <span className="d-grow">
-                Search{" "}
-                <a href="https://skills.sh" target="_blank" rel="noreferrer" className="d-mono">
-                  skills.sh
-                </a>{" "}
-                to discover and install skills for your agent.
-              </span>
             </div>
           )}
         </div>
@@ -1992,13 +1968,14 @@ export function SkillsConfig({
       ) : (
         /* fork:v5-d11-frame-a —— 桌面 = 画板 D-11 帧A：sec「已加载」= 计数行 +
             「搜索与安装」 + 筛选行 + `.d-card` 里的 `.d-table`
-            （技能 30% / 来源 / 版本 / 状态 / 启用 / 更多）+ 两条横幅
-            （关掉≠卸载 · 未信任目录）。行点击开帧C 内容弹层。
+            （技能 30% / 来源 / 版本 / 状态 / 启用 / 更多）
+            + 未信任目录一条横幅。行点击开帧C 内容弹层。
             与画板的偏离登记在 DIVERGENCE.md：
               ① 筛选行（搜索 + 作用域 + 组开关）是产品补的 —— 真机 87 个技能，
                  画板 5 行的表格没有检索需求；位置在计数行与表格之间；
-              ② 帧 A 的「看卸载到底删什么」弹层没有做 —— 产品没有卸载能力，
-                 横幅只保留「关掉 ≠ 卸载」这半段真话；
+              ② 帧 A 的「看卸载到底删什么」弹层没有做 —— 产品没有卸载能力；
+                 **连同它那条「关掉 ≠ 卸载」横幅也一并删了**
+                 （fork:settings-no-explainer，用户 2026-10-06 裁定：设置页不再摆说明文案）；
               ③ 计数行省掉「同名技能按目录优先级取一个」—— 产品的同名解析在
                  pi 侧，面板不做这个断言。 */
         <>
@@ -2112,10 +2089,6 @@ export function SkillsConfig({
                   </table>
                 </div>
               )}
-              <div className="d-banner warn">
-                <i data-ico="circle-help" data-size="14" aria-hidden="true"></i>
-                <span><b>{t("skills.offNotUninstallT")}</b>{t("skills.offNotUninstallB")}</span>
-              </div>
               {!projectResourcesLoaded && (
                 <div role="status" className="d-banner">
                   <i data-ico="shield-question" data-size="14" aria-hidden="true"></i>

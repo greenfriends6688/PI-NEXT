@@ -50,15 +50,6 @@ const PROVIDER_LABELS: Record<ImProvider, string> = {
   custom: "自定义 webhook",
 };
 
-const PROVIDER_HINTS: Record<ImProvider, string> = {
-  feishu: "群「添加机器人 → 自定义机器人」，安全设置可开签名校验（SEC 开头那串）。",
-  wecom: "群「群机器人 → 添加」，只有 key，没有加签；官方文档也没写签名。",
-  dingtalk: "群机器人「安全设置 → 加签」里的 SEC 串；注意时间戳是毫秒。",
-  slack: "incoming webhook 的整条 URL 就是凭证，没有加签。",
-  telegram: "BotFather 给的 token 拼成 URL，另外还要填 chat id（URL 里不带）。",
-  custom: "任何收 POST JSON 的地址：固定发 {title?, text}。",
-};
-
 function emptyRow(): TargetRow {
   return { id: crypto.randomUUID(), label: "", provider: "feishu", url: "", secret: "", chatId: "", enabled: true };
 }
@@ -168,7 +159,7 @@ export function ImBridgeBody() {
               />
             </div>
 
-            <PwaSetRow label={t("imBridge.platform")} sub={PROVIDER_HINTS[row.provider]} />
+            <PwaSetRow label={t("imBridge.platform")} />
             <div className="m-doc-body">
               {/* fork:v5-landing · M-05 帧 B —— 设置里的「从若干值里选一个」用
                   `.m-pickselect`（下拉交给系统），不再拿 `.m-input` 套原生 select。
@@ -199,7 +190,7 @@ export function ImBridgeBody() {
 
             {needsImSecret(row.provider) && (
               <Fragment>
-                <PwaSetRow label={t("imBridge.secret")} sub={t("imBridge.secretHint")} />
+                <PwaSetRow label={t("imBridge.secret")} />
                 <div className="m-doc-body">
                   <input
                     className="m-input m-mono"
@@ -278,7 +269,6 @@ export function ImBridgeBody() {
             {t("imBridge.save")}
           </button>
         </div>
-        <p className="m-t-xs m-t-faint">{t("imBridge.outboundOnly")}</p>
       </>
     );
   }
@@ -323,7 +313,6 @@ export function ImBridgeBody() {
                   <option key={provider} value={provider}>{PROVIDER_LABELS[provider]}</option>
                 ))}
               </select>
-              <span className="d-t-xs d-t-faint">{PROVIDER_HINTS[row.provider]}</span>
             </div>
             <div className="d-field">
               <span className="d-field-t">{t("imBridge.url")}</span>
@@ -351,7 +340,6 @@ export function ImBridgeBody() {
                   placeholder="SEC…"
                   onChange={(event) => patch(row.id, { secret: event.target.value })}
                 />
-                <span className="d-t-xs d-t-faint">{t("imBridge.secretHint")}</span>
               </div>
             )}
             {needsImChatId(row.provider) && (
@@ -425,8 +413,6 @@ export function ImBridgeBody() {
           {t("imBridge.save")}
         </button>
       </div>
-
-      <p className="d-t-xs d-t-faint">{t("imBridge.outboundOnly")}</p>
     </div>
   );
 }

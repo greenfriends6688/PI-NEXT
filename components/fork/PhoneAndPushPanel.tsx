@@ -52,7 +52,6 @@ export function PhoneAndPushPanel() {
             <div className="m-step-dot-lg">1</div>
             <div className="m-grow m-step-row-2">
               <div className="m-setrow-t">{t("phonePush.lanTitle")}</div>
-              <div className="m-setrow-s">{t("phonePush.scanHint")}</div>
               <LanPairBody />
             </div>
           </div>
@@ -61,7 +60,6 @@ export function PhoneAndPushPanel() {
             <div className="m-step-dot-lg">2</div>
             <div className="m-grow m-step-row-2">
               <div className="m-setrow-t">{t("phonePush.botTitle")}</div>
-              <div className="m-setrow-s">{t("phonePush.botColHint")}</div>
               <BotChannelBody onOpen={(channel: ChatChannelId) => openDialog(channel)} />
               <div className="m-tray">
                 <button type="button" className="m-tray-chip" onClick={() => openDialog(null)}>
@@ -94,13 +92,10 @@ export function PhoneAndPushPanel() {
         }}
       >
         {/* v5 · D-20 帧 A/B：扫码卡 = `.d-chart` + `.d-chart-head` + `.d-card-body`。 */}
-        <section className="d-chart" style={{ display: "grid", gridTemplateRows: "auto auto 1fr" }}>
+        <section className="d-chart" style={{ display: "grid", gridTemplateRows: "auto 1fr" }}>
           <div className="d-chart-head">
             <i data-ico="smartphone" data-size="15" aria-hidden="true" />
             {t("phonePush.scanTitle")}
-          </div>
-          <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-3)", paddingBottom: 0 }}>
-            <p className="d-t-xs d-t-faint" style={{ margin: 0 }}>{t("phonePush.scanHint")}</p>
           </div>
           <div className="d-card-body">
             <LanPairBody />
@@ -117,7 +112,6 @@ export function PhoneAndPushPanel() {
             {t("phonePush.botColTitle")}
           </div>
           <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-3)" }}>
-            <p className="d-t-xs d-t-faint" style={{ margin: 0 }}>{t("phonePush.botColHint")}</p>
             <BotChannelBody onOpen={(channel: ChatChannelId) => openDialog(channel)} />
           </div>
           <div className="d-card-body" style={{ paddingTop: 0 }}>

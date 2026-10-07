@@ -19,12 +19,14 @@ const frameA = source.slice(
 );
 
 test("desktop plugins section is frame A: count row + d-table per scope", () => {
-  // sec 标题「已装」+ 计数行（总数 / 启用 / 禁用 + **禁用 ≠ 卸载** + 刷新）
+  // sec 标题「已装」+ 计数行（总数 / 启用 / 禁用 + 刷新）
   assert.match(frameA, /className="d-set-sec-t"/);
   assert.match(frameA, /plugins\.installedSection/);
   assert.match(frameA, /plugins\.countSummary/);
-  assert.match(frameA, /plugins\.offNotUninstallT/);
-  assert.match(frameA, /plugins\.offNotUninstallB/);
+  /* fork:settings-no-explainer（用户 2026-10-06 裁定）—— 计数行里那半句
+     「**禁用 ≠ 卸载**」按「设置页不再摆说明性文案」删掉了；计数行本身仍在，
+     只是不再兼任说明书。板面保留，偏离记在 DIVERGENCE。 */
+  assert.doesNotMatch(frameA, /plugins\.offNotUninstall/, "「禁用 ≠ 卸载」不许回到计数行");
   // 表格在 `.d-card` 里：列头 插件(26%) / 来源 / 版本 / 状态 / 启用 / （更多）
   assert.match(frameA, /className="d-card"/);
   assert.match(frameA, /className="d-table"/);

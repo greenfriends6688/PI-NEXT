@@ -572,7 +572,6 @@ export function UsageStatsPanel(): ReactNode {
                             </div>
                           </div>
                         ))}
-                        <div className="d-t-xs d-t-faint">{t("usage.byTokensNote")}</div>
                       </div>
                     </div>
                   </div>
@@ -710,7 +709,6 @@ export function UsageStatsPanel(): ReactNode {
                           </div>
                         </Fragment>
                       ))}
-                      <div className="d-t-xs d-t-faint">{t("usage.cacheSplitNote")}</div>
                     </div>
                   </div>
 
@@ -743,10 +741,6 @@ export function UsageStatsPanel(): ReactNode {
                           <span className="d-grow-last d-t-b d-num">{formatCost(derived.quietest.cost, locale)}</span>
                         </div>
                       )}
-                      <div className="d-banner">
-                        <i data-ico="info" data-size="14" aria-hidden="true" />
-                        <span>{t("usage.budgetNote")}</span>
-                      </div>
                     </div>
                   </div>
                 </div>

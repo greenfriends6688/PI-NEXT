@@ -41,14 +41,16 @@ test("desktop table section is count row + filter row + d-table (board D-11 fram
   assert.match(desktop, /orderSkillsByDormancy\(visibleSkills\)\.map\(renderSkillTableRow\)/);
 });
 
-test("frame A carries the off != uninstall banner and the untrusted-directory banner", () => {
+test("frame A carries the untrusted-directory banner（「关掉 ≠ 卸载」横幅已删）", () => {
   const desktop = source.slice(source.indexOf("fork:v5-d11-frame-a —— 桌面 = 画板 D-11 帧A"));
-  // 关掉 ≠ 卸载（warn，circle-help）—— 产品没有卸载能力，只保留这半段真话
-  assert.match(desktop, /className="d-banner warn"/);
-  assert.match(desktop, /data-ico="circle-help"/);
-  assert.match(desktop, /skills\.offNotUninstallT/);
-  assert.match(desktop, /skills\.offNotUninstallB/);
-  // 未信任目录（shield-question，画板默认档）：项目技能未加载时出现
+  /* fork:settings-no-explainer（用户 2026-10-06 裁定）—— 设置页不再摆说明性文案，
+     「关掉 ≠ 卸载」那条 `d-banner warn` + `circle-help` 横幅整条删了。它以前是这一帧
+     里唯一那条 warn 档横幅，所以旧断言（拿 `d-banner warn` / `circle-help` 当探针）
+     一并换成「它真的不在了」—— 板面保留，偏离记在 DIVERGENCE。
+     要重建那条「关了不会删文件」的安心感，正确落点是行内状态或 title，不是一块横幅。 */
+  assert.doesNotMatch(desktop, /skills\.offNotUninstall/, "「关掉 ≠ 卸载」横幅不许回来");
+  assert.doesNotMatch(desktop, /data-ico="circle-help"/);
+  // 未信任目录（shield-question）：项目技能未加载时出现 —— 这是**状态**，保留。
   assert.match(desktop, /data-ico="shield-question"/);
   assert.match(desktop, /trust\.skillsNotLoaded/);
 });

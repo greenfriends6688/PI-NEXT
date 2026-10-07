@@ -59,7 +59,10 @@ test("offers a persisted built-in sub-agent switch with explicit session reload"
   // 不再把开关与并发输入框挤进左栏一条窄行里。
   assert.match(source, /className="d-set-sec"/);
   assert.match(source, /t\("agents\.builtInTitle"\)/);
-  assert.match(source, /t\("agents\.builtInDescription"\)/);
+  /* fork:settings-no-explainer（用户 2026-10-06 裁定）—— 总开关那行下面的说明副行
+     （`agents.builtInDescription`）按「设置页不再摆说明性文案」删掉了。标题、开关、
+     「需重载会话」徽标都在；板面保留，偏离记在 DIVERGENCE。 */
+  assert.doesNotMatch(source, /t\("agents\.builtInDescription"\)/);
   assert.match(source, /t\("agents\.limitsSection"\)[\s\S]{0,900}?aria-label=\{t\("agents\.maxConcurrent"\)\}/);
   // 总开关在上、并发上限在下（帧 A 的两节顺序）。
   assert.ok(

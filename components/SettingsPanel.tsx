@@ -53,7 +53,6 @@ import { EnterSendModeSetting } from "./EnterSendModeSetting";
 import {
   PwBlock,
   PwField,
-  PwPaneCard,
   PwRadio,
   PwSelectBox,
   PwSwitch,
@@ -212,53 +211,6 @@ const NOTIFY_MASTER_OFF: LocalCopy = {
   "zh-TW": "總開關 關",
 };
 
-/* 通知块首句（板面原文，中段是 `<b>`）。 */
-const NOTIFY_LEAD = {
-  before: {
-    en: "System notifications land on the lock screen and on your phone; ",
-    "zh-CN": "系统通知会落到锁屏与手机；",
-    "zh-TW": "系統通知會落到鎖屏與手機；",
-  },
-  bold: {
-    en: "the notification sound",
-    "zh-CN": "通知声音",
-    "zh-TW": "通知聲音",
-  },
-  after: {
-    en: " is a separate matter — it is the same switch as the sound button in the composer.",
-    "zh-CN": "是另一回事，它与输入框的声音按钮是同一个开关。",
-    "zh-TW": "是另一回事，它與輸入框的聲音按鈕是同一個開關。",
-  },
-} satisfies { before: LocalCopy; bold: LocalCopy; after: LocalCopy };
-
-const NOTIFY_TEST_BANNER: LocalCopy = {
-  en: "The test notification is a real one — the title is fixed as “Test notification” and the body says that seeing it means notifications are configured. A failure carries its reason verbatim; it never shows “sent successfully”.",
-  "zh-CN": "测试通知发的就是真通知，标题固定「测试通知」，正文是「如果你看到这条，通知已经配置好了」—— 失败的那一条会原样带原因，不弹一句「发送成功」。",
-  "zh-TW": "測試通知送的就是真通知，標題固定「測試通知」，內文是「如果你看到這條，通知已經設定好了」—— 失敗的那一條會原樣帶原因，不彈一句「傳送成功」。",
-};
-
-/* fork:v5-landing-frame · D-07b 帧 C「后台推送（iOS 主屏应用）」块的五段文案。
-   板面把它们写在块首说明 / 状态徽章 / `.d-notice` / 块尾横幅里；产品此前只有那一行
-   与一个条件渲染的横幅。语言包里没有这些键（`lib/i18n/**` 不在本轮文件范围），
-   走本地表（与 `settings-disabled-reasons` 同一口径）。 */
-const PUSH_LEAD = {
-  before: {
-    en: "After adding this site to the home screen (iPhone needs iOS 16.4+), you can get a system notification on the lock screen when a session finishes while the page is in the background. If notifications stop arriving, come back here to register again. ",
-    "zh-CN": "将本站添加到主屏幕后（iPhone 需 iOS 16.4+），会话完成且页面不在前台时，可在锁屏收到系统通知。若通知不再送达，可回到这里重新注册。",
-    "zh-TW": "將本站加入主螢幕後（iPhone 需 iOS 16.4+），對話完成且頁面不在前景時，可在鎖屏收到系統通知。若通知不再送達，可回到這裡重新註冊。",
-  },
-  bold: {
-    en: "Registration must be triggered by a click",
-    "zh-CN": "注册必须由点击触发",
-    "zh-TW": "註冊必須由點擊觸發",
-  },
-  after: {
-    en: ", so no permission prompt appears on its own.",
-    "zh-CN": "，因此不会自动弹出授权。",
-    "zh-TW": "，因此不會自動彈出授權。",
-  },
-} satisfies { before: LocalCopy; bold: LocalCopy; after: LocalCopy };
-
 const PUSH_BADGE_NONE: LocalCopy = {
   en: "Not registered",
   "zh-CN": "未注册",
@@ -289,146 +241,12 @@ const PUSH_NOTICE_HINT: LocalCopy = {
   "zh-TW": "尚未註冊。註冊必須由點擊觸發，所以不會自己彈授權；失敗時把原始錯誤（如 NotAllowedError）與「先去哪裡放行」一起給出來。",
 };
 
-/* 「注册推送」那一行的说明：板面原文「这不是开关而是一次**动作**：…」。 */
-const PUSH_ROW_HINT = {
-  before: {
-    en: "This is not a switch but a one-off ",
-    "zh-CN": "这不是开关而是一次",
-    "zh-TW": "這不是開關而是一次",
-  },
-  bold: {
-    en: "action",
-    "zh-CN": "动作",
-    "zh-TW": "動作",
-  },
-  after: {
-    en: ": success or failure has to read back in one sentence — no green light that only looks permanently on.",
-    "zh-CN": "：成功与否要有一句可读的结果，不留一颗「看起来常亮」的绿灯。",
-    "zh-TW": "：成功與否要有一句可讀的結果，不留一顆「看起來常亮」的綠燈。",
-  },
-} satisfies { before: LocalCopy; bold: LocalCopy; after: LocalCopy };
-
-const PUSH_SCOPE_BANNER = {
-  before: {
-    en: "How this relates to the phone-push section: this block only decides whether this browser can be pushed at all; which device it reaches is the job of the ",
-    "zh-CN": "与手机推送分节的关系：本块只管「这个浏览器能不能被推」，管「推到哪台设备」的是",
-    "zh-TW": "與手機推送分節的關係：本塊只管「這個瀏覽器能不能被推」，管「推到哪台裝置」的是",
-  },
-  bold: {
-    en: "phone-and-push",
-    "zh-CN": "手机与推送",
-    "zh-TW": "手機與推送",
-  },
-  after: {
-    en: " section (scan the QR code / pair). Each says its own half; they are not merged.",
-    "zh-CN": "分节（扫码 / 配对码）。两块各说各的一半，不合并。",
-    "zh-TW": "分節（掃碼 / 配對碼）。兩塊各說各的一半，不合併。",
-  },
-} satisfies { before: LocalCopy; bold: LocalCopy; after: LocalCopy };
-
 /** fork:disabled-reasons —— 已经是默认值时「重置」没有可做的事。 */
 const CHAT_WIDTH_ALREADY_DEFAULT: LocalCopy = {
   en: "Already at the default width — nothing to reset.",
   "zh-CN": "已经是默认宽度，没有可重置的改动。",
   "zh-TW": "已經是預設寬度，沒有可重設的改動。",
 };
-
-/** fork:v5-landing-frame · D-07 / D-07b —— 弹窗脚左槽那句话。板面三帧写的是
- *  「Esc 关闭 · 改动即时保存，不需要「应用」」/「标「新会话生效」的项真的不假装即时」。
- *  产品这半分节的改动本来就即时落盘，所以那句话是**状态**而不是按钮 —— 语言包里没有
- *  这个键（`lib/i18n/messages/**` 不在本轮文件范围），走本地表（与
- *  `settings-disabled-reasons` 同一口径）。 */
-const SETTINGS_FOOT_HINT: LocalCopy = {
-  en: "Esc closes · changes in this section apply immediately — there is no Apply",
-  "zh-CN": "Esc 关闭 · 这一分节的改动即时生效，没有「应用」",
-  "zh-TW": "Esc 關閉 · 這個分節的改動即時生效，沒有「應用」",
-};
-
-/* fork:v5-landing-frame · D-07 帧 D 的「主题」三段说明。板面把它们写成 `data-demo-pane`
-   的三段（不选中的带 `hidden`），产品按同一段落进 `PwPaneCard`。文案原样抄板面
-   （本地表，`lib/i18n/messages/**` 不在本轮文件范围；键位待补后整体迁回 `t()`）。 */
-const THEME_PANE_COPY = {
-  light: {
-    en: "Light mode is on; the conversation behind the dialog changes with it — the window is not reopened.",
-    "zh-CN": "已切到浅色；背后的会话跟着一起变，不重开窗口。",
-    "zh-TW": "已切到淺色；背後的對話跟著一起變，不重開視窗。",
-  },
-  dark: {
-    en: "Dark mode is on; running tasks are not interrupted, only the variable board is swapped.",
-    "zh-CN": "已切到深色；正在跑的任务不中断，只换变量板。",
-    "zh-TW": "已切到深色；正在跑的任務不中斷，只換變數板。",
-  },
-  auto: {
-    en: "Following the system: a change in the system appearance applies immediately. Changes land in ~/.pi/agent/settings.json.",
-    "zh-CN": "跟随系统：系统外观变化时立即生效。改动落在 ~/.pi/agent/settings.json。",
-    "zh-TW": "跟隨系統：系統外觀變化時立即生效。改動落在 ~/.pi/agent/settings.json。",
-  },
-} satisfies Record<string, LocalCopy>;
-
-/* fork:v5-landing-frame · D-07b 帧 B —— 聊天块首那句说明（板面原文，缺键登记）。 */
-const CHAT_LEAD: LocalCopy = {
-  en: "This block only answers “how the conversation is presented and how you send”; retry and context budget are not here (those apply to the next session, so they live in their own blocks).",
-  "zh-CN": "这一块只回答「对话怎么呈现、手怎么发出去」；重试与上下文预算不在这里（它们是新会话生效的那类）。",
-  "zh-TW": "這一塊只回答「對話怎麼呈現、手怎麼發出去」；重試與上下文預算不在這裡（它們是新工作階段生效的那類）。",
-};
-
-const THEME_PANE_ICON = {
-  light: "sun",
-  dark: "moon",
-  auto: "monitor",
-} as const;
-
-/* fork:v5-landing-frame · D-07b 帧 A「侧边栏」块第三件（`.d-banner`）与
-   「宽度」那行的说明 —— 两者都是板面上写着、产品没有的。 */
-const SIDEBAR_WIDTH_HINT: LocalCopy = {
-  en: "Drag the slider to change the rail. This is the only setting you can see take effect right away — the rail is right there.",
-  "zh-CN": "拖动滑块调整轨道宽度。这是唯一当场可见的设置：左边那一栏就在旁边变。",
-  "zh-TW": "拖動滑桿調整軌道寬度。這是唯一當場可見的設定：左邊那一欄就在旁邊變。",
-};
-
-const SIDEBAR_WIDTH_BANNER: LocalCopy = {
-  en: "The width only changes the rail, not the body column — a wider sidebar does not make the conversation wider; each has its own knob.",
-  "zh-CN": "宽度只改轨道，不改正文列的排版宽度 —— 侧栏变宽不会让聊天内容跟着变宽，两者各自有各的旋钮。",
-  "zh-TW": "寬度只改軌道，不改正文欄的排版寬度 —— 側欄變寬不會讓聊天內容跟著變寬，兩者各自有各自的旋鈕。",
-};
-
-/* D-07b 帧 A「界面语言」三段说明（`section > .d-banner`）。 */
-const LANG_PANE_COPY = {
-  "zh-CN": {
-    en: "The interface language changes the panel's own copy (section names, row labels, buttons) — not what you type, and not the language of the model's replies.",
-    "zh-CN": "界面语言改的是面板自身的文案（分节名、行标签、按钮），不改你在输入框里打的字，也不改模型回复的语言。",
-    "zh-TW": "介面語言改的是面板自身的文案（分節名、列標籤、按鈕），不改你在輸入框裡打的字，也不改模型回覆的語言。",
-  },
-  "zh-TW": {
-    en: "Traditional Chinese is loaded: another language pack for the same keys. Missing keys fall back to Simplified Chinese and are registered in DIVERGENCE.md rather than left blank.",
-    "zh-CN": "繁體中文已加载：同一批键的另一份语言包。缺键回落简体中文并在 DIVERGENCE.md 登记，而不是留空。",
-    "zh-TW": "繁體中文已載入：同一批鍵的另一份語言包。缺鍵回落簡體中文並在 DIVERGENCE.md 登記，而不是留空。",
-  },
-  en: {
-    en: "English: the copy changes, but units and formats do not follow it — numbers still use tabular figures and dates still follow the local convention.",
-    "zh-CN": "English：文案变，单位与格式不跟着变 —— 数字仍用等宽对齐，日期仍按本机习惯。",
-    "zh-TW": "English：文案變，單位與格式不跟著變 —— 數字仍用等寬對齊，日期仍按本機習慣。",
-  },
-} satisfies Record<string, LocalCopy>;
-
-/* D-07b 帧 B「界面密度」三段说明（同上口径）。 */
-const DENSITY_PANE_COPY = {
-  compact: {
-    en: "Compact: more turns per screen; the cost is that tool-card heads and settings rows get cramped and long paths are eaten by the ellipsis.",
-    "zh-CN": "紧凑：一屏能看到更多轮次，代价是工具卡头与设置行挤在一起，长路径容易被省略号吃掉。",
-    "zh-TW": "緊湊：一屏能看到更多輪次，代價是工具卡頭與設定列擠在一起，長路徑容易被省略號吃掉。",
-  },
-  standard: {
-    en: "Standard: 12px of breathing room per row — least tiring when reading a long thread back to back, and the default.",
-    "zh-CN": "标准：一行 12px 上下留白，长会话连读时最省力，也是默认值。",
-    "zh-TW": "標準：一行 12px 上下留白，長對話連讀時最省力，也是預設值。",
-  },
-  comfortable: {
-    en: "Comfortable: room for touch screens and large type; mouse users often feel that very little fits on a screen.",
-    "zh-CN": "宽松：给触摸屏与大字号留余地；鼠标用户常觉得「一屏没几行」。",
-    "zh-TW": "寬鬆：給觸控螢幕與大字號留餘地；滑鼠使用者常覺得「一屏沒幾行」。",
-  },
-} satisfies Record<string, LocalCopy>;
 
 
 export function SettingsSectionIcon({ section, size = 16 }: { section: SettingsSection; size?: number; strokeWidth?: number }) {
@@ -538,7 +356,6 @@ function TitleSettingsControls({ cwd }: { cwd: string | null }) {
           （开）+ 行尾开关。 */}
       <PwField
         label={t("settings.titleAutoGenerate")}
-        hint={t("settings.titleAutoGenerateDescription")}
         badge={stateBadge(locale, titleAuto)}
         control={
           <PwSwitch
@@ -550,7 +367,6 @@ function TitleSettingsControls({ cwd }: { cwd: string | null }) {
       />
       <PwField
         label={t("settings.titleModel")}
-        hint={t("settings.titleModelDescription")}
         control={
           <PwSelectBox
             value={titleModelValue}
@@ -761,7 +577,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
       <PwBlock icon="palette" title={t("settings.appearance")}>
         <PwField
           label={t("settings.theme")}
-          hint={t("settings.appearanceDescription")}
           /* fork:v5-m05-tier —— 窄屏这一格按 M-05 帧 B 的原文：`.m-hero`（主题 + 一句
              说明）在上、`.m-cardgroup` › `.m-pickbar` 三等分在下。此前把档位条塞进
              `div.m-setrow` 的右槽，实测 390×844 下条宽 146.9px / 三枚各 34.3px，
@@ -781,19 +596,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             />
           }
         />
-        {/* fork:v5-landing-frame · D-07 帧 D —— 主题那一行下面还有**三段后果说明**
-            （浅色 / 深色 / 跟随系统各一段，不选中的那段带 `hidden`）。产品此前只有分段
-            选择器，那三段整段 MISSING —— 于是「我这档有什么代价」只能自己猜。
-            DOM 原文见 `SettingsUi.PwPaneCard`；文案抄板面（本地表）。 */}
-        {(["light", "dark", "auto"] as const).map((mode) => (
-          <PwPaneCard
-            key={mode}
-            hidden={preference !== mode}
-            icon={THEME_PANE_ICON[mode]}
-          >
-            {localCopy(THEME_PANE_COPY[mode], locale)}
-          </PwPaneCard>
-        ))}
       </PwBlock>
 
       {/* fork:zn-19 / fork:design-system SW-07 —— 主题皮肤：卡片条 + 导入 / 导出 /
@@ -864,7 +666,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
       <PwBlock icon="panel-left" title={t("settings.railBlock")}>
         <PwField
           label={t("settings.railTranslucentRow")}
-          hint={t("settings.sidebarTranslucentHint")}
           /* fork:v5-landing-frame · D-07b 帧 A —— 「半透明」那一行的原文是
              `.d-grow-last > .d-badge.mute`（当前值）+ 行尾的 `.d-switch`。
              此前开关被包在 `.d-grow-last` 里，行右侧看不到自己是什么状态。 */
@@ -879,7 +680,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         />
         <PwField
           label={t("settings.railWidthRow")}
-          hint={localCopy(SIDEBAR_WIDTH_HINT, locale)}
           htmlFor="settings-sidebar-width"
           /* 画板同块第二行：值写成 `.d-badge.mute`（280 px），滑块是行的第三个子节点。 */
           badge={sidebarWidth == null ? undefined : { text: `${sidebarWidth} px`, tone: "mute" }}
@@ -898,11 +698,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             ) : null
           }
         />
-        {/* fork:v5-landing-frame · D-07b 帧 A —— 侧边栏块最后那条 `.d-banner`。 */}
-        <div className="d-banner">
-          <i data-ico="info" data-size="14" aria-hidden="true" />
-          <span className="d-grow">{localCopy(SIDEBAR_WIDTH_BANNER, locale)}</span>
-        </div>
       </PwBlock>
 
       {/* fork:zn-18 —— 界面字体（画板 62 帧 C 左栏末块：UI 字体 + UI 字号 + 界面语言）。
@@ -912,7 +707,7 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
       <PwBlock icon="type" title={t("settings.typographyBlock")}>
         <PwField
           label={t("settings.uiFont")}
-          hint={fontsLoading ? t("settings.uiFontLoading") : t("settings.uiFontHint")}
+          hint={fontsLoading ? t("settings.uiFontLoading") : undefined}
           control={
             <PwSelectBox
               // value 是**字体栈**：空栈即系统默认。栈里含逗号与引号，直接当 option
@@ -930,7 +725,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         />
         <PwField
           label={t("settings.uiFontSize")}
-          hint={t("settings.uiFontSizeHint")}
           control={
             <PwSelectBox
               value={String(uiFontSize)}
@@ -961,13 +755,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             />
           }
         />
-        {/* fork:v5-landing-frame · D-07b 帧 A —— 「界面语言」那一行下面还有三段后果说明
-            （简体中文 / 繁體中文 / English，各一段，不选中的那段带 `hidden`）。 */}
-        {(["zh-CN", "zh-TW", "en"] as const).map((id) => (
-          <PwPaneCard key={id} hidden={locale !== id} icon="info">
-            {localCopy(LANG_PANE_COPY[id], locale)}
-          </PwPaneCard>
-        ))}
       </PwBlock>
           </div>
 
@@ -978,16 +765,9 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
           开关，所以保留画板的 DOM 与状态类，只把 ARIA 换成 `aria-pressed`
           （芯片组，不是单选组）——形态照画板，语义照产品。 */}
       <PwBlock icon="message-square" title={t("settings.chat")}>
-        {/* fork:v5-landing-frame · D-07b 帧 B —— 块首那句弱化说明（板面原文）：
-            这一块只回答「对话怎么呈现、手怎么发出去」；重试与上下文预算不在这里
-            （它们是新会话生效的那类，单独成块）。 */}
-        <div className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
-          {localCopy(CHAT_LEAD, locale)}
-        </div>
         <TitleSettingsControls cwd={cwd} />
         <PwField
           label={t("settings.thinkingExpandedDefault")}
-          hint={t("settings.thinkingDisplayDescription")}
           badge={stateBadge(locale, thinkingExpanded)}
           control={
             <PwSwitch
@@ -1002,7 +782,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         />
         <PwField
           label={t("settings.density")}
-          hint={t("settings.densityHint")}
           /* fork:v5-m05-tier —— 同一判据（见上）。实测此前三枚只有各 17.8px，
              「紧凑 / 标准 / 宽松」三个字连一行都放不下。 */
           tier
@@ -1019,16 +798,8 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             />
           }
         />
-        {/* fork:v5-landing-frame · D-07b 帧 B —— 「界面密度」那一行下面有三段后果说明
-            （紧凑 / 标准 / 宽松，各一段，不选中的那段带 `hidden`）。 */}
-        {(["compact", "standard", "comfortable"] as const).map((mode) => (
-          <PwPaneCard key={mode} hidden={uiDensity !== mode} icon="info">
-            {localCopy(DENSITY_PANE_COPY[mode], locale)}
-          </PwPaneCard>
-        ))}
         <PwField
           label={t("settings.stepExpand")}
-          hint={t("settings.stepExpandHint")}
           /* fork:v5-landing-frame · D-07b 帧 B —— 「过程步骤默认展开」那三枚芯片在板面
              上是 `.d-grow-last` 的**直接**子节点（`.d-grow-last > .d-cats`），此前多包了
              一层 `.d-row`（PwCtl）。三枚芯片是三个独立开关，不是单选组 —— `aria-pressed`
@@ -1143,23 +914,14 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
       {/* fork:zn-16 —— 通知（画板 62 帧 C 右栏第二块）：总开关 + 四条开关行 + 空标签
           动作行。fork:settings-frame 2026-10-01 —— 「任务完成 / 任务失败 / 仅在窗口
           未聚焦」三行不再渲染说明小字：语言包里的 hint 是标题的同义复述（用户实测
-          截图「标题与副标题疑似重复」），画板 40/62 的这几行本来就只有标签；
-          `notifySoundHint` 保留（它说明与输入框声音按钮是同一个开关，不是复述）。 */}
+          截图「标题与副标题疑似重复」），画板 40/62 的这几行本来就只有标签。 */}
       <PwBlock icon="bell" title={t("settings.notificationBlock")}>
-        {/* fork:v5-landing-frame · D-07b 帧 C —— 块首那句弱化说明（板面原文，段中有一段
-          `<b>`：「通知声音」是另一回事）。 */}
-      <div className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
-        {localCopy(NOTIFY_LEAD.before, locale)}
-        <b>{localCopy(NOTIFY_LEAD.bold, locale)}</b>
-        {localCopy(NOTIFY_LEAD.after, locale)}
-      </div>
       {/* fork:v5-landing-frame · D-07b 帧 C —— 「桌面通知」总开关在板面上是**两档分段**
             （`.d-seg`：「总开关 开」/「总开关 关」），不是一个 `d-switch`：这一行要能一眼
             看全两个状态，才接得住下面那四个子项的「关 → 禁用但保留值」。走的还是同一个
             `setNotificationPref("enabled", …)`，行为零变化。 */}
         <PwField
           label={t("settings.notifyMaster")}
-          hint={t("settings.notifyMasterHint")}
           /* fork:v5-m05-tier —— 同上：两枚「总开关 开 / 关」此前各 69.1px，
              「总开关 关」折行。 */
           tier
@@ -1216,7 +978,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
         />
         <PwField
           label={t("settings.notifySound")}
-          hint={t("settings.notifySoundHint")}
           badge={stateBadge(locale, soundEnabled)}
           control={
             <PwSwitch
@@ -1250,11 +1011,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             </>
           }
         />
-        {/* fork:v5-landing-frame · D-07b 帧 C —— 动作行下面那条常驻说明（板面原文）。 */}
-        <div className={isMobile ? "m-banner" : "d-banner"}>
-          <i data-ico="info" data-size="14" aria-hidden="true" />
-          <span className={grow}>{localCopy(NOTIFY_TEST_BANNER, locale)}</span>
-        </div>
         {notificationNote ? (
           <div role="status" className={isMobile ? "m-banner" : "d-banner info"}>
             <i data-ico="info" data-size="14" aria-hidden="true" />
@@ -1269,7 +1025,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
               （「关 · 用 Bash」）+ 行尾开关。 */}
           <PwField
             label={t("settings.usePowerShell")}
-            hint={t("settings.shellToolDescription")}
             badge={{
               text: localCopy(SHELL_ROW_BADGE, locale, {
                 state: localCopy(SHELL_ROW_STATE[shellSettings.powerShellEnabled ? "on" : "off"], locale),
@@ -1296,28 +1051,8 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
       )}
 
       <PwBlock icon="bell" title={t("settings.pushPermission")}>
-        {/* fork:v5-landing-frame · D-07b 帧 C —— 这一块是**一个动作 + 一条状态**：
-            块首一句弱化说明，「注册推送」那行的状态写成 `.d-badge`（未注册 / 已注册 /
-            上次失败），块尾一条 `.d-notice` 说清「现在是什么状态 / 失败时原始错误是什么」。
-            产品此前只有一个按钮 + 条件渲染的横幅（成功后才出现），失败原因与「要去哪儿
-            放行」都没有落点。 */}
-        <div className={isMobile ? "m-t-xs m-t-faint" : "d-t-xs d-t-faint"}>
-          {localCopy(PUSH_LEAD.before, locale)}
-          <b>{localCopy(PUSH_LEAD.bold, locale)}</b>
-          {localCopy(PUSH_LEAD.after, locale)}
-        </div>
         <PwField
           label={t("settings.pushRegister")}
-          /* fork:v5-landing-frame · D-07b 帧 C —— 板面那一行的说明是**另一句**
-             （短，段中带 `<b>`）：它讲的是「这不是开关而是一次动作」。产品此前把块首那句
-             长说明重复用在了行上，于是同一段话在板上下一行出现两次。 */
-          hint={(
-            <>
-              {localCopy(PUSH_ROW_HINT.before, locale)}
-              <b>{localCopy(PUSH_ROW_HINT.bold, locale)}</b>
-              {localCopy(PUSH_ROW_HINT.after, locale)}
-            </>
-          )}
           badge={{
             text: pushStatus
               ? pushStatus.kind === "ok"
@@ -1350,14 +1085,6 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
             <span className="d-set-row-s">
               {pushStatus ? pushStatus.message : localCopy(PUSH_NOTICE_HINT, locale)}
             </span>
-          </span>
-        </div>
-        <div className={isMobile ? "m-banner" : "d-banner"}>
-          <i data-ico="info" data-size="14" aria-hidden="true" />
-          <span className={grow}>
-            {localCopy(PUSH_SCOPE_BANNER.before, locale)}
-            <b>{localCopy(PUSH_SCOPE_BANNER.bold, locale)}</b>
-            {localCopy(PUSH_SCOPE_BANNER.after, locale)}
           </span>
         </div>
       </PwBlock>
@@ -1870,24 +1597,6 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
           </div>
         )}
 
-        {/* fork:v5-landing-frame · D-07 帧 B / C / D 的弹窗脚 —— 板面三帧都有这一行
-            （`.d-modal-foot`：左槽一句状态说明 + `.d-grow`，右槽 `.d-btn.ghost`
-            「重置本节」与 `.d-btn.primary`「完成」）。
-            2026-10-06 用户裁定去掉右槽的「完成」：这一分节的改动本来就是即时的，
-            那枚钮与右上角的 X 走同一个 `onClose`，按它没有任何别的语义 —— 一个
-            永远只是关窗的 primary 钮会把人骗成「不按就没保存」。左槽那句说明留着，
-            它承担的就是解释这件事。
-            「重置本节」仍然**不补**：它要把这一分节的键全部回滚，是破坏性动作，要动
-            `lib/` 的写入路径与逐项确认，已登记在报告里等拍板（板面那一帧也把它写成
-            「重置本节」，但产品侧需要先定「哪些键算这一节」）。
-            文案走本地表（`lib/i18n/messages/**` 不在本轮文件范围内）。 */}
-        {isMobile ? null : (
-          <div className="d-modal-foot">
-            <span className="d-t-xs d-t-faint d-grow">
-              {localCopy(SETTINGS_FOOT_HINT, locale)}
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );

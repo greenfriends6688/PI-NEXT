@@ -22,6 +22,14 @@ const OPEN_AGENTS = `
   row.click();
   await new Promise((r) => setTimeout(r, 2000));`;
 
+/** fork:settings-no-explainer（用户 2026-10-06 裁定）：设置页不再摆说明性副行。
+ *  `.d-set-row-s` 那一格讲的是「这个设置是什么意思 / 为什么这么设计」——产品整条删掉、
+ *  板面保留，所以它是**已登记的意图**，不是「还没换肤」。要重建同样的信息，正确落点是
+ *  行内状态或「会阻止你完成动作」的提示（缺项 / 错误 / 需重载），不是一格说明文字。 */
+const NO_EXPLAINER = "**fork:settings-no-explainer（用户 2026-10-06 裁定）**：设置页不再摆说明性副行"
+  + "（说明这个设置是什么意思的那一格）。产品整条删除、板面保留 —— 「产品里没有」是已登记的意图，"
+  + "不是没换肤；要重建同样的信息，落点是行内状态或会阻止你完成动作的提示。";
+
 export default {
   name: "子代理 · 总开关与共同上限（画板 D-12 · 帧 A）",
   board: "v5/web/boards/D-12-settings-agents.html",
@@ -69,6 +77,10 @@ export default {
         + "产品这一层命中的是**仍在运行时里加载的** v1 `board.css` 的 `body.pw { line-height: var(--lh-body) }` = 1.50。"
         + "字号 / 高度 / 间距 / 圆角逐项相同，只有继承来的行高差这一条。",
     })),
+    // 上面那张表按「几何差」登记的，而这两个选择器在产品里**整个节点都没有**了 ——
+    // 覆盖成真正的原因（Map 后写 wins）。
+    { sel: ".d-set-inner > .d-set-sec:nth-of-type(1) .d-set-row-s", reason: NO_EXPLAINER },
+    { sel: ".d-set-inner > .d-set-sec:nth-of-type(2) .d-set-row-s", reason: NO_EXPLAINER },
   ],
   tolerance: { box: 2, fontSize: 0 },
 };

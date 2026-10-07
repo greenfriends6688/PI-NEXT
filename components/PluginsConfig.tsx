@@ -1739,7 +1739,6 @@ function McpImportModal({
             `overflow-y:auto`）；`minmax(0,1fr)` 把网格列从 min-content 收成壳宽，
             长命令行在行内单行省略而不是把壳顶宽。 */}
         <div className="pw-modal-body" style={{ flex: "1 1 0%", minHeight: 0, gridTemplateColumns: "minmax(0, 1fr)" }}>
-          <p className="d-t-xs d-t-faint">{t("mcp.importHint")}</p>
           {sourceCounts.size > 0 && (
             <>
               <div className="d-chips">
@@ -3051,7 +3050,7 @@ export function PluginsConfig({
           </div>
         ) : !mcpOnly && !isMobile ? (
           /* fork:v5-d13-frame-a —— 桌面 = 画板 D-13 帧 A：sec「已装」= 计数行
-             （总/启用/禁用 + **禁用 ≠ 卸载** + 诊断与资源徽章 + 刷新）+
+             （总/启用/禁用 + 诊断与资源徽章 + 刷新）+
              每个作用域一块 `.d-card > .d-table`（插件 / 来源 / 版本 / 状态 / 启用 /
              更多）+ 未信任横幅。行点击开帧 C 详情弹层，行尾「更多」与开关是条目动作
              （板面同一分工：禁用 / 卸载 / 更新 / 详情都不许共用一枚开关）。
@@ -3091,9 +3090,6 @@ export function PluginsConfig({
                     enabled: String(packages.filter((pkg) => !pkg.disabled).length),
                     disabled: String(packages.filter((pkg) => pkg.disabled).length),
                   })}
-                  {" "}
-                  <b>{t("plugins.offNotUninstallT")}</b>
-                  {t("plugins.offNotUninstallB")}
                 </span>
                 {data?.diagnostics.length ? (
                   <Badge
