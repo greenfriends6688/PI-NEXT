@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const panel = await readFile(new URL("./ProjectArchivePanel.tsx", import.meta.url), "utf8");
+const boardCss = await readFile(new URL("../design/v5/web/system.css", import.meta.url), "utf8");
 const sessionsPanel = await readFile(new URL("./ArchivedSessionsPanel.tsx", import.meta.url), "utf8");
 const sidebar = await readFile(new URL("./SessionSidebar.tsx", import.meta.url), "utf8");
 const navigation = await readFile(new URL("../lib/settings-navigation.ts", import.meta.url), "utf8");
@@ -119,3 +120,49 @@ test("the project index shares one settings page with the session archive", () =
   assert.doesNotMatch(settingsPanel, /import \{ ArchivedSessionsPanel \}/);
   assert.doesNotMatch(settingsPanel, /<ArchivedSessionsPanel/);
 });
+
+/* fork:multi-select-row（2026-10-07 用户实拍「这种多选的样式帮我一下，现在有点乱」）——
+   归档与导入两页的会话行把 `.d-checkbox` 放在 `.d-sess` 的**第一个子节点**，而 `.d-sess`
+   是 `display:block`、`.d-sess-t` 也是 block —— 勾选盒于是独占一行，标题被挤到第二行、
+   副行第三行。**画板 D-21 里是逐字相同的结构**，也就是画板与产品一起错；D-21 又恰好没有
+   对位 spec，所以这个形态一直没人发现。
+   修法在**唯一一份**样式（`design/v5/web/system.css`，画板与产品共用）：
+   `.d-sess:has(> .d-checkbox)` 切成两列网格。下面锁两件事：
+     ① 那条规则还在，且**只**在真有勾选盒时生效（侧栏那一行没有勾选盒，不能被动到）；
+     ② 组件仍把勾选盒放在行首 —— 否则规则匹配不上，等于没修。
+   导入页（`ImportPanel.tsx`）用的是同一套行结构，它的测试里也有同一条 ②。 */
+test("可多选的会话行是两列网格：勾选盒跨两行在行首，标题与副行在右列", () => {
+  // ① 不能把 `.d-sess` 本身改成网格：侧栏那一行没有勾选盒，会被一起改掉。
+  assert.doesNotMatch(
+    boardCss,
+    /^\.d-sess \{[^}]*display: grid/m,
+    "`.d-sess` 本身不许是网格 —— 只能由 `:has(> .d-checkbox)` 限定",
+  );
+  assert.match(boardCss, /\.d-sess:has\(> \.d-checkbox\) \{[\s\S]*?display: grid/);
+  assert.match(
+    boardCss,
+    /\.d-sess:has\(> \.d-checkbox\) \{[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\)/,
+  );
+  // 三格缺一不可：缺了任何一条，行就回到「勾选盒独占一行」的那个形态。
+  assert.match(boardCss, /\.d-sess:has\(> \.d-checkbox\) > \.d-checkbox \{ grid-row: 1 \/ span 2; grid-column: 1; \}/);
+  assert.match(boardCss, /\.d-sess:has\(> \.d-checkbox\) > \.d-sess-t \{ grid-row: 1; grid-column: 2; \}/);
+  assert.match(boardCss, /\.d-sess:has\(> \.d-checkbox\) > \.d-sess-m \{ grid-row: 2; grid-column: 2; margin-top: 0; \}/);
+  // ② 勾选盒必须是行的第一个子节点。
+  assertFirstChildIsCheckbox(panel);
+});
+
+/**
+ * 行的第一个子节点必须是勾选盒 —— 用下标比而不是正则窗口：`className="d-sess"` 与
+ * 勾选盒之间隔着 `title` / `onClick` 那一串（长度随实现变），窗口写死就会变成假红。
+ */
+function assertFirstChildIsCheckbox(source) {
+  const at = source.indexOf('className="d-sess"');
+  assert.ok(at > 0, "找不到 `.d-sess` 行");
+  const chunk = source.slice(at, at + 1200);
+  const box = chunk.indexOf('<span role="checkbox"');
+  assert.ok(box > 0, "会话行里找不到勾选盒");
+  assert.ok(
+    box < chunk.indexOf("d-sess-t"),
+    "勾选盒必须是会话行的第一个子节点 —— 否则 `.d-sess:has(> .d-checkbox)` 匹配不上，行会回到「勾选盒独占一行」",
+  );
+}
