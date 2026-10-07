@@ -670,7 +670,7 @@ if (!gotLock) {
           submenu: [
             {
               label: "GitHub 仓库",
-              click: () => void shell.openExternal("https://github.com/greenfriends6688/pinkslab"),
+              click: () => void shell.openExternal("https://github.com/greenfriends6688/PI-NEXT"),
             },
             {
               label: "打开数据目录",

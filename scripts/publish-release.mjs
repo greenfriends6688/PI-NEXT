@@ -12,7 +12,7 @@
  *   node scripts/publish-release.mjs --version=0.1.5-beta.3
  *
  * 可选：
- *   --repo=owner/name     默认 greenfriends6688/P-NEXT（仓库 2026-10 从 Pi-Agent 改名）
+ *   --repo=owner/name     默认 greenfriends6688/PI-NEXT（仓库经 Pi-Agent → P-NEXT → PI-NEXT 两次改名）
  *   --notes-file=path     release 正文，默认读 docs/release-notes-<version>.md
  *   --dry-run             只打包、只打印，不发请求
  *
@@ -38,7 +38,7 @@ if (!version) {
   console.error("缺 --version=<x.y.z[-pre]>（不带前导 v）");
   process.exit(2);
 }
-const repo = args.repo ?? "greenfriends6688/P-NEXT";
+const repo = args.repo ?? "greenfriends6688/PI-NEXT";
 const tag = `v${version}`;
 const dryRun = args["dry-run"] === "true";
 const token = process.env.GITHUB_TOKEN;

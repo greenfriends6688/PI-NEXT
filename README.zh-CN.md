@@ -124,7 +124,7 @@
 ## 运行
 
 ```bash
-git clone https://github.com/greenfriends6688/Pi-Agent.git
+git clone https://github.com/greenfriends6688/PI-NEXT.git
 cd Pi-Agent
 npm install
 npm run prod        # 生产构建并跑在 http://127.0.0.1:30141

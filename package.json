@@ -2,13 +2,13 @@
   "name": "@agegr/pi-web",
   "version": "0.1.9",
   "description": "PI NEXT — local coding agent workbench",
-  "homepage": "https://github.com/greenfriends6688/Pi-Agent#readme",
+  "homepage": "https://github.com/greenfriends6688/PI-NEXT#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/greenfriends6688/Pi-Agent.git"
+    "url": "git+https://github.com/greenfriends6688/PI-NEXT.git"
   },
   "bugs": {
-    "url": "https://github.com/greenfriends6688/Pi-Agent/issues"
+    "url": "https://github.com/greenfriends6688/PI-NEXT/issues"
   },
   "license": "GPL-3.0-or-later",
   "engines": {

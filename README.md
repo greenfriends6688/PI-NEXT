@@ -124,7 +124,7 @@ A conversation started in the pi terminal can be picked up in PI NEXT and handed
 ## Run it
 
 ```bash
-git clone https://github.com/greenfriends6688/Pi-Agent.git
+git clone https://github.com/greenfriends6688/PI-NEXT.git
 cd Pi-Agent
 npm install
 npm run prod        # builds for production and serves http://127.0.0.1:30141
