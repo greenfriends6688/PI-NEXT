@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { SubagentProfilesResponse, SubagentSettingsResponse } from "@/lib/api-types";
 import { sendAgentCommand } from "@/lib/agent-client";
 import type { ModelsData } from "@/lib/models-cache";
@@ -52,19 +53,8 @@ function Btn({
 function Badge({ tone, className, ...props }: HTMLAttributes<HTMLSpanElement> & { tone?: string }) {
   return <span {...props} className={["d-badge", tone ?? "", className].filter(Boolean).join(" ")} />;
 }
-function Stack({ className, style, children }: { className?: string; style?: CSSProperties; children: ReactNode }) {
-  return (
-    <div className={["d-col", className].filter(Boolean).join(" ")} style={{ gap: "var(--nx-sp-3)", ...style }}>
-      {children}
-    </div>
-  );
-}
 function Title({ children }: { children: ReactNode }) {
   return <h3 className="d-t-title" style={{ margin: 0 }}>{children}</h3>;
-}
-
-function EmptyState({ children }: { children: ReactNode }) {
-  return <div className="d-empty compact">{children}</div>;
 }
 
 
@@ -198,6 +188,10 @@ export function AgentsConfig({
   const [modelsLoading, setModelsLoading] = useState(true);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(() => getLastSettingsSelection("agents", cwd));
+  // fork:agents-detail-modal（2026-10-07 用户裁定）—— 单个 profile 的细节（含三枚内置）
+  // 从内联那一块搬进弹窗。`selectedKey` 仍负责「记住上次选的是谁」（loadProfiles 会
+  // 自己选一个），但它**不再**等于「弹窗开着」——否则一进页面就弹一个窗。
+  const [detailOpen, setDetailOpen] = useState(false);
   const [draft, setDraft] = useState<EditableProfile>(EMPTY_PROFILE);
   const [mode, setMode] = useState<EditorMode>("view");
   const [targetScope, setTargetScope] = useState<SubagentWritableScope>("global");
@@ -315,7 +309,19 @@ export function AgentsConfig({
     setMode(isWritableScope(profile.scope) ? "edit" : "view");
     if (isWritableScope(profile.scope)) setTargetScope(profile.scope);
     setError(null);
+    setDetailOpen(true);
   };
+
+  /** 关闭细节弹窗：选中项留着（表格里的选中态与记忆不变），只收弹窗。 */
+  const closeDetail = useCallback(() => {
+    setDetailOpen(false);
+    setMode("view");
+    setSavedOk(false);
+  }, []);
+
+  // fork:agents-detail-modal —— 与设置壳/插件弹层同一套：Esc 关闭、Tab 循环、背景 inert、
+  // 关闭还焦点。
+  const { dialogRef, dialogProps } = useDialogA11y({ open: detailOpen, onClose: closeDetail });
 
   const beginCreate = () => {
     let name = "custom-agent";
@@ -326,6 +332,7 @@ export function AgentsConfig({
     setMode("create");
     setTargetScope("global");
     setError(null);
+    setDetailOpen(true);
   };
 
   const beginDuplicate = () => {
@@ -340,6 +347,7 @@ export function AgentsConfig({
     setMode("create");
     setTargetScope(isWritableScope(selected.scope) ? selected.scope : "global");
     setError(null);
+    setDetailOpen(true);
   };
 
   const save = async () => {
@@ -702,21 +710,25 @@ export function AgentsConfig({
             </div>
           </div>
 
-          {/* 帧 B 下半 · 单个 profile 的细节。 */}
-          {!selected && !creating ? (
-            /* 帧 D —— 未选：`.d-empty` 记号 + 一句引导。 */
-            <EmptyState>
-              <span className="d-empty-ico"><i data-ico="square-mouse-pointer" data-size="16" aria-hidden="true" /></span>
-              <p className="d-empty-t">{t("agents.empty")}</p>
-            </EmptyState>
-          ) : (
-            <>
-              <div className="d-set-sec">
-                {/* 详情头 = 名称（h3）+ 作用域徽标 + 等宽路径 + 条目动作。
-                    画板帧 B 的细节块没有这一行：产品的只读档需要「创建副本」这个唯一
-                    出口，以及右侧的启用开关（只读说明文案指的就是它），所以保留，
-                    形态仍照 `.d-set-sec-t` + `.d-badge` + `.d-mono` 那一族。 */}
-                <div className="d-row fork-pwa-head">
+          {/* fork:agents-detail-modal（2026-10-07 用户裁定）—— 单个 profile 的细节（含三枚
+              内置）从内联那一块搬进弹窗：点表格行与「新建 profile」都开这一扇。
+              `detailOpen` 与 `selectedKey` 分开：后者负责「记住上次选的是谁」，
+              所以一进页面不会自己弹出一个窗。 */}
+          {detailOpen && (selected || creating) && (
+            <div
+              ref={dialogRef}
+              {...dialogProps}
+              aria-label={draft.displayName || draft.name || t("agents.new")}
+              className="d-modal is-open"
+              onClick={(event) => { if (event.target === event.currentTarget) closeDetail(); }}
+            >
+              <div className="d-modal-box wide">
+                <div className="d-modal-head">
+                  {/* 详情头 = 名称（h3）+ 作用域徽标 + 等宽路径 + 条目动作。
+                      画板帧 B 的细节块没有这一行：产品的只读档需要「创建副本」这个唯一
+                      出口，以及右侧的启用开关（只读说明文案指的就是它），所以保留，
+                      形态仍照 `.d-set-sec-t` + `.d-badge` + `.d-mono` 那一族。 */}
+                  <div className="d-row fork-pwa-head">
                   <Title>{draft.displayName || draft.name || t("agents.new")}</Title>
                   {displayedScope && (
                     <Badge tone={displayedScope === "project" ? "accent" : undefined}>
@@ -738,7 +750,11 @@ export function AgentsConfig({
                     className={`d-switch${draft.enabled ? " on" : ""}`}
                     onClick={() => void toggleEnabled(!draft.enabled)}
                   />
+                  </div>
                 </div>
+                <div className="d-modal-body">
+                  <div className="d-set-inner">
+                    <div className="d-set-sec">
 
                 {/* 只读态说明：`.d-banner info` 一行。 */}
                 {readonlyProfile && selected && (
@@ -950,7 +966,13 @@ export function AgentsConfig({
                   <span className="d-grow">{t("agents.toolsShellWarn")}</span>
                 </div>
               </div>
-            </>
+                  </div>
+                </div>
+                <div className="d-modal-foot">
+                  <Btn onClick={closeDetail}>{t("agents.close")}</Btn>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </SettingsPage>

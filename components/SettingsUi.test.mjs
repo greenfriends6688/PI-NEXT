@@ -193,8 +193,10 @@ test("all subpanel detail panes share one content hierarchy", () => {
   assert.match(pwaSource, /\.m-empty \{[\s\S]*?justify-content: center/);
   for (const source of Object.values(sources)) {
     assert.match(source, /<ConfigDetailStack|className="d-set-inner"/);
-    // 空态基件：共享 `ConfigEmptyState`，或已换皮为 v5 `.d-empty`。
-    assert.match(source, /<ConfigEmptyState|className="d-empty/);
+    // 空态基件：共享 `ConfigEmptyState`，或已换皮为 v5 `.d-empty`；
+    // fork:agents-detail-modal（2026-10-07 用户裁定）—— 子代理的细节改走弹窗，
+    // 页面上不再留详情空态，所以 `.d-modal` 也算一种合法的「未选时没东西可显示」。
+    assert.match(source, /<ConfigEmptyState|className="d-empty|className="d-modal/);
   }
 });
 

@@ -815,6 +815,67 @@ function PackageDetail({
  * 需要 `/api/plugins` 返回权限声明与依赖图，它不返回，所以只落「概览」这一段，
  * 不画点不动的分段器。
  */
+
+/** fork:plugin-add-modal（2026-10-07 用户裁定）—— 「添加插件」从占住内容列改成一扇
+ *  弹窗。桌面 `d-modal` / 窄屏 `m-modal` 只差形态件，正文（`AddPluginPanel`）与
+ *  遮罩 / Esc / Tab 循环（`useDialogA11y`）两边共用 —— 这段壳之前在两处各写了一遍，
+ *  提成一个组件。 */
+function AddPluginModal({
+  cwd,
+  source,
+  scope,
+  projectResourcesLoaded,
+  busy,
+  actionError,
+  onSourceChange,
+  onScopeChange,
+  onInstall,
+  onClose,
+}: {
+  cwd: string;
+  source: string;
+  scope: PluginScope;
+  projectResourcesLoaded: boolean;
+  busy: boolean;
+  actionError: string | null;
+  onSourceChange: (value: string) => void;
+  onScopeChange: (scope: PluginScope) => void;
+  onInstall: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const mobile = useIsMobile();
+  const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
+  return (
+    <div
+      ref={dialogRef}
+      {...dialogProps}
+      aria-label={t("i18n.addPlugin")}
+      className={mobile ? "m-modal is-open" : "d-modal is-open"}
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <div className={mobile ? "m-modal-box" : "d-modal-box wide"}>
+        <div className={mobile ? "m-modal-body" : "d-modal-body"}>
+          <AddPluginPanel
+            cwd={cwd}
+            source={source}
+            scope={scope}
+            projectResourcesLoaded={projectResourcesLoaded}
+            busy={busy}
+            actionError={actionError}
+            onSourceChange={onSourceChange}
+            onScopeChange={onScopeChange}
+            onInstall={onInstall}
+          />
+        </div>
+        <div className={mobile ? "m-modal-foot" : "d-modal-foot"}>
+          <Btn onClick={onClose}>{t("plugins.done")}</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PluginDetailModal({
   pkg,
   cwd,
@@ -3062,11 +3123,12 @@ export function PluginsConfig({
              ③ 页级动作（检查更新 / 添加插件）仍在页头（SettingsPage 的 actions
                 契约），不在计数行里重复一枚 —— 板面帧 A 把它们放在计数行是因为
                 那一帧没有页头。 */
-          addMode ? (
-            /* 「添加插件」两态：表单占住内容列（与 D-15 帧 B 的 MCP 表单同一处），
-               装完 `installPlugin` 自己把 addMode 落回false。 */
-            <div className="d-set-inner">
-              <AddPluginPanel
+          <>
+            {/* fork:plugin-add-modal（2026-10-07 用户裁定）—— 「添加插件」不再占住内容列，
+                改成一扇弹窗：列表不会被表单顶掉。装完 `installPlugin` 自己把 addMode
+                落回 false。 */}
+            {addMode && (
+              <AddPluginModal
                 cwd={cwd}
                 source={installSource}
                 scope={installScope}
@@ -3076,9 +3138,9 @@ export function PluginsConfig({
                 onSourceChange={setInstallSource}
                 onScopeChange={setInstallScope}
                 onInstall={installPlugin}
+                onClose={() => setAddMode(false)}
               />
-            </div>
-          ) : (
+            )}
           <div className="d-set-inner">
             <div className="d-set-sec">
               <div className="d-set-sec-t">{t("plugins.installedSection")}</div>
@@ -3284,7 +3346,7 @@ export function PluginsConfig({
               )}
             </div>
           </div>
-          )
+          </>
         ) : (
         <ConfigSplitView>
           <ConfigSidebar>
@@ -3540,7 +3602,8 @@ export function PluginsConfig({
                   </EmptyState>
                 )
               ) : addMode ? (
-              <AddPluginPanel
+              /* fork:plugin-add-modal（2026-10-07 用户裁定）—— 窄屏同一扇弹窗。 */
+              <AddPluginModal
                 cwd={cwd}
                 source={installSource}
                 scope={installScope}
@@ -3550,6 +3613,7 @@ export function PluginsConfig({
                 onSourceChange={setInstallSource}
                 onScopeChange={setInstallScope}
                 onInstall={installPlugin}
+                onClose={() => setAddMode(false)}
               />
             ) : loading ? null : selectedExtension ? (
               /* fork:v5-d13 —— 独立扩展没有包可管，头（作用域 + 名称）在这里；

@@ -38,9 +38,19 @@ export interface DialogA11yOptions {
   initialFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
+/** 打开中的弹层栈（后进先出）。嵌套弹层（设置壳里的详情弹窗）共用 document 的
+ *  capture keydown，只有栈顶那一层处理 Esc / Tab。 */
+const openDialogStack: symbol[] = [];
+
 export function useDialogA11y({ open, onClose, initialFocusRef }: DialogA11yOptions) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  // fork:nested-dialog-esc（2026-10-07）—— 同一 document 上的 capture keydown：
+  // `stopPropagation()` 挡不住**同一节点**上的其他监听器（那是
+  // `stopImmediatePropagation` 的事），而设置壳里的详情弹窗就是嵌套弹层 —— 于是
+  // 按一次 Esc 两个弹层同时响应，连设置壳一起关掉。只有**栈顶**那一层处理 Esc/Tab。
+  const idRef = useRef<symbol | null>(null);
+  if (idRef.current === null) idRef.current = Symbol("dialog");
 
   const candidates = useCallback((): HTMLElement[] => {
     const root = dialogRef.current;
@@ -59,6 +69,8 @@ export function useDialogA11y({ open, onClose, initialFocusRef }: DialogA11yOpti
   // 打开：记住来源焦点 → 移焦进弹层 → 兄弟节点 inert。
   useEffect(() => {
     if (!open) return;
+    const id = idRef.current as symbol;
+    openDialogStack.push(id);
     previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const root = dialogRef.current;
 
@@ -80,6 +92,8 @@ export function useDialogA11y({ open, onClose, initialFocusRef }: DialogA11yOpti
     }
 
     return () => {
+      const at = openDialogStack.lastIndexOf(id);
+      if (at >= 0) openDialogStack.splice(at, 1);
       clearTimeout(focusTimer);
       for (const element of changed) (element as HTMLElement & { inert?: boolean }).inert = false;
       // 焦点还原：只在焦点仍在弹层内部（或落到 body）时还原，
@@ -97,6 +111,8 @@ export function useDialogA11y({ open, onClose, initialFocusRef }: DialogA11yOpti
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      // 嵌套弹层：只有栈顶那一层响应（见 idRef 的注释）。
+      if (openDialogStack[openDialogStack.length - 1] !== idRef.current) return;
       if (isDialogCloseKey(event.key) && onClose) {
         event.stopPropagation();
         onClose();

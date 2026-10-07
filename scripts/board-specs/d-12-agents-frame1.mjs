@@ -1,8 +1,11 @@
 // 子代理分节 · 帧 B（画板 D-12 · profile 表格 + 单个 profile 的细节）
 //
 // fork:v5-landing · D-12（2026-10-06）—— v1 的主从两栏（`.d-set-nav` 左栏 + `d-sess`
-// 列表行）退场成画板 D-12 的一列：profile 表在第 3 节、细节在第 4 节，所以板面与产品
-// 的 `.d-set-sec` 序号**不同**，靠 pairs 逐条对位（同名选择器 + 序号改写）。
+// 列表行）退场成画板 D-12 的一列：profile 表在第 3 节、细节在弹窗里，所以板面与产品的
+// `.d-set-sec` 序号**不同**，靠 pairs 逐条对位（同名选择器 + 序号改写）。
+//
+// fork:agents-detail-modal（2026-10-07 用户裁定）—— 细节块从页面内联搬进弹窗
+// （点表格行开），所以产品侧的选择器多一层 `.d-modal`、序号回到 1。
 //
 // 不量、且**必须不量**的四样（登记在文件末尾）：
 //   · 细节块板面没有「标题 + 徽标 + 路径 + 创建副本/删除/启用开关」这一行头 —— 产品的
@@ -31,7 +34,9 @@ const OPEN_AGENTS = `
 const S1 = ".d-set-inner > .d-set-sec:nth-of-type(1)";
 const S2 = ".d-set-inner > .d-set-sec:nth-of-type(2)";
 const A3 = ".d-set-inner > .d-set-sec:nth-of-type(3)";
-const A4 = ".d-set-inner > .d-set-sec:nth-of-type(4)";
+/* fork:agents-detail-modal（2026-10-07 用户裁定）—— 细节那一节从页面内联搬进了
+   弹窗，所以产品侧从 `nth-of-type(4)` 改成「弹窗里第 1 节」。 */
+const A4 = ".d-modal .d-set-inner > .d-set-sec:nth-of-type(1)";
 
 /** 行高那条差是**全局**的（板面 `.d-board` 写 `line-height: var(--nx-lh-body)` = 1.6，
  *  产品 body 命中的是仍在加载的 v1 `board.css` 的 `body.pw { line-height: var(--lh-body) }`

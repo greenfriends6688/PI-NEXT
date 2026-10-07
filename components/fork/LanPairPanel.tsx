@@ -24,6 +24,43 @@ import { QrCanvas } from "./QrCanvas";
  * 进程内没法改。所以这里明确告诉他「正在开启局域网」，而不是假装已经好了。
  */
 
+/**
+ * 刷新二维码 / 复制链接 两枚动作。桌面 `.d-btn` 与窄屏 `.m-btn.sm` 只差形态件，
+ * 行为与文案一字不差 —— 两个分支各写一遍只会漂。
+ * fork:lan-pair-no-hint（2026-10-07 用户裁定）之后它们从行右端（`.d-grow-last` /
+ * `trailing`）挪到**贴左**，并且不再有「无法扫码？…」那句说明。
+ */
+function PairActionButtons({
+  mobile,
+  pair,
+  pairLink,
+  copied,
+  onRefresh,
+  onCopy,
+}: {
+  mobile: boolean;
+  pair: boolean;
+  pairLink: string | null;
+  copied: boolean;
+  onRefresh: () => void;
+  onCopy: () => void;
+}) {
+  const { t } = useI18n();
+  const buttonClass = mobile ? "m-btn sm" : "d-btn";
+  return (
+    <>
+      <button type="button" className={buttonClass} onClick={onRefresh} disabled={!pair}>
+        <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
+        {t("phonePush.refreshQr")}
+      </button>
+      <button type="button" className={buttonClass} disabled={!pairLink} onClick={onCopy}>
+        <i data-ico={copied ? "circle-check" : "copy"} data-size="13" aria-hidden="true" />
+        {copied ? t("lanPair.copied") : t("lanPair.copyLink")}
+      </button>
+    </>
+  );
+}
+
 interface PairInfo {
   code: string;
   readOnly: boolean;
@@ -181,26 +218,20 @@ export function LanPairBody() {
             <PwaBanner icon="shield-alert" tone="warn">{t("phonePush.noToken")}</PwaBanner>
           )}
 
-          <PwaSetRow
-            label={t("phonePush.cannotScan")}
-            trailing={
-              <>
-                <button type="button" className="m-btn sm" onClick={() => void mint()} disabled={!pair}>
-                  <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
-                  {t("phonePush.refreshQr")}
-                </button>
-                <button
-                  type="button"
-                  className="m-btn sm"
-                  disabled={!pairLink}
-                  onClick={() => { if (pairLink) copyLink(pairLink); }}
-                >
-                  <i data-ico={copied ? "circle-check" : "copy"} data-size="13" aria-hidden="true" />
-                  {copied ? t("lanPair.copied") : t("lanPair.copyLink")}
-                </button>
-              </>
-            }
-          />
+          {/* fork:lan-pair-no-hint（2026-10-07 用户裁定）—— 去掉「无法扫码？可以在手机上
+              打开链接。」那句说明；两枚按钮原来被 `trailing` 推到行右端，现在直接贴左。 */}
+          <div className="m-setrow" style={{ cursor: "default" }}>
+            <span className="m-hist-row">
+              <PairActionButtons
+                mobile
+                pair={Boolean(pair)}
+                pairLink={pairLink}
+                copied={copied}
+                onRefresh={() => void mint()}
+                onCopy={() => { if (pairLink) copyLink(pairLink); }}
+              />
+            </span>
+          </div>
 
           <PwaSwitchRow
             icon="lock"
@@ -217,10 +248,13 @@ export function LanPairBody() {
                它不是一列设置项，而是一段要照着输的东西，所以单独占一张卡。
                头：图标 + 名称 + grow + 到期徽章；体：逐位键帽 + 一句说明。 */
             <div className="m-card">
-              <div className="m-card-head">
+              {/* fork:lan-pair-card-wrap（2026-10-07 用户实拍）—— 标题 + 到期徽章在窄卡里
+                  放不下时，**裸文本**那个匿名 flex 项会被压到 min-content，中文于是
+                  一字一行竖着排（实拍「或 / 在 / 应 / 用 / 里…」）。标题包进 `.m-grow`
+                  并让头行可换行：徽章不够位就落到第二行，不再拿标题去抵。 */}
+              <div className="m-card-head" style={{ flexWrap: "wrap" }}>
                 <i data-ico="key-round" data-size="15" aria-hidden="true" />
-                {t("lanPair.codeLabel")}
-                <span className="m-grow" aria-hidden="true" />
+                <span className="m-grow">{t("lanPair.codeLabel")}</span>
                 <span className="m-badge warn">
                   <i data-ico="clock" data-size="12" aria-hidden="true" />
                   {t("lanPair.hint", { seconds: pair.expiresInSeconds })}
@@ -299,25 +333,17 @@ export function LanPairBody() {
           </div>
         )}
 
-        <div className="d-set-row">
-          <div className="d-set-row-box">
-            <div className="d-set-row-t">{t("phonePush.cannotScan")}</div>
-          </div>
-          <span className="d-grow-last d-row" style={{ gap: "var(--nx-sp-2)", flexWrap: "wrap" }}>
-            <button type="button" className="d-btn" onClick={() => void mint()} disabled={!pair}>
-              <i data-ico="refresh-cw" data-size="13" aria-hidden="true" />
-              {t("phonePush.refreshQr")}
-            </button>
-            <button
-              type="button"
-              className="d-btn"
-              disabled={!pairLink}
-              onClick={() => { if (pairLink) copyLink(pairLink); }}
-            >
-              <i data-ico={copied ? "circle-check" : "copy"} data-size="13" aria-hidden="true" />
-              {copied ? t("lanPair.copied") : t("lanPair.copyLink")}
-            </button>
-          </span>
+        {/* fork:lan-pair-no-hint（2026-10-07 用户裁定）—— 去掉「无法扫码？可以在手机上
+            打开链接。」那句说明；两枚按钮原来被 `.d-grow-last` 推到行右端，现在贴左。 */}
+        <div className="d-row" style={{ gap: "var(--nx-sp-2)", flexWrap: "wrap" }}>
+          <PairActionButtons
+            mobile={false}
+            pair={Boolean(pair)}
+            pairLink={pairLink}
+            copied={copied}
+            onRefresh={() => void mint()}
+            onCopy={() => { if (pairLink) copyLink(pairLink); }}
+          />
         </div>
       </div>
 

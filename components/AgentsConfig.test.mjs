@@ -132,8 +132,13 @@ test("fork:settings-frame（画板 D-12 落位表）— 详情字段是 d-field 
   // 系统指令是整行宽控件：`.d-field-t` + `.d-textarea` 直接挂在详情栈下，不塞进其它字段行。
   assert.match(source, /<span className="d-field-t">\{t\("agents\.prompt"\)\}<\/span>[\s\S]{0,400}?<textarea\s+className="d-textarea agents-system-prompt"/);
   assert.doesNotMatch(source, /<ConfigField[^>]*>[\s\S]{0,300}?agents-system-prompt/);
-  // 详情未选照画板 D-12 帧 D：`.d-empty` 记号 + 一句引导。
-  assert.match(source, /<span className="d-empty-ico"><i data-ico="square-mouse-pointer"/);
+  // fork:agents-detail-modal（2026-10-07 用户裁定）—— 详情不再内联在页面下方，
+  // 而是点表格行/「新建 profile」开的一扇 `.d-modal`（板面 D-12 帧 D 的未选空态
+  // 随之退场：页面上只剩内置开关 / 上限 / profile 表）。
+  assert.match(source, /\{detailOpen && \(selected \|\| creating\) && \(/);
+  assert.match(source, /className="d-modal is-open"/);
+  assert.match(source, /className="d-modal-box wide"/);
+  assert.doesNotMatch(source, /d-empty-ico/);
   // 「工具白名单」照画板 D-12 帧 C 拆成**两组**芯片：内置工具一块（工具芯片），
   // 外置资源（技能 / 扩展）另一块，计数徽标行在两组下面。
   assert.match(source, /t\("agents\.toolsBuiltin"\)[\s\S]{0,400}?TOOL_OPTIONS\.map\(\(tool\) => \(/);

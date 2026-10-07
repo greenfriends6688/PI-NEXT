@@ -105,3 +105,18 @@ test("every new plugins.* key exists in all three locales", () => {
     }
   }
 });
+test("fork:plugin-add-modal —— 「添加插件」是一扇弹窗，不再占住内容列", () => {
+  // 用户 2026-10-07 裁定：设置页里「添加」一律用弹窗（与子代理同一轮）。
+  // 桌面与窄屏只差形态件，壳提成一个组件，两处都只传数据与 onClose。
+  assert.match(source, /const \[addMode, setAddMode\] = useState\(false\)/);
+  assert.match(source, /function AddPluginModal\(/);
+  assert.match(source, /useDialogA11y\(\{ open: true, onClose \}\)/);
+  assert.match(source, /className=\{mobile \? "m-modal is-open" : "d-modal is-open"\}/);
+  assert.match(source, /className=\{mobile \? "m-modal-box" : "d-modal-box wide"\}/);
+  // 两处调用（桌面内容列 + 窄屏详情列）都走同一个组件。
+  assert.equal((source.match(/<AddPluginModal\b/g) ?? []).length, 2);
+  // 正文（`AddPluginPanel`）只在组件里渲染一次。
+  assert.equal((source.match(/<AddPluginPanel\b/g) ?? []).length, 1);
+  // 表单不再直接占内容列（那一层 `<div className="d-set-inner">` 现在只属于列表）。
+  assert.doesNotMatch(source, /addMode \? \(\s*\/\* 「添加插件」两态/);
+});
