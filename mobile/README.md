@@ -15,7 +15,9 @@ npm install
 # Mode A（推荐）：把稳定地址打进包里（Tailscale IP，配对一次永久有效）
 PINEXT_SERVER_URL=http://100.x.y.z:30141 npx cap sync android
 ./android/gradlew -p android assembleDebug
-# 产物：android/app/build/outputs/apk/debug/app-debug.apk → adb install -r 安装
+# 产物：android/app/build/outputs/apk/debug/app-debug.apk
+#      分发用的那一份另拷一份叫「PI NEXT.apk」（CI 也是这么出的）
+#      → adb install -r "PI NEXT.apk"
 
 # Mode B：不设 PINEXT_SERVER_URL，壳先开跳板页，首次输入/扫码确定地址
 npx cap sync android

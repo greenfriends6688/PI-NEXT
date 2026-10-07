@@ -114,3 +114,44 @@ writeFileSync(faviconPng, await square(64));
 // Next 的 `app/favicon.ico` 是文件约定，sips 直接写单尺寸 ico（浏览器会自行缩放）。
 execFileSync("sips", ["-s", "format", "ico", faviconPng, "--out", join(process.cwd(), "app", "favicon.ico")], { stdio: "inherit" });
 console.log("✓ public/favicon.png / app/favicon.ico");
+
+// ── 4. Android 启动器图标（mobile/ 子项目的 android 工程）────────────────────
+// 壳此前一直是 Capacitor 模板那套青色图标（#26A69A 网格底 + 默认前景），
+// 这里换成主品牌图形，与桌面 / PWA 同一张源图、同一套留白纪律：
+//   ic_launcher.png            老设备（API < 26）：白底方图，图形占宽 78%
+//   ic_launcher_round.png      同上，白圆底（圆形启动器）
+//   ic_launcher_foreground.png 自适应图标（API 26+）的前景：**透明底**，
+//                              图形收在 108dp 画布的 60% —— 自适应图标的安全区是
+//                              中间 72dp（66.7%），系统还会按各家长按/圆角再裁一次，
+//                              留 60% 才不会被圆/圆角切到图形边缘。
+//   底色不在 PNG 里：`values/ic_launcher_background.xml` 的 #FFFFFF 就是它。
+const WHITE = { r: 255, g: 255, b: 255, alpha: 1 };
+const ADAPTIVE_COVER = 0.6;
+// 各密度下 Android 约定的像素：老图 48dp、自适应前景 108dp。
+const DENSITIES = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
+const androidRes = join(process.cwd(), "mobile", "android", "app", "src", "main", "res");
+
+/** 白圆底 + 品牌图形（圆外透明），给 API < 26 的圆形启动器。 */
+async function roundIcon(size) {
+  const targetW = Math.round(size * COVER);
+  const mark = await sharp(SRC)
+    .resize(targetW, Math.round(targetW / ASPECT), { fit: "contain", background: TRANSPARENT })
+    .png()
+    .toBuffer();
+  const disc = Buffer.from(
+    `<svg width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="#FFFFFF"/></svg>`,
+  );
+  return sharp({ create: { width: size, height: size, channels: 4, background: TRANSPARENT } })
+    .composite([{ input: disc, gravity: "center" }, { input: mark, gravity: "center" }])
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
+for (const [density, scale] of Object.entries(DENSITIES)) {
+  const dir = join(androidRes, `mipmap-${density}`);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "ic_launcher.png"), await square(Math.round(48 * scale), WHITE));
+  writeFileSync(join(dir, "ic_launcher_round.png"), await roundIcon(Math.round(48 * scale)));
+  writeFileSync(join(dir, "ic_launcher_foreground.png"), await square(Math.round(108 * scale), null, ADAPTIVE_COVER));
+  console.log(`✓ mobile/android …/mipmap-${density}/ic_launcher{,_round,_foreground}.png`);
+}

@@ -14,8 +14,9 @@ concurrency:
   group: android-apk-${{ github.ref }}
   cancel-in-progress: true
 
-# fork:mobile-shell —— 安卓壳出包（MusePi 的诚实路线：仓库里没有 keystore，
-# AGP 自动生成 debug 签名，产物 app-debug.apk，装法 `adb install -r`）。
+# fork:mobile-shell —— 安卓壳出包（仓库里没有 keystore，
+# AGP 自动生成 debug 签名，gradle 产物 app-debug.apk；安装包另拷一份叫「PI NEXT.apk」，
+# 这是给人装的那一个，装法 `adb install -r "PI NEXT.apk"`）。
 # 本机没有 Android SDK 时的出包通道；tag 推送时额外挂到 GitHub Release。
 jobs:
   build:
@@ -49,11 +50,17 @@ jobs:
         working-directory: mobile
         run: ./android/gradlew -p android assembleDebug --no-daemon
 
+      # 安装包叫「PI NEXT.apk」：装到手机上显示的名字来自 strings.xml 的 app_name，
+      # 文件名是给人看的 —— 分发的就这一个，别让人在一堆 app-debug 里找。
+      - name: Name the APK
+        working-directory: mobile/android/app/build/outputs/apk/debug
+        run: cp app-debug.apk "PI NEXT.apk"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pinext-app-debug
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: PI-NEXT-apk
+          path: mobile/android/app/build/outputs/apk/debug/PI NEXT.apk
 
       - name: Attach to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -61,5 +68,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload "${GITHUB_REF_NAME}" \
-            mobile/android/app/build/outputs/apk/debug/app-debug.apk#pinext-app-debug.apk \
+            "mobile/android/app/build/outputs/apk/debug/PI NEXT.apk#PI NEXT.apk" \
             --clobber
