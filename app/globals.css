@@ -1359,7 +1359,9 @@ pre, code {
   outline-offset: -2px;
 }
 
-.directory-picker-path:focus-visible {
+/* fork:focus-ring-universal（2026-10-07）—— 这是**画在 box-shadow 上**的那一枚焦点环
+   （`outline` 那条全量规则管不到它），同样按模态分档：鼠标档不画。 */
+html:not([data-focus-modality="pointer"]) .directory-picker-path:focus-visible {
   border-color: var(--accent) !important;
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
@@ -2130,30 +2132,23 @@ html[data-focus-modality="pointer"] :where(input, select, textarea):focus-visibl
 /* 用户 2026-10-05 —— 「蓝框」的**最后一条也删了**：先前是**逐个组件**打补丁
    （字段 → 项目行 → 文件树行），用户实拍「很多地方都可能触发那个蓝色的边框」。
    上面那条字段规则继续留着（`useFocusModality.test.mjs` 钉的就是它的字面），但它只是
-   本条的一个子集 —— 本条把同一件事一次说完：鼠标档下，所有**非原生可聚焦件**不出外描边。
+   本条的一个子集。
 
-   为什么必须是一条而不是继续逐个补（本机 Chrome 实测出的三条事实）：
-   ① 浏览器只对 `<button>` / `<a>` 这类「原生可点件」在鼠标点击时**不**匹配
-      `:focus-visible`；`div[tabindex]` / `span[role=button]` / `[role=treeitem]` 这类
-      自造件是「键盘可聚焦」，规则由元素类型决定，与点它的方式无关；
-   ② 点**已经拿到焦点的那一行**（Tab 走过之后、或程序 `.focus()` 落点与点击目标同一个）
-      根本不算一次新的焦点移动 —— 环原地留着。实测：Tab 到文件树行 → 点它 →
-      隔离页面里 601 个强调色像素，规则一加就是 0，而 `:focus-visible` 本身仍为 true；
-   ③ 因此光写 `:focus-visible` 压不住第②种（那条环是浏览器给非 `<button>` 画的 UA 默认
-      环，挂在 `:focus` 上），所以这里**同时**命中 `:focus`。
-   命中 `:focus` 也不会误伤键盘档：整条选择器都锁在 `[data-focus-modality="pointer"]`
-   下，而 pointer 档由 `pointerdown` 写入 —— 焦点落下的那一刻标记已经是 pointer。
-   键盘档（Tab / 方向键 / Enter）下面板照旧由上面那条 `:focus-visible` 规则出 1.5px 环，
-   键盘用户仍然看得见焦点在哪（这一条不能省，也不能扩到 `<button>`：原生按钮在鼠标点击
-   时本来就不匹配 `:focus-visible`，不需要也不该动）。
-   `.file-explorer-section` 是树的滚动壳：Chrome 128+ 让可滚动容器自己可聚焦，那圈环
-   套的是整棵树（一个框住所有行的大蓝框），它没有 `tabindex`，只能按类点名。 */
-html[data-focus-modality="pointer"] :is(
-  :where(input, select, textarea, summary, [tabindex], [role="button"], [role="tab"],
-    [role="treeitem"], [role="menuitem"], [role="option"], [role="switch"],
-    [role="checkbox"], [role="radio"], [role="slider"], [role="combobox"]),
-  .file-explorer-section
-):is(:focus, :focus-visible) {
+   fork:focus-ring-universal（2026-10-07 用户第二次实拍「很多按钮点了之后都会出现蓝色的
+   边框」）—— 上一版是**白名单**：逐个列出 `[tabindex]` / `[role=button]` /
+   `[role=treeitem]` / `.file-explorer-section` …。白名单必然漏：只要有一个可聚焦件的
+   元素类型不在表里（或它是 Chrome 128+ 自己变成可聚焦的滚动容器），那圈强调色描边就
+   会漏出来。用户看到的正是这种漏。现在换成**一条全量规则**：
+
+     pointer 档（`pointerdown` 写入）→ 任何元素的焦点描边一律不画；
+     keyboard 档（Tab / 方向键 / Enter / Space）→ 上面那些 `:focus-visible` 规则照旧。
+
+   这就是规范 §1.4 的原话（「焦点环只在**键盘**焦点时出现」）的直译，不再依赖对元素
+   类型的枚举。键盘用户不受影响：焦点落下的那一刻模态标记已经由键盘事件写成
+   keyboard，而鼠标点击前一定先过 `pointerdown`。
+   `:focus` 与 `:focus-visible` 同时命中：非原生可聚焦件那条 UA 默认环挂在 `:focus` 上，
+   只写 `:focus-visible` 压不住。 */
+html[data-focus-modality="pointer"] :is(:focus, :focus-visible) {
   outline: none !important;
 }
 
