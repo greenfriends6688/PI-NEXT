@@ -58,6 +58,20 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 /* 多选行：勾了框的行整行跟着亮 —— 用 :has() 把「行的状态」绑到「框的状态」，
    于是行不需要各自的 JS，点框就够（本仓浏览器地板 16.2，:has() 是 15.4+，安全）。 */
 .d-sess:has(.d-checkbox.on), .d-table tr:has(.d-checkbox.on) { background: var(--nx-selected); }
+/* 可多选的会话行（画板 D-21 的归档 / 导入）—— 勾选盒在行首，标题与副行在它右侧。
+   `.d-sess` 本身是 block（侧栏那一行没有勾选盒），而 `.d-sess-t` 也是 block，
+   所以把 `.d-checkbox` 当第一个子节点塞进去时它必然独占一行（用户 2026-10-07 实拍：
+   勾选盒悬在标题上面、整行变成三行）。**画板与产品一起错** —— 这个形态从来没被
+   定义过，而 D-21 又没有对位 spec，所以一直没人发现。
+   只在**真有勾选盒**时切成两列网格：勾选盒跨两行垂直居中，标题 / 副行在右列。
+   侧栏那一行没有勾选盒，因此一个像素都不用动。 */
+.d-sess:has(> .d-checkbox) {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--nx-sp-2); row-gap: 2px; align-items: center; }
+.d-sess:has(> .d-checkbox) > .d-checkbox { grid-row: 1 / span 2; grid-column: 1; }
+.d-sess:has(> .d-checkbox) > .d-sess-t { grid-row: 1; grid-column: 2; }
+/* 网格的 row-gap 已经在管间距，副行自己的 margin-top 会把它推歪。 */
+.d-sess:has(> .d-checkbox) > .d-sess-m { grid-row: 2; grid-column: 2; margin-top: 0; }
 /* 组：全选 / 半选 / 全不选 三态的组标题 */
 .d-group-toggle { display: flex; align-items: center; gap: var(--nx-sp-2); }
 /* 标题行必须**块级**：行盒是虚拟化的固定 48/58px，标题作为内联 span 时
