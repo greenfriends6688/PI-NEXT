@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useI18n } from "@/hooks/useI18n";
+import { MarkdownBody } from "../MarkdownBody";
 import { localCopy, type LocalCopy } from "../settings-disabled-reasons";
 import { SettingsPage } from "../SettingsUi";
 
@@ -94,7 +95,25 @@ const DOC_COPY = {
     "zh-CN": "保存会直接改写扩展下次会话读回的那份文件。",
     "zh-TW": "儲存會直接改寫擴充功能下次工作階段讀回的那份文件。",
   },
+  tabRender: { en: "Rendered", "zh-CN": "渲染", "zh-TW": "渲染" },
+  tabRaw: { en: "Source", "zh-CN": "原文", "zh-TW": "原文" },
 } satisfies Record<string, LocalCopy>;
+
+/**
+ * fork:memory-docs —— **只给渲染那一栏用**：把扩展的存储格式翻成人读的版式。
+ *
+ * 文件本身的格式一个字都不能改：`pi-hermes-memory` 用 `\n§\n`（`ENTRY_DELIMITER`）
+ * 切条目、每条尾巴上挂 `<!-- created=…, last=… -->`（`store/memory-store.ts`）。
+ * 所以「排版」只能发生在显示层 —— `§` 换成一条分隔线、注释收掉、多余空行合并；
+ * 编辑与保存走的仍是原文（textarea 里的那个值）。
+ */
+function prettyMemoryMarkdown(content: string): string {
+  return content
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/\n§\n/g, "\n\n---\n\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -116,6 +135,8 @@ export function MemorySettingsPanel() {
   const [docError, setDocError] = useState<string | null>(null);
   const [docBusy, setDocBusy] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  /** 渲染（读） / 原文（改）—— 与技能内容弹窗同一套分段。 */
+  const [tab, setTab] = useState<"render" | "raw">("render");
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
   const load = useCallback(async () => {
@@ -154,6 +175,7 @@ export function MemorySettingsPanel() {
     setDraft("");
     setDocError(null);
     setSaveState("idle");
+    setTab("render");
     const params = new URLSearchParams({ scope: target.scope, name: target.name });
     if (target.project) params.set("project", target.project);
     try {
@@ -404,6 +426,28 @@ export function MemorySettingsPanel() {
             </div>
 
             <div className="d-modal-body">
+              {/* 渲染 / 原文：记忆是「一行一条」的纯文本，直接看原文就是一面墙。
+                  分段与技能内容弹窗同构（`.d-seg` + 两个 pane），**默认渲染**。 */}
+              <div className="d-row">
+                <div className="d-seg" role="tablist" aria-label={openDoc.name}>
+                  <button
+                    type="button"
+                    aria-pressed={tab === "render"}
+                    className={tab === "render" ? "is-on" : undefined}
+                    onClick={() => setTab("render")}
+                  >
+                    {localCopy(DOC_COPY.tabRender, locale)}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={tab === "raw"}
+                    className={tab === "raw" ? "is-on" : undefined}
+                    onClick={() => setTab("raw")}
+                  >
+                    {localCopy(DOC_COPY.tabRaw, locale)}
+                  </button>
+                </div>
+              </div>
               {docError ? (
                 <div className="d-banner err">
                   <i data-ico="circle-alert" data-size="14"></i>
@@ -412,10 +456,17 @@ export function MemorySettingsPanel() {
               ) : null}
               {doc === null && !docError ? (
                 <div className="d-t-xs d-t-faint">{t("i18n.loading")}</div>
+              ) : tab === "render" ? (
+                <div className="d-md">
+                  <MarkdownBody>{prettyMemoryMarkdown(draft)}</MarkdownBody>
+                </div>
               ) : (
+                /* 画板硬规则（同技能弹窗）：弹层内部不再套第二层滚动 —— textarea
+                   不给 max-height，用 rows 跟着草稿行数长高。 */
                 <textarea
                   className="d-textarea d-mono"
-                  style={{ width: "100%", minHeight: "min(46vh, 420px)" }}
+                  rows={Math.max(9, draft.split("\n").length + 1)}
+                  spellCheck={false}
                   aria-label={openDoc.name}
                   value={draft}
                   disabled={docBusy}
