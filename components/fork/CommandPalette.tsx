@@ -28,6 +28,32 @@
  *   ③ **搜索中给骨架**（帧 C）：`.d-skel-list` 三行 + 思考点行；原先只有一行纯文字状态。
  * 另外空查询时给「最近打开」一组（帧 A 的第一组）：走既有 `GET /api/sessions?summary=1`
  * （只读 header，与 SessionSidebar 同一份口径），仍然零新后端。
+ *
+ * fork:d22-node-audit（用户 2026-10-07：「拿画板 D-22 逐节点对数，有的你没给我弄好」）——
+ * 用真浏览器把帧 A/B/C 的 `.d-cmd` 子树与产品逐节点比过，本轮对齐（桌面支 + 三语同步）：
+ *   · `.d-cmd-foot` 补人话标签（帧 A：↑↓ 移动 / ↵ 打开 / esc 关闭 / 前缀即语法 > # @）；
+ *     板面中间那条 `⌘ ↵ 在新会话里跑` 产品没有这个动作，不画（见文末已知差距）。
+ *   · 语法浮层取词照帧 A：标题 = `palette.prefixIsCategory`（原误用 `palette.title`）、
+ *     三行解释 = `palette.prefixHint.*`（新增）、脚注 = `palette.prefixPasteHint`（新增）。
+ *   · 桌面输入框 placeholder = `palette.placeholderDesktop`（帧 A 原文）；`palette.placeholder`
+ *     留给 M-08 窄屏的搜索框（板面是短句），不把长句共用到两处。
+ *   · 语法钮 title/aria = `palette.prefixSyntax`、空态按钮 = `palette.seePrefixSyntax`（帧 A/C 原文）。
+ *   · 文件行主格改回完整路径 + `.d-mono`（帧 A/B 的 `.d-grow.d-mono`）：原先文件名在主格、
+ *     路径在行尾，查目录名时帧 B 的 `.d-cmd-hit` 在文件域等于丢了；板面的时间/行号列
+ *     `/api/file-index` 没有数据，留空不造假。
+ *
+ * fork:d22-known-gaps —— 画板有、产品无（不发明功能，逐条登记）：
+ *   ① 帧 A foot `⌘ ↵ 在新会话里跑`（产品无「新会话里跑」动作）；
+ *   ② 帧 A 第三组「保存的工作流」（D-24 未落，无数据源）；
+ *   ③ 帧 B foot `⌘↵ 引用到输入框` / `⌫ 退回全部范围` / `索引中 1,284`（产品无对应动作/计数）；
+ *   ④ 帧 C 的「最近搜索」要在空结果下方出现（桌面 `active` 只索引结果，历史是第二个下标空间，
+ *      要照窄屏的 `historyOffset` 重排；本轮不动，避免把可用的东西改坏）；
+ *   ⑤ 帧 C 的「没找到时的下一步」与「搜索历史怎么用」浮层（产品无删除单条/全清入口）；
+ *   ⑥ 文件行的时间 / 行号 / 文件类型图标（API 只给 path/isDir）；
+ *   ⑦ 命令行行尾的「命令 · ⌘N」类别前缀、会话最近行的「会话 · 18 分钟前」（`modified` 已有，
+ *      但 `rows` 与窄屏共用，动它会连带改 M-08 那一支的渲染）；
+ *   ⑧ 空查询组标题仍是「域 · 命中数」（板面写作「最近打开 / 快捷入口」）：测试把命令组标题
+ *      固定成 `Commands · 2`，同一列表里两套命名会更乱，作者裁定维持现状。
  */
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -68,8 +94,9 @@ interface SessionHit {
 }
 
 interface FileHit {
+  /* fork:d22-file-path —— 只留路径：帧 A/B 的文件行主格就是路径本身（`.d-grow.d-mono`），
+     文件名只是它的尾巴，不再单列一栏。 */
   path: string;
-  name: string;
 }
 
 const SESSION_LIMIT = 12;
@@ -135,8 +162,9 @@ export function CommandPalette({
   const [active, setActive] = useState(0);
   const [history, setHistory] = useState<CommandPaletteHistoryEntry[]>([]);
   /* fork:v5-frame-audit D-22 —— 页签行右侧那颗 `.d-iconbtn`（keyboard 图标）点开的是
-     「前缀即语法」浮层（帧 A/C 板面上的 `.d-pop`）。它不是新后端：三条文案取既有的
-     `palette.scope.*`，与输入框本身写的是同一张表。 */
+     「前缀即语法」浮层（帧 A/C 板面上的 `.d-pop`）。它不是新后端：三行解释是
+     `palette.prefixHint.*`（fork:d22-pop-copy 起用板面原文），前缀符号本身来自
+     `PALETTE_SCOPE_PREFIXES`。 */
   const [syntaxOpen, setSyntaxOpen] = useState(false);
   const [sessions, setSessions] = useState<SessionHit[] | null>(null);
   const [sessionsLoading, setSessionsLoading] = useState(false);
@@ -220,9 +248,9 @@ export function CommandPalette({
       .then((data) => {
         const matches = Array.isArray(data.matches) ? data.matches : [];
         setFiles(matches.slice(0, FILE_LIMIT).flatMap((m) => {
-          const entry = m as { path?: unknown; name?: unknown };
+          const entry = m as { path?: unknown };
           if (typeof entry?.path !== "string") return [];
-          return [{ path: entry.path, name: String(entry.name ?? entry.path.split("/").pop() ?? entry.path) }];
+          return [{ path: entry.path }];
         }));
       })
       .catch(() => setFiles([]))
@@ -274,7 +302,7 @@ export function CommandPalette({
   }, [commands, scope, trimmed]);
 
   const rows = useMemo(() => {
-    const out: Array<{ key: string; kind: string; label: string; hint?: ReactNode; icon: string; onPick: () => void }> = [];
+    const out: Array<{ key: string; kind: string; label: string; hint?: ReactNode; icon: string; mono?: boolean; onPick: () => void }> = [];
     /* fork:v5-frame-audit D-22 帧 A —— 空查询那一屏的**组序**照板面 DOM 抄：
        「最近打开」在前、快捷入口在后（板面帧标里「快捷入口在前」那句与它自己的 DOM
        反着，DOM 是真值 —— 见汇报）。有查询词时仍是命令 → 会话 → 文件的命中清单，
@@ -329,9 +357,14 @@ export function CommandPalette({
       out.push({
         key: `file:${hit.path}`,
         kind: "files",
-        label: hit.name,
-        hint: hit.path,
+        /* fork:d22-file-path —— 帧 A/B 的文件行主格是完整路径（`.d-grow.d-mono`），
+           命中片段就直接加在路径上。原先主格只放文件名、路径缩在行尾 `d-cmd-kind` 里，
+           查目录名（如 `design`）时主格无字可加重 —— 帧 B 的「哪几个字匹配了」在文件域丢了。
+           板面行尾列是「2 天前」/「L84」这种元数据，`/api/file-index` 只有 path/isDir，
+           留空（已登记）。 */
+        label: hit.path,
         icon: "file",
+        mono: true,
         onPick: () => onOpenFile?.(hit.path),
       });
     }
@@ -616,7 +649,9 @@ export function CommandPalette({
               >
                 <i data-ico={row.icon} data-size="16" aria-hidden="true"></i>
                 <span className="m-setrow-body">
-                  <span className="m-setrow-t">{highlight(row.label)}</span>
+                  {/* fork:d22-file-path —— 文件行主格与 M-08 帧 D 一样是等宽路径（`.m-mono`），
+                      这里只跟着 `rows` 的 mono 标记走，窄屏的骨架/排序/选中一个没动。 */}
+                  <span className={row.mono ? "m-setrow-t m-mono" : "m-setrow-t"}>{highlight(row.label)}</span>
                   {row.hint ? <span className="m-sheet-row-desc">{row.hint}</span> : null}
                 </span>
               </button>
@@ -638,12 +673,15 @@ export function CommandPalette({
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
       <div className="d-cmd-input">
+        {/* fork:d22-placeholder —— 帧 A 的输入框写的是「搜索会话、文件、命令 —— 或直接输入 > # @」。
+            `palette.placeholder` 同时被 M-08 窄屏搜索框用（板面是短句「搜会话、文件、命令」），
+            改值会把窄屏那一支带歪，所以这里换成只给桌面的 `palette.placeholderDesktop`。 */}
         <input
           ref={inputRef}
           value={raw}
           onChange={(event) => setRaw(event.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={t("palette.placeholder")}
+          placeholder={t("palette.placeholderDesktop")}
           aria-label={t("palette.title")}
           autoFocus
         />
@@ -669,14 +707,16 @@ export function CommandPalette({
           {/* fork:v5-frame-audit D-22 帧 A —— 页签行右端这一段板面有、产品原先没有：
               一个撑开的 `d-grow` + 一颗「前缀语法」说明钮（`.d-iconbtn` + keyboard 图标）。
               浮层本体在 `.d-cmd` 里、`.d-cmd-input` 之后（抄板面位置：`.d-pop` 是
-              `.d-cmd-input` 的兄弟，不是它的子节点）。 */}
+              `.d-cmd-input` 的兄弟，不是它的子节点）。
+              fork:d22-iconbtn-label —— 帧 A 这枚钮的 `title` 是「前缀语法」；原先写
+              `palette.title`（「命令面板」），说的是整个面板而不是这个钮要打开的东西。 */}
           <span className="d-grow"></span>
           <button
             type="button"
             className="d-iconbtn"
-            title={t("palette.title")}
+            title={t("palette.prefixSyntax")}
             aria-expanded={syntaxOpen}
-            aria-label={t("palette.title")}
+            aria-label={t("palette.prefixSyntax")}
             onClick={() => setSyntaxOpen((v) => !v)}
           >
             <i data-ico="keyboard" data-size="14" aria-hidden="true"></i>
@@ -718,7 +758,9 @@ export function CommandPalette({
                 </div>
                 {/* 帧 C 空态底下那行按钮：第一颗就是页签行那颗语法钮的同一个浮层（真能点开）；
                     板面第二颗「看搜索中的样子」是演示重播件（骨架由真实 searching 态驱动），
-                    不在产品里造假开关。 */}
+                    不在产品里造假开关。
+                    fork:d22-empty-btn-label —— 帧 C 第一颗钮写的是「看前缀语法」；原先印
+                    `palette.title`（「命令面板」），既不是钮的动作，也不是板面的词。 */}
                 <div className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
                   <button
                     type="button"
@@ -726,7 +768,7 @@ export function CommandPalette({
                     onClick={() => setSyntaxOpen(true)}
                   >
                     <i data-ico="keyboard" data-size="13" aria-hidden="true"></i>
-                    {t("palette.title")}
+                    {t("palette.seePrefixSyntax")}
                   </button>
                 </div>
               </div>
@@ -769,21 +811,26 @@ export function CommandPalette({
                 onClick={() => pick(index)}
               >
                 <i data-ico={row.icon} data-size="14" aria-hidden="true"></i>
-                <span className="d-grow">{highlight(row.label)}</span>
+                {/* fork:d22-file-path —— 帧 A/B 的文件行主格是 `.d-grow.d-mono` 的路径。 */}
+                <span className={row.mono ? "d-grow d-mono" : "d-grow"}>{highlight(row.label)}</span>
                 {row.hint ? <span className="d-cmd-kind">{row.hint}</span> : null}
               </button>
             </Fragment>
           ))}
         </div>
 
-        {/* 键位条 = 画板 D-22 帧 A 的 `.d-cmd-foot`。只放语言无关的键符：产品三语文案的
-            键位说明没有现成 i18n key，不硬编码中文。 */}
+        {/* 键位条 = 画板 D-22 帧 A 的 `.d-cmd-foot`。fork:d22-foot-labels —— 板面每一枚键帽
+            后面都跟一句人话（板面注：「各写一句人话，不放图标让人猜」），产品原先只印裸键帽。
+            文案取既有的 `palette.keyMove/keyOpen/keyClose`（M-08 窄屏 `.m-pickbar` 正在用的
+            同一组 key），右侧图注取 `palette.prefixIsCategory`（帧 A 原文「前缀即语法」——
+            这个 key 的现值是 M-08 的「前缀即分类」，见汇报）。板面中间那条
+            `⌘ ↵ 在新会话里跑` 产品没有这个动作，不画（known-gaps ①）。 */}
         <div className="d-cmd-foot">
-          <span className="d-row" style={{ gap: "var(--nx-sp-1)" }}><span className="d-kbd">↑</span><span className="d-kbd">↓</span></span>
-          <span className="d-row" style={{ gap: "var(--nx-sp-1)" }}><span className="d-kbd">↵</span></span>
-          <span className="d-row" style={{ gap: "var(--nx-sp-1)" }}><span className="d-kbd">esc</span></span>
+          <span className="d-row" style={{ gap: "var(--nx-sp-1)" }}><span className="d-kbd">↑</span><span className="d-kbd">↓</span><span>{t("palette.keyMove")}</span></span>
+          <span className="d-row" style={{ gap: "var(--nx-sp-1)" }}><span className="d-kbd">↵</span><span>{t("palette.keyOpen")}</span></span>
+          <span className="d-row" style={{ gap: "var(--nx-sp-1)" }}><span className="d-kbd">esc</span><span>{t("palette.keyClose")}</span></span>
           <span className="d-grow"></span>
-          <span className="d-row" style={{ gap: "var(--nx-sp-1)" }}><span className="d-kbd">&gt;</span><span className="d-kbd">#</span><span className="d-kbd">@</span></span>
+          <span className="d-row" style={{ gap: "var(--nx-sp-1)" }}><span>{t("palette.prefixIsCategory")}</span><span className="d-kbd">&gt;</span><span className="d-kbd">#</span><span className="d-kbd">@</span></span>
         </div>
       </div>
 
@@ -797,17 +844,22 @@ export function CommandPalette({
         // 非主题值：min-width 280px 是画板 D-22 三帧浮层上的同一行内联值（不是令牌）。
         style={{ right: "var(--nx-sp-6)", top: "var(--nx-sp-6)", minWidth: 280 }}
       >
-        <div className="d-pop-title">{t("palette.title")}</div>
+        {/* fork:d22-pop-copy —— 帧 A 浮层的三处取词原先都不对：
+            标题是 `palette.title`（「命令面板」）→ 应为「前缀即语法」= `palette.prefixIsCategory`；
+            三行只有 `palette.scope.*`（「命令」）→ 板面每行都带解释（新增 `palette.prefixHint.*`）；
+            脚注是 `palette.placeholder`（输入框的 placeholder）→ 板面原文是「前缀可以直接粘进来…」
+            （新增 `palette.prefixPasteHint`）。 */}
+        <div className="d-pop-title">{t("palette.prefixIsCategory")}</div>
         <div className="d-pop-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
           {PALETTE_SCOPE_PREFIXES.filter((entry) => entry.scope !== "all").map((entry) => (
             <div key={entry.scope} className="d-row">
               <span className="d-kbd">{entry.prefix}</span>
-              <span className="d-t-sm">{t(`palette.scope.${entry.scope}`)}</span>
+              <span className="d-t-sm">{t(`palette.prefixHint.${entry.scope}`)}</span>
             </div>
           ))}
         </div>
         <div className="d-sep"></div>
-        <div className="d-pop-foot">{t("palette.placeholder")}</div>
+        <div className="d-pop-foot">{t("palette.prefixPasteHint")}</div>
       </div>
     </div>
   );
