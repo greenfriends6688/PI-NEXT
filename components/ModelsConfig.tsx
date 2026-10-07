@@ -14,6 +14,7 @@
      **只有 models.json 里的定义可编辑**；目录模型只带聊天开关，见交付报告。 */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
@@ -1936,12 +1937,33 @@ function AddProviderPicker({ oauthProviders, apiKeyProviders, existingIds, onPic
   );
 }
 
+/**
+ * fork:settings-modal-portal（2026-10-07 用户原话：「mcp、模型、还有导入的细选条目的
+ * 弹窗，展示的有问题啊，还有其他设置的弹窗也是如此，为啥要内嵌在设置的弹窗里啊，请帮
+ * 我优化一下」）—— 模型设置里的自绘弹层根节点统一挂到 `document.body`。
+ *
+ * 根因：用户开着主题皮肤时，`app/fork-ui.css` 的皮肤块会给设置面板壳
+ * （`.config-panel-surface`）加 `backdrop-filter`。**带 `backdrop-filter` 的祖先会让
+ * 后代的 `position: fixed` 相对它定位，而不是视口** —— `.d-modal` 是
+ * `position: fixed; inset: 0`，渲染在设置壳的子树里就会相对面板那一块算，看起来就是
+ * 「内嵌在设置弹窗里」、被面板边界裁掉 / 压小。挂到 body 后 fixed 重新相对视口，
+ * 弹层的几何与样式一个字都不用改。
+ *
+ * `useDialogA11y` 会把弹层的兄弟节点设 `inert`：挂到 body 后兄弟就是 body 下其它节点，
+ * 正好罩住整片背景；hook 的 cleanup 会还原，关闭后不留残留。
+ */
+function BodyPortal({ children }: { children: ReactNode }) {
+  // SSR 阶段没有 document，内联渲染（这些弹层都是交互后才挂载，正常不会走到）。
+  if (typeof document === "undefined") return <>{children}</>;
+  return createPortal(children, document.body);
+}
+
 /** `.d-modal` 壳：Esc 只关自己这一层，Tab 循环在弹层内。 */
 function Modal({ title, onClose, children, footer }: {
   title: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
 }) {
   const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
-  return (
+  const modal = (
     <div
       ref={dialogRef}
       {...dialogProps}
@@ -1965,6 +1987,7 @@ function Modal({ title, onClose, children, footer }: {
       </div>
     </div>
   );
+  return <BodyPortal>{modal}</BodyPortal>;
 }
 
 // ── 列表页的三块附加信息（参考项目没有，本仓登记过的能力，收在列表页底部）───────
@@ -2975,25 +2998,31 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
       )}
 
       {chatPickerOpen && enabledModels.view && (
-        <ChatModelsPicker
-          providers={enabledModels.view.providers}
-          /* replace 模式下不锁任何行：这一次是重选名单，「已经在聊天里」没有意义。 */
-          listedRefs={enabledModels.view.allEnabled
-            ? new Set<string>()
-            : new Set(enabledModels.view.providers.flatMap((provider) =>
-              provider.models.filter((model) => model.enabled).map((model) => model.ref)))}
-          mode={enabledModels.view.allEnabled ? "replace" : "add"}
-          saving={enabledModels.pending !== null}
-          error={enabledModels.failure
-            ? (enabledModels.failure.messageKey ? t(enabledModels.failure.messageKey) : enabledModels.failure.message ?? null)
-            : null}
-          onClose={() => setChatPickerOpen(false)}
-          onApply={(refs) => {
-            setChatPickerOpen(false);
-            if (enabledModels.view?.allEnabled) enabledModels.replaceModels(refs);
-            else enabledModels.setModels("chat-picker", refs, true);
-          }}
-        />
+        /* fork:settings-modal-portal —— `ChatModelsPicker` 是另一文件里的覆盖层（自身顶着
+           `position: fixed`，见 ChatModelsPicker.tsx），在调用点整棵挂到 body：留在
+           `.settings-dialog-surface` 子树里会被皮肤块的 `backdrop-filter` 错误地当成定位
+           祖先（根因见 `BodyPortal` 注释）。 */
+        <BodyPortal>
+          <ChatModelsPicker
+            providers={enabledModels.view.providers}
+            /* replace 模式下不锁任何行：这一次是重选名单，「已经在聊天里」没有意义。 */
+            listedRefs={enabledModels.view.allEnabled
+              ? new Set<string>()
+              : new Set(enabledModels.view.providers.flatMap((provider) =>
+                provider.models.filter((model) => model.enabled).map((model) => model.ref)))}
+            mode={enabledModels.view.allEnabled ? "replace" : "add"}
+            saving={enabledModels.pending !== null}
+            error={enabledModels.failure
+              ? (enabledModels.failure.messageKey ? t(enabledModels.failure.messageKey) : enabledModels.failure.message ?? null)
+              : null}
+            onClose={() => setChatPickerOpen(false)}
+            onApply={(refs) => {
+              setChatPickerOpen(false);
+              if (enabledModels.view?.allEnabled) enabledModels.replaceModels(refs);
+              else enabledModels.setModels("chat-picker", refs, true);
+            }}
+          />
+        </BodyPortal>
       )}
     </>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { sendAgentCommand } from "@/lib/agent-client";
 import type { McpReloadReport, McpResponse, McpScope, McpServerInfo, PluginPackageInfo, PluginStandaloneExtensionInfo, PluginUpdateResult, PluginsResponse } from "@/lib/api-types";
 import { useI18n } from "@/hooks/useI18n";
@@ -815,6 +816,27 @@ function PackageDetail({
  * 不画点不动的分段器。
  */
 
+/**
+ * fork:settings-modal-portal（2026-10-07 用户原话：「mcp、模型、还有导入的细选条目的
+ * 弹窗，展示的有问题啊，还有其他设置的弹窗也是如此，为啥要内嵌在设置的弹窗里啊，请帮
+ * 我优化一下」）—— 设置里的自绘弹层根节点统一挂到 `document.body`。
+ *
+ * 根因：用户开着主题皮肤时，`app/fork-ui.css` 的皮肤块会给设置面板壳
+ * （`.config-panel-surface`）加 `backdrop-filter`。**带 `backdrop-filter` 的祖先会让
+ * 后代的 `position: fixed` 相对它定位，而不是视口** —— `.d-modal` 是
+ * `position: fixed; inset: 0`，渲染在设置壳的子树里就会相对面板那一块算，看起来就是
+ * 「内嵌在设置弹窗里」、被面板边界裁掉 / 压小。挂到 body 后 fixed 重新相对视口，
+ * 弹层的几何与样式一个字都不用改。
+ *
+ * `useDialogA11y` 会把弹层的兄弟节点设 `inert`：挂到 body 后兄弟就是 body 下其它节点，
+ * 正好罩住整片背景；hook 的 cleanup 会还原，关闭后不留残留。
+ */
+function BodyPortal({ children }: { children: ReactNode }) {
+  // SSR 阶段没有 document，内联渲染（这些弹层都是交互后才挂载，正常不会走到）。
+  if (typeof document === "undefined") return <>{children}</>;
+  return createPortal(children, document.body);
+}
+
 /** fork:plugin-add-modal（2026-10-07 用户裁定）—— 「添加插件」从占住内容列改成一扇
  *  弹窗。桌面 `d-modal` / 窄屏 `m-modal` 只差形态件，正文（`AddPluginPanel`）与
  *  遮罩 / Esc / Tab 循环（`useDialogA11y`）两边共用 —— 这段壳之前在两处各写了一遍，
@@ -845,7 +867,7 @@ function AddPluginModal({
   const { t } = useI18n();
   const mobile = useIsMobile();
   const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
-  return (
+  const modal = (
     <div
       ref={dialogRef}
       {...dialogProps}
@@ -873,6 +895,7 @@ function AddPluginModal({
       </div>
     </div>
   );
+  return <BodyPortal>{modal}</BodyPortal>;
 }
 
 function PluginDetailModal({
@@ -917,7 +940,7 @@ function PluginDetailModal({
   const canCheckForUpdates = pkg.canCheckForUpdates;
   const updateAvailable = updateStatus?.state === "update-available";
 
-  return (
+  const modal = (
     <div
       ref={dialogRef}
       {...dialogProps}
@@ -1008,6 +1031,7 @@ function PluginDetailModal({
       </div>
     </div>
   );
+  return <BodyPortal>{modal}</BodyPortal>;
 }
 
 /** fork:v5-d13-frame-c —— 独立扩展的详情：同一副弹层壳，正文两行（状态 / 路径）。 */
@@ -1021,7 +1045,7 @@ function ExtensionDetailModal({
   const { t } = useI18n();
   const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
 
-  return (
+  const modal = (
     <div
       ref={dialogRef}
       {...dialogProps}
@@ -1051,6 +1075,7 @@ function ExtensionDetailModal({
       </div>
     </div>
   );
+  return <BodyPortal>{modal}</BodyPortal>;
 }
 
 /** fork:v5-d13-frame-c —— 独立扩展的属性行（两行：状态 / 路径）。
@@ -1741,7 +1766,7 @@ function McpDetailModal({
   const mobile = useIsMobile();
   // fork:dsn-dialog-a11y —— 与设置壳 / 插件弹层同一套：打开移焦、Tab 循环、Esc 关闭、背景 inert。
   const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
-  return (
+  const modal = (
     <div
       ref={dialogRef}
       {...dialogProps}
@@ -1777,6 +1802,7 @@ function McpDetailModal({
       </div>
     </div>
   );
+  return <BodyPortal>{modal}</BodyPortal>;
 }
 
 /** fork:mcp-detail-modal —— 添加 / 编辑同一扇弹窗壳（`initial` 有值即编辑）。
@@ -1810,7 +1836,7 @@ function McpFormModal({
   const mobile = useIsMobile();
   const { dialogRef, dialogProps } = useDialogA11y({ open: true, onClose });
   const isEdit = !!initial;
-  return (
+  const modal = (
     <div
       ref={dialogRef}
       {...dialogProps}
@@ -1845,6 +1871,7 @@ function McpFormModal({
       </div>
     </div>
   );
+  return <BodyPortal>{modal}</BodyPortal>;
 }
 
 /** fork:design-system（画板 43「从其它 agent 导入」帧 + 画板 50 对话框）——
@@ -1903,7 +1930,7 @@ function McpImportModal({
     sourceCounts.set(server.tool, (sourceCounts.get(server.tool) ?? 0) + 1);
   }
 
-  return (
+  const modal = (
     <div
       ref={dialogRef}
       {...dialogProps}
@@ -2042,6 +2069,7 @@ function McpImportModal({
       </div>
     </div>
   );
+  return <BodyPortal>{modal}</BodyPortal>;
 }
 
 export function PluginsConfig({
@@ -3885,7 +3913,12 @@ export function PluginsConfig({
       />
 
       {/* fork:mcp-native-exposure —— 日志弹层与导入弹层同一形态、同一挂点。 */}
-      <McpLogModal open={mcpLogOpen} onDismiss={() => setMcpLogOpen(false)} />
+      {/* fork:settings-modal-portal —— `McpLogModal` 自身不 portal（约定不改那个文件），
+          所以在调用点把整棵挂到 body：它同样顶着 `d-modal is-open`，留在设置壳子树里
+          会被 `backdrop-filter` 错误地当成定位祖先（根因见 `BodyPortal` 注释）。 */}
+      <BodyPortal>
+        <McpLogModal open={mcpLogOpen} onDismiss={() => setMcpLogOpen(false)} />
+      </BodyPortal>
     </ConfigPanelShell>
   );
 }
