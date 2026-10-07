@@ -149,6 +149,14 @@ const NOTHING_SELECTED: LocalCopy = {
   "zh-TW": "還沒有勾選任何項目——先在左邊的清單裡勾上要匯入的東西。",
 };
 
+/** fork:import-note-emphasis —— zh-CN 的 `import.conflictNote` 里写了 Markdown 粗体标记
+ *  `**…**`（en / zh-TW 都没有）。冲突策略弹窗是**纯文本**渲染，于是真浏览器里把星号原样
+ *  显示了出来（实测截图：「…从不覆盖。**要「覆盖」或「保留两份」，得先在落盘层开那个
+ *  口子。**」）。这里只把标记抹掉 —— 不引 Markdown 渲染器、不动语言包，三语显示一致。 */
+function plainNote(text: string): string {
+  return text.replace(/\*\*/g, "");
+}
+
 export function ImportPanel() {
   const { locale, t } = useI18n();
   const mobile = useIsMobile();
@@ -480,6 +488,28 @@ export function ImportPanel() {
     return { source, items, picked, latest };
   });
 
+  /**
+   * fork:import-confirm-one —— 「确认导入」**只有这一处实现**、两处引用：页面第二张
+   * 「确认导入」卡，与细选弹窗的 foot。用户 2026-10-07 原话：「导入细选条目的弹窗上
+   * 没有导入按钮，而是你还是长在原来的第二步那个位置」—— 所以在弹窗里逐条挑完就能直接
+   * 导，不必先关弹窗再回下面那张卡找那枚钮。禁用判据与页面那枚**同一条**（一条都没勾 /
+   * 正在导就置灰），抽成变量引用，不复制第二份 JSX。
+   */
+  const confirmImportButton = (
+    <ConfigButton
+      variant="primary"
+      size="small"
+      title={activeState.selected.size === 0 ? localCopy(NOTHING_SELECTED, locale) : undefined}
+      disabled={activeState.selected.size === 0 || activeState.applying}
+      onClick={() => void apply(active)}
+    >
+      <i data-ico="check" data-size="13" aria-hidden="true" />
+      {activeState.applying
+        ? t("i18n.loading")
+        : t("import.confirmImport", { count: activeState.selected.size })}
+    </ConfigButton>
+  );
+
   return (
     <SettingsPage title={t("import.title")}>
       <div className="d-col" style={{ gap: "var(--nx-sp-4)" }}>
@@ -654,9 +684,15 @@ export function ImportPanel() {
 
                 {/* 逐条细选：点行是整批勾上，弹窗里能单独去掉某一条（产品能力，画板按整批计）。 */}
                 <div className="d-row">
+                  {/* fork:import-pick-entry-prominent —— 用户 2026-10-07 原话：「细选条目的
+                      按钮麻烦给我弄明显点，草泥马的，都看不清楚啊」。原先这里是
+                      `d-btn sm ghost`（透明底 + `--nx-text-2` 灰字），混在卡身里确实读不出来。
+                      扫描卡卡身只有「重新扫描」这一枚次级动作，而「细选具体条目」是真正往
+                      下走的那一步，所以给它设计系统里最重的一档 `d-btn primary`（accent 实底
+                      + 反色字）—— 不新造类名、不加颜色字面量。 */}
                   <button
                     type="button"
-                    className="d-btn sm ghost"
+                    className="d-btn primary sm"
                     onClick={() => setShowPick(true)}
                   >
                     <i data-ico="list-checks" data-size="13" aria-hidden="true" />
@@ -704,18 +740,8 @@ export function ImportPanel() {
               >
                 {t("import.clearSelection")}
               </ConfigButton>
-              <ConfigButton
-                variant="primary"
-                size="small"
-                title={activeState.selected.size === 0 ? localCopy(NOTHING_SELECTED, locale) : undefined}
-                disabled={activeState.selected.size === 0 || activeState.applying}
-                onClick={() => void apply(active)}
-              >
-                <i data-ico="check" data-size="13" aria-hidden="true" />
-                {activeState.applying
-                  ? t("i18n.loading")
-                  : t("import.confirmImport", { count: activeState.selected.size })}
-              </ConfigButton>
+              {/* 与弹窗 foot 引用同一枚确认钮（见上方 `confirmImportButton`）。 */}
+              {confirmImportButton}
             </div>
           </div>
         </div>
@@ -744,6 +770,26 @@ export function ImportPanel() {
                 </button>
               </div>
               <div className="d-modal-body" style={{ flex: "1 1 auto" }}>
+                {/* fork:import-pick-search —— 用户 2026-10-07：「细选条目的弹窗，展示的
+                    有问题啊」。真浏览器实测（会话类）：弹窗一次渲染 **330 行 / 54 组**，
+                    `.d-modal-body` 的 scrollHeight 22804px，而可视高度只有 538px —— 页面
+                    上那枚搜索框又正好被弹窗盖住点不到，于是「细选」里反而无法缩小范围。
+                    这里把弹窗接回**同一个** `query`：表格与弹窗共用一份过滤（关掉弹窗后
+                    表格也停在同一个结果），不新造状态、不新造文案。 */}
+                <div className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
+                  <PwSearch
+                    value={query}
+                    placeholder={t("import.searchPlaceholder")}
+                    ariaLabel={t("import.searchPlaceholder")}
+                    onChange={setQuery}
+                  />
+                  <span className="d-t-xs d-t-faint">
+                    {t("import.selectedOf", {
+                      selected: activeState.selected.size,
+                      total: activeState.candidates?.length ?? 0,
+                    })}
+                  </span>
+                </div>
                 <div className="d-t-xs d-t-faint">{t("import.pickNote")}</div>
                 {pickGroups.length === 0 && <div className="d-t-xs d-t-faint">{t("import.empty")}</div>}
                 {pickGroups.map((group) => {
@@ -813,7 +859,11 @@ export function ImportPanel() {
                   {t("import.clearSelection")}
                 </button>
                 <span className="d-grow" aria-hidden="true" />
-                <button type="button" className="d-btn primary" onClick={closeDialogs}>{t("i18n.close")}</button>
+                {/* 弹窗 foot 与页面卡片引用同一枚「确认导入」（`confirmImportButton`）。
+                    关闭在弹窗里是次级动作，退回默认档 `d-btn`：foot 只留一枚 accent 实底，
+                    否则两枚蓝钮并排，用户还是不知道该点哪个。 */}
+                {confirmImportButton}
+                <button type="button" className="d-btn" onClick={closeDialogs}>{t("i18n.close")}</button>
               </div>
             </div>
           </div>,
@@ -848,7 +898,7 @@ export function ImportPanel() {
                     {t("import.conflictSkipBody")}
                   </span>
                 </div>
-                <div className="d-t-xs d-t-faint">{t("import.conflictNote")}</div>
+                <div className="d-t-xs d-t-faint">{plainNote(t("import.conflictNote"))}</div>
               </div>
               <div className="d-modal-foot">
                 <button type="button" className="d-btn primary" onClick={closeDialogs}>{t("i18n.close")}</button>
