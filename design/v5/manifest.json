@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-07T08:53",
+  "generatedAt": "2026-10-07T13:25",
   "boards": [
     {
       "id": "D-01",
@@ -574,6 +574,20 @@
         "组件：MemorySettingsPanel · /api/memory · lib/memory-package.ts",
         "开关范围：只影响 PI NEXT（不动 pi 的 packages）",
         "状态：未安装 / 已装未开（默认）/ 已开启"
+      ]
+    },
+    {
+      "id": "D-37",
+      "file": "D-37-settings-websearch.html",
+      "form": "web",
+      "group": "core",
+      "title": "D-37 · 联网搜索",
+      "desc": "免 API key 的联网搜索：Bing / DuckDuckGo / Mojeek / 多引擎聚合，或你自己的 SearXNG 实例。 开关默认关着，开着才出网；provider 链「主档失败 → 回退聚合」，每档独立硬超时， 失败逐条如实报（谁被风控、谁超时、谁没配），不把空结果伪装成「世界上没有这件事」。",
+      "tags": [
+        "页面：设置 / 联网搜索",
+        "组件：WebSearchSettingsPanel · /api/websearch · web_search",
+        "状态：关着 / 已开启 / 测试通过 / 被风控",
+        "免 key：Bing · DuckDuckGo · Mojeek · SearXNG"
       ]
     },
     {

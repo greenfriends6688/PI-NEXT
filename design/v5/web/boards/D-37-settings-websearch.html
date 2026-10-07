@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-37 · 联网搜索 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-37 · 联网搜索</h1>
+  <p>
+    免 API key 的联网搜索：<b>Bing / DuckDuckGo / Mojeek / 多引擎聚合</b>，或<b>你自己的 SearXNG 实例</b>。
+    开关默认关着，开着才出网；provider 链「主档失败 → 回退聚合」，每档独立硬超时，
+    失败逐条如实报（谁被风控、谁超时、谁没配），不把空结果伪装成「世界上没有这件事」。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 联网搜索</span>
+    <span class="d-tag">组件：WebSearchSettingsPanel · /api/websearch · web_search</span>
+    <span class="d-tag">状态：关着 / 已开启 / 测试通过 / 被风控</span>
+    <span class="d-tag">免 key：Bing · DuckDuckGo · Mojeek · SearXNG</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 已开启 + 主 provider = Bing<span class="d-grow"></span>改完立刻生效，不用重载会话</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">PI NEXT</span>
+          <span class="d-badge mute">联网搜索</span>
+        </div>
+        <div class="d-md"><p>搜索是「出网」的能力，所以默认关着、默认需审批；开之前工具会如实说它没开。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住令牌与类名</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 联网搜索">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · 联网搜索</span>
+
+      <button class="d-btn sm"><i data-ico="globe" data-size="13"></i>测试</button>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <button class="d-set-navitem"><i data-ico="image" data-size="14"></i>生图模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="brain" data-size="14"></i>记忆</button>
+              <button class="d-set-navitem is-on"><i data-ico="globe" data-size="14"></i>联网搜索</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">联网搜索</div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">联网搜索</div>
+                      <div class="d-set-row-s">打开后 agent 才能调用 web_search（会出网，默认需审批）。</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge ok">已开启</span></span>
+                    <button class="d-switch on" role="switch" aria-checked="true" aria-label="联网搜索"></button>
+                  </div>
+                  <div class="d-banner">
+                    <i data-ico="info" data-size="14"></i>
+                    <span>改完立刻生效：工具每次调用都读这份设置，不用重载会话。</span>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">provider</div>
+                  <div class="d-grid2">
+                    <div class="d-field">
+                      <span class="d-field-t">主 provider</span>
+                      <button class="d-select">Bing<i data-ico="chevron-down" data-size="12"></i></button>
+                      <span class="d-t-xs d-t-faint">无凭证抓取 cn.bing.com 的静态结果页；实测在中国大陆网络下可达（DuckDuckGo 不可达），中文覆盖好。</span>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">单档超时（秒）</span>
+                      <input class="d-input d-mono" value="30">
+                      <span class="d-t-xs d-t-faint">超过就换下一档；聚合档会自动多给 10 秒。</span>
+                    </div>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">失败时回退到聚合</div>
+                      <div class="d-set-row-s">主 provider 被风控或超时，就并行问多个引擎。</div>
+                    </div>
+                    <span class="d-grow-last"></span>
+                    <button class="d-switch on" role="switch" aria-checked="true" aria-label="失败时回退到聚合"></button>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">SearXNG（自建实例）</div>
+                  <div class="d-grid2">
+                    <div class="d-field">
+                      <span class="d-field-t">端点</span>
+                      <input class="d-input d-mono" value="https://searx.example.org">
+                      <span class="d-t-xs d-t-faint">自己跑一个实例最稳（公共实例大多关掉了 JSON API）。</span>
+                    </div>
+                    <div class="d-field">
+                      <span class="d-field-t">访问令牌</span>
+                      <input class="d-input d-mono" type="password" value="••••••••">
+                      <span class="d-t-xs d-t-faint">掩码存取：页面不回显明文，保存掩码 = 沿用已存值。</span>
+                    </div>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">允许本机 / 局域网端点</div>
+                      <div class="d-set-row-s">自建实例常常就在 127.0.0.1 或局域网里。云元数据地址永远拒绝。</div>
+                    </div>
+                    <span class="d-grow-last"></span>
+                    <button class="d-switch" role="switch" aria-checked="false" aria-label="允许本机 / 局域网端点"></button>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">连通性测试</div>
+                  <div class="d-banner ok">
+                    <i data-ico="circle-check" data-size="14"></i>
+                    <span>通过：bing 给了 5 条结果（203ms）</span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">GitHub - earendil-works/pi: AI agent toolkit</div>
+                      <div class="d-set-row-s d-mono">https://github.com/earendil-works/pi</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge mute">bing</span></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">Pi Coding Agent 1.0 使用教程</div>
+                      <div class="d-set-row-s d-mono">https://docs.kanaries.net/zh/topics/AICoding/pi-coding-agent</div>
+                    </div>
+                    <span class="d-grow-last"><span class="d-badge mute">bing</span></span>
+                  </div>
+                  <span class="d-t-xs d-t-faint">duckduckgo: fetch failed · mojeek: no results parsed (HTTP 403)</span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+          </div>
+          </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>只做免 key 的档</b>：Bing / DuckDuckGo / Mojeek / 聚合 / 自建 SearXNG。参考项目那张 20 项的
+        provider 表里绝大多数要 key，照抄会立刻变成「一堆选项但都不能用」。</li>
+    <li><b>provider 链而不是单一 provider</b>：主档失败 → 回退聚合；每档独立硬超时；聚合有<b>软截止</b>
+        （至少一家回来了就先出结果，不等被墙的那家 —— 实测国内 DuckDuckGo 要 10.5s 才失败）。</li>
+    <li><b>失败逐条如实报</b>：谁被风控（202 / 403）、谁超时、谁没配，写进结果与设置页；
+        空结果不伪装成「没有这件事」。</li>
+    <li><b>SSRF 是唯一信任边界</b>：端点只允许 http(s)，云元数据地址一律拒绝；
+        本机 / 局域网要显式勾选才放行（自建实例就在 127.0.0.1 是真实用法）。</li>
+    <li><b>改完立刻生效</b>：工具每次调用读设置，所以这一页不需要「新会话生效」那套徽标（与记忆页不同）。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

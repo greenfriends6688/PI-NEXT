@@ -22,7 +22,7 @@ export const SETTINGS_HUB_GROUPS: ReadonlyArray<{
   // fork:imagegen —— 生图模型档案跟「模型」同段（基础）：都是模型配置面。
   { id: "base", sections: ["general", "models", "imagegen"] },
   // fork:memory —— 记忆扩展跟「插件」同段（能力）：它就是一个包。
-  { id: "capability", sections: ["skills", "agents", "plugins", "memory", "mcp"] },
+  { id: "capability", sections: ["skills", "agents", "plugins", "memory", "websearch", "mcp"] },
   { id: "runtime", sections: ["automation", "usage"] },
   { id: "data", sections: ["archived", "import", "phonePush"] },
 ];
@@ -90,6 +90,12 @@ const SECTION_HINTS: Record<string, HubCopy> = {
     en: "Persistent memory extension · on/off · where it stores",
     "zh-CN": "持久记忆扩展 · 开关 · 存在哪",
     "zh-TW": "持久記憶擴充 · 開關 · 存在哪",
+  },
+  // fork:websearch —— 联网搜索的一句副行。
+  websearch: {
+    en: "Keyless web search · provider chain · self-hosted SearXNG",
+    "zh-CN": "免 key 联网搜索 · provider 链 · 自建 SearXNG",
+    "zh-TW": "免 key 聯網搜尋 · provider 鏈 · 自架 SearXNG",
   },
   skills: {
     en: "Loaded · disable model calls · install from the store",

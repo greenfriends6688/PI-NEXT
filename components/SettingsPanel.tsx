@@ -39,6 +39,8 @@ import { PhoneAndPushPanel } from "./fork/PhoneAndPushPanel";
 import { ImageGenSettingsPanel } from "./fork/ImageGenSettingsPanel";
 // fork:memory —— 设置 → 记忆（画板 D-36）。
 import { MemorySettingsPanel } from "./fork/MemorySettingsPanel";
+// fork:websearch —— 设置 → 联网搜索（画板 D-37）。
+import { WebSearchSettingsPanel } from "./fork/WebSearchSettingsPanel";
 import { setupPushSubscription } from "@/lib/push-client";
 import { SkillsConfig } from "./SkillsConfig";
 /* fork:disabled-reasons —— 「为什么不能点」的文案。与 AgentsConfig
@@ -141,6 +143,8 @@ const SECTION_ICON_BY_ID: Record<string, string> = {
   imagegen: "image",
   // fork:memory —— 记忆扩展（画板 D-36 左导航的 `brain`）。
   memory: "brain",
+  // fork:websearch —— 免 key 联网搜索（画板 D-37 左导航的 `globe`）。
+  websearch: "globe",
   skills: "box",
   agents: "bot",
   plugins: "blocks",
@@ -1364,6 +1368,8 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
         {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
         {/* fork:memory —— 记忆扩展。全局页（与项目无关）：开关那一个包，与「插件」同一个状态。 */}
         {sectionHost("memory", <MemorySettingsPanel />)}
+        {/* fork:websearch —— 免 key 联网搜索。全局页：provider 链 + 自建 SearXNG。 */}
+        {sectionHost("websearch", <WebSearchSettingsPanel />)}
         {/* fork:mcp-section — global pages, no project needed. */}
         {sectionHost("mcp", <McpConfig cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
         {/* fork:proma-43-automation — 定时任务。全局页：cwd 只决定新建任务时的

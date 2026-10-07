@@ -12,6 +12,8 @@ export interface PiWebPreferences {
   thinkingLevelMemory?: Record<string, string>;
   /** fork:memory —— 「设置 → 记忆」里那个开关（**只影响 PI NEXT**，不动 pi 的 packages）。 */
   memoryExtensionEnabled?: boolean;
+  /** fork:websearch —— 「设置 → 联网搜索」的配置（形状由 `lib/websearch-settings.ts` 归一化）。 */
+  webSearch?: unknown;
 }
 
 /** per-model 记忆的 key 约定：`provider/modelId`（斜杠形式）。 */

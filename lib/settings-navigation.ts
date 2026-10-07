@@ -8,6 +8,8 @@ export const SETTINGS_SECTION_VALUES = [
   "plugins",
   // fork:memory —— 记忆扩展（pi-hermes-memory）的开关页（全局）。
   "memory",
+  // fork:websearch —— 免 key 联网搜索（全局）。
+  "websearch",
   // fork:mcp-section — a global section added by this fork.
   "mcp",
   // fork:proma-43-automation — 定时任务（全局，与项目无关）。位置沿用 1ed2708a
@@ -63,6 +65,8 @@ export const SETTINGS_SECTIONS: ReadonlyArray<{
   // fork:memory —— 记忆扩展（pi-hermes-memory）的开关页。全局节：关着时 pi 不加载它，
   // CLI 与 App 同时生效，所以不需要项目。位置跟画板 D-07 那一列（能力段「插件」之后）。
   { id: "memory", labelKey: "settings.memory", requiresProject: false },
+  // fork:websearch —— 联网搜索（provider 链 + 自建 SearXNG）。全局节：工具每次调用读它。
+  { id: "websearch", labelKey: "settings.websearch", requiresProject: false },
   // fork:mcp-section — a global section added by this fork.
   // fork:v5-landing D-07 —— 导航标签是「MCP」（`settings.navMcp`），页头才是「MCP 服务器」。
   { id: "mcp", labelKey: "settings.navMcp", requiresProject: false },

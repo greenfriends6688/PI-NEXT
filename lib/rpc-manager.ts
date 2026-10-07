@@ -67,6 +67,8 @@ import {
 // fork:memory —— 「设置 → 记忆」那个开关只影响本应用：关着时把这个扩展从加载结果里摘掉，
 // 不动 pi 的 packages（终端 / 其它运行时照旧用它自己的那份记忆）。
 import { withoutDisabledMemoryExtension } from "./memory-package";
+// fork:websearch —— 免 key 联网搜索（web_search 工具）。设置见 设置 → 联网搜索。
+import { createWebSearchExtension } from "./websearch-extension";
 import { createTodoExtension } from "./todo-extension";
 // fork:im-bridge — 把消息推到 IM 群机器人（飞书 / 企微 / 钉钉 / Slack / Telegram / 自建）。
 import { createImExtension } from "./im-extension";
@@ -2525,6 +2527,9 @@ export async function startRpcSession(
               // CDP、又不能跨域操作 iframe，靠同源访问驱动 iframe 是明显更大的攻击面。
               // Web 上这些工具会返回「受管浏览器只在桌面端可用」而不是静默失败。
               createBrowserToolsExtension(),
+              // fork:websearch —— 免 key 联网搜索：SearXNG / DuckDuckGo / Mojeek / 聚合。
+              // 关着时工具自己拒绝（不偷偷出网）；默认需审批（它会出网）。
+              createWebSearchExtension(),
               // fork:proma-53-documents —— docx/xlsx/pptx/pdf 的读写。底层格式处理
               // 是自己写的最小实现（OOXML 本质是 zip + XML），没引任何依赖。
               createDocumentToolsExtension(),

@@ -395,6 +395,29 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 * **`pi-web-preferences.json` 的读写只有一处**（`lib/pi-web-preferences.ts`）：原先内联在
   `lib/thinking-level-memory.ts` 里，现在两个模块共用 —— 同一个文件两个写入者各自读-改-写会互相抹键。
 
+### 联网搜索（fork:websearch，2026-10-07）
+
+免 API key 的联网搜索：`web_search` 工具（`lib/websearch-extension.ts`，`extensionFactories` 注册）
++ provider 链（`lib/websearch/`）。设置分节「联网搜索」（左导航 `websearch`，画板 `D-37-settings-websearch.html`），
+配置存在 `~/.pi/agent/pi-web-preferences.json` 的 `webSearch` 段（走 `lib/pi-web-preferences.ts`，单写入者）。
+
+* **只做免 key 的档**：`searxng`（自建/公共实例，端点不需要 key）/ `bing`（cn.bing.com 静态页）/
+  `duckduckgo`（无 JS 结果页）/ `mojeek` / `public`（并行 fan-out + 共识合并）。
+  参考项目那张 20 项 provider 表里绝大多数要 key（Tavily/Brave/Exa/Kagi/…），第一期不引 ——
+  否则设置页立刻变成「一堆选项但都不能用」。
+* **默认 `bing`，不是 DuckDuckGo**：2026-10-07 本机实测 `html.duckduckgo.com` **20s 超时**（国内不可达）、
+  Mojeek 403、公共 SearXNG 实例多数超时/302，而 `cn.bing.com` 200/6s 且结果可解析（实测 239ms 出 5 条）。
+  要换 provider 是设置页一个下拉；**自建 SearXNG 是最稳的一条**。
+* **失败逐条如实报**（`failures[]`）：谁被风控（202/403）、谁超时、谁没配；空结果不伪装成
+  「没有这件事」。工具 content 只回标题+URL+摘要，正文交给 `web_fetch` / `browser_extract`。
+* **SSRF 是唯一信任边界**（`lib/websearch/fetch.ts` 的 `assertEndpointAllowed`）：端点只允许 http(s)，
+  云元数据地址（169.254.169.254 / metadata.google.internal）**永远拒绝**，私网/本机要显式勾选
+  `allowPrivateEndpoint` 才放行（自建实例就在 127.0.0.1 是真实用法）。
+* **抓取请求头要带全**：只给 UA 会被 Mojeek 判 403，补 `sec-fetch-*` / `upgrade-insecure-requests` /
+  `accept-encoding` 才过（实测）。
+* **开关默认关**（会出网）；工具**每次调用读设置**，所以改完立刻生效，不需要「新会话生效」徽标。
+* **不抄**：puppeteer 兜底（我们有受管浏览器）、`gemini-web`/Chrome cookie（借登录态）。
+
 ### 移动端壳与同步（fork:mobile-shell，2026-10-06）
 
 形态与决策全文在 `docs/mobile-shell-plan-2026-10-05.md`（D1–D6），远程地址操作指南在
