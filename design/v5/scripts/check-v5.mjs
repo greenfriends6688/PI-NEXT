@@ -30,10 +30,16 @@ const read = (p) => (existsSync(p) ? readFileSync(p, "utf8") : "");
 
 /* ── 1 · 令牌清单 ─────────────────────────────────────────────────────────── */
 const baseCss = read(join(V5, "base.css"));
+/* fork:apple-sketch（2026-10-08）—— `sketch-*.css` 是**从 Apple 官方 UI Kit 生成**的
+   数值层（`--nx-sk-*`）。角色层 tokens.css 现在指向它，所以校验读取时必须把它算进来，
+   否则每一条 `var(--nx-sk-…)` 都会被判成「未定义令牌」。
+   生成物由 `npm run sketch:tokens` 刷新，不手改。 */
+const sketchMac = read(join(V5, "sketch-macos.css"));
+const sketchIos = read(join(V5, "sketch-ios.css"));
 const webTokens = read(join(V5, "web", "tokens.css"));
-const webCss = webTokens + read(join(V5, "web", "system.css"));
+const webCss = sketchMac + webTokens + read(join(V5, "web", "system.css"));
 const pwaTokens = read(join(V5, "pwa", "tokens.css"));
-const pwaCss = pwaTokens + read(join(V5, "pwa", "system.css"));
+const pwaCss = sketchIos + pwaTokens + read(join(V5, "pwa", "system.css"));
 
 /* 令牌定义 = 「名字 + 值」。值本身也是判定材料（⑤ 要用），所以留 map。 */
 function tokens(css) {

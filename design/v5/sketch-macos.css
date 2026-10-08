@@ -1,0 +1,540 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 由 Apple macOS UI Kit **生成** —— 请勿手改。
+ *
+ *   来源：design/Apple macOS UI Kit.sketch（Apple 官方设计资源，不入库）
+ *   生成：npm run sketch:tokens          （先跑 sketch:extract）
+ *   本形态：web
+ *
+ * 本文件只定义 `--nx-sk-*`（sketch 来源的数值）。角色层 `--nx-*` 在
+ * design/v5/web/tokens.css 里手维护并指向这里 —— 两层分开是为了让重跑
+ * 生成不会覆盖角色决策。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ── 1 · 色板（110 个，来自 kit 的 sharedSwatches）─────────────
+ * 命名保留 kit 的原文（Window Backgrounds/Light Background → --nx-sk-window-backgrounds-light-background），
+ * 只在最前面加 --nx-sk-。这样任何一条都能直接对回 kit 里的名字，不需要再查映射表。
+ */
+
+:root {
+  /* 浅色 */
+  --nx-sk-fills-light-1-primary: #0000001a;
+  --nx-sk-fills-light-2-secondary: #00000014;
+  --nx-sk-fills-light-3-tertiary: #0000000d;
+  --nx-sk-fills-light-4-quatenary: #00000008;
+  --nx-sk-fills-light-5-quinary: #00000005;
+  --nx-sk-grays-light-black: #000000;
+  --nx-sk-grays-light-grey: #8e8e93;
+  --nx-sk-grays-light-white: #ffffff;
+  --nx-sk-labels-light-1-primary: #000000d9;
+  --nx-sk-labels-light-2-secondary: #00000080;
+  --nx-sk-labels-light-3-tertiary: #00000040;
+  --nx-sk-labels-light-4-quaternary: #0000001a;
+  --nx-sk-labels-light-5-quinary: #0000000d;
+  --nx-sk-labels-light-6-seximal: #00000008;
+  --nx-sk-separators-light-value: #3c3c434a;
+  --nx-sk-system-colors-light-1-red: #ff383c;
+  --nx-sk-system-colors-light-10-purple: #cb30e0;
+  --nx-sk-system-colors-light-11-pink: #ff2d55;
+  --nx-sk-system-colors-light-12-brown: #ac7f5e;
+  --nx-sk-system-colors-light-2-orange: #ff8d28;
+  --nx-sk-system-colors-light-3-yellow: #ffcc00;
+  --nx-sk-system-colors-light-4-green: #34c759;
+  --nx-sk-system-colors-light-5-mint: #00c8b3;
+  --nx-sk-system-colors-light-6-teal: #00c3d0;
+  --nx-sk-system-colors-light-7-cyan: #00c0e8;
+  --nx-sk-system-colors-light-8-blue: #0088ff;
+  --nx-sk-system-colors-light-9-indigo: #6155f5;
+  --nx-sk-window-backgrounds-light-background: #ffffff;
+
+}
+
+[data-theme="dark"] {
+  /* 深色 */
+  --nx-sk-fills-dark-1-primary: #ffffff1a;
+  --nx-sk-fills-dark-2-secondary: #ffffff14;
+  --nx-sk-fills-dark-3-tertiary: #ffffff0d;
+  --nx-sk-fills-dark-4-quatenary: #ffffff08;
+  --nx-sk-fills-dark-5-quinary: #ffffff05;
+  --nx-sk-grays-dark-black: #000000;
+  --nx-sk-grays-dark-grey: #98989d;
+  --nx-sk-grays-dark-use-plus-lighter-black: #000000;
+  --nx-sk-grays-dark-use-plus-lighter-grey: #a2a2a7;
+  --nx-sk-grays-dark-use-plus-lighter-white: #ffffff;
+  --nx-sk-grays-dark-white: #ffffff;
+  --nx-sk-labels-dark-1-primary: #ffffff;
+  --nx-sk-labels-dark-2-secondary: #ffffff8c;
+  --nx-sk-labels-dark-3-tertiary: #ffffff40;
+  --nx-sk-labels-dark-4-quaternary: #ffffff1a;
+  --nx-sk-labels-dark-5-quinary: #ffffff0d;
+  --nx-sk-labels-dark-6-seximal: #ffffff08;
+  --nx-sk-system-colors-dark-1-red: #ff4245;
+  --nx-sk-system-colors-dark-10-purple: #db34f2;
+  --nx-sk-system-colors-dark-11-pink: #ff375f;
+  --nx-sk-system-colors-dark-12-brown: #b78a66;
+  --nx-sk-system-colors-dark-2-orange: #ff9230;
+  --nx-sk-system-colors-dark-3-yellow: #ffd600;
+  --nx-sk-system-colors-dark-4-green: #30d158;
+  --nx-sk-system-colors-dark-5-mint: #00dac3;
+  --nx-sk-system-colors-dark-6-teal: #00d2e0;
+  --nx-sk-system-colors-dark-7-cyan: #3cd3fe;
+  --nx-sk-system-colors-dark-8-blue: #0091ff;
+  --nx-sk-system-colors-dark-9-indigo: #6d7cff;
+  --nx-sk-system-colors-dark-use-plus-lighter-1-red: #ff4747;
+  --nx-sk-system-colors-dark-use-plus-lighter-10-purple: #e647fc;
+  --nx-sk-system-colors-dark-use-plus-lighter-11-pink: #ff4169;
+  --nx-sk-system-colors-dark-use-plus-lighter-12-brown: #c29672;
+  --nx-sk-system-colors-dark-use-plus-lighter-2-orange: #ff9e33;
+  --nx-sk-system-colors-dark-use-plus-lighter-3-yellow: #ffe014;
+  --nx-sk-system-colors-dark-use-plus-lighter-4-green: #3bdb63;
+  --nx-sk-system-colors-dark-use-plus-lighter-5-mint: #2de0cd;
+  --nx-sk-system-colors-dark-use-plus-lighter-6-teal: #2dd7e0;
+  --nx-sk-system-colors-dark-use-plus-lighter-7-cyan: #47d8fc;
+  --nx-sk-system-colors-dark-use-plus-lighter-8-blue: #0a99ff;
+  --nx-sk-system-colors-dark-use-plus-lighter-9-indigo: #7163ff;
+  --nx-sk-window-backgrounds-dark-background: #1e1e1e;
+  --nx-sk-x-kit-dark-nested-symbol-bg-dark: #366799;
+  --nx-sk-x-kit-dark-nested-symbol-bg-light: #cce6ff;
+  --nx-sk-x-kit-dark-symbol-bg-dark: #333333;
+  --nx-sk-x-kit-dark-symbol-bg-light: #cccccc;
+
+}
+
+/* 在材质（玻璃/半透明面）**上面**用的色 —— kit 里单独一组，
+   因为透明面上的不透明色会读成「糊」，vibrant 那组是为此调过的。 */
+:root {
+  /* 浅色 vibrant */
+  --nx-sk-fills-light-vibrant-vibrant-use-plus-darker-1-primary: #00000026;
+  --nx-sk-fills-light-vibrant-vibrant-use-plus-darker-2-secondary: #00000012;
+  --nx-sk-fills-light-vibrant-vibrant-use-plus-darker-3-tertiary: #0000000d;
+  --nx-sk-fills-light-vibrant-vibrant-use-plus-darker-4-quatenary: #00000008;
+  --nx-sk-fills-light-vibrant-vibrant-use-plus-darker-5-quinary: #00000005;
+  --nx-sk-grays-light-vibrant-vibrant-use-plus-darker-black: #000000;
+  --nx-sk-grays-light-vibrant-vibrant-use-plus-darker-grey: #848489;
+  --nx-sk-grays-light-vibrant-vibrant-use-plus-darker-white: #ffffff;
+  --nx-sk-labels-light-vibrant-vibrant-use-plus-darker-1-primary: #363636;
+  --nx-sk-labels-light-vibrant-vibrant-use-plus-darker-2-secondary: #737373;
+  --nx-sk-labels-light-vibrant-vibrant-use-plus-darker-3-tertiary: #b3b3b3;
+  --nx-sk-labels-light-vibrant-vibrant-use-plus-darker-4-quaternary: #d9d9d9;
+  --nx-sk-labels-light-vibrant-vibrant-use-plus-darker-5-quinary: #e6e6e6;
+  --nx-sk-labels-light-vibrant-vibrant-use-plus-darker-6-seximal: #fafafa;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-1-red: #f52f32;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-10-purple: #b72bc9;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-11-pink: #f5234b;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-12-brown: #9e7354;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-2-orange: #f58625;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-3-yellow: #f5c200;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-4-green: #26bf4d;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-5-mint: #00bda9;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-6-teal: #00b3bf;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-7-cyan: #00abcf;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-8-blue: #0078f0;
+  --nx-sk-system-colors-light-vibrant-vibrant-use-plus-darker-9-indigo: #5c50e6;
+
+}
+[data-theme="dark"] {
+  /* 深色 vibrant */
+  --nx-sk-fills-dark-vibrant-vibrant-use-plus-lighter-1-primary: #ffffff24;
+  --nx-sk-fills-dark-vibrant-vibrant-use-plus-lighter-2-secondary: #ffffff14;
+  --nx-sk-fills-dark-vibrant-vibrant-use-plus-lighter-3-tertiary: #ffffff0d;
+  --nx-sk-fills-dark-vibrant-vibrant-use-plus-lighter-4-quatenary: #ffffff0a;
+  --nx-sk-fills-dark-vibrant-vibrant-use-plus-lighter-5-quinary: #ffffff08;
+  --nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-1-primary: #fffffff5;
+  --nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-2-secondary: #8a8a8a;
+  --nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-3-tertiary: #4d4d4d;
+  --nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-4-quaternary: #262626;
+  --nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-5-quinary: #121212;
+
+}
+
+/* ── 2 · 具名字体样式（11 个默认档 + 22 个行高变体）─────
+ * 每个样式 = size + line-height + weight 三件套。**这就是 Apple 的排版单位** ——
+ * 本仓原来只有一条尺寸梯子 + 四个全局行高比值，没有「样式」这个概念。
+ * 变量名带 -size / -lh / -w 后缀，方便分别取用（比如只要字号时可单独引）。
+ * Loose / Tight 是 kit 自带的行高变体，单独一组后缀。
+ */
+
+:root {
+  /* 01 LargeTitle/Default */
+  --nx-sk-t-largetitle-size: 26px;
+  --nx-sk-t-largetitle-lh: 32px;
+  --nx-sk-t-largetitle-w: 400;
+  /* 02 Title1/Default */
+  --nx-sk-t-title1-size: 22px;
+  --nx-sk-t-title1-lh: 26px;
+  --nx-sk-t-title1-w: 400;
+  /* 03 Title2/Default */
+  --nx-sk-t-title2-size: 17px;
+  --nx-sk-t-title2-lh: 22px;
+  --nx-sk-t-title2-w: 400;
+  /* 04 Title3/Default */
+  --nx-sk-t-title3-size: 15px;
+  --nx-sk-t-title3-lh: 20px;
+  --nx-sk-t-title3-w: 400;
+  /* 05 Headline/Default */
+  --nx-sk-t-headline-size: 13px;
+  --nx-sk-t-headline-lh: 16px;
+  --nx-sk-t-headline-w: 700;
+  /* 06 Body/Default */
+  --nx-sk-t-body-size: 13px;
+  --nx-sk-t-body-lh: 16px;
+  --nx-sk-t-body-w: 400;
+  /* 07 Callout/Default */
+  --nx-sk-t-callout-size: 12px;
+  --nx-sk-t-callout-lh: 15px;
+  --nx-sk-t-callout-w: 400;
+  /* 08 Subheadline/Default */
+  --nx-sk-t-subheadline-size: 11px;
+  --nx-sk-t-subheadline-lh: 14px;
+  --nx-sk-t-subheadline-w: 400;
+  /* 10 Caption1/Default */
+  --nx-sk-t-caption1-size: 10px;
+  --nx-sk-t-caption1-lh: 13px;
+  --nx-sk-t-caption1-w: 400;
+  /* 09 Footnote/Default */
+  --nx-sk-t-footnote-size: 10px;
+  --nx-sk-t-footnote-lh: 13px;
+  --nx-sk-t-footnote-w: 400;
+  /* 11 Caption2/Default */
+  --nx-sk-t-caption2-size: 10px;
+  --nx-sk-t-caption2-lh: 13px;
+  --nx-sk-t-caption2-w: 400;
+  /* 行高变体（kit 的 Loose / Tight Leading） */
+  --nx-sk-t-largetitle-loose-lh: 34px;
+  --nx-sk-t-title1-loose-lh: 28px;
+  --nx-sk-t-title2-loose-lh: 24px;
+  --nx-sk-t-title3-loose-lh: 22px;
+  --nx-sk-t-headline-loose-lh: 18px;
+  --nx-sk-t-body-loose-lh: 18px;
+  --nx-sk-t-callout-loose-lh: 17px;
+  --nx-sk-t-subheadline-loose-lh: 16px;
+  --nx-sk-t-footnote-loose-lh: 15px;
+  --nx-sk-t-caption1-loose-lh: 15px;
+  --nx-sk-t-caption2-loose-lh: 15px;
+  --nx-sk-t-largetitle-tight-lh: 30px;
+  --nx-sk-t-title1-tight-lh: 24px;
+  --nx-sk-t-title2-tight-lh: 20px;
+  --nx-sk-t-title3-tight-lh: 18px;
+  --nx-sk-t-headline-tight-lh: 14px;
+  --nx-sk-t-body-tight-lh: 14px;
+  --nx-sk-t-callout-tight-lh: 13px;
+  --nx-sk-t-subheadline-tight-lh: 12px;
+  --nx-sk-t-footnote-tight-lh: 11px;
+  --nx-sk-t-caption1-tight-lh: 11px;
+  --nx-sk-t-caption2-tight-lh: 11px;
+}
+/* 注：kit 里有 1 条重名玻璃样式（light-regular-small-tinted），
+   已按 CSS 语义取后者。 */
+
+
+/* ── 3 · 液态玻璃（18 个共享样式，来自 kit 的 layerStyles）────────────
+ * kit 里每个玻璃样式都带 isCustomGlass 的 blur（radius / saturation / distortion / depth）
+ * 与 9–12 层阴影。**这些是 Sketch 自家 glass shader 的参数，不是 CSS 的 blur() 等价物** ——
+ * distortion / depth / brightness 三样 CSS 的 backdrop-filter 根本做不到。
+ * 所以下面按「能映射的映射、映射不了的记下来」处理：
+ *   · radius → 只作为 --nx-sk-glass-*-sketch-radius 保留原始值（**不当 CSS blur 用**）
+ *   · saturation → 直接可用
+ *   · fills / shadows / innerShadows → 逐层写成 CSS 变量，box-shadow 可以还原多层
+ */
+
+:root {
+  /* Liquid Glass/Light/Regular - Small - Tinted */
+  --nx-sk-glass-light-regular-small-tinted-sketch-radius: 6;
+  --nx-sk-glass-light-regular-small-tinted-saturate: 1;
+  --nx-sk-glass-light-regular-small-tinted-distortion: 0.4;
+  --nx-sk-glass-light-regular-small-tinted-depth: 0.8;
+  --nx-sk-glass-light-regular-small-tinted-fill-1: #ffffff;
+  --nx-sk-glass-light-regular-small-tinted-shadow: 0px 8px 15px 0px #0000000a, -1.25px 0px 0px -0.75px #e6e6e6, 1.25px 0px 0px -0.75px #e6e6e6;
+  --nx-sk-glass-light-regular-small-tinted-inner: inset 20px 0px 20px -30px #d9d9d9, inset -20px 0px 20px -30px #d9d9d9, inset 0px -4px 0.5px -4px #999999, inset 0px 4px 0.5px -4px #999999, inset 0px -1px 0px 0px #262626, inset 0px 1px 0px 0px #262626, inset 0px -40px 10px -40px #111111, inset 0px 40px 10px -40px #111111;
+  /* Liquid Glass/Dark/Regular - Large */
+  --nx-sk-glass-dark-regular-large-sketch-radius: 30;
+  --nx-sk-glass-dark-regular-large-saturate: 1.2;
+  --nx-sk-glass-dark-regular-large-distortion: 0.3;
+  --nx-sk-glass-dark-regular-large-depth: 0.9;
+  --nx-sk-glass-dark-regular-large-fill-1: #1a1a1a80;
+  --nx-sk-glass-dark-regular-large-fill-2: #1a1a1a80;
+  --nx-sk-glass-dark-regular-large-fill-3: #1a1a1a;
+  --nx-sk-glass-dark-regular-large-shadow: 0px 18px 48px 0px #00000073, 0px 0px 0.3px 0.3px #a6a6a6cc, 1.25px 0px 0px -0.75px #a6a6a6, -1.25px 0px 0px -0.75px #a6a6a6;
+  --nx-sk-glass-dark-regular-large-inner: inset 0px -4px 8px -4px #343434, inset 0px 4px 8px -4px #343434, inset 0px -1px 1.5px -0.5px #676767, inset 0px 1px 1.5px -0.5px #676767, inset 0px 2px 0.2px -1.2px #ffffff33;
+  /* Liquid Glass/Light/Regular - Large */
+  --nx-sk-glass-light-regular-large-sketch-radius: 30;
+  --nx-sk-glass-light-regular-large-saturate: 1.4;
+  --nx-sk-glass-light-regular-large-distortion: 0.3;
+  --nx-sk-glass-light-regular-large-depth: 0.9;
+  --nx-sk-glass-light-regular-large-fill-1: #ffffffb3;
+  --nx-sk-glass-light-regular-large-fill-2: #bfbfbf1a;
+  --nx-sk-glass-light-regular-large-shadow: 0px 18px 46px 0px #00000040, 0px 0px 0.3px 0.3px #dbdbdb80, 1.25px 0px 0px -0.75px #dbdbdb, -1.25px 0px 0px -0.75px #dbdbdb;
+  --nx-sk-glass-light-regular-large-inner: inset 0px -4px 8px -4px #272727, inset 0px 4px 8px -4px #272727, inset 0px -1px 1.5px -0.5px #272727, inset 0px 1px 1.5px -0.5px #272727, inset 0px 2px 0.25px -1.5px #ffffff;
+  /* Liquid Glass/Dark/Regular - Small */
+  --nx-sk-glass-dark-regular-small-sketch-radius: 6;
+  --nx-sk-glass-dark-regular-small-saturate: 1;
+  --nx-sk-glass-dark-regular-small-distortion: 0.4;
+  --nx-sk-glass-dark-regular-small-depth: 0.8;
+  --nx-sk-glass-dark-regular-small-fill-1: #000000;
+  --nx-sk-glass-dark-regular-small-fill-2: #9999992b;
+  --nx-sk-glass-dark-regular-small-shadow: 0px 8px 15px 0px #0000000a, 0px 0px 0px 0.5px #a6a6a6, -1.25px 0px 0px -0.75px #a6a6a6, 1.25px 0px 0px -0.75px #a6a6a6;
+  --nx-sk-glass-dark-regular-small-inner: inset 20px 0px 20px -30px #b2b2b2, inset -20px 0px 20px -30px #b2b2b2, inset 0px -4px 0.5px -4px #666666, inset 0px 4px 0.5px -4px #666666, inset 0px -1px 0px 0px #171717, inset 0px 1px 0px 0px #171717, inset 0px -40px 10px -40px #1a1a1a, inset 0px 40px 10px -40px #1a1a1a;
+  /* Liquid Glass/Light/Regular - Medium */
+  --nx-sk-glass-light-regular-medium-sketch-radius: 30;
+  --nx-sk-glass-light-regular-medium-saturate: 1.4;
+  --nx-sk-glass-light-regular-medium-distortion: 0.3;
+  --nx-sk-glass-light-regular-medium-depth: 0.9;
+  --nx-sk-glass-light-regular-medium-fill-1: #ffffffb3;
+  --nx-sk-glass-light-regular-medium-fill-2: #bfbfbf1a;
+  --nx-sk-glass-light-regular-medium-shadow: 0px 18px 46px 0px #00000040, 0px 0px 0.3px 0.3px #dbdbdb, -1.25px 0px 0px -0.75px #dbdbdb, 1.25px 0px 0px -0.75px #dbdbdb;
+  --nx-sk-glass-light-regular-medium-inner: inset 0px -4px 2px -4px #272727, inset 0px 4px 8px -4px #272727, inset 0px -1px 1.5px -0.5px #272727, inset 0px 1px 1.5px -0.5px #272727, inset 0px 2px 0.25px -1.2px #ffffff;
+  /* Liquid Glass/Dark/Regular - Medium */
+  --nx-sk-glass-dark-regular-medium-sketch-radius: 30;
+  --nx-sk-glass-dark-regular-medium-saturate: 1.2;
+  --nx-sk-glass-dark-regular-medium-distortion: 0.3;
+  --nx-sk-glass-dark-regular-medium-depth: 0.9;
+  --nx-sk-glass-dark-regular-medium-fill-1: #1a1a1a80;
+  --nx-sk-glass-dark-regular-medium-fill-2: #1a1a1ae6;
+  --nx-sk-glass-dark-regular-medium-fill-3: #1a1a1a;
+  --nx-sk-glass-dark-regular-medium-shadow: 0px 18px 48px 0px #00000073, 0px 0px 0.3px 0.3px #a6a6a6cc, 1.25px 0px 0px -0.75px #a6a6a6, -1.25px 0px 0px -0.75px #a6a6a6;
+  --nx-sk-glass-dark-regular-medium-inner: inset 0px -4px 8px -4px #343434, inset 0px 4px 8px -4px #343434, inset 0px -1px 1.5px -0.5px #676767, inset 0px 1px 1.5px -0.5px #676767, inset 0px 2px 0.2px -1.2px #ffffff33;
+  /* Liquid Glass/Light/Regular - Small */
+  --nx-sk-glass-light-regular-small-sketch-radius: 6;
+  --nx-sk-glass-light-regular-small-saturate: 2;
+  --nx-sk-glass-light-regular-small-distortion: 0.4;
+  --nx-sk-glass-light-regular-small-depth: 0.8;
+  --nx-sk-glass-light-regular-small-fill-1: #00000040;
+  --nx-sk-glass-light-regular-small-fill-2: #ffffff40;
+  --nx-sk-glass-light-regular-small-fill-3: #44444499;
+  --nx-sk-glass-light-regular-small-fill-4: #f8f8f833;
+  --nx-sk-glass-light-regular-small-shadow: 0px 8px 15px 0px #00000005, 0px 0px 0px 0.5px #dbdbdb, -1.25px 0px 0px -0.75px #dbdbdb, 1.25px 0px 0px -0.75px #dbdbdb;
+  --nx-sk-glass-light-regular-small-inner: inset 20px 0px 20px -30px #d9d9d9, inset -20px 0px 20px -30px #d9d9d9, inset 0px -4px 0.5px -4px #666666, inset 0px 4px 0.5px -4px #666666, inset 0px -1px 0px 0px #171717, inset 0px 1px 0px 0px #171717, inset 0px 40px 30px -40px #e6e6e6, inset 0px -40px 10px -40px #282828, inset 0px 40px 10px -40px #282828;
+  /* Liquid Glass/Dark/Regular - Small - Tint New */
+  --nx-sk-glass-dark-regular-small-tint-new-sketch-radius: 6;
+  --nx-sk-glass-dark-regular-small-tint-new-saturate: 1;
+  --nx-sk-glass-dark-regular-small-tint-new-distortion: 0.4;
+  --nx-sk-glass-dark-regular-small-tint-new-depth: 0.8;
+  --nx-sk-glass-dark-regular-small-tint-new-fill-1: #fffffff5;
+  --nx-sk-glass-dark-regular-small-tint-new-fill-2: #ff383c;
+  --nx-sk-glass-dark-regular-small-tint-new-shadow: 0px 8px 15px 0px #0000000a, 0px 0px 0px 0.5px #d9d9d9, -1.25px 0px 0px -0.75px #cccccc, 1.25px 0px 0px -0.75px #cccccc;
+  --nx-sk-glass-dark-regular-small-tint-new-inner: inset 20px 0px 20px -30px #b2b2b2, inset -20px 0px 20px -30px #b2b2b2, inset 0px -4px 0.5px -4px #999999, inset 0px 4px 0.5px -4px #999999, inset 0px -1px 0px 0px #262626, inset 0px 1px 0px 0px #262626, inset 0px -40px 10px -40px #111111, inset 0px 40px 10px -40px #111111;
+  /* Liquid Glass/Light/Regular - Small - Inactive */
+  --nx-sk-glass-light-regular-small-inactive-fill-1: #00000005;
+  --nx-sk-glass-light-regular-small-inactive-shadow: 0px 0px 0px 0.5px #ebebeb, -0.75px 0px 0px -0.25px #f2f2f2, 0.75px 0px 0px -0.25px #f2f2f2;
+  /* Liquid Glass/Dark/Regular - Small - Inactive */
+  --nx-sk-glass-dark-regular-small-inactive-fill-1: #ffffff0d;
+  --nx-sk-glass-dark-regular-small-inactive-shadow: 0px 0px 0px 0.5px #e6e6e6, -1px 0px 0px -0.5px #cccccc, 1px 0px 0px -0.5px #cccccc;
+  /* Liquid Glass/Dark/Menus */
+  --nx-sk-glass-dark-menus-sketch-radius: 20;
+  --nx-sk-glass-dark-menus-saturate: 1.2;
+  --nx-sk-glass-dark-menus-distortion: 0.3;
+  --nx-sk-glass-dark-menus-depth: 0.9;
+  --nx-sk-glass-dark-menus-fill-1: #5a5a5a80;
+  --nx-sk-glass-dark-menus-shadow: 0px 4px 24px 0px #0000004d, 0px 0px 0px 0.5px #000000cc;
+  --nx-sk-glass-dark-menus-inner: inset 0px -4px 8px -4px #0d0d0d, inset 0px 4px 8px -4px #0d0d0d, inset 0px -0.5px 0px 0px #262626, inset 0px 0.5px 0px 0px #262626, inset 0px 0px 0px 1px #66666666;
+  /* Liquid Glass/Light/Menus */
+  --nx-sk-glass-light-menus-sketch-radius: 20;
+  --nx-sk-glass-light-menus-saturate: 0.8;
+  --nx-sk-glass-light-menus-distortion: 0.3;
+  --nx-sk-glass-light-menus-depth: 0.9;
+  --nx-sk-glass-light-menus-fill-1: #e6e6e68c;
+  --nx-sk-glass-light-menus-shadow: 0px 4px 24px 0px #0000004d, 0px 0px 0px 0.5px #00000033;
+  --nx-sk-glass-light-menus-inner: inset 0px -4px 8px -4px #0d0d0d, inset 0px 4px 8px -4px #0d0d0d, inset 0px -0.5px 0px 0px #262626, inset 0px 0.5px 0px 0px #262626, inset 0px 0px 0px 1px #66666626;
+  /* Liquid Glass/Light/Dock */
+  --nx-sk-glass-light-dock-sketch-radius: 1;
+  --nx-sk-glass-light-dock-saturate: 1;
+  --nx-sk-glass-light-dock-distortion: 0.08;
+  --nx-sk-glass-light-dock-depth: 0.9;
+  --nx-sk-glass-light-dock-fill-1: #4d4d4d4d;
+  --nx-sk-glass-light-dock-fill-2: #1a1a1a1a;
+  --nx-sk-glass-light-dock-fill-3: #ffffff14;
+  --nx-sk-glass-light-dock-shadow: 0px 0px 0px 0.5px #00000040;
+  --nx-sk-glass-light-dock-inner: inset 0px -12px 12px -12px #161616b3, inset 1px 16px 16px -16px #161616, inset 0px -1px 0.5px -0.5px #ffffff, inset 0px 1px 0.5px -0.5px #ffffff, inset 0px -1px 0.5px -0.5px #ffffff1a, inset 0px 1px 0.5px -0.5px #ffffff1a;
+  /* Liquid Glass/Dark/Dock */
+  --nx-sk-glass-dark-dock-sketch-radius: 1;
+  --nx-sk-glass-dark-dock-saturate: 1;
+  --nx-sk-glass-dark-dock-distortion: 0.08;
+  --nx-sk-glass-dark-dock-depth: 0.9;
+  --nx-sk-glass-dark-dock-fill-1: #45454580;
+  --nx-sk-glass-dark-dock-fill-2: #1a1a1a1a;
+  --nx-sk-glass-dark-dock-fill-3: #ffffff14;
+  --nx-sk-glass-dark-dock-shadow: 0px 0px 0px 0.5px #00000040;
+  --nx-sk-glass-dark-dock-inner: inset 0px -12px 12px -12px #161616b3, inset 1px 16px 16px -16px #161616, inset 0px -1px 0.5px -0.5px #ffffff, inset 0px 1px 0.5px -0.5px #ffffff, inset 0px -1px 0.5px -0.5px #ffffff1a, inset 0px 1px 0.5px -0.5px #ffffff1a;
+  /* Liquid Glass/Lock Screen Time */
+  --nx-sk-glass-lock-screen-time-sketch-radius: 3;
+  --nx-sk-glass-lock-screen-time-saturate: 1.4;
+  --nx-sk-glass-lock-screen-time-distortion: 0.2;
+  --nx-sk-glass-lock-screen-time-depth: 0.5;
+  --nx-sk-glass-lock-screen-time-fill-1: #f8f8f840;
+  --nx-sk-glass-lock-screen-time-fill-2: #1a1a1a;
+  --nx-sk-glass-lock-screen-time-shadow: 0px 8px 15px 0px #00000005, 0px 0px 0px 0.5px #d9d9d9, -1.25px 0px 0px -0.75px #e6e6e6, 1.25px 0px 0px -0.75px #e6e6e6;
+  --nx-sk-glass-lock-screen-time-inner: inset 0px -4px 0.5px -4px #333333, inset 0px -4px 0.5px -4px #333333, inset 0px -0.5px 0px 0px #333333, inset 0px 0.5px 0px 0px #333333, inset 0px -10px 5px -10px #404040, inset 0px 10px 5px -10px #404040;
+  /* Liquid Glass/Dark/Notification */
+  --nx-sk-glass-dark-notification-sketch-radius: 10;
+  --nx-sk-glass-dark-notification-saturate: 1;
+  --nx-sk-glass-dark-notification-distortion: 0.1;
+  --nx-sk-glass-dark-notification-depth: 0.9;
+  --nx-sk-glass-dark-notification-fill-1: #6666661a;
+  --nx-sk-glass-dark-notification-shadow: 0px 4px 16px 0px #0000001a, 0px 0px 0.3px 0.3px #ababab;
+  --nx-sk-glass-dark-notification-inner: inset 0px -6px 4px -6px #222222, inset 0px 6px 4px -6px #222222, inset 0px -1px 1.5px -1px #676767, inset 0px 1px 1.5px -1px #676767, inset 0px 2px 0.2px -1.2px #ffffff33;
+  /* Liquid Glass/Light/Notification */
+  --nx-sk-glass-light-notification-sketch-radius: 15;
+  --nx-sk-glass-light-notification-saturate: 1;
+  --nx-sk-glass-light-notification-distortion: 0.1;
+  --nx-sk-glass-light-notification-depth: 0.9;
+  --nx-sk-glass-light-notification-fill-1: #bfbfbf40;
+  --nx-sk-glass-light-notification-fill-2: #1a1a1a;
+  --nx-sk-glass-light-notification-shadow: 0px 4px 16px 0px #0000001a, 0px 0px 0.3px 0.3px #ababab;
+  --nx-sk-glass-light-notification-inner: inset 0px -6px 4px -6px #222222, inset 0px 6px 4px -6px #222222, inset 0px -1px 1.5px -1px #676767, inset 0px 1px 1.5px -1px #676767, inset 0px 2px 0.2px -1.2px #ffffff33;
+  /* Liquid Glass/Dark/Regular - Small - Tinted */
+  --nx-sk-glass-dark-regular-small-tinted-sketch-radius: 6;
+  --nx-sk-glass-dark-regular-small-tinted-saturate: 1;
+  --nx-sk-glass-dark-regular-small-tinted-distortion: 0.4;
+  --nx-sk-glass-dark-regular-small-tinted-depth: 0.8;
+  --nx-sk-glass-dark-regular-small-tinted-fill-1: #000000;
+  --nx-sk-glass-dark-regular-small-tinted-shadow: 0px 8px 15px 0px #0000000a, -1.25px 0px 0px -0.75px #e6e6e6, 1.25px 0px 0px -0.75px #e6e6e6;
+  --nx-sk-glass-dark-regular-small-tinted-inner: inset 20px 0px 20px -30px #d9d9d9, inset -20px 0px 20px -30px #d9d9d9, inset 0px -4px 0.5px -4px #999999, inset 0px 4px 0.5px -4px #999999, inset 0px -1px 0px 0px #262626, inset 0px 1px 0px 0px #262626, inset 0px -40px 10px -40px #111111, inset 0px 40px 10px -40px #111111;
+}
+
+/* ── 4 · 组件几何（134 条，从 kit 符号表抽取）─────────────────
+ * 每条 = 「某组件的某个尺寸档有多高」，取的是该档下所有变体的**众数**高度。
+ * observed/total 是众数的出现数/该档变体总数 —— 两者接近说明这个高度是规格；
+ * 差距大说明该档混了不同形状（例如带两行的灵活高度按钮），引用时要留意。
+ * 用法：`--nx-sk-c-<page>-<area>-<size>-h`。
+ */
+
+:root {
+  --nx-sk-c--content-default-h: 100px;   /* 3/7 变体同高 */
+  --nx-sk-c-alerts-content-default-h: 28px;   /* 6/14 变体同高 */
+  --nx-sk-c-buttons-content-lg-h: 28px;   /* 90/90 变体同高 */
+  --nx-sk-c-buttons-content-mn-h: 16px;   /* 90/90 变体同高 */
+  --nx-sk-c-buttons-content-rg-h: 24px;   /* 90/90 变体同高 */
+  --nx-sk-c-buttons-content-sm-h: 20px;   /* 90/90 变体同高 */
+  --nx-sk-c-buttons-content-xl-h: 36px;   /* 90/90 变体同高 */
+  --nx-sk-c-buttons-content-area-lg-h: 28px;   /* 86/86 变体同高 */
+  --nx-sk-c-buttons-content-area-mn-h: 16px;   /* 86/86 变体同高 */
+  --nx-sk-c-buttons-content-area-rg-h: 24px;   /* 86/86 变体同高 */
+  --nx-sk-c-buttons-content-area-sm-h: 20px;   /* 86/86 变体同高 */
+  --nx-sk-c-buttons-content-area-xl-h: 36px;   /* 86/86 变体同高 */
+  --nx-sk-c-color-wells-content-default-h: 28px;   /* 4/4 变体同高 */
+  --nx-sk-c-color-wells-content-area-default-h: 16px;   /* 6/6 变体同高 */
+  --nx-sk-c-color-wells-content-area-lg-h: 28px;   /* 6/6 变体同高 */
+  --nx-sk-c-color-wells-content-area-rg-h: 24px;   /* 6/6 变体同高 */
+  --nx-sk-c-color-wells-content-area-sm-h: 20px;   /* 6/6 变体同高 */
+  --nx-sk-c-color-wells-content-area-xl-h: 36px;   /* 6/6 变体同高 */
+  --nx-sk-c-combo-boxes-content-lg-h: 28px;   /* 8/8 变体同高 */
+  --nx-sk-c-combo-boxes-content-mn-h: 16px;   /* 8/8 变体同高 */
+  --nx-sk-c-combo-boxes-content-rg-h: 24px;   /* 8/8 变体同高 */
+  --nx-sk-c-combo-boxes-content-sm-h: 20px;   /* 8/8 变体同高 */
+  --nx-sk-c-combo-boxes-content-xl-h: 36px;   /* 8/8 变体同高 */
+  --nx-sk-c-dialogs-content-default-h: 982px;   /* 2/2 变体同高 */
+  --nx-sk-c-disclosure-controls-content-lg-h: 28px;   /* 12/12 变体同高 */
+  --nx-sk-c-disclosure-controls-content-mn-h: 16px;   /* 12/12 变体同高 */
+  --nx-sk-c-disclosure-controls-content-rg-h: 24px;   /* 12/12 变体同高 */
+  --nx-sk-c-disclosure-controls-content-sm-h: 20px;   /* 12/12 变体同高 */
+  --nx-sk-c-disclosure-controls-content-xl-h: 36px;   /* 12/12 变体同高 */
+  --nx-sk-c-disclosure-controls-content-area-lg-h: 28px;   /* 12/12 变体同高 */
+  --nx-sk-c-disclosure-controls-content-area-mn-h: 16px;   /* 12/12 变体同高 */
+  --nx-sk-c-disclosure-controls-content-area-rg-h: 24px;   /* 12/12 变体同高 */
+  --nx-sk-c-disclosure-controls-content-area-sm-h: 20px;   /* 12/12 变体同高 */
+  --nx-sk-c-disclosure-controls-content-area-xl-h: 36px;   /* 12/12 变体同高 */
+  --nx-sk-c-forms-content-default-h: 40px;   /* 5/13 变体同高 */
+  --nx-sk-c-group-boxes-content-default-h: 100px;   /* 2/2 变体同高 */
+  --nx-sk-c-image-wells-content-default-h: 28px;   /* 2/2 变体同高 */
+  --nx-sk-c-menu-bar-and-dock-content-default-h: 72px;   /* 95/114 变体同高 */
+  --nx-sk-c-menus-menus-mn-h: 19px;   /* 22/42 变体同高 */
+  --nx-sk-c-menus-menus-rg-h: 24px;   /* 22/42 变体同高 */
+  --nx-sk-c-menus-menus-sm-h: 22px;   /* 22/42 变体同高 */
+  --nx-sk-c-notifications-content-default-h: 78px;   /* 3/9 变体同高 */
+  --nx-sk-c-pointers-content-default-h: 32px;   /* 22/22 变体同高 */
+  --nx-sk-c-pop-up-and-pull-down-buttons-content-lg-h: 28px;   /* 12/12 变体同高 */
+  --nx-sk-c-pop-up-and-pull-down-buttons-content-mn-h: 16px;   /* 12/12 变体同高 */
+  --nx-sk-c-pop-up-and-pull-down-buttons-content-rg-h: 24px;   /* 12/12 变体同高 */
+  --nx-sk-c-pop-up-and-pull-down-buttons-content-sm-h: 20px;   /* 12/12 变体同高 */
+  --nx-sk-c-pop-up-and-pull-down-buttons-content-xl-h: 36px;   /* 12/12 变体同高 */
+  --nx-sk-c-pop-up-and-pull-down-buttons-content-area-lg-h: 28px;   /* 12/12 变体同高 */
+  --nx-sk-c-pop-up-and-pull-down-buttons-content-area-mn-h: 16px;   /* 12/12 变体同高 */
+  --nx-sk-c-pop-up-and-pull-down-buttons-content-area-rg-h: 24px;   /* 12/12 变体同高 */
+  --nx-sk-c-pop-up-and-pull-down-buttons-content-area-sm-h: 20px;   /* 12/12 变体同高 */
+  --nx-sk-c-pop-up-and-pull-down-buttons-content-area-xl-h: 36px;   /* 12/12 变体同高 */
+  --nx-sk-c-popovers-content-default-h: 230px;   /* 24/24 变体同高 */
+  --nx-sk-c-progress-indicators-content-rg-h: 32px;   /* 24/48 变体同高 */
+  --nx-sk-c-progress-indicators-content-sm-h: 16px;   /* 24/48 变体同高 */
+  --nx-sk-c-progress-indicators-content-area-rg-h: 32px;   /* 24/48 变体同高 */
+  --nx-sk-c-progress-indicators-content-area-sm-h: 16px;   /* 24/48 变体同高 */
+  --nx-sk-c-scrollbars-content-default-h: 64px;   /* 2/4 变体同高 */
+  --nx-sk-c-search-fields-content-default-h: 15px;   /* 8/8 变体同高 */
+  --nx-sk-c-search-fields-content-lg-h: 28px;   /* 12/12 变体同高 */
+  --nx-sk-c-search-fields-content-mn-h: 16px;   /* 12/20 变体同高 */
+  --nx-sk-c-search-fields-content-rg-h: 24px;   /* 12/12 变体同高 */
+  --nx-sk-c-search-fields-content-sm-h: 20px;   /* 12/12 变体同高 */
+  --nx-sk-c-search-fields-content-xl-h: 36px;   /* 12/12 变体同高 */
+  --nx-sk-c-segmented-controls-content-default-h: 20px;   /* 34/154 变体同高 */
+  --nx-sk-c-segmented-controls-content-area-default-h: 36px;   /* 28/140 变体同高 */
+  --nx-sk-c-sidebars-content-default-h: 40px;   /* 2/4 变体同高 */
+  --nx-sk-c-sidebars-content-lg-h: 40px;   /* 60/72 变体同高 */
+  --nx-sk-c-sidebars-content-rg-h: 32px;   /* 60/72 变体同高 */
+  --nx-sk-c-sidebars-content-sm-h: 24px;   /* 60/72 变体同高 */
+  --nx-sk-c-sliders-content-default-h: 4px;   /* 20/24 变体同高 */
+  --nx-sk-c-sliders-content-lg-h: 28px;   /* 46/78 变体同高 */
+  --nx-sk-c-sliders-content-mn-h: 16px;   /* 58/78 变体同高 */
+  --nx-sk-c-sliders-content-rg-h: 24px;   /* 46/78 变体同高 */
+  --nx-sk-c-sliders-content-sm-h: 20px;   /* 46/78 变体同高 */
+  --nx-sk-c-sliders-content-xl-h: 36px;   /* 46/78 变体同高 */
+  --nx-sk-c-sliders-content-area-default-h: 4px;   /* 28/32 变体同高 */
+  --nx-sk-c-sliders-content-area-lg-h: 28px;   /* 46/78 变体同高 */
+  --nx-sk-c-sliders-content-area-mn-h: 16px;   /* 58/78 变体同高 */
+  --nx-sk-c-sliders-content-area-rg-h: 24px;   /* 46/78 变体同高 */
+  --nx-sk-c-sliders-content-area-sm-h: 20px;   /* 46/78 变体同高 */
+  --nx-sk-c-sliders-content-area-xl-h: 36px;   /* 46/78 变体同高 */
+  --nx-sk-c-steppers-content-lg-h: 14px;   /* 12/20 变体同高 */
+  --nx-sk-c-steppers-content-mn-h: 8px;   /* 12/20 变体同高 */
+  --nx-sk-c-steppers-content-rg-h: 12px;   /* 12/20 变体同高 */
+  --nx-sk-c-steppers-content-sm-h: 10px;   /* 12/20 变体同高 */
+  --nx-sk-c-steppers-content-xl-h: 18px;   /* 12/20 变体同高 */
+  --nx-sk-c-steppers-content-area-lg-h: 14px;   /* 12/20 变体同高 */
+  --nx-sk-c-steppers-content-area-mn-h: 8px;   /* 12/20 变体同高 */
+  --nx-sk-c-steppers-content-area-rg-h: 12px;   /* 12/20 变体同高 */
+  --nx-sk-c-steppers-content-area-sm-h: 10px;   /* 12/20 变体同高 */
+  --nx-sk-c-steppers-content-area-xl-h: 18px;   /* 12/20 变体同高 */
+  --nx-sk-c-text-fields-content-lg-h: 28px;   /* 12/12 变体同高 */
+  --nx-sk-c-text-fields-content-mn-h: 16px;   /* 12/12 变体同高 */
+  --nx-sk-c-text-fields-content-rg-h: 24px;   /* 12/12 变体同高 */
+  --nx-sk-c-text-fields-content-sm-h: 20px;   /* 12/12 变体同高 */
+  --nx-sk-c-text-fields-content-xl-h: 36px;   /* 12/12 变体同高 */
+  --nx-sk-c-titlebars-and-toolbars-content-default-h: 10px;   /* 8/36 变体同高 */
+  --nx-sk-c-titlebars-and-toolbars-content-rg-h: 24px;   /* 152/176 变体同高 */
+  --nx-sk-c-titlebars-and-toolbars-content-xl-h: 36px;   /* 152/176 变体同高 */
+  --nx-sk-c-titlebars-and-toolbars-window-default-h: 30px;   /* 8/8 变体同高 */
+  --nx-sk-c-toggles-checkboxes-content-lg-h: 28px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-checkboxes-content-mn-h: 14px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-checkboxes-content-rg-h: 24px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-checkboxes-content-sm-h: 18px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-checkboxes-content-xl-h: 36px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-checkboxes-content-area-lg-h: 28px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-checkboxes-content-area-mn-h: 14px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-checkboxes-content-area-rg-h: 24px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-checkboxes-content-area-sm-h: 18px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-checkboxes-content-area-xl-h: 36px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-radio-buttons-content-lg-h: 28px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-radio-buttons-content-mn-h: 14px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-radio-buttons-content-rg-h: 24px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-radio-buttons-content-sm-h: 18px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-radio-buttons-content-xl-h: 36px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-radio-buttons-content-area-lg-h: 28px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-radio-buttons-content-area-mn-h: 14px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-radio-buttons-content-area-rg-h: 24px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-radio-buttons-content-area-sm-h: 18px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-radio-buttons-content-area-xl-h: 36px;   /* 30/30 变体同高 */
+  --nx-sk-c-toggles-switches-content-lg-h: 28px;   /* 20/22 变体同高 */
+  --nx-sk-c-toggles-switches-content-mn-h: 16px;   /* 20/22 变体同高 */
+  --nx-sk-c-toggles-switches-content-rg-h: 24px;   /* 20/22 变体同高 */
+  --nx-sk-c-toggles-switches-content-sm-h: 20px;   /* 20/22 变体同高 */
+  --nx-sk-c-toggles-switches-content-xl-h: 36px;   /* 20/22 变体同高 */
+  --nx-sk-c-toggles-switches-content-area-lg-h: 28px;   /* 20/20 变体同高 */
+  --nx-sk-c-toggles-switches-content-area-mn-h: 16px;   /* 20/20 变体同高 */
+  --nx-sk-c-toggles-switches-content-area-rg-h: 24px;   /* 20/20 变体同高 */
+  --nx-sk-c-toggles-switches-content-area-sm-h: 20px;   /* 20/20 变体同高 */
+  --nx-sk-c-toggles-switches-content-area-xl-h: 36px;   /* 20/20 变体同高 */
+  --nx-sk-c-tooltips-content-default-h: 19px;   /* 2/2 变体同高 */
+  --nx-sk-c-windows-content-default-h: 400px;   /* 52/60 变体同高 */
+}
+
+/* 生成统计：色板 110 · 字体样式 67（默认档 11） · 共享样式 285（玻璃 18）· 组件符号 4679
+   还有 Loose / Tight Leading 两套行高变体与 Bold / Italic 字重轴没落到变量里 ——
+   规格在 design/apple/sketch/macos.json 里，需要时按同样方式补。 */

@@ -53,6 +53,12 @@
     // 不排除时 Next 构建的类型检查把它们当本仓源码扫（含 app/ 路由与 @/ 别名冲突），
     // 产出上万条 Cannot find module 并 OOM，整个 prod 构建起不来（2026-10-06 实测）。
     "design/*-main",
+    // fork:apple-sketch（2026-10-08）—— 用户此前下载的三个 Apple 参考仓库放在这一层
+    // （`design/苹果设计/ios27-design-system-main`），比上面那条多套了一层目录，
+    // `design/*-main` 匹配不到，于是实测 41 条 TS 错误全部从它的 React 子包冒出来
+    // （本仓代码 0 条）。设计依据已改为两份官方 Sketch kit，这个目录不再使用，
+    // 也已加进 .gitignore。同一处置：不进类型图。
+    "design/苹果设计",
     // 产物 / 一次性脚本目录（gitignored；里面还有补丁基线副本，它们的相对导入
     // 本来就不会解析，放进 tsc 只会淹没真实错误）
     "test-results",

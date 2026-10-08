@@ -122,3 +122,12 @@ design/pi-web-design/.skeuo/verify-*.html
 # 3) 其它 agent 工具的 plan 目录（本仓 plan 放 docs/ 与已忽略的 .pi/）
 /.zcode/
 .local/agent-work/
+
+# fork:apple-sketch（2026-10-08）—— Apple 官方 UI Kit 的 Sketch 原件，合计 ~270MB。
+# 不入库；抽出的规范（design/apple/sketch/*.json）与生成的令牌（design/v5/sketch-*.css）入库。
+# 需要重跑抽取时把两个 .sketch 放回 design/ 再 `npm run sketch:build`。
+/design/*.sketch
+# 用户此前下载的参考仓库（已改为只依据上面两份 Sketch kit）
+/design/苹果设计/
+# Kun 白板/设计画布的本地产物目录（借鉴调研时被它写出来的，同 .kun-design/.kun-write 口径）
+/.kun-canvas/
