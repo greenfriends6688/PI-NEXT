@@ -3368,3 +3368,82 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   bottom: auto;
   padding: 0;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:apple-sketch —— 侧栏 / 面板 / 输入区 / 弹层 用 **Apple 的标准材质**
+ * （2026-10-08）
+ *
+ * 为什么补这一块：Liquid Glass 只接在了顶栏，于是整页只有那一处有玻璃感 ——
+ * 而 Apple 那边**侧栏与面板本来就不是实色**：macOS 的侧栏是
+ * `NSVisualEffectView.Material.sidebar`，也就是 `Materials/Regular` 那条共享样式。
+ * 值与 blur / saturate 全部取自 kit（见 `design/v5/base.css` §12b）。
+ *
+ * 只加 `backdrop-filter` 与半透明底，**不动布局、不动尺寸、不动交互**。
+ * 顺序：厂商前缀在前、标准属性在后 —— 构建期会把写在后面的那条留下
+ * （反过来的写法会让无前缀那条被丢掉，现代 Chrome 于是完全不模糊，实测过）。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+.sidebar-container,
+.right-panel-container {
+  background: var(--nx-mat-reg-bg-light);
+  -webkit-backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-light));
+  backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-light));
+}
+
+/* 弹层**不给 backdrop-filter**。
+ *
+ * fork:apple-sketch 回撤（2026-10-08，用户实拍 Agents 浮窗「看不见了」）：
+ * `backdrop-filter` 会让元素成为 `position: fixed` 后代的**包含块** ——
+ * 这条陷阱本仓已经登记过（`components/ModelSelector.tsx:396` 等六处注释）。
+ * 我把 Thick 材质挂到 `.d-modal-box` / `.d-pop-float` / `.context-menu` /
+ * `.config-panel-surface` / `.settings-dialog-surface` 这一组上之后，
+ * 这些弹层里的浮窗（Agents 选人、模型选择、分支导航…）全部改以弹层为定位祖先，
+ * 于是被裁、被推到视口外 —— 表现就是「看不见了」。
+ * 弹层要材质感就只给半透明底，模糊留给不会做祖先的**面**（侧栏 / 面板 / 输入区）。 */
+.context-menu,
+.config-panel-surface,
+.settings-dialog-surface,
+.d-modal-box,
+.d-pop-float {
+  background: var(--nx-mat-thick-bg-light);
+}
+
+/* 输入区（composer）—— 与顶栏同级的功能层 */
+.chat-input-shell,
+.d-composer {
+  -webkit-backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-light));
+  backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-light));
+}
+
+html[data-theme="dark"] .sidebar-container,
+html[data-theme="dark"] .right-panel-container {
+  background: var(--nx-mat-reg-bg-dark);
+  -webkit-backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-dark));
+  backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-dark));
+}
+html[data-theme="dark"] .context-menu,
+html[data-theme="dark"] .config-panel-surface,
+html[data-theme="dark"] .settings-dialog-surface,
+html[data-theme="dark"] .d-modal-box,
+html[data-theme="dark"] .d-pop-float {
+  background: var(--nx-mat-thick-bg-dark);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:apple-sketch —— 顶栏钉成**通栏**（2026-10-08，用户实拍「顶部这个是圆角卡片」）
+ *
+ * 排查结果：`.d-topbar` 自身的 computed 是 `border-radius: 0 / margin: 0 / padding: 0`，
+ * 全仓也**没有任何规则**给 workspace / header / topbar 加圆角（逐文件扫过
+ * `app/*.css` 与 `design/v5/*` 的 `border-radius` 声明）。所以圆角要么来自
+ * 用户环境里的某个开关（皮肤 / 壁纸 / 桌面壳），要么来自一个我还没定位到的祖先。
+ *
+ * 这一条是**防御性收口**：无论谁想把它变成浮动卡片，顶栏都保持通栏。
+ * 只钉几何（圆角 / 外边距 / 内缩），不碰颜色与材质 —— 那两样在 v5 里管。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+.main-workspace-header,
+.d-topbar {
+  border-radius: 0;
+  margin-inline: 0;
+  inset-inline: auto;
+}

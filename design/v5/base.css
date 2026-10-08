@@ -188,6 +188,118 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+
+  /* ── 12b · macOS / iOS 的**标准材质**（fork:apple-sketch）────────────────────
+   * 这些**不是** Liquid Glass —— 是 Apple 的 standard materials，侧栏、面板、弹层用的就是它。
+   * 之前我只把 Liquid Glass 接到了顶栏，于是全页只有那一处有玻璃感，别的全是实色。
+   *
+   * 值全部来自 kit 的共享样式 `Materials/*`：
+   *   macOS  Light 底色 #ececec，alpha 随厚薄 0.38→0.88；Dark #2c2c2c / #292929，blur 60
+   *   iOS    Light 白底 / Dark 黑底，blur 75
+   * 两侧的 saturate 都是 kit 原值（macOS 1.45–2、iOS ≈1–1.2）。
+   */
+  --nx-mat-blur: 60px;              /* macOS 标准材质的模糊半径 */
+  --nx-mat-reg-bg-light: #ecececa1;  /* Regular：侧栏 / 面板的默认档 */
+  --nx-mat-reg-bg-dark: #2c2c2c9c;
+  --nx-mat-reg-sat-light: 1.45;
+  --nx-mat-reg-sat-dark: 1.9;
+  /* Thick：弹层（压在面板之上）。fork:apple-sketch 调整（2026-10-08，用户「弹窗浮窗的
+     透明度默认别太高」）—— kit 原值 0.76 / 0.71 在半透明底上会让底下的文字透上来，
+     读起来发糊。弹层是**要读内容**的面，不是装饰面，所以抬到 0.95 / 0.95。
+     要更透（看得到底层内容）时用 Thin 那两枚。 */
+  --nx-mat-thick-bg-light: #ecececf2;
+  --nx-mat-thick-bg-dark: #2c2c2cf2;
+  --nx-mat-thin-bg-light: #ececec80;  /* Thin：需要看见底下内容时 */
+  --nx-mat-thin-bg-dark: #2929297d;
+  --nx-mat-ios-blur: 75px;            /* iOS 标准材质 */
+  --nx-mat-ios-reg-bg-light: #ffffff40;
+  --nx-mat-ios-reg-bg-dark: #00000069;
+  --nx-mat-ios-thick-bg-light: #ffffff57;
+  --nx-mat-ios-thick-bg-dark: #00000099;
+
+  /* ── 13 · 组件几何（fork:apple-sketch）─────────────────────────────────────
+   * 全部从两个 kit 的符号表实测（`design/apple/sketch/*.json` 的 pages[].symbols）。
+   * **两形态是两套数** —— 这是 kit 的本来面貌，不是不一致。
+   *
+   * macOS（→ Web）  控件高 **20 / 24 / 28 / 36**（Text Fields 的 Sm/Rg/Lg/XL 四档）；
+   *                 分段控件 28 高；开关 Regular 档 **54×24**；Alert 背景 300、取消钮 228×28；
+   *                 侧栏 256（Windows 页窗口 600×300 = 左 256 + 右 344）；工具条项 30 高。
+   * iOS（→ PWA）    分段控件两档 **32 / 48**；Tab Bar 控件高 **54**（Tab 72×54）；
+   *                 Alert 宽 300、钮高 48；文本框 52；滑块轨 22、钮 37×24。
+   */
+  --nx-mac-ctl-xs: 20px;
+  --nx-mac-ctl-sm: 24px;
+  --nx-mac-ctl-md: 28px;
+  --nx-mac-ctl-lg: 36px;   /* ← 原来是 34，kit 是 36 */
+  --nx-mac-seg-h: 28px;
+  --nx-mac-switch-w: 54px;
+  --nx-mac-switch-h: 24px;
+  --nx-mac-switch-knob: 18px;
+  --nx-mac-switch-travel: 30px;
+  --nx-mac-alert-w: 300px;
+  --nx-mac-alert-btn-h: 28px;
+  --nx-mac-alert-btn-w: 228px;
+  --nx-mac-sidebar-w: 256px;
+  --nx-mac-toolbar-item-h: 30px;
+  --nx-mac-toolbar-h: 36px;   /* kit 的 Titlebar/Toolbar 两组主值之一（另一组 24）；56 是合并件 */
+  --nx-mac-field-h: 24px;
+
+  --nx-ios-seg-h: 32px;
+  --nx-ios-seg-h-lg: 48px;
+  --nx-ios-tabbar-h: 54px;
+  --nx-ios-tab-w: 72px;
+  --nx-ios-alert-w: 300px;
+  --nx-ios-alert-btn-h: 48px;
+  --nx-ios-field-h: 52px;
+  --nx-ios-slider-track: 4px;
+  --nx-ios-slider-knob: 24px;
+  --nx-ios-switch-w: 64px;
+  --nx-ios-switch-h: 28px;
+
+  /* ── 12 · 液态玻璃的**可供 CSS 消费**的配方（fork:apple-sketch）──────────────
+   * kit 里 19 个玻璃样式各自带 Sketch 自家 glass shader 的 blur：
+   *   Large/Medium  radius=30   BG-Small radius=6      背景材质 macOS 60 / iOS 75
+   * saturation：Large 1.4(light)/1.2(dark)、Small 1/2
+   *
+   * ⚠️ **那个 radius 不能直接当 CSS `blur()` 用** —— 它是 Sketch glass shader 的参数，
+   * 同一套里还有 distortion 0.3 / depth 0.9 / brightness，CSS 的 backdrop-filter
+   * 三样都做不到。所以下面这样定：
+   *
+   *   锚点：regular/large 取 **6px**。这是唯一有原生渲染实测支撑的数 ——
+   *         对 iOS 26.5 模拟器截图做 erf 最小二乘拟合得 σ=5.40pt（对照区 σ=0.17 证明方法有效）。
+   *   比例：其余档按 **kit 自己的比例**缩放（kit: large 30 / small 6 = 5:1）
+   *         → small = 6 × 6/30 = **1.2px**
+   *
+   * 这是**有据的近似**，不是实测：锚点是实测的，比例是 kit 的，中间的换算关系
+   * 没有公开依据（Sketch 未文档化 glass shader 的单位）。改锚点只需改 `--nx-glass-blur-large`。
+   */
+  --nx-glass-blur-large: 6px;
+  --nx-glass-blur-small: calc(var(--nx-glass-blur-large) * 6 / 30);   /* = 1.2px，kit 比例 */
+  --nx-glass-blur-medium: var(--nx-glass-blur-large);
+  --nx-glass-saturate: 1.4;          /* kit 的 Large light 档（dark 是 1.2） */
+  --nx-glass-saturate-small: 1;
+  --nx-glass-saturate-dark: 1.2;
+
+  /* rim 与内阴影：逐层照抄 kit 的共享样式（这些是带 spread 的实心环，CSS 能还原） */
+  --nx-glass-rim: 0 0 0 0.5px #dbdbdb, -1.25px 0 0 -0.75px #dbdbdb, 1.25px 0 0 -0.75px #dbdbdb;
+  --nx-glass-rim-dark: 0 0 0 0.5px #a6a6a6, -1.25px 0 0 -0.75px #a6a6a6, 1.25px 0 0 -0.75px #a6a6a6;
+  /* fork:apple-sketch 修正（2026-10-08，用户实拍「顶栏黑乎乎的边框」）——
+   * kit 的 `Regular/Large` 共享样式在玻璃面**内侧**画四层 #272727：
+   *   inset 0 ±4px 8px -4px      → 上下各一道 8px 的暗渐变
+   *   inset 0 ±1px 1.5px -0.5px  → 上下各一条 1px 的黑线
+   * 那是给「玻璃浮在**花哨背景**上」准备的 —— 靠暗边把玻璃与背景分开。
+   * 本产品顶栏底下是纯白页面，没有背景可分离，这两层只把自己读成一根黑边框
+   * （实测顶栏上下缘合成到 rgb(77,77,77)，用户实拍就是这个）。
+   * 裁定：去掉，只留 kit 那条白色高光。边缘仍有定义 —— 外缘 `--nx-glass-rim`
+   * 的 0.5px #dbdbdb 与 `.d-topbar` 自己的 `border-bottom: 1px solid var(--nx-line)`。
+   *
+   * 这条**与 kit 有意偏离**，登记在 `DIVERGENCE.md` §AB。 */
+  --nx-glass-inner: inset 0 2px 0.25px -1.5px #ffffff;
+  --nx-glass-inner-dark: inset 0 -4px 8px -4px #343434, inset 0 4px 8px -4px #343434,
+                         inset 0 -1px 1.5px -0.5px #676767, inset 0 1px 1.5px -0.5px #676767,
+                         inset 0 2px 0.25px -1.2px #ffffff;
+  --nx-glass-ambient: 0 18px 46px rgba(0, 0, 0, .25);
+  --nx-glass-ambient-dark: 0 18px 46px rgba(0, 0, 0, .45);
 }
 
 /* ── 共享结构原子：两端都用，定义一次 ─────────────────────────────────────── */

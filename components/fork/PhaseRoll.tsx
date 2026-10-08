@@ -338,7 +338,9 @@ export function PhaseRoll({
       aria-live="polite"
       className={className}
       data-fork-phase-roll={displayed?.key ?? ""}
-      style={{ display: "block", padding: "8px 0", maxWidth: "100%", minWidth: 0, overflow: "hidden" }}
+      /* fork:apple-sketch —— 原来 `padding: 8px 0` 叠上内层 `.d-step` 的 `6px 0`，
+         一行文字吃了 28px 纵向内边距，卡片显得空而高（用户实拍）。收到 2px。 */
+      style={{ display: "block", padding: "2px 0", maxWidth: "100%", minWidth: 0, overflow: "hidden" }}
     >
       {/* fork:v5-wave-b —— 窄屏抄 M-02 帧 A 的 `.m-run`（转圈图标 + 一句话）。
           图标不再套 `.d-step-ico` 方框：画板里 `i[data-ico]` 直接是 `.m-run` 的

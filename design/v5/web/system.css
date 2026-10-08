@@ -15,7 +15,8 @@
 .d-shell { display: flex; height: 100vh; background: var(--nx-canvas); color: var(--nx-text);
   font-family: var(--nx-font-ui); font-size: var(--nx-fs-body); line-height: var(--nx-lh-body); }
 .d-shell.two .d-main { margin-right: 0; }
-.d-side  { width: 264px; flex: 0 0 auto; display: flex; flex-direction: column;
+.d-side  { /* fork:apple-sketch —— macOS kit 的侧栏宽 = 256pt（Windows 页实测） */
+  width: 256px; flex: 0 0 auto; display: flex; flex-direction: column;
   background: var(--nx-sidebar); border-right: 1px solid var(--nx-line); min-width: 0; }
 .d-main  { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; position: relative; }
 .d-panel { width: 320px; flex: 0 0 auto; display: flex; flex-direction: column;
@@ -105,20 +106,37 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-rail .d-iconbtn { width: 32px; height: 32px; }
 
 /* ── 2 · 顶栏（毛玻璃）────────────────────────────────────────────────────── */
-.d-topbar { height: 48px; flex: 0 0 auto; display: flex; align-items: center; gap: var(--nx-sp-2);
-  padding: 0 var(--nx-sp-4); background: var(--nx-glass); backdrop-filter: blur(20px) saturate(1.5);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+.d-topbar { /* fork:apple-sketch —— **36px 是 Apple 的工具栏高度**，不是我们凑的：
+   macOS kit 里 Titlebar/Toolbar 的高度实测分两组主值 —— 24（156 个）与 **36**（152 个），
+   56 是「完整标题栏 + 工具栏」的合并件。
+   注：产品实际高度走的是内联的「工具栏高 + 顶部安全区」表达式（`AppShell.tsx:3510`），
+   桌面档工具栏高是 36、≤1024px 抬到 48 作触控目标。
+   这里保持同值，免得库与产品说法不一致（此前写 48，是从没生效过的死值）。 */
+  height: var(--nx-mac-toolbar-h, 36px); flex: 0 0 auto; display: flex; align-items: center; gap: var(--nx-sp-2);
+  padding: 0 var(--nx-sp-4); background: var(--nx-glass);
+  /* fork:apple-sketch —— 值来自 Apple macOS 27 kit：blur 用锚点（large 6px，见 base.css §12），
+     saturate 是 kit 的 Large/light 档 1.4；rim 与内阴影逐层照抄 kit 的共享样式。 */
+  -webkit-backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
+  backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
+  box-shadow: var(--nx-glass-rim), var(--nx-glass-inner), var(--nx-glass-ambient);
   border-bottom: 1px solid var(--nx-line); position: relative; z-index: var(--nx-z-sticky); }
-.d-tb-title { font-size: var(--nx-fs-body); font-weight: 600; color: var(--nx-text);
+/* fork:apple-sketch —— 改用 macOS kit 的具名样式。Apple 的排版单位是「样式」
+   （size + line-height + weight 三件套），不是「尺寸梯子 + 手写 weight」。 */
+.d-tb-title { font-size: var(--nx-sk-t-title3-size); line-height: var(--nx-sk-t-title3-lh);
+  font-weight: var(--nx-sk-t-title3-w);
+  /* fork:apple-sketch —— 顶栏是**玻璃面**，文字取 kit 的 Vibrant 组。
+     kit 里那组是专门为「材质之上」调过的：玻璃上铺普通 label 会读成「糊」
+     （普通 label 的 alpha 是按不透明底调的，叠在半透明面上会更淡）。 */
+  color: var(--nx-vibrant-1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.d-tb-sub   { font-size: var(--nx-fs-xs); color: var(--nx-text-3); white-space: nowrap; }
+.d-tb-sub   { font-size: var(--nx-fs-xs); color: var(--nx-vibrant-3); white-space: nowrap; }
 .d-tb-stack { display: flex; flex-direction: column; min-width: 0; }
 .d-tb-spacer { flex: 1 1 auto; }
 
 /* ── 3 · 图标钮 / 按钮 ─────────────────────────────────────────────────────── */
 .d-iconbtn { width: 28px; height: 28px; flex: 0 0 auto; display: inline-flex; align-items: center;
   justify-content: center; border: 0; background: none; border-radius: var(--nx-r-sm);
-  color: var(--nx-text-2); cursor: pointer;
+  color: var(--nx-vibrant-2); cursor: pointer;
   transition: background var(--nx-dur-1) var(--nx-ease), color var(--nx-dur-1) var(--nx-ease); }
 .d-iconbtn:hover { background: var(--nx-surface); color: var(--nx-text); }
 .d-iconbtn.is-on { background: var(--nx-accent-soft); color: var(--nx-accent); }
@@ -167,7 +185,9 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 
 /* 过程时间轴（工具/推理步骤）*/
 .d-steps { display: flex; flex-direction: column; }
-.d-step { position: relative; display: flex; gap: var(--nx-sp-2); padding: 6px 0 6px 2px; }
+/* fork:apple-sketch —— 纵向内边距 6 → 2（配合 PhaseRoll 外层一起收，见那里的注）。
+   一行相位文字不再撑成一张高卡片。 */
+.d-step { position: relative; display: flex; gap: var(--nx-sp-2); padding: 2px 0 2px 2px; }
 .d-step::before { content: ""; position: absolute; left: 10px; top: 0; bottom: 0;
   width: 1px; background: var(--nx-line); }
 /* fork:rail-ends（用户 2026-10-05）—— 竖线两端都收在**图标中心**上。
@@ -240,7 +260,9 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
      h5 14/500 · h6 14/400 · strong 500 · 行内代码 12 等宽
    原来 h1-h3 才有规则（且 h1 才 16），h4-h6 掉进 UA 默认 = bold(700) 纯黑，
    同一篇文里“加粗”读起来像两个人写的。 */
-.d-md { font-size: var(--nx-fs-body); line-height: var(--nx-lh-reading);
+/* fork:apple-sketch —— 长文用 kit 的 Loose Leading 变体（Body 的 loose 行高 18），
+   而不是自造的 1.75 比值。这是 kit 里本来就分好的「阅读用行高」。 */
+.d-md { font-size: var(--nx-sk-t-body-size); line-height: var(--nx-sk-t-body-loose-lh);
   letter-spacing: var(--nx-ls-reading); color: var(--nx-text); }
 .d-md h1, .d-md h2, .d-md h3, .d-md h4, .d-md h5, .d-md h6 { line-height: var(--nx-lh-tight); font-weight: 600; margin: 0; }
 .d-md h1 { font-size: var(--nx-fs-xl); }
@@ -422,9 +444,10 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-pop-body { padding: var(--nx-sp-2) var(--nx-sp-3); }
 .d-pop-foot { padding: var(--nx-sp-1) var(--nx-sp-3) var(--nx-sp-2); font-size: var(--nx-fs-xs);
   color: var(--nx-text-3); line-height: var(--nx-lh-body); }
+/* fork:apple-sketch —— 菜单行高取 macOS kit 的 Menus 页实测（24，Regular 档） */
 .d-menu-row { display: flex; align-items: center; gap: var(--nx-sp-2); width: 100%; text-align: left;
   border: 0; background: none; font: inherit; font-size: var(--nx-fs-body); color: var(--nx-text);
-  padding: 7px 10px; border-radius: var(--nx-r-sm); cursor: pointer;
+  min-height: var(--nx-sk-c-menus-menus-rg-h); padding: 0 10px; border-radius: var(--nx-r-sm); cursor: pointer;
   transition: background var(--nx-dur-1) var(--nx-ease); }
 .d-menu-row:hover:not(:disabled) { background: var(--nx-surface); }
 /* 选中 / 键盘高亮态：画板 D-05（视口预设选中行）与 D-30（键盘焦点）都在用，
@@ -482,7 +505,9 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
   animation: nx-pop-in var(--nx-dur-2) var(--nx-ease-out); }
 .d-modal-box.wide { width: 680px; }
 .d-modal-box.narrow { width: 360px; }
-.d-modal-head { padding: var(--nx-sp-4) var(--nx-sp-5) 0; font-size: var(--nx-fs-lg); font-weight: 600; }
+.d-modal-head { padding: var(--nx-sp-4) var(--nx-sp-5) 0;
+  font-size: var(--nx-sk-t-title2-size); line-height: var(--nx-sk-t-title2-lh);
+  font-weight: var(--nx-sk-t-title2-w); }
 .d-modal-body { padding: var(--nx-sp-2) var(--nx-sp-5); color: var(--nx-text-2);
   font-size: var(--nx-fs-cap); display: flex; flex-direction: column; gap: var(--nx-sp-2);
   overflow-y: auto; min-height: 0; }
@@ -554,8 +579,12 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 /* ── 9 · 表单控件 ─────────────────────────────────────────────────────────── */
 .d-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .d-field-t { font-size: var(--nx-fs-sm); font-weight: 500; color: var(--nx-text); }
-.d-input, .d-select { height: var(--nx-ctl-md); }
-.d-select { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-panel);
+/* fork:apple-sketch —— 文本框高取 kit 的 Text Fields 实测（24）；原来走 ctl-md（28）。
+   组合框那边 `.d-select` 另外引了 Combo Boxes 的 24，两者同值、各自有出处。 */
+.d-input, .d-select { height: var(--nx-c-textfield-h); }
+.d-select { /* fork:apple-sketch —— 组合框/弹出钮高度取 kit 的 Combo Boxes 实测（24） */
+  min-height: var(--nx-sk-c-combo-boxes-content-rg-h);
+  border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-panel);
   color: var(--nx-text); font: inherit; font-size: var(--nx-fs-body); padding: 0 10px;
   display: inline-flex; align-items: center; gap: var(--nx-sp-2); cursor: pointer; min-width: 0; }
 .d-select:hover { border-color: var(--nx-line-hi); }
@@ -577,14 +606,14 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
   cursor: not-allowed; border-style: dashed; }
 .d-input[readonly] { background: var(--nx-surface); color: var(--nx-text-2); cursor: default; }
 
-.d-switch { width: 34px; height: 20px; border-radius: 999px; border: 0; flex: 0 0 auto;
+.d-switch { width: var(--nx-mac-switch-w); height: var(--nx-mac-switch-h); border-radius: 999px; border: 0; flex: 0 0 auto;
   background: var(--nx-surface-hi); cursor: pointer; position: relative;
   transition: background var(--nx-dur-2) var(--nx-ease); }
-.d-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+.d-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: var(--nx-mac-switch-knob); height: var(--nx-mac-switch-knob);
   border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.18);
   transition: transform var(--nx-dur-2) var(--nx-ease); }
 .d-switch.on { background: var(--nx-accent); }
-.d-switch.on::after { transform: translateX(14px); }
+.d-switch.on::after { transform: translateX(var(--nx-mac-switch-travel)); }
 
 .d-radio { width: 15px; height: 15px; border-radius: 999px; border: 1.5px solid var(--nx-line-hi);
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; background: var(--nx-panel); }
@@ -594,6 +623,9 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 /* 多选框：归档 / 导入 / 快捷键 / 记忆的批量选择都要它。
    半选态（.half）是**必须**的 —— 组里选了一部分时不能显示成「全选」或「全不选」，
    产品里 import 的分组就有这个状态（lib/import/groups.ts）。 */
+/* fork:apple-sketch —— 撤回：曾在这里加 `min-height: 24px`（kit 的 Toggles 行高），
+   但 `min-height` 会把 16×16 的指示器**撑成 16×24 的长条**（只有宽度由 width 锁住），
+   设置页与归档页一眼就能看到一排灰长条。指示器尺寸就是它的全部，行高交给父行去管。 */
 .d-checkbox { width: 16px; height: 16px; border-radius: var(--nx-r-xs); border: 1.5px solid var(--nx-line-hi);
   background: var(--nx-panel); flex: 0 0 auto; cursor: pointer; display: inline-flex;
   align-items: center; justify-content: center; color: transparent; }
@@ -622,7 +654,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 
 .d-seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--nx-surface);
   border-radius: var(--nx-r-md); }
-.d-seg > button { height: var(--nx-ctl-sm); padding: 0 10px; border: 0; border-radius: calc(var(--nx-r-md) - 2px);
+.d-seg > button { height: var(--nx-mac-seg-h); padding: 0 10px; border: 0; border-radius: calc(var(--nx-r-md) - 2px);
   background: none; font: inherit; font-size: var(--nx-fs-xs); color: var(--nx-text-2); cursor: pointer;
   transition: background var(--nx-dur-1) var(--nx-ease), color var(--nx-dur-1) var(--nx-ease); }
 .d-seg > button.is-on { background: var(--nx-panel); color: var(--nx-text); box-shadow: var(--nx-sh-1); font-weight: 500; }
@@ -635,7 +667,10 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-side > .d-seg > button { height: 28px; padding: 0; justify-content: center; text-align: center;
   font-size: var(--nx-fs-sm); border-radius: calc(var(--nx-r-lg) - 2px); }
 
+/* fork:apple-sketch —— 轨道高 4pt 取自 kit 的 Sliders 页（Track 22 高里轨道本身是 4）；
+   整行高度由 --nx-c-slider-h（24）约束，见下面的 min-height。 */
 .d-slider { -webkit-appearance: none; appearance: none; width: 160px; height: 4px; border-radius: 999px;
+  min-height: var(--nx-c-slider-h);
   background: var(--nx-surface-hi); outline: none; }
 .d-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 999px;
   background: var(--nx-panel); border: 1px solid var(--nx-line-hi); box-shadow: var(--nx-sh-1); cursor: pointer; }
@@ -792,7 +827,10 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-fileimg { width: 100%; border-radius: var(--nx-r-md); border: 1px solid var(--nx-line); }
 
 /* ── 12 · 会话搜索 / 搜索框 ───────────────────────────────────────────────── */
-.d-searchfield { display: flex; align-items: center; gap: 6px; height: var(--nx-ctl-sm);
+.d-searchfield { display: flex; align-items: center; gap: 6px;
+  /* fork:apple-sketch —— 搜索框高取 kit 的 Search Fields 实测（24，与 ctl-sm 同值，
+     但来源是 Search Fields 页而不是控件梯子 —— 两者独立成立，引用前者更准） */
+  height: var(--nx-c-searchfield-h);
   border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-panel);
   padding: 0 8px; color: var(--nx-text-3); }
 .d-searchfield:focus-within { border-color: var(--nx-line-hi);
@@ -990,13 +1028,10 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
  * 少了这一条，减弱动效的用户会看到「元素永远停在半路」。
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-/* 等待中的文案：文字流光 */
-.d-shimmer { color: transparent; background-image: linear-gradient(100deg,
-    var(--nx-text-2) 16%, var(--nx-text-2) 38%, var(--nx-text) 50%,
-    var(--nx-text-2) 62%, var(--nx-text-2) 84%);
-  background-position: 200% center; background-size: 300% 100%;
-  background-clip: text; -webkit-background-clip: text;
-  animation: nx-shimmer 3400ms linear infinite; }
+/* 等待中的文案 —— fork:apple-sketch 回撤（2026-10-08，用户裁定「去掉运行过程中的输入框跑马灯」）：
+   原来是一条扫光（`nx-shimmer` 3400ms linear infinite），现在只把文案降到次要色，**不动**。
+   类名与关键帧都留着（`nx-shimmer` 在 base.css 里，别处可能引用），只撤这里的循环动画。 */
+.d-shimmer { color: var(--nx-text-2); }
 
 /* 数值变化时的一次淡入（计数器 / 余额 / token） */
 .d-num { animation: nx-num 220ms var(--nx-ease-out); }
@@ -1110,7 +1145,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-table td > .d-btn, .d-table td > .d-chipbtn { white-space: nowrap; }
 
 /* 运行中指示行（composer 右上：秒表 + 状态词） */
-.d-run { display: flex; align-items: center; gap: var(--nx-sp-2); font-size: var(--nx-fs-xs);
+.d-run { display: flex; align-items: center; gap: var(--nx-sp-2); padding: 2px 0; font-size: var(--nx-fs-xs);
   color: var(--nx-accent); }
 .d-run > i:first-child { animation: nx-spin 1400ms linear infinite; }
 
@@ -1380,11 +1415,13 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-jump { position: absolute; right: var(--nx-sp-6); bottom: var(--nx-sp-4); z-index: var(--nx-z-raised);
   height: var(--nx-ctl-md); padding: 0 12px; display: inline-flex; align-items: center; gap: 6px;
   border: 1px solid var(--nx-line-hi); border-radius: var(--nx-r-pill); background: var(--nx-glass);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: var(--nx-sh-1);
-  font: inherit; font-size: var(--nx-fs-sm); color: var(--nx-text-2); cursor: pointer; }
-.d-jump:hover { color: var(--nx-text); }
+  -webkit-backdrop-filter: blur(var(--nx-glass-blur-small)) saturate(var(--nx-glass-saturate-small));
+  backdrop-filter: blur(var(--nx-glass-blur-small)) saturate(var(--nx-glass-saturate-small));
+  box-shadow: var(--nx-glass-rim), var(--nx-sh-1);
+  font: inherit; font-size: var(--nx-fs-sm); color: var(--nx-vibrant-2); cursor: pointer; }
+.d-jump:hover { color: var(--nx-vibrant-1); }
 @media (prefers-reduced-motion: reduce) {
-  .d-jump { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--nx-panel); }
+  .d-jump { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--nx-panel); }
 }
 /* details 折叠的 summary 复用 .d-tool-head 时要摘掉 UA 三角(.d-think summary 已单独处理) */
 summary.d-tool-head { list-style: none; }

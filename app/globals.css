@@ -1679,8 +1679,8 @@ textarea,
     transition: min-width var(--motion-layout) var(--ease-out);
   }
   .sidebar-container.sidebar-open {
-    width: var(--sidebar-width, 260px);
-    min-width: var(--sidebar-width, 260px);
+    width: var(--sidebar-width, 256px);
+    min-width: var(--sidebar-width, 256px);
   }
   .sidebar-container.sidebar-closed {
     width: 0;
@@ -1689,8 +1689,8 @@ textarea,
   }
   /* keep inner content at fixed width so it doesn't reflow during animation */
   .sidebar-container > * {
-    width: var(--sidebar-width, 260px);
-    min-width: var(--sidebar-width, 260px);
+    width: var(--sidebar-width, 256px);
+    min-width: var(--sidebar-width, 256px);
   }
   /* fork:design-system 判据⑦ —— 画板 01/02 的 seg / 搜索框靠**自己的
      左右外边距**内缩 8px（board.css `margin: var(--s1) var(--s2) var(--s2)`）。上面那条
@@ -2595,6 +2595,182 @@ button.process-file-chip:hover {
   --bg-selected: color-mix(in srgb, var(--ds-n-strong) 10%, var(--ds-n-canvas));
   --text-dim: color-mix(in srgb, var(--ds-n-placeholder) 78%, var(--ds-n-muted));
   --border-strong: color-mix(in srgb, var(--ds-n-border) 72%, var(--ds-n-strong));
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:apple-sketch —— **Apple 接管 Zeno / BoardUI / 设计系统三层令牌**
+ * （2026-10-08，用户裁定「把 Zeno 令牌体系弄掉，全部让 Apple 接管」）
+ *
+ * 上面那块 `fork:boardui-bridge` 把 Zeno 槽位指向 `--ds-*`（`app/design/tokens.css`
+ * 的逐值副本）。本块**在同一批槽位上改指 `--nx-sk-*`** —— 也就是从两份
+ * **Apple 官方 UI Kit** 生成的那一层（`design/v5/sketch-macos.css`）。
+ *
+ * 为什么用「再加一层同特异性、排在后面」而不是删掉上面那两块：
+ *   · `--ds-*` 与 Zeno 的**名字**在本仓有几百处引用（组件、旧 CSS、皮肤层），
+ *     删名字等于全仓改名，风险与收益不成比例；
+ *   · 值只应该有一个当家的，现在那个当家的变成 Apple —— 名字留给引用方，值归 Apple。
+ *   · 上面那块留着还能对读「原来是什么」，回滚也只是删本块。
+ *
+ * 值一律走 `--nx-sk-*`，所以明暗两套自动跟随（那两份生成物自己按
+ * `:root` / `[data-theme="dark"]` 分开定义）。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+:root:root {
+  /* 面 —— macOS kit 只有**一组** Window Backgrounds（它的层次靠材质与投影分，
+     不靠背景色分，这与 iOS 的 Backgrounds 三级是两套设计）。 */
+  --bg: var(--nx-sk-window-backgrounds-light-background);
+  --bg-panel: var(--nx-sk-window-backgrounds-light-background);
+  --bg-elev: var(--nx-sk-window-backgrounds-light-background);
+  --bg-hover: var(--nx-sk-fills-light-1-primary);
+  --bg-selected: var(--nx-sk-fills-light-2-secondary);
+  --bg-subtle: var(--nx-sk-fills-light-1-primary);
+  --bg-composer: var(--nx-sk-window-backgrounds-light-background);
+  --code-bg: var(--nx-sk-fills-light-1-primary);
+  --user-bg: var(--nx-sk-fills-light-1-primary);
+  --assistant-bg: transparent;
+  --tool-bg: var(--nx-sk-fills-light-1-primary);
+
+  /* 文字 —— macOS kit 的 label **6 级**（Zeno 只有 3 级，多出来的给弱提示与分隔文字） */
+  --text: var(--nx-sk-labels-light-1-primary);
+  --text-secondary: var(--nx-sk-labels-light-2-secondary);
+  --text-muted: var(--nx-sk-labels-light-2-secondary);
+  --text-dim: var(--nx-sk-labels-light-3-tertiary);
+
+  /* 边框 —— 用 kit 的 label 4/5 级（10% / 5% 黑），**不用** `Separators/Light`。
+   *
+   * fork:apple-sketch 修正（2026-10-08，用户实拍「顶栏有问题」）：
+   * `Separators/Light` 是 `#3c3c434a` = **29% 不透明**，比原来那份 (`rgba(18,18,24,.08)`)
+   * 重了 3.6 倍 —— 顶栏底边、面板分隔、列表行线全部变成粗黑线，整页看着「脏」。
+   * macOS 真正的 `separatorColor` 本来就是 ~10% 黑，kit 的 label 第 4 级正是这个值。
+   * `Separators/Light` 留给「确实要一条看得见的线」的场合（如表格边框）。 */
+  --border: var(--nx-sk-labels-light-4-quaternary);
+  --border-strong: var(--nx-sk-labels-light-3-tertiary);
+  --border-faint: var(--nx-sk-labels-light-5-quinary);
+
+  /* 强调色 —— kit 的 System Colors/8 Blue */
+  --accent: var(--nx-sk-system-colors-light-8-blue);
+  --accent-hover: var(--nx-sk-system-colors-light-8-blue);
+  --accent-text: var(--nx-sk-system-colors-light-8-blue);
+  --accent-contrast: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--nx-sk-system-colors-light-8-blue) 14%, transparent);
+  --accent-border: color-mix(in srgb, var(--nx-sk-system-colors-light-8-blue) 45%, transparent);
+  --primary-bg: var(--nx-sk-system-colors-light-8-blue);
+  --primary-hover: var(--nx-sk-system-colors-light-8-blue);
+  --primary-fg: #ffffff;
+
+  /* 状态色 —— 取 kit 的 System Colors 对应色相 */
+  --danger: var(--nx-sk-system-colors-light-1-red);
+  --danger-contrast: #ffffff;
+  --danger-soft: color-mix(in srgb, var(--nx-sk-system-colors-light-1-red) 12%, transparent);
+  --error: var(--nx-sk-system-colors-light-1-red);
+  --error-soft: color-mix(in srgb, var(--nx-sk-system-colors-light-1-red) 12%, transparent);
+  --success: var(--nx-sk-system-colors-light-4-green);
+  --success-contrast: #ffffff;
+  --success-soft: color-mix(in srgb, var(--nx-sk-system-colors-light-4-green) 12%, transparent);
+  --warning: var(--nx-sk-system-colors-light-2-orange);
+  --warning-soft: color-mix(in srgb, var(--nx-sk-system-colors-light-2-orange) 14%, transparent);
+  --info: var(--nx-sk-system-colors-light-8-blue);
+  --info-soft: color-mix(in srgb, var(--nx-sk-system-colors-light-8-blue) 12%, transparent);
+
+  /* 其余 */
+  --scrim: color-mix(in srgb, #000000 24%, transparent);
+  --diff-added: var(--nx-sk-system-colors-light-4-green);
+  --diff-removed: var(--nx-sk-system-colors-light-1-red);
+  --focus-ring: color-mix(in srgb, var(--nx-sk-system-colors-light-8-blue) 60%, transparent);
+  --overlay-hover: var(--nx-sk-fills-light-1-primary);
+  --overlay-active: var(--nx-sk-fills-light-2-secondary);
+  --overlay-selected: var(--nx-sk-fills-light-2-secondary);
+
+  /* 规范名（新代码用的那组） */
+  --surface-canvas: var(--nx-sk-window-backgrounds-light-background);
+  --surface-panel: var(--nx-sk-window-backgrounds-light-background);
+  --surface-popover: var(--nx-sk-window-backgrounds-light-background);
+  --n-surface: var(--nx-sk-fills-light-1-primary);
+  --n-border-subtle: var(--nx-sk-labels-light-5-quinary);
+  --n-border: var(--nx-sk-separators-light-value);
+  --n-placeholder: var(--nx-sk-labels-light-3-tertiary);
+  --n-muted: var(--nx-sk-labels-light-2-secondary);
+  --n-text: var(--nx-sk-labels-light-1-primary);
+  --n-strong: var(--nx-sk-labels-light-1-primary);
+
+  /* ── 布局与尺度（此前是 Zeno 的魔法数字）────────────────────────────── */
+  /* 圆角：Zeno 是 xs…2xl 一条自定梯子；Apple kit 的是 逐组件指定半径 +
+     0/4/8/10/12/16/20/26 的梯子。下面按档位对齐。 */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-base: 10px;
+  --radius-composer: 20px;
+  --radius-pill: 999px;
+
+  /* 控件高：macOS kit 的 Text Fields / Buttons 四档实测 20/24/28/36 */
+  --control-2xs: 16px;
+  --control-xs: var(--nx-mac-ctl-xs);
+  --control-sm: var(--nx-mac-ctl-sm);
+  --control-md: var(--nx-mac-ctl-md);
+  --control-lg: var(--nx-mac-ctl-lg);
+  --control-xl: 44px;
+  --control-touch: 44px;
+
+  /* 字号：改用 macOS kit 的**具名样式**（Apple 的排版单位是「样式」，
+     自带 size + line-height，不是一条尺寸梯子） */
+  --ui-font-size: var(--nx-sk-t-body-size);
+  --text-2xs: var(--nx-sk-t-caption2-size);
+  --text-xs: var(--nx-sk-t-caption1-size);
+  --text-sm: var(--nx-sk-t-subheadline-size);
+  --text-body: var(--nx-sk-t-body-size);
+  --text-md: var(--nx-sk-t-body-size);
+  --text-meta: var(--nx-sk-t-footnote-size);
+  --text-lg: var(--nx-sk-t-title3-size);
+  --text-xl: var(--nx-sk-t-title2-size);
+  --text-2xl: var(--nx-sk-t-title1-size);
+  --text-3xl: var(--nx-sk-t-largetitle-size);
+  --text-display: 32px;
+}
+
+:root:root.dark {
+  --bg: var(--nx-sk-window-backgrounds-dark-background);
+  --bg-panel: var(--nx-sk-window-backgrounds-dark-background);
+  --bg-elev: var(--nx-sk-window-backgrounds-dark-background);
+  --bg-hover: var(--nx-sk-fills-dark-1-primary);
+  --bg-selected: var(--nx-sk-fills-dark-2-secondary);
+  --bg-subtle: var(--nx-sk-fills-dark-1-primary);
+  --tool-bg: var(--nx-sk-fills-dark-1-primary);
+  --code-bg: var(--nx-sk-fills-dark-1-primary);
+  --user-bg: var(--nx-sk-fills-dark-1-primary);
+
+  --text: var(--nx-sk-labels-dark-1-primary);
+  --text-secondary: var(--nx-sk-labels-dark-2-secondary);
+  --text-muted: var(--nx-sk-labels-dark-2-secondary);
+  --text-dim: var(--nx-sk-labels-dark-3-tertiary);
+
+  --border: var(--nx-sk-labels-dark-4-quaternary);
+  --border-strong: var(--nx-sk-labels-dark-3-tertiary);
+  --border-faint: var(--nx-sk-labels-dark-6-seximal);
+
+  --accent: var(--nx-sk-system-colors-dark-8-blue);
+  --accent-hover: var(--nx-sk-system-colors-dark-8-blue);
+  --accent-text: var(--nx-sk-system-colors-dark-8-blue);
+  --accent-soft: color-mix(in srgb, var(--nx-sk-system-colors-dark-8-blue) 18%, transparent);
+  --primary-bg: var(--nx-sk-system-colors-dark-8-blue);
+  --primary-hover: var(--nx-sk-system-colors-dark-8-blue);
+
+  --danger: var(--nx-sk-system-colors-dark-1-red);
+  --error: var(--nx-sk-system-colors-dark-1-red);
+  --success: var(--nx-sk-system-colors-dark-4-green);
+  --warning: var(--nx-sk-system-colors-dark-2-orange);
+  --info: var(--nx-sk-system-colors-dark-8-blue);
+
+  --n-surface: var(--nx-sk-fills-dark-1-primary);
+  --n-border-subtle: var(--nx-sk-labels-dark-6-seximal);
+  --n-border: var(--nx-sk-labels-dark-5-quinary);
+  --n-placeholder: var(--nx-sk-labels-dark-3-tertiary);
+  --n-muted: var(--nx-sk-labels-dark-2-secondary);
+  --n-text: var(--nx-sk-labels-dark-1-primary);
+  --n-strong: var(--nx-sk-labels-dark-1-primary);
 }
 
 /* ===========================================================================

@@ -33,10 +33,14 @@
   --nx-r-pill: 999px;
 
   /* ── 3 · 控件高度：xs 徽章 / sm 行内 / md 默认 / lg 主行动 ─────────────── */
-  --nx-ctl-xs: 20px;
-  --nx-ctl-sm: 24px;
-  --nx-ctl-md: 28px;
-  --nx-ctl-lg: 34px;
+  /* fork:apple-sketch —— 控件高取 macOS kit 的 Text Fields 四档 Sm/Rg/Lg/XL */
+  /* fork:apple-sketch —— 控件高取 macOS kit 的 Text Fields 四档 Sm/Rg/Lg/XL */
+  --nx-ctl-xs: var(--nx-mac-ctl-xs);
+  --nx-ctl-sm: var(--nx-mac-ctl-sm);
+  --nx-ctl-md: var(--nx-mac-ctl-md);
+  --nx-ctl-lg: var(--nx-mac-ctl-lg);
+  /* 按钮的 Regular 档直接引 kit 的 Buttons 页实测值（24，与 --nx-ctl-sm 同） */
+  --nx-btn-default-h: var(--nx-sk-c-buttons-content-rg-h);
   --nx-touch-min: 28px;
 
   /* ── 4 · 浅色色板（默认主题）──────────────────────────────────────────────
@@ -133,3 +137,167 @@
 ::-webkit-scrollbar-track { background: transparent; }
 
 ::selection { background: var(--nx-accent-soft); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 角色层 → Apple macOS 27 值（fork:apple-sketch · 2026-10-08）
+ *
+ * 数值来自 `design/v5/sketch-macos.css`（从 `Apple macOS 27 UI Kit.sketch` 生成，
+ * 由 `npm run sketch:extract && npm run sketch:tokens` 刷）。这一块**只做绑定**：
+ * 左边是我们的角色语义，右边是 Apple 的值。要换绑或跟进 Apple 更新都只动右边。
+ *
+ * 本形态 = Web ↦ **macOS** kit。PWA 形态绑的是 iOS kit（见 pwa/tokens.css）。
+ *
+ * 两个 macOS 与 iOS 不同的地方，这里照 macOS 来：
+ *   · **label 有 6 级**（Primary…Seximal），iOS 只有 4 级；
+ *   · **没有 `Backgrounds` 三级**，只有一组 `Window Backgrounds` —— macOS 的层次
+ *     靠材质与投影分，不靠背景色分。所以 canvas 与 panel 同值，这是 kit 的原样，
+ *     不是漏绑。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* 基准字号 = macOS Body（13pt）。全部 --nx-fs-* 由它派生 */
+  --nx-ui: var(--nx-sk-t-body-size);
+
+  --nx-canvas:  var(--nx-sk-window-backgrounds-light-background);
+  --nx-panel:   var(--nx-sk-window-backgrounds-light-background);
+
+  /* label 层级：primary 不是纯黑而是 #000000d9（kit 原值） */
+  --nx-text:    var(--nx-sk-labels-light-1-primary);
+  --nx-text-2:  var(--nx-sk-labels-light-2-secondary);
+  --nx-text-3:  var(--nx-sk-labels-light-3-tertiary);
+
+  --nx-line:    var(--nx-sk-labels-light-4-quaternary);
+  --nx-accent:  var(--nx-sk-system-colors-light-8-blue);
+}
+
+[data-theme="dark"] {
+  --nx-canvas:  var(--nx-sk-window-backgrounds-dark-background);
+  --nx-panel:   var(--nx-sk-window-backgrounds-dark-background);
+
+  --nx-text:    var(--nx-sk-labels-dark-1-primary);
+  --nx-text-2:  var(--nx-sk-labels-dark-2-secondary);
+  --nx-text-3:  var(--nx-sk-labels-dark-3-tertiary);
+
+  --nx-accent:  var(--nx-sk-system-colors-dark-8-blue);
+}
+
+/* fork:apple-sketch —— 补齐 kit 里有、但第一轮没绑的角色 */
+:root {
+  --nx-surface:     var(--nx-sk-fills-light-1-primary);   /* hover 面 = kit 的 Fill/Primary */
+  --nx-surface-hi:  var(--nx-sk-fills-light-2-secondary);
+  --nx-selected:    var(--nx-sk-fills-light-2-secondary);
+  --nx-line-hi:     var(--nx-sk-labels-light-3-tertiary);
+  --nx-text-dim:    var(--nx-sk-labels-light-4-quaternary);
+  --nx-gray:        var(--nx-sk-grays-light-grey);
+}
+[data-theme="dark"] {
+  --nx-surface:     var(--nx-sk-fills-dark-1-primary);
+  --nx-surface-hi:  var(--nx-sk-fills-dark-2-secondary);
+  --nx-selected:    var(--nx-sk-fills-dark-2-secondary);
+  --nx-line-hi:     var(--nx-sk-labels-dark-4-quaternary);
+  --nx-text-dim:    var(--nx-sk-labels-dark-4-quaternary);
+  --nx-gray:        var(--nx-sk-grays-dark-grey);
+}
+
+/* fork:apple-sketch —— kit 的 12 个系统色全量绑定（此前只绑了 blue）。
+   纪律不变：这些**只作 accent 与状态指示**，语义色仍是那 6 个。 */
+:root {
+  --nx-accent-red: var(--nx-sk-system-colors-light-1-red);
+  --nx-accent-orange: var(--nx-sk-system-colors-light-2-orange);
+  --nx-accent-yellow: var(--nx-sk-system-colors-light-3-yellow);
+  --nx-accent-green: var(--nx-sk-system-colors-light-4-green);
+  --nx-accent-mint: var(--nx-sk-system-colors-light-5-mint);
+  --nx-accent-teal: var(--nx-sk-system-colors-light-6-teal);
+  --nx-accent-cyan: var(--nx-sk-system-colors-light-7-cyan);
+  --nx-accent-indigo: var(--nx-sk-system-colors-light-9-indigo);
+  --nx-accent-purple: var(--nx-sk-system-colors-light-10-purple);
+  --nx-accent-pink: var(--nx-sk-system-colors-light-11-pink);
+  --nx-accent-brown: var(--nx-sk-system-colors-light-12-brown);
+}
+[data-theme="dark"] {
+  --nx-accent-red: var(--nx-sk-system-colors-dark-1-red);
+  --nx-accent-orange: var(--nx-sk-system-colors-dark-2-orange);
+  --nx-accent-yellow: var(--nx-sk-system-colors-dark-3-yellow);
+  --nx-accent-green: var(--nx-sk-system-colors-dark-4-green);
+  --nx-accent-mint: var(--nx-sk-system-colors-dark-5-mint);
+  --nx-accent-teal: var(--nx-sk-system-colors-dark-6-teal);
+  --nx-accent-cyan: var(--nx-sk-system-colors-dark-7-cyan);
+  --nx-accent-indigo: var(--nx-sk-system-colors-dark-9-indigo);
+  --nx-accent-purple: var(--nx-sk-system-colors-dark-10-purple);
+  --nx-accent-pink: var(--nx-sk-system-colors-dark-11-pink);
+  --nx-accent-brown: var(--nx-sk-system-colors-dark-12-brown);
+}
+
+/* fork:apple-sketch —— accent 的 blue 别名（`--nx-accent` 就是绑到它上的） */
+:root { --nx-accent-blue: var(--nx-sk-system-colors-light-8-blue); }
+[data-theme="dark"] { --nx-accent-blue: var(--nx-sk-system-colors-dark-8-blue); }
+
+/* fork:apple-sketch —— 色板全绑定（此前只绑了 13 个角色）
+ *
+ * kit 里成体系的三组此前都没接：
+ *   · **Labels 6 级**（macOS 独有 Primary…Seximal；iOS 只到 5）—— 后三级是弱提示与
+ *     分隔性文字用的，此前没有对应角色；
+ *   · **Vibrant 组** —— 在材质（玻璃/半透明面）**上面**用的色。玻璃上直接铺不透明色
+ *     会读成「糊」，kit 为此单独调过一组，之前我们一直在玻璃上用普通 label；
+ *   · **Grays 全阶** —— Black / White / Grey 三档 × 普通与 vibrant。
+ *
+ * 命名直接沿用 kit：`--nx-sk-labels-light-5-quinary` → `--nx-label-5`。
+ */
+:root {
+  --nx-label-1: var(--nx-sk-labels-light-1-primary);
+  --nx-label-2: var(--nx-sk-labels-light-2-secondary);
+  --nx-label-3: var(--nx-sk-labels-light-3-tertiary);
+  --nx-label-4: var(--nx-sk-labels-light-4-quaternary);
+  --nx-label-5: var(--nx-sk-labels-light-5-quinary);
+  --nx-label-6: var(--nx-sk-labels-light-6-seximal);
+  /* 玻璃/材质之上用这一组 */
+  --nx-vibrant-1: var(--nx-sk-labels-light-vibrant-vibrant-use-plus-darker-1-primary);
+  --nx-vibrant-2: var(--nx-sk-labels-light-vibrant-vibrant-use-plus-darker-2-secondary);
+  --nx-vibrant-3: var(--nx-sk-labels-light-vibrant-vibrant-use-plus-darker-3-tertiary);
+  --nx-vibrant-4: var(--nx-sk-labels-light-vibrant-vibrant-use-plus-darker-4-quaternary);
+  --nx-fill-1: var(--nx-sk-fills-light-1-primary);
+  --nx-fill-2: var(--nx-sk-fills-light-2-secondary);
+  --nx-fill-3: var(--nx-sk-fills-light-3-tertiary);
+  --nx-fill-4: var(--nx-sk-fills-light-4-quatenary);
+  --nx-fill-5: var(--nx-sk-fills-light-5-quinary);
+  --nx-gray-black: var(--nx-sk-grays-light-black);
+  --nx-gray: var(--nx-sk-grays-light-grey);
+  --nx-gray-white: var(--nx-sk-grays-light-white);
+}
+[data-theme="dark"] {
+  --nx-label-1: var(--nx-sk-labels-dark-1-primary);
+  --nx-label-2: var(--nx-sk-labels-dark-2-secondary);
+  --nx-label-3: var(--nx-sk-labels-dark-3-tertiary);
+  --nx-label-4: var(--nx-sk-labels-dark-4-quaternary);
+  --nx-label-5: var(--nx-sk-labels-dark-5-quinary);
+  --nx-label-6: var(--nx-sk-labels-dark-6-seximal);
+  --nx-vibrant-1: var(--nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-1-primary);
+  --nx-vibrant-2: var(--nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-2-secondary);
+  --nx-vibrant-3: var(--nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-3-tertiary);
+  --nx-vibrant-4: var(--nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-4-quaternary);
+  --nx-fill-1: var(--nx-sk-fills-dark-1-primary);
+  --nx-fill-2: var(--nx-sk-fills-dark-2-secondary);
+  --nx-fill-3: var(--nx-sk-fills-dark-3-tertiary);
+  --nx-fill-4: var(--nx-sk-fills-dark-4-quatenary);
+  --nx-fill-5: var(--nx-sk-fills-dark-5-quinary);
+  --nx-gray-black: var(--nx-sk-grays-dark-black);
+  --nx-gray: var(--nx-sk-grays-dark-grey);
+  --nx-gray-white: var(--nx-sk-grays-dark-white);
+}
+
+/* fork:apple-sketch —— 组件几何的**角色别名**（原值在 sketch-macos.css 的 `--nx-sk-c-*`）
+ * 这里只给常用组件一个短名字，避免组件层出现 `--nx-sk-c-pop-up-and-pull-down-buttons-content-rg-h` 这种长名。
+ * 值全部是 macOS kit 符号表的实测众数，括号里是「同高变体数/该档总数」。 */
+:root {
+  --nx-c-menu-h:        var(--nx-sk-c-menus-menus-rg-h);              /* 24 */
+  --nx-c-menubar-h:     var(--nx-sk-c-titlebars-and-toolbars-content-rg-h); /* 24 */
+  --nx-c-combo-h:       var(--nx-sk-c-combo-boxes-content-rg-h);      /* 24 */
+  --nx-c-searchfield-h: var(--nx-sk-c-search-fields-content-rg-h);    /* 24 */
+  --nx-c-popupbtn-h:    var(--nx-sk-c-pop-up-and-pull-down-buttons-content-rg-h); /* 24 */
+  --nx-c-progress-h:    var(--nx-sk-c-progress-indicators-content-rg-h); /* 32 */
+  --nx-c-stepper-h:     var(--nx-sk-c-steppers-content-rg-h);         /* 12 */
+  --nx-c-sidebar-item-h: var(--nx-sk-c-sidebars-content-rg-h);        /* 32 */
+  --nx-c-checkbox-h:    var(--nx-sk-c-toggles-checkboxes-content-rg-h); /* 24 */
+  --nx-c-radio-h:       var(--nx-sk-c-toggles-radio-buttons-content-rg-h); /* 24 */
+  --nx-c-slider-h:      var(--nx-sk-c-sliders-content-rg-h);          /* 24 */
+  --nx-c-textfield-h:   var(--nx-sk-c-text-fields-content-rg-h);      /* 24 */
+}

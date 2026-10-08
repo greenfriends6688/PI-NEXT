@@ -118,7 +118,11 @@ test("M-07 / M-08：`.m-vp` / `.m-seg > button` 的板面高度不許被 DSN-04 
      「前缀 chip 28 / 分段钮 36」两种高度并排，就是同一个原因的两副面孔。 */
   assert.match(globalsCss, /@media \(max-width: 640px\)[\s\S]*?button,[\s\S]*?min-height: var\(--control-touch\);/);
   assert.match(pwaSystemCss, /\.m-vp \{[^}]*height: var\(--nx-ctl-xs\);/);
-  assert.match(pwaSystemCss, /\.m-seg > button \{[^}]*height: var\(--nx-ctl-xs\);/);
+  /* fork:apple-sketch（2026-10-08）—— `.m-seg > button` 的高度改由 iOS kit 的分段控件档位
+     给定（`--nx-ios-seg-h` = 32，按钮 = 32 − 容器 padding 8 = 24），不再直接写 `--nx-ctl-xs`。
+     **本条的意图完全不变**：它断言的是「高度必须由自己声明、不能被 DSN-04 的 36 顶掉」，
+     至于是哪枚令牌从来不是判据 —— 判据是「不是 36」。 */
+  assert.match(pwaSystemCss, /\.m-seg > button \{[^}]*height: calc\(var\(--nx-ios-seg-h\) - 8px\);/);
   // 还回去的值就是板面自己那一行里的 `var(--nx-ctl-xs)`，一个新值都不加。
   assert.match(forms, /\.m-vp,\s*\.m-seg > button \{\s*min-height: var\(--nx-ctl-xs\);\s*\}/);
 });

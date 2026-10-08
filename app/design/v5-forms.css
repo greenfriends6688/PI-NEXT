@@ -12,9 +12,17 @@
  *
  * 形态值（基准字号 / 色板 / 圆角 / 控件高度）在本文件之外**没有任何副本** ——
  * 这就是「一个值只有一个来源」在形态层的落点。
+ *
+ * ⚠️ **加载顺序有意义**（2026-10-08 · fork:apple-sketch）：
+ * `sketch-*.css` 是**从 Apple 官方 UI Kit 生成**的数值层（`--nx-sk-*`），
+ * 必须排在 `tokens.css` **之前** —— 因为 tokens.css 的角色层（`--nx-*`）
+ * 现在指向 `--nx-sk-*`，值还不存在的话 var() 会解析成空。
+ * 同步方式：`npm run sketch:extract && npm run sketch:tokens`。
  * =========================================================================== */
+@import "../../design/v5/sketch-macos.css";
 @import "../../design/v5/web/tokens.css";
 @import "../../design/v5/web/system.css";
+@import "../../design/v5/sketch-ios.css" screen and (max-width: 640px);
 @import "../../design/v5/pwa/tokens.css" screen and (max-width: 640px);
 @import "../../design/v5/pwa/system.css" screen and (max-width: 640px);
 

@@ -989,3 +989,33 @@ U7 登记的三件（导航轨 / 行内引用标 / 顶栏副标题）在用户�
 |---|---|---|
 | 联网搜索 / 语音输入两节 | 「这些重复的帮我去掉」 | 一节里同一个词出现三遍：`SettingsPage` 的页标题（`.d-t-lg.d-t-b`）、分节自己的 `.d-set-sec-t`、开关行的 `.d-set-row-t`。中间那一条（`.d-set-sec-t`）整行退场 —— 页标题与开关行标签都留下。只有这两节中招：全仓扫「页标题文案 == 本页任一 `.d-set-sec-t` 文案」，命中的只有 `settings.websearch`↔`section` 与 `settings.voice`↔`section`（两组四个 key 文案本来就一模一样）。**对画板 D-37 的偏离**：板面第一块 `.d-set-sec` 带 `.d-set-sec-t`（板面没有页标题，所以板上不重复）；`settings.websearchSection` 留着未删（要恢复就是一行） |
 | 语音输入 | 「语音输入你帮我去掉吧，我感觉这个还不行，请你帮我删除吧」 | **整个特性下线**（不是隐藏）：`components/VoiceInputButton.tsx`、`components/fork/VoiceSettingsPanel.tsx`、`hooks/useVoiceInput.ts`、`hooks/useLocalVoiceInput.ts`、`lib/voice/**`、`app/api/voice/**`、`public/vendor/voice/**`（ORT wasm + transformers，~55MB）、画板 `D-38-settings-voice.html` 全部删除；设置导航 / hub 分组 / 设置壳 / `ChatInput`（两处麦克风钮 + 识别错误横幅）/ 三语 45 条 `settings.voice*`、`voice.*` 文案 / `@huggingface/transformers` 依赖一并退场。**D-04 输入框板面上那三枚「语音输入（浏览器识别）」钮保留不改**（板面是设计稿，产品主动下线，与 D-21 记忆与知识同一口径） |
+
+## AB · 顶栏去掉玻璃内阴影（2026-10-08 · fork:apple-sketch）
+
+**用户原话**：「这个顶栏黑乎乎的边框帮我去掉，感觉不好看」（实拍圈的是顶栏上下两条边）。
+
+**根因不是边框，是 `--nx-glass-inner`。** `design/v5/base.css` §12 把 Apple kit 的
+`Regular/Large` 玻璃共享样式逐层照抄下来，其中四层是 `#272727` 的 **inset**：
+
+| 层 | 效果 |
+|---|---|
+| `inset 0 ±4px 8px -4px #272727` | 上下各一道 8px 的暗渐变 |
+| `inset 0 ±1px 1.5px -0.5px #272727` | 上下各一条 1px 的**黑线** |
+
+`.d-topbar` 是全仓**唯一**消费这条 token 的地方（`design/v5/web/system.css:121`）。
+
+kit 那样写是给「玻璃浮在**花哨背景**上」用的 —— 靠暗边把玻璃与背景分开。本产品顶栏
+底下是纯白页面，没有背景可分离，这两层只把自己读成一根黑边框：真 Chrome 实测顶栏
+上下缘合成到 **rgb(77,77,77)**（顶栏 36px 高，暗边占了可见高度的一半以上）。
+
+**处置**：`--nx-glass-inner` 只留 kit 那条白色高光（`inset 0 2px 0.25px -1.5px #ffffff`）。
+边缘仍有定义 —— 外缘 `--nx-glass-rim`（0.5px `#dbdbdb`）与 `.d-topbar` 自己的
+`border-bottom: 1px solid var(--nx-line)` 都留着；`--nx-glass-ambient`（顶栏下方那层
+柔和投影）**不动**，它不是「边框」。
+
+**这是对 Apple kit 的有意偏离**（本台账「登记不改」口径）。改后顶栏上下缘只剩
+`rgb(218–229)` 那一档浅灰，与页面底同色系。
+
+**同批发现的 stale**（未动，留给下一轮）：`--nx-glass-rim-dark` /
+`--nx-glass-inner-dark` / `--nx-glass-ambient-dark` 三条在 base.css 定义后**全仓零引用**
+—— `.d-topbar` 的 `box-shadow` 明暗两态都走无后缀那三条。要么接上，要么删掉。
