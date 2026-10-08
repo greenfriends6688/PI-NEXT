@@ -40,10 +40,25 @@
 | 侧栏右缘分隔 | `rgba(0,0,0,0.1)` 可见 | `rgba(255,255,255,0.1)` 可见 |
 | `--bg` / `--text` / `--accent` | `#fff` / `#000000d9` / `#08f` | `#1e1e1e` / `#fff` / `#0091ff` |
 
+## 安装包（同一 release）
+
+| 资产 | 体积 | 说明 |
+|---|---|---|
+| `PI-NEXT-0.10.0-beta.2-arm64.dmg` | 118.8 MiB | macOS Apple Silicon（ULMO/lzma）；**未签名**（ad-hoc），首次打开需右键 → 打开 |
+| `PI-NEXT-Setup-0.10.0-beta.2.exe` | 142.4 MiB | Windows x64，NSIS 安装包；**未签名**，SmartScreen 会拦 |
+| `pi-next-source-v0.10.0-beta.2.zip` | 10.67 MiB | 源码包（不含 `docs/` 与可再生成截图） |
+
+打包验证（不是只看 curl 200）：
+
+- DMG `hdiutil verify` 通过；**挂载后从卷内真启动**，`/api/home` = 200（冷启 ~54s）。
+- 打包后的 **Electron 真窗口**里顶栏 4 枚按钮**全部可点** —— `elementFromPoint` 命中各自
+  的 SVG，没有被 `.desktop-drag-handle` 盖住（那个手柄占 `[284,0,968,35]`，按钮正好在它
+  的矩形内，所以这条必须实测）。
+- Windows 包自检：`node-pty` 的 win32 预编译产物在、exe 架构 `PE32+ x86-64`、locales 已裁到 9 个。
+- 体积对齐基线：arm64 DMG 118.8 MiB（v0.1.9 是 118.4），Windows 142.4 MiB（v0.1.9 是 142.3）。
+
 ## 已知
 
-- **本版 release 只有源码 zip**，没有 DMG / EXE。要挂安装包就用 `mac-dmg-packaging-arm` /
-  `windows-exe-packaging` 打到同一个 release 上。
 - `npm run check:design` 的样式字面量基线仍落后 12 个键（既有代码，两个 beta 都没新增违规）。
 - `design/apple/README.md` 写的重跑需要两份 `.sketch` 原件（不入库），仓库里跑不了
   `npm run sketch:build`。

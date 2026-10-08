@@ -605,6 +605,8 @@ CI 里如果跑不了，就把工具名清单写进 `SHORTCUT_COMMANDS` 那样�
 
 * 体积基线：app 756M → 通用 DMG **191M**（ULMO）；Windows nsis **144M**。大头是 Electron 框架 （双架构 418M，单架构约 208M），再小只能改成 Next standalone 输出。v0.1.8 复盘：技能脚本裸跑 Turbopack 让 arm64 DMG 涨到 380M（app 1.3G）；改回 webpack 构建 + afterPack 符号链接注入 + esbuild 平台裁剪后 **arm64 DMG 116M**（app 323M），低于 0.1.7 的 218M（见 git log fork:pack-size）。
 
+* **`pack-mac-dmg.sh` 必须传 `--compression maximum`**（ULMO/lzma）。技能默认是 `normal`（UDZO/zlib），同一份 app 打出来 **160M vs 118M —— 白胖 42M**（实测 2026-10-08，0.10.0-beta.2）。判别办法：`hdiutil imageinfo X.dmg | grep '^Format:'`，基线是 `ULMO`（压缩比 ~0.216），`UDZO` 就是选错了（~0.291）。ULMO 需 macOS 10.15+ 挂载，而本 app 的 `minimumSystemVersion` 本来就是 12.0，没有额外代价。
+
 * 打包后必做三件事：`env -u ELECTRON_RUN_AS_NODE` 启动冒烟（`/api/home` 200）、`hdiutil verify`、 以及**真 Electron 窗口里的点击验证**（顶栏按钮是否被 `.desktop-drag-handle` 盖住—— 手柄是绝对定位元素，会绘制在 static 按钮之上，详见 `app/fork-ui.css`）。冒烟不必退出正在使用的正式实例：`electron/main.js` 支持 `PI_WEB_USER_DATA_DIR` 覆盖 userData（单实例锁按 userData 路径判定），打包技能 Step 6 自动走它。
 
 ## Pi Session File Format
