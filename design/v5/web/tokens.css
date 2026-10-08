@@ -177,6 +177,13 @@
   --nx-text-2:  var(--nx-sk-labels-dark-2-secondary);
   --nx-text-3:  var(--nx-sk-labels-dark-3-tertiary);
 
+  /* fork:apple-sketch 修正（2026-10-08 第二轮）—— **这一条是补漏**：上面那个 :root 块
+     排在原文件的 `[data-theme="dark"]`（第 94 行）**之后**，同特异性后来者胜，
+     而它把 `--nx-line` 声明成了浅色值 —— 于是暗色下所有分隔线（侧栏右缘、面板边、
+     顶栏下缘）都变成 10% **黑**，在近黑底上等于没有。实测暗色下 `.d-side` 的
+     `border-right-color` 曾是 `rgba(0,0,0,0.1)`。这里补回 kit 的暗色档。
+     排查方式：见 `design/v5/dark-token-coverage.test.mjs`。 */
+  --nx-line:    var(--nx-sk-labels-dark-4-quaternary);
   --nx-accent:  var(--nx-sk-system-colors-dark-8-blue);
 }
 

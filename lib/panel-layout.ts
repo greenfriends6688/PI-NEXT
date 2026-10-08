@@ -1,10 +1,15 @@
 export const MOBILE_MAX_WIDTH = 640;
 export const SPLIT_PANEL_MIN_WIDTH = 960;
 
-// fork:design-system PR-06 — 侧栏尺寸照设计 §2.2 / tokens.css §11：
-// 默认 280px、可拖 220–480。旧值 300 / 232–360 是 Zeno 血统
-// （`SHELL_SIDEBAR` 的 300px + 232–360 拖动带）。
-export const SIDEBAR_DEFAULT_WIDTH = 280;
+// fork:apple-sketch（2026-10-08）—— 默认宽 280 → **256**：macOS kit 的侧栏实测值
+// （Windows 页：600×300 窗口 = 左 256 + 右 344）。此前 280 是 fork:design-system PR-06
+// 照设计 §2.2 / 旧 tokens.css §11 定的（Zeno 血统）；Apple 接管令牌后这个值也归 kit。
+// 可拖范围 220–480 不动（kit 没给范围）。
+//
+// 注：`app/globals.css` 与 `design/v5/web/system.css` 里那两处
+// `var(--sidebar-width, 256px)` / `.d-side { width: 256px }` 是**兜底**，真值一直是
+// 本常量经 AppShell 内联写成的 `--sidebar-width`；三处必须同值。
+export const SIDEBAR_DEFAULT_WIDTH = 256;
 export const SIDEBAR_MIN_WIDTH = 220;
 export const SIDEBAR_MAX_WIDTH = 480;
 

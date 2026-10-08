@@ -149,6 +149,10 @@
   --nx-text-2:  var(--nx-sk-labels-dark-2-secondary);
   --nx-text-3:  var(--nx-sk-labels-dark-3-tertiary);
 
+  /* fork:apple-sketch 修正（2026-10-08 第二轮）—— 与 Web 同一个漏：上面那个 :root 块
+     排在原文件的 `[data-theme="dark"]` 之后，把 `--nx-line` 覆盖成了浅色值，
+     暗色下所有分隔线在近黑底上等于没有。这里补回 kit 的暗色档。 */
+  --nx-line:    var(--nx-sk-separators-dark-non-opaque);
   --nx-accent:  var(--nx-sk-system-colors-dark-8-blue);
 }
 

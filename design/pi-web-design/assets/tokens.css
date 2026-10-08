@@ -138,7 +138,10 @@
   --control-2xs: 22px;  /* 最小方钮：.pw-iconbtn.sm / 树行内钿 / 计数角标按钮 */
 
   /* ---- 11. 布局刻度 ----------------------------------------------------- */
-  --sidebar-width: 280px;
+  /* fork:apple-sketch（2026-10-08）—— 280 → 256：Apple macOS kit 的侧栏实测值
+     （Windows 页 600×300 窗口 = 左 256 + 右 344）。本文件是 v1–v4 规范层，产品实际
+     走 `lib/panel-layout.ts` 的 SIDEBAR_DEFAULT_WIDTH，两处同值。 */
+  --sidebar-width: 256px;
   --sidebar-min: 220px;
   --sidebar-max: 480px;
   --rail-width: 52px;

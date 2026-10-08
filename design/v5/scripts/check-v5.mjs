@@ -88,6 +88,54 @@ for (const [name, value] of T_BASE) {
   }
 }
 
+/* ── 3c · 后置 :root 块不许把浅色值泄漏进暗色模式 ────────────────────────────
+ * fork:apple-sketch 真实事故（2026-10-08）：新的 `:root { … }` 块**追加在文件末尾**，
+ * 而原文件的 `[data-theme="dark"]` 在它前面 —— 两者同特异性（0-1-0），后来者胜。
+ * 于是 `--nx-line` 被浅色值盖掉，暗色下所有分隔线变成 10% 黑，在近黑底上等于没有
+ * （实测暗色 `.d-side` 的 `border-right-color` 曾是 `rgba(0,0,0,0.1)`）。
+ *
+ * 判据：**颜色类**令牌（值含 #hex / rgb / hsl / color-mix / `-light-`）只要在第一个
+ * 暗色块之后还被 `:root` 声明，就必须在它之后的暗色块里重新声明。尺寸类令牌
+ * （`--nx-c-*` / `--nx-fs-*` …）两主题同值，不在此列。 */
+const COLORISH = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|color-mix\(|-light-/;
+function darkCoverageLeaks(css, where) {
+  const src = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const decls = [];
+  let sel = null;
+  let buf = "";
+  for (const ch of src) {
+    if (ch === "{") { sel = buf.trim(); buf = ""; continue; }
+    if (ch === "}") {
+      for (const m of buf.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/g)) {
+        decls.push({ name: m[1], value: m[2].trim(), sel });
+      }
+      buf = ""; sel = null; continue;
+    }
+    buf += ch;
+  }
+  const isDark = (s) => /data-theme="dark"|\.dark\b/.test(s);
+  const firstDark = decls.findIndex((d) => isDark(d.sel));
+  if (firstDark < 0) return;
+  const seen = new Set();
+  for (let i = firstDark + 1; i < decls.length; i++) {
+    const d = decls[i];
+    if (isDark(d.sel) || !/:root/.test(d.sel)) continue;
+    if (seen.has(d.name) || !COLORISH.test(d.value)) continue;
+    /* 关键：要看**这个后置 :root 声明之后**还有没有暗色块声明同名令牌。
+       只看「第一个暗色块之后」会把原暗色块自己的声明也算成覆盖 —— 那样守卫
+       永远不报错（实测：故意删掉修复仍报 0 错误）。 */
+    const laterDark = decls.some((x, j) => j > i && isDark(x.sel) && x.name === d.name);
+    if (laterDark) continue;
+    seen.add(d.name);
+    errors.push(
+      `${where}: ${d.name} 在暗色块之后被 :root 声明为「${d.value}」且后面没有暗色块重新声明` +
+        " —— 暗色下会吃到这个浅色值（同特异性，后来者胜）",
+    );
+  }
+}
+darkCoverageLeaks(webTokens, "web/tokens.css");
+darkCoverageLeaks(pwaTokens, "pwa/tokens.css");
+
 /* ── 4 · 逐张画板 ───────────────────────────────────────────────────────── */
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{1F1E6}-\u{1F1FF}]/u;
 

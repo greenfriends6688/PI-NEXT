@@ -1019,3 +1019,67 @@ kit 那样写是给「玻璃浮在**花哨背景**上」用的 —— 靠暗边�
 **同批发现的 stale**（未动，留给下一轮）：`--nx-glass-rim-dark` /
 `--nx-glass-inner-dark` / `--nx-glass-ambient-dark` 三条在 base.css 定义后**全仓零引用**
 —— `.d-topbar` 的 `box-shadow` 明暗两态都走无后缀那三条。要么接上，要么删掉。
+
+## AC · 深色玻璃边缘 + 侧栏 256（2026-10-08 第二轮 · fork:apple-sketch）
+
+### AC.1 深色顶栏的两条亮线 —— 上一轮**自己引入的回归**
+
+§AB 只看了浅色。补测深色后实测：顶栏上下缘各压一条 `#dbdbdb` 亮线 —— y=0 像素
+`rgb(167,167,168)`、y=36 像素 `rgb(154,154,154)`，而顶栏本身只有 `rgb(78,78,82)`。
+与用户报的「黑边」是同一类问题，只是明暗反了。
+
+**根因**：v0.1.9 的 `.d-topbar` 根本没有 `box-shadow`（`base.css` 里连 `--nx-glass-*`
+都没有，整套玻璃边缘是 2026-10-08 新加的）。新加的
+`box-shadow: var(--nx-glass-rim), …` 里 `--nx-glass-rim` 是浅色 `#dbdbdb`，
+而 kit 的 `-dark` 三条定义了却**全仓零引用**。
+
+**处置**：在**令牌层**换一次，三个消费方（`.d-topbar` / `.d-jump` / PWA `.m-top-btn`）
+一起跟上，不必各自写暗色覆盖。
+
+| 令牌（深色取值） | 值 | 理由 |
+|---|---|---|
+| `--nx-glass-rim` | `0 0 0 0 transparent` | 本产品深色顶栏是近黑（合成 78），kit 的 `#a6a6a6` 照样读成亮线。**不写 `none`** —— `box-shadow` 是逗号列表，列表里出现 `none` 会让**整条声明作废** |
+| `--nx-glass-inner` | `var(--nx-glass-inner-dark)` | 与 §AB 同一条裁定：kit 的暗 inset（`#343434` / `#676767`）在纯色底上同样只读成边框，只留 kit 那条白色高光 |
+| `--nx-glass-ambient` | `var(--nx-glass-ambient-dark)` | 深色投影本来就更重 |
+
+`--nx-glass-rim-dark` **删掉**（§AB 登记的「要么接上，要么删掉」，取删掉）。
+边缘仍由 `.d-topbar` 自己的 `border-bottom: 1px solid var(--nx-line)`（10% 白）定义。
+
+### AC.2 侧栏 280 → 256 —— 修正上一轮那句不成立的话
+
+上一轮提交信息里的「侧栏 260 → 256」**不成立**：产品侧栏一直是 **280**，来源是
+`lib/panel-layout.ts` 的 `SIDEBAR_DEFAULT_WIDTH = 280`，由 `AppShell` 内联写成
+`--sidebar-width`。`app/globals.css` 的 `var(--sidebar-width, 256px)` 是**永不生效的兜底**；
+`design/v5/web/system.css` 的 `.d-side { width: 256px }` 也被
+`.sidebar-container.sidebar-open` 盖掉 —— 设置页「外观 → 侧边栏 → 宽度」显示 **280 px** 可证。
+
+**处置**：改真值而不是改兜底 —— `SIDEBAR_DEFAULT_WIDTH` 与旧 `tokens.css` §11 的
+`--sidebar-width` 一并 280 → 256，三处同值。280 原是从 Zeno 血统的 fork:design-system
+PR-06 来的，Apple 接管后这个值归 kit（macOS Windows 页：600×300 = 左 256 + 右 344）。
+可拖范围 220–480 不动（kit 没给范围）。
+
+**教训（写在这里免得再犯）**：兜底值改了不等于改了行为 —— 一个值有几个来源时，
+先找**真正在跑的那个**（这里是 JS 常量经内联变量），再动手。上一轮把兜底当成了真值。
+
+### AC.3 暗色分隔线全没了 —— 同一批改动引入的第三个漏
+
+修顶栏时顺手量了侧栏右缘，发现暗色下 `.d-side` 的 `border-right-color` 是
+`rgba(0, 0, 0, 0.1)` —— **10% 黑压在近黑底上**，等于没有分隔线（面板边、卡片边同理）。
+
+**根因是「同特异性后来者胜」**：本轮的 Apple 接管块 `:root { … --nx-line: 浅色值 … }`
+是**追加在文件末尾**的，而原文件的 `[data-theme="dark"]`（`web/tokens.css:94`）在它前面。
+两者特异性都是 0-1-0 → 后置的浅色声明赢了，暗色原本的
+`--nx-line: rgba(255,255,255,.09)` 被静默盖掉。
+
+**处置**：在两个 tokens.css 的后置暗色块里补回 `--nx-line`（取 kit 的暗色档：
+Web `labels/dark/4-quaternary` = `#ffffff1a`，PWA `separators/dark/non-opaque` = `#ffffff1f`）。
+
+**并加了一条守卫**：`design/v5/scripts/check-v5.mjs` §3c —— 第一个暗色块之后被 `:root`
+声明的**颜色类**令牌（值含 hex / rgb / hsl / color-mix / `-light-`），必须在它**之后**的
+某个暗色块里重新声明，否则 `npm run design:v5` 报错。尺寸类令牌（`--nx-c-*` / `--nx-fs-*`…）
+两主题同值，不在此列。
+
+守卫写错过一次并当场发现：第一版把「第一个暗色块之后的暗色声明」全算成覆盖，
+于是**原暗色块自己的声明**也成了覆盖 —— 故意删掉修复仍然报 0 错误。
+判据必须是「在这个后置 `:root` 声明**之后**还有暗色声明」，不是「在第一个暗色块之后」。
+反向验证过：删掉修复，守卫精确报出 web / pwa 两条。
