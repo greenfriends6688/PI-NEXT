@@ -1,5 +1,5 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, type LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
 import { dump as stringifyYaml } from "js-yaml";
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from "fs";
 import { basename, dirname, join, resolve } from "path";
@@ -32,6 +32,10 @@ export interface SubagentProfile {
   extensionTools?: string[];
   /** fork:pr2-security：原始的 `ext:` 禁用名单选择器，在 spawn 时对着已加载的扩展解析。 */
   disallowedExtensionTools?: string[];
+  /** fork:subagent-scope（上游 #1034）—— 省略 = SDK 按需发现；[] = 明确不选技能。 */
+  skills?: string[];
+  /** fork:subagent-scope（上游 #1091）—— 省略 = 全部已启用扩展；[] = 一个都不加载。 */
+  extensions?: string[];
   loadSkills: boolean;
   loadExtensions: boolean;
   model?: string;
@@ -65,6 +69,8 @@ export interface SubagentMetadata {
 
 export interface SubagentResourceSnapshot {
   version: 1;
+  skills?: string[];
+  extensions?: string[];
   appendSystemPrompt: string[];
   tools: string[];
   loadSkills: boolean;
@@ -73,6 +79,8 @@ export interface SubagentResourceSnapshot {
 }
 
 export interface SubagentSessionResources {
+  skills?: string[];
+  extensions?: string[];
   appendSystemPrompt: string[];
   tools: string[];
   loadSkills: boolean;
@@ -212,6 +220,43 @@ function resourceBoolean(value: unknown, fallback: boolean): boolean {
   return Array.isArray(value) || typeof value === "string" ? true : fallback;
 }
 
+/**
+ * fork:subagent-scope（上游 #1034/#1091）—— 技能或扩展名：从列表或逗号分隔字符串来，
+ * trim + 去重。空项与非字符串项丢掉（与 pi-subagents 一致）：一个多余的逗号
+ * 不该让整份 profile 变得读不出来。
+ */
+export function subagentNameList(value: unknown): string[] {
+  const items: unknown[] = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [];
+  return [...new Set(items
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean))];
+}
+
+/**
+ * profile 在 `skills:` / `extensions:` 里列出的名字。`undefined` = 没有列表：
+ * 键缺失、为空，或写的是开关拼写（`true` / `all` / `none` …）—— 那种情况交给
+ * `load_skills` / `load_extensions`，保存时二者保持同步。
+ */
+function profileNameList(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) return subagentNameList(value);
+  if (typeof value !== "string" || OWNED_ALIAS_VALUES.has(value.trim().toLowerCase())) return undefined;
+  const names = subagentNameList(value);
+  return names.length > 0 ? names : undefined;
+}
+
+/** `extensions:` 列表；里面有 `*` 就等于加载全部（与 pi-subagents 一致）。 */
+function profileExtensions(value: unknown): string[] | undefined {
+  const names = profileNameList(value);
+  return names?.includes("*") ? undefined : names;
+}
+
+/** `load_skills` / `load_extensions`，否则看别名；`none` 与 `false` 都是关。 */
+function profileResourceSwitch(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "string" && ["none", "false"].includes(value.trim().toLowerCase())) return false;
+  return resourceBoolean(value, fallback);
+}
+
 function stringList(value: unknown): string[] {
   const values = Array.isArray(value)
     ? value
@@ -293,6 +338,9 @@ function parseProfileFile(filePath: string, scope: SubagentScope): SubagentProfi
     const thinkingValue = stringValue(data?.thinking) as ThinkingLevel | undefined;
     const maxTurnsValue = typeof data?.max_turns === "number" ? Math.floor(data.max_turns) : undefined;
     const tools = parseTools(data?.tools, DEFAULT_TOOLS);
+    // fork:subagent-scope —— 命名白名单：`skills:` / `extensions:` 列表（省略 = SDK 默认）。
+    const skills = profileNameList(data?.skills);
+    const extensions = profileExtensions(data?.extensions);
     const disallowedTools = new Set(parseTools(data?.disallowed_tools, []));
     const disallowedExtensionTools = parseExtensionToolSelectors(data?.disallowed_tools);
     // 这层只是解析期的字面快速路径：它看不见扩展别名（`ext:codegraph` 与
@@ -316,8 +364,10 @@ function parseProfileFile(filePath: string, scope: SubagentScope): SubagentProfi
       tools: tools.filter((tool) => !disallowedTools.has(tool)),
       ...(extensionTools.length > 0 ? { extensionTools } : {}),
       ...(disallowedExtensionTools.length > 0 ? { disallowedExtensionTools } : {}),
-      loadSkills: resourceBoolean(data?.load_skills ?? data?.skills, false),
-      loadExtensions: resourceBoolean(data?.load_extensions ?? data?.extensions, extensionTools.length > 0),
+      ...(skills !== undefined ? { skills } : {}),
+      ...(extensions !== undefined ? { extensions } : {}),
+      loadSkills: profileResourceSwitch(data?.load_skills ?? data?.skills, false),
+      loadExtensions: profileResourceSwitch(data?.load_extensions ?? data?.extensions, extensionTools.length > 0),
       ...(stringValue(data?.model) ? { model: stringValue(data?.model) } : {}),
       ...(thinkingValue && THINKING_LEVELS.has(thinkingValue) ? { thinking: thinkingValue } : {}),
       ...(maxTurnsValue && maxTurnsValue > 0 ? { maxTurns: maxTurnsValue } : {}),
@@ -466,8 +516,19 @@ export function saveSubagentProfile(
     run_in_background: profile.runInBackground,
     prompt_mode: promptMode,
   };
-  syncFlagAlias(managed, "skills", stored.skills, loadSkills);
+  // fork:subagent-scope（上游 #1034）—— `skills:` 列表：面板没有编辑器，保存时保留作者写法。
+  const skills = profile.skills === undefined ? profileNameList(stored.skills) : subagentNameList(profile.skills);
+  if (skills !== undefined) {
+    const storedSkills = profileNameList(stored.skills);
+    managed.skills = storedSkills !== undefined && JSON.stringify(storedSkills) === JSON.stringify(skills)
+      ? stored.skills
+      : skills;
+  } else {
+    syncFlagAlias(managed, "skills", stored.skills, loadSkills);
+  }
+  // The panel has no editor for an `extensions:` list, so the file's own list always stays.
   syncFlagAlias(managed, "extensions", stored.extensions, loadExtensions);
+  const extensions = profileExtensions(stored.extensions);
   if (model) managed.model = model;
   if (profile.thinking) managed.thinking = profile.thinking;
   if (maxTurns) managed.max_turns = maxTurns;
@@ -488,6 +549,8 @@ export function saveSubagentProfile(
     description,
     systemPrompt,
     tools,
+    ...(skills !== undefined ? { skills } : {}),
+    extensions,
     ...(extensionTools.length > 0 ? { extensionTools } : {}),
     loadSkills,
     loadExtensions,
@@ -541,6 +604,9 @@ export function readSubagentSessionResources(
   const data = subagentMetadataData(entries);
   if (!data) return null;
   const snapshot = data.resourceSnapshot;
+  // A malformed list narrows to what it names, never back to the whole catalog.
+  const skills = isRecord(snapshot) && "skills" in snapshot ? subagentNameList(snapshot.skills) : undefined;
+  const extensions = isRecord(snapshot) && "extensions" in snapshot ? subagentNameList(snapshot.extensions) : undefined;
   const loadSkills = isRecord(snapshot) && snapshot.loadSkills === true;
   const loadExtensions = isRecord(snapshot) && snapshot.loadExtensions === true;
   if (
@@ -557,6 +623,8 @@ export function readSubagentSessionResources(
     )
   ) {
     return {
+      ...(skills !== undefined ? { skills } : {}),
+      ...(extensions !== undefined ? { extensions } : {}),
       appendSystemPrompt: [...snapshot.appendSystemPrompt],
       tools: [...new Set(snapshot.tools)],
       loadSkills,
@@ -719,6 +787,42 @@ export function selectSubagentExtensionTools(
     }));
   }
   return [...new Set(selected)];
+}
+
+/**
+ * fork:subagent-scope（上游 #1091）—— 只保留 `extensions:` 列表点名的扩展，
+ * 在 SDK 加载完之后做（与 pi-subagents 一致）。被丢掉的扩展不再绑任何 handler /
+ * tool / command / provider，但它的 factory 已经跑过一次 —— 这是**收窄**，不是沙箱。
+ * 名字按 `ext:` 选择器的同一套规则解析（目录 / 文件 / 包名，大小写不敏感），
+ * 两个来源都认的名字谁都不留。pi-web 自己的 `<inline:…>` 扩展永远保留。
+ * SDK 每次 reload 都会重跑这个 override，所以作用域不需要额外接线。
+ */
+export function scopeSubagentExtensions(names: readonly string[]) {
+  const wanted = new Set(names.map((name) => name.toLowerCase()));
+  return (base: LoadExtensionsResult): LoadExtensionsResult => {
+    const owners = extensionNameOwners(base.extensions);
+    const extensions = base.extensions.filter((extension) => (
+      extension.path.startsWith("<inline:")
+      || extensionCandidateNames(extension).some((name) => wanted.has(name) && owners.get(name)?.size === 1)
+    ));
+    const kept = new Set(extensions.map((extension) => extension.path));
+    const { runtime } = base;
+    // 被丢掉扩展的 factory 排进运行时的注册也会到模型那里，一并筛掉。
+    runtime.pendingProviderRegistrations = runtime.pendingProviderRegistrations.filter((item) => kept.has(item.extensionPath));
+    runtime.pendingNativeProviderRegistrations = runtime.pendingNativeProviderRegistrations.filter((item) => kept.has(item.extensionPath));
+    runtime.pendingVirtualModelRegistrations = runtime.pendingVirtualModelRegistrations.filter((item) => kept.has(item.extensionPath));
+    return { ...base, extensions };
+  };
+}
+
+/** fork:subagent-scope（上游 #1091）—— 子会话资源加载器选项里的扩展一半，spawn 与 reopen 共用。 */
+export function subagentExtensionLoaderOptions(resources: { loadExtensions: boolean; extensions?: readonly string[] }) {
+  return {
+    noExtensions: !resources.loadExtensions,
+    ...(resources.loadExtensions && resources.extensions !== undefined
+      ? { extensionsOverride: scopeSubagentExtensions(resources.extensions) }
+      : {}),
+  };
 }
 
 export function readSubagentRun(entries: readonly SessionEntry[], sessionId: string, sessionPath: string): SubagentRunInfo | null {

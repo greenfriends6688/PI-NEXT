@@ -91,7 +91,9 @@ function editableProfile(profile: SubagentProfile): EditableProfile {
     systemPrompt: profile.systemPrompt,
     tools: [...profile.tools],
     loadSkills: profile.loadSkills,
+    ...(profile.skills !== undefined ? { skills: [...profile.skills] } : {}),
     loadExtensions: profile.loadExtensions,
+    ...(profile.extensions !== undefined ? { extensions: [...profile.extensions] } : {}),
     promptMode: profile.promptMode,
     ...(profile.model ? { model: profile.model } : {}),
     ...(profile.thinking ? { thinking: profile.thinking } : {}),
@@ -950,6 +952,21 @@ export function AgentsConfig({
                     <ToolChip selected={draft.loadSkills} disabled={disabled} onClick={() => update("loadSkills", !draft.loadSkills)}>{t("agents.loadSkills")}</ToolChip>
                     <ToolChip selected={draft.loadExtensions} disabled={disabled} onClick={() => update("loadExtensions", !draft.loadExtensions)}>{t("agents.loadExtensions")}</ToolChip>
                   </div>
+                  {/* fork:subagent-scope —— `skills:` / `extensions:` 列表在 profile 文件里编辑；这里只展示它加载什么。 */}
+                  {draft.loadSkills && draft.skills !== undefined && (
+                    <span className="d-t-dim" style={{ fontSize: "var(--text-meta)" }}>
+                      {draft.skills.length > 0
+                        ? t("agents.skillsOnly", { skills: draft.skills.join(", ") })
+                        : t("agents.skillsNone")}
+                    </span>
+                  )}
+                  {draft.loadExtensions && draft.extensions !== undefined && (
+                    <span className="d-t-dim" style={{ fontSize: "var(--text-meta)" }}>
+                      {draft.extensions.length > 0
+                        ? t("agents.extensionsOnly", { extensions: draft.extensions.join(", ") })
+                        : t("agents.extensionsNone")}
+                    </span>
+                  )}
                 </div>
 
                 <div className="d-row">
