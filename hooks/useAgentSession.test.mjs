@@ -374,7 +374,8 @@ test("delegates event stream readiness and hides an empty agent phase", () => {
   assert.doesNotMatch(chatWindowSource, /className="[^"]*break-words[^"]*"[\s\S]{0,120}?<PhaseRoll/,
     "相位行的宿主不再是裸文字行（D-03e 帧 B 的阶段卡）");
   assert.match(phaseRollSource, /if \(!displayed && !exiting\) return null;/);
-  assert.match(phaseRollSource, /padding: "8px 0"/);
+  // 宿主 padding 已扬弃：间距由画板 D-03e 帧 B 的 `.d-card-body`（CSS）承担，
+  // PhaseRoll 自己不再写 `padding: "8px 0"`（旧断言已过期，随 V5 落地删除）。
   assert.match(chatWindowSource, /return null;/);
 });
 
