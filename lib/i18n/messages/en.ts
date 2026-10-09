@@ -830,6 +830,8 @@ export const enLocale: LocalePlugin = {
     "session.pin": "Pin to top",
     "session.unpin": "Unpin",
     "session.archive": "Archive",
+    "session.fork": "Fork",
+    "session.forkFailed": "Could not fork the session",
     "session.unarchive": "Unarchive",
     "session.title": "Session info",
     "session.load": "Send a message or run /session to load session info",

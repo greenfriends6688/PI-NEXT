@@ -828,6 +828,8 @@ export const zhTWLocale: LocalePlugin = {
     "session.pin": "置頂",
     "session.unpin": "取消置頂",
     "session.archive": "封存",
+    "session.fork": "分叉",
+    "session.forkFailed": "分叉工作階段失敗",
     "session.unarchive": "取消封存",
     "session.title": "工作階段資訊",
     "session.load": "傳送訊息或執行 /session 以載入工作階段資訊",

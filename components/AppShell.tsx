@@ -1131,6 +1131,27 @@ export function AppShell() {
     if (!result.ok) console.error(`[pi-web] copy session reference failed: ${result.reason}`);
   }, []);
 
+  /* fork:pi-1.1（上游 085fba902）—— 侧栏行菜单里的「分叉」：文件级复制，不碰任何
+     AgentSession，源会话在跑也不受影响。成功只刷新列表；失败要有可见反馈，
+     否则就是「点了没反应」（走那条 3s 的 .pw-toast）。 */
+  const handleForkSession = useCallback(async (detail: SessionRowContextMenuDetail) => {
+    try {
+      const res = await fetch(`/api/sessions/${encodeURIComponent(detail.id)}/fork`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { error?: string }));
+        showToast(data.error ?? translate("session.forkFailed"));
+        return;
+      }
+      detail.refresh();
+    } catch {
+      showToast(translate("session.forkFailed"));
+    }
+  }, [showToast, translate]);
+
   const handleFileLocationHandled = useCallback((target: FileLocationTarget) => {
     setPendingFileLocation((current) => current === target ? null : current);
   }, []);
@@ -4062,7 +4083,7 @@ export function AppShell() {
       </div>
       </div>
     </div>
-    <SessionRowContextMenuBridge onCopyReference={copySessionReference} />
+    <SessionRowContextMenuBridge onCopyReference={copySessionReference} onFork={handleForkSession} />
     {settingsSection && (
       <SettingsPanel
         onOpenSession={handleOpenSession}

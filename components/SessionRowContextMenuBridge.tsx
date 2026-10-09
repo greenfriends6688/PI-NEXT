@@ -18,8 +18,11 @@ import { getSessionFlags, toggleArchived, togglePinned } from "@/lib/session-fla
  */
 export function SessionRowContextMenuBridge({
   onCopyReference,
+  onFork,
 }: {
   onCopyReference: (detail: SessionRowContextMenuDetail) => void | Promise<void>;
+  /** fork:pi-1.1（上游 085fba902）—— 侧栏行菜单的「分叉」。 */
+  onFork?: (detail: SessionRowContextMenuDetail) => void | Promise<void>;
 }) {
   const { openMenu } = useContextMenu();
   const { t } = useI18n();
@@ -60,6 +63,18 @@ export function SessionRowContextMenuBridge({
           },
         },
         { type: "separator" },
+        ...(onFork ? [{
+          label: t("session.fork"),
+          icon: (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="6" cy="5" r="2.5" />
+              <circle cx="18" cy="5" r="2.5" />
+              <circle cx="12" cy="19" r="2.5" />
+              <path d="M6 7.5v3a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3v-3M12 13.5v3" />
+            </svg>
+          ),
+          onSelect: () => onFork(detail),
+        }] : []),
         {
           // fork:design-system PR-25 — 设计 51 画板：会话行菜单里的「导出为 HTML」。
           // 复用既有的导出路由（HTML 用 inline=1），只是把入口补到菜单里。
@@ -94,7 +109,7 @@ export function SessionRowContextMenuBridge({
     };
     window.addEventListener(SESSION_ROW_CONTEXT_MENU_EVENT, handle as EventListener);
     return () => window.removeEventListener(SESSION_ROW_CONTEXT_MENU_EVENT, handle as EventListener);
-  }, [openMenu, onCopyReference, t]);
+  }, [openMenu, onCopyReference, onFork, t]);
 
   return null;
 }

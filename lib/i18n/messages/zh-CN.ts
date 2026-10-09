@@ -837,6 +837,8 @@ export const zhCNLocale: LocalePlugin = {
     "session.pin": "置顶",
     "session.unpin": "取消置顶",
     "session.archive": "归档",
+    "session.fork": "分叉",
+    "session.forkFailed": "分叉会话失败",
     "session.unarchive": "取消归档",
     "session.title": "会话信息",
     "session.load": "发送消息或运行 /session 以加载会话信息",
