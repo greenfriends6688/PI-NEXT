@@ -1169,6 +1169,8 @@ export const zhTWLocale: LocalePlugin = {
     "files.uploading": "正在上傳，{progress}%",
     "files.newFile": "新增檔案",
     "files.newFolder": "新增資料夾",
+    "files.showIgnored": "顯示被忽略的檔案",
+    "files.hiddenReason": "被 Git 忽略規則隱藏",
     "files.newFileName": "檔案名稱",
     "files.newFolderName": "資料夾名稱",
     // fork:v5-landing D-05 帧 A —— 面板体里那行弱化说明与树脚注（板面原文）。

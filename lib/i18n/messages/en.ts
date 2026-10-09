@@ -1172,6 +1172,8 @@ export const enLocale: LocalePlugin = {
     "files.uploading": "Uploading, {progress}%",
     "files.newFile": "New file",
     "files.newFolder": "New folder",
+    "files.showIgnored": "Show ignored files",
+    "files.hiddenReason": "hidden by Git ignore rules",
     "files.newFileName": "File name",
     "files.newFolderName": "Folder name",
     // fork:v5-landing D-05 帧 A —— 面板体里那行弱化说明与树脚注（板面原文）。

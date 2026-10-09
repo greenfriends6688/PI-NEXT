@@ -24,6 +24,14 @@ const HIDDEN_SUFFIXES = [".pyc"];
 // Never worth listing, whatever a repository says about them.
 const ALWAYS_HIDDEN_NAMES = new Set([".git", ".DS_Store"]);
 
+/**
+ * fork:pi-1.1（上游 2f6a0a93f / #1092）—— 一个条目为什么不在默认列表里：
+ * - `ignored`：Git 工作树忽略它。
+ * - `excluded`：名字表拦的（Git 看不见这个目录时）。
+ * - `always`：`.git` / `.DS_Store`，永远不列。
+ */
+export type FileTreeHiddenReason = "ignored" | "excluded" | "always";
+
 // The listing waits on git, so a slow one degrades to the name list rather
 // than stalling the tree.
 const GIT_TIMEOUT_MS = 5_000;
@@ -238,8 +246,21 @@ export async function getFileTreeVisibility(
   names: readonly string[],
   signal?: AbortSignal,
 ): Promise<(name: string) => boolean> {
+  const hiddenReason = await getFileTreeHiddenReasons(directory, names, signal);
+  return (name) => hiddenReason(name) === null;
+}
+
+/**
+ * fork:pi-1.1（上游 2f6a0a93f / #1092）—— 构建「这个条目为什么被隐藏」的判定；
+ * 显示时返回 null。“显示被忽略的文件”开关用它把隐藏项变暗并注明原因。
+ */
+export async function getFileTreeHiddenReasons(
+  directory: string,
+  names: readonly string[],
+  signal?: AbortSignal,
+): Promise<(name: string) => FileTreeHiddenReason | null> {
   const candidates = names.filter((name) => !ALWAYS_HIDDEN_NAMES.has(name));
-  if (candidates.length === 0) return (name) => !ALWAYS_HIDDEN_NAMES.has(name);
+  if (candidates.length === 0) return (name) => (ALWAYS_HIDDEN_NAMES.has(name) ? "always" : null);
 
   const ignored = await readCachedOrRun(
     `${directory}\0${candidates.join("\0")}`,
@@ -247,6 +268,9 @@ export async function getFileTreeVisibility(
     candidates,
     signal,
   );
-  if (!ignored) return (name) => !isHiddenOutsideGit(name);
-  return (name) => !ALWAYS_HIDDEN_NAMES.has(name) && !ignored.has(name);
+  return (name) => {
+    if (ALWAYS_HIDDEN_NAMES.has(name)) return "always";
+    if (!ignored) return isHiddenOutsideGit(name) ? "excluded" : null;
+    return ignored.has(name) ? "ignored" : null;
+  };
 }

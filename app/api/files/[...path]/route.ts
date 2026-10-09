@@ -20,7 +20,7 @@ import {
 } from "@/lib/file-types";
 import { resolveDirentIsDirectory } from "@/lib/file-dirent";
 // fork:file-tree-visibility — 列表里的「隐藏什么」交给 Git（#677，见该模块头注）。
-import { getFileTreeVisibility } from "@/lib/file-tree-visibility";
+import { getFileTreeHiddenReasons } from "@/lib/file-tree-visibility";
 // fork:linked-directory — 指向 roots 之外的符号链接目录：列表标出目标，操作员
 // 显式放行后只授权这一条（#748，见该模块头注）。
 import { checkLinkedDirectoryApproval, withOutsideLinkTargets } from "@/lib/linked-directory";
@@ -861,14 +861,19 @@ export async function GET(
     // Git decides what is hidden (a tracked build/ stays browsable, an ignored
     // secret/ disappears); the request's abort signal stops the git call if the
     // browser goes away while we wait on it.
-    const isVisible = await getFileTreeVisibility(filePath, dirents.map((d) => d.name), request.signal);
+    // fork:pi-1.1（上游 2f6a0a93f / #1092）—— `hidden=1`（文件树的「显示被忽略的文件」
+    // 开关）把被忽略的与名字表拦下的也列出来，并带上原因；`.git` / `.DS_Store`
+    // 两种情况下都不列。
+    const showHidden = request.nextUrl.searchParams.get("hidden") === "1";
+    const hiddenReason = await getFileTreeHiddenReasons(filePath, dirents.map((d) => d.name), request.signal);
     const entries = dirents
-      .filter((d) => isVisible(d.name))
       .flatMap((d) => {
+        const hidden = hiddenReason(d.name);
+        if (hidden === "always" || (hidden && !showHidden)) return [];
         const isDir = resolveDirentIsDirectory(d, path.join(filePath, d.name));
-        return isDir === null
-          ? []
-          : [{ name: d.name, isDir, size: 0, modified: "" }];
+        if (isDir === null) return [];
+        const entry = { name: d.name, isDir, size: 0, modified: "" };
+        return [hidden ? { ...entry, hidden } : entry];
       })
       .sort((a, b) => {
         // Dirs first, then files, both alphabetically

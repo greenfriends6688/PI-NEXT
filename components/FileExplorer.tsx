@@ -33,6 +33,8 @@ interface FileEntry {
   isDir: boolean;
   size: number;
   modified: string;
+  /** fork:pi-1.1（上游 #1092）—— 只在 `hidden=1` 时出现：它为什么默认不列。 */
+  hidden?: "ignored" | "excluded" | "always";
   /** fork:linked-directory — 指向 roots 之外的目录链接（#748）：列得出来，点进去要操作员先放行。 */
   outsideLinkTarget?: string;
   /** 目标还包着本项目或主目录，界面要额外警告并确认。 */
@@ -46,6 +48,8 @@ interface FileNode {
   size: number;
   children?: FileNode[];
   loaded?: boolean;
+  /** fork:pi-1.1（上游 #1092）—— 被隐藏的原因（开着「显示被忽略」时才带）。 */
+  hidden?: "ignored" | "excluded" | "always";
   /** fork:linked-directory — 服务端在列表里报的目标。 */
   outsideLinkTarget?: string;
   outsideLinkEncloses?: boolean;
@@ -249,9 +253,26 @@ async function responseError(res: Response, fallback: string): Promise<Error> {
   return new Error(message);
 }
 
+// fork:pi-1.1（上游 2f6a0a93f / #1092）—— 文件树「显示被忽略的文件」开关（每浏览器，localStorage）。
+const SHOW_IGNORED_FILES_KEY = "pi-web:sidebar-files-show-ignored";
+function showIgnoredFilesEnabled(): boolean {
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem(SHOW_IGNORED_FILES_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+function persistShowIgnoredFiles(show: boolean): void {
+  try {
+    localStorage.setItem(SHOW_IGNORED_FILES_KEY, String(show));
+  } catch {
+    // best-effort
+  }
+}
+
 async function fetchEntries(dirPath: string): Promise<FileNode[]> {
   const encoded = encodeFilePathForApi(dirPath);
-  const res = await fetch(`/api/files/${encoded}?type=list`);
+  const res = await fetch(`/api/files/${encoded}?type=list${showIgnoredFilesEnabled() ? "&hidden=1" : ""}`);
   if (!res.ok) throw await responseError(res, "Failed to load files");
   const data = await res.json() as { entries?: FileEntry[] };
   // A response without an entries array is a failure, not an empty directory:
@@ -269,6 +290,7 @@ async function fetchEntries(dirPath: string): Promise<FileNode[]> {
     // fork:linked-directory — 把服务端报的目标带下去，展开时才问要不要放行。
     outsideLinkTarget: e.outsideLinkTarget,
     outsideLinkEncloses: e.outsideLinkEncloses,
+    hidden: e.hidden,
   }));
 }
 
@@ -742,13 +764,13 @@ export function TreeNode({
           />
         ) : (
       <span
-        className="d-grow"
+        className={`d-grow${node.hidden ? " d-t-faint" : ""}`}
         style={{
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
         }}
-        title={node.fullPath}
+        title={node.hidden ? `${node.fullPath} — ${t("files.hiddenReason")}` : node.fullPath}
       >
         {node.name}
       </span>
@@ -1230,6 +1252,8 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   const [roots, setRoots] = useState<FileNode[]>(() => snapshot?.roots ?? []);
   const [loading, setLoading] = useState(() => snapshot === null);
   const [error, setError] = useState<string | null>(null);
+  // fork:pi-1.1（上游 #1092）—— 文件树是否列出被 Git 忽略 / 名字表拦下的条目。
+  const [showIgnored, setShowIgnored] = useState(() => showIgnoredFilesEnabled());
   /* 展开目录**不进快照**：子节点住在各个 `TreeNode` 自己的 state 里（`node.children`
      一直是空的），快照里恢复「展开」只会得到一排空文件夹。要留住展开就得连带把
      每一层的子节点也存下来 —— 那是一份真正的树缓存，超出这次要解决的问题，所以这里
@@ -2423,6 +2447,22 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         >
           <i data-ico="folder-plus" data-size="13" aria-hidden="true"></i>
           {t("files.newFolder")}
+        </button>
+        <button
+          type="button"
+          className="d-btn sm ghost"
+          aria-pressed={showIgnored}
+          onClick={() => {
+            const next = !showIgnored;
+            persistShowIgnoredFiles(next);
+            setShowIgnored(next);
+            setTreeRefreshKey((key) => key + 1);
+          }}
+          disabled={mutating}
+          title={t("files.showIgnored")}
+          aria-label={t("files.showIgnored")}
+        >
+          <i data-ico={showIgnored ? "eye" : "eye-off"} data-size="13" aria-hidden="true"></i>
         </button>
         {actionError && (
           <span role="alert" className="d-grow d-t-xs d-t-faint" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={actionError}>

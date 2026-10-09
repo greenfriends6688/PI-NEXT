@@ -290,6 +290,10 @@ export function AppShell() {
     if (soundEnabledRef.current) playDoneSound();
   }, [playDoneSound, soundEnabledRef]);
   const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
+  // fork:pi-1.1（上游 a096af3d0 / #1083）—— 异步回调（删除在用户切走后才完成）
+  // 读得到最新的选中会话。
+  const selectedSessionRef = useRef(selectedSession);
+  selectedSessionRef.current = selectedSession;
   const [sessionCatalog, setSessionCatalog] = useState<SessionInfo[]>([]);
   const handleSessionsChange = useCallback((sessions: SessionInfo[]) => {
     setSessionCatalog(sessions);
@@ -456,6 +460,8 @@ export function AppShell() {
   const [projectTrustBusy, setProjectTrustBusy] = useState(false);
   const [projectTrustError, setProjectTrustError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => !initialNavigation.sidebarCollapsed);
+  // fork:pi-1.1（上游 fdeea8732 / #1059）—— 记住桌面端偏好；手机抽屉的开合不改它。
+  const desktopSidebarOpenRef = useRef(!initialNavigation.sidebarCollapsed);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
 
   /* fork:command-palette —— 命令清单。**只收本仓真实存在的开关**，不编：
@@ -566,6 +572,9 @@ export function AppShell() {
     // (measured at 768px: that row ran 110px past the column). It starts as a drawer here
     // too; the user can still pin it open, and the desktop role swap still applies.
     if (isCompact) setSidebarOpen(false);
+    // fork:pi-1.1（#1059）—— 回到桌面宽度时恢复桌面端记住的偏好（手机抽屉期间
+    // 的开关不会污染它）。
+    else setSidebarOpen(desktopSidebarOpenRef.current);
   }, [isMobile, isCompact]);
   useEffect(() => {
     setMobileSidebarReady(true);
@@ -775,7 +784,12 @@ export function AppShell() {
     if (isMobile) {
       setActiveTopPanel(null);
     }
-    setSidebarOpen((open) => !open);
+    setSidebarOpen((open) => {
+      const next = !open;
+      // fork:pi-1.1（#1059）—— 只在桌面端记下用户的选择，手机抽屉不算。
+      if (!isMobile) desktopSidebarOpenRef.current = next;
+      return next;
+    });
   }, [isMobile]);
 
   const handleRightPanelToggle = useCallback(() => {
@@ -1724,10 +1738,13 @@ export function AppShell() {
   const handleSessionDeleted = useCallback((sessionId: string) => {
     invalidateWorkspaceRestore();
     setRefreshKey((k) => k + 1);
-    if (selectedSession?.id === sessionId) {
+    // fork:pi-1.1（#1083）—— DELETE 可能在用户切走后才回来：只读**最新**的选中会话，
+    // 用户还停在被删的那个时才回落到空输入框。
+    const active = selectedSessionRef.current;
+    if (active?.id === sessionId) {
       // fork:tab-session — forget this tab's memory before clearing the selection.
       clearTabOpenSession(sessionId);
-      const cwd = selectedSession.cwd;
+      const cwd = active.cwd;
       const draftId = typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
         : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -1744,7 +1761,7 @@ export function AppShell() {
       setActiveTopPanel(null);
       router.replace(typeof window !== "undefined" ? window.location.pathname : "/", { scroll: false });
     }
-  }, [invalidateWorkspaceRestore, selectedSession, router]);
+  }, [invalidateWorkspaceRestore, router]);
 
   const handleOpenFile = useCallback((
     filePath: string,

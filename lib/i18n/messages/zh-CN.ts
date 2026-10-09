@@ -1180,6 +1180,8 @@ export const zhCNLocale: LocalePlugin = {
     "files.uploading": "正在上传，{progress}%",
     "files.newFile": "新建文件",
     "files.newFolder": "新建文件夹",
+    "files.showIgnored": "显示被忽略的文件",
+    "files.hiddenReason": "被 Git 忽略规则隐藏",
     "files.newFileName": "文件名",
     "files.newFolderName": "文件夹名",
     // fork:v5-landing D-05 帧 A —— 面板体里那行弱化说明与树脚注（板面原文）。
