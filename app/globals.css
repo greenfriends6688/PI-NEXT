@@ -956,6 +956,8 @@ pre, code {
    仍然负责横滚。 */
 .markdown-table-wrap > table { width: 100%; }
 .markdown-body th, .markdown-body td {
+  /* fork:pi-1.1（上游 #1056）—— 长单元格换行，宽表格仍靠外层横滚。 */
+  max-width: 240px;
   border: 0;
   border-bottom: 1px solid var(--border);
   padding: 6px 10px;

@@ -5,6 +5,10 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
+// fork:pi-1.1（上游 6d4d6b5b8 / #1072）—— 中文标点旁的 **粗体** / *斜体*。
+// CommonMark 在「中文句末标点后直接接下一句」时会把星号原样露出，这个 parse-only 扩展修它。
+// 已确认依赖内无 lookbehind（#753 旧 Safari 不受影响）。
+import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
 import remarkMath from "remark-math";
 import type { Extension } from "micromark-util-types";
 import type { Plugin } from "unified";
@@ -504,6 +508,7 @@ const remarkCurrencySafeMath: Plugin = function () {
 export const markdownRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [
   [remarkFrontmatter, ["yaml"]],
   [remarkGfm, remarkGfmOptions],
+  remarkCjkFriendly,
   remarkSplitAutolinkLiterals,
   remarkCurrencySafeMath,
 ];
@@ -573,6 +578,7 @@ export const markdownUserRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = 
 export const markdownPreviewRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [
   [remarkFrontmatter, ["yaml"]],
   [remarkGfm, remarkGfmOptions],
+  remarkCjkFriendly,
   remarkSplitAutolinkLiterals,
   remarkCurrencySafeMath,
 ];

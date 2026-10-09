@@ -44,6 +44,18 @@ import { FILE_CODE_STYLE, FILE_LINE_NUMBER_STYLE } from "@/lib/file-source-style
 import vs from "react-syntax-highlighter/dist/esm/styles/prism/vs";
 import vscDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus";
 
+// fork:pi-1.1（上游 9da54e121）—— Prism 的亮色主题用 `backgroundColor` 给 <pre> 上色，
+// 暗色主题用 `background` 简写；而文件源码视图自己也设了 `background`，两边同在一个 <pre>
+// 上时，切主题会让 React 删掉旁边那个属性（控制台告警 + 背景丢成透明/白色）。
+// 跟 CodeBlock 一样：自己设 `backgroundColor`，并把暗色主题的 <pre> 简写删掉。
+const fileViewerDarkTheme = {
+  ...vscDarkPlus,
+  'pre[class*="language-"]': {
+    ...vscDarkPlus['pre[class*="language-"]'],
+  },
+};
+delete (fileViewerDarkTheme['pre[class*="language-"]'] as Record<string, unknown>).background;
+
 export type HighlighterProps = SyntaxHighlighterProps;
 
 type SourceCodeRendererProps = Parameters<NonNullable<SyntaxHighlighterProps["renderer"]>>[0] & {
@@ -111,14 +123,14 @@ export function AsyncFileSourceView({ code, language, isDark, wrapLines }: FileS
     <SyntaxHighlighter
       className={wrapLines ? "file-source-view is-wrapped" : "file-source-view"}
       language={language === "text" ? "plaintext" : language}
-      style={isDark ? vscDarkPlus : vs}
+      style={isDark ? fileViewerDarkTheme : vs}
       showLineNumbers
       lineNumberStyle={{ ...FILE_LINE_NUMBER_STYLE }}
       customStyle={{
         margin: 0,
         padding: 0,
         border: 0,
-        background: "var(--bg)",
+        backgroundColor: "var(--bg)",
         ...FILE_CODE_STYLE,
         width: wrapLines ? "100%" : "max-content",
         minWidth: "100%",

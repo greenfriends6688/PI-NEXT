@@ -1287,6 +1287,8 @@ export const zhCNLocale: LocalePlugin = {
     "chat.extensionExpiresIn": "{seconds} 秒后过期",
     "chat.extensionPending": "待回答",
     "chat.extensionCollapse": "收起",
+    "chat.extensionMaximize": "最大化",
+    "chat.extensionRestoreSize": "还原大小",
     "chat.extensionExpand": "展开",
     "chat.cancel": "取消",
     "chat.confirm": "确认",

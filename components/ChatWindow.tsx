@@ -7,6 +7,8 @@ import { normalizeCustomPanelLines } from "@/lib/ansi";
 import { splitDialogTitle, splitDialogTitleCode } from "@/lib/dialog-title";
 import { asBracketedPaste, toTerminalKeyData } from "@/lib/terminal-input";
 import { countToolCallBlocks, getAssistantErrorMessage, getDisplayableAssistantBlocks, isAssistantTruncated, isMessageGroupAnchor, splitFinalAssistantBlocks } from "@/lib/message-display";
+// fork:pi-1.1（上游 981e270f1 / #1032）—— 扩展对话框按内容加宽。
+import { EXTENSION_DIALOG_BASE_WIDTH, fitExtensionDialogWidth } from "@/lib/extension-dialog-fit";
 import { extractTurnWrittenFiles, type WrittenFile } from "@/lib/turn-written-files";
 import { collectSkillActivations, type SkillActivation } from "@/lib/skill-usage";
 import { buildQuotedSelection } from "@/lib/quoted-selection";
@@ -3257,9 +3259,45 @@ function ExtensionDialog({
   const { t } = useI18n();
   const [value, setValue] = useState(request.method === "editor" ? request.prefill ?? "" : "");
   const [collapsed, setCollapsed] = useState(false);
+  // fork:pi-1.1（#1032）—— 对话框默认 560px，只在自身内容装不下（代码块/表格会横滚）
+  // 时才长宽；「最大化」是用户对这一张的覆盖。
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [fitWidth, setFitWidth] = useState<number | null>(null);
+  const [full, setFull] = useState(false);
+  const toggleFull = useCallback(() => setFull((prev) => !prev), []);
   const focusFirstOption = useCallback((element: HTMLDivElement | null) => element?.focus(), []);
   const summary = getExtensionDialogSummary(request);
   const { head: titleHead, rest: titleRest } = splitDialogTitle(request.title);
+
+  useLayoutEffect(() => {
+    if (collapsed) return;
+    const dialog = dialogRef.current;
+    const body = bodyRef.current;
+    if (!dialog || !body) return;
+    let disposed = false;
+    const fit = () => {
+      if (disposed) return;
+      const blocks = body.querySelectorAll<HTMLElement>("pre, .markdown-table-wrap");
+      if (blocks.length === 0) return;
+      const needed = fitExtensionDialogWidth(
+        dialog.offsetWidth,
+        Array.from(blocks, (block) => block.scrollWidth - block.clientWidth),
+      );
+      // Only ever grow: shrinking again would make the dialog jump while it is read.
+      if (needed !== null) setFitWidth((prev) => (prev !== null && prev >= needed ? prev : needed));
+    };
+    fit();
+    // Highlighted code replaces its plain fallback after the first paint, and a web
+    // font can change glyph widths once it arrives.
+    const mutations = new MutationObserver(fit);
+    mutations.observe(body, { childList: true, subtree: true, characterData: true });
+    void document.fonts?.ready.then(fit);
+    return () => {
+      disposed = true;
+      mutations.disconnect();
+    };
+  }, [collapsed]);
 
   const submitValue = () => {
     if (request.method === "confirm") {
@@ -3276,6 +3314,7 @@ function ExtensionDialog({
 
   return (
     <div
+      ref={dialogRef}
       onKeyDown={(event) => {
         if (event.key !== "Escape" || event.nativeEvent.isComposing) return;
         event.preventDefault();
@@ -3289,9 +3328,10 @@ function ExtensionDialog({
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
-        width: "min(560px, 100%)",
+        // fork:pi-1.1（#1032）—— 「最大化」铺满叠层；否则按内容宽度（默认 560）。
+        width: full ? "100%" : `min(${fitWidth ?? EXTENSION_DIALOG_BASE_WIDTH}px, 100%)`,
         // 百分比相对叠层那个定高盒子解析，所以这一格能撑满消息区又不越界。
-        maxHeight: "min(760px, 100%)",
+        maxHeight: full ? "100%" : "min(760px, 100%)",
       }}
     >
       {collapsed ? (
@@ -3376,6 +3416,17 @@ function ExtensionDialog({
           <button
             type="button"
             className="d-iconbtn"
+            onClick={toggleFull}
+            aria-pressed={full}
+            title={full ? t("chat.extensionRestoreSize") : t("chat.extensionMaximize")}
+            aria-label={full ? t("chat.extensionRestoreSize") : t("chat.extensionMaximize")}
+            style={{ flexShrink: 0 }}
+          >
+            <i data-ico={full ? "minimize-2" : "maximize-2"} data-size="14" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="d-iconbtn"
             onClick={() => setCollapsed(true)}
             aria-expanded={true}
             title={t("chat.extensionCollapse")}
@@ -3392,6 +3443,7 @@ function ExtensionDialog({
             编辑器态 `.d-textarea`；四态共用同一个壳。滚动容器需要的
             flex/minHeight/overflowY 仍是内联，滚动行为照旧。 */}
         <div
+          ref={bodyRef}
           className="d-modal-body"
           style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}
         >

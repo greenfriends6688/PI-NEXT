@@ -23,7 +23,7 @@ import { springPop } from "@/lib/motion-pop";
 // fork:codemode-view —— codemode 调用的显示助手（脚本 / 调用列表 / 折叠头预览）。
 import { CODEMODE_TOOL_NAME, codemodeCalls, codemodeScript, codemodeScriptPreview } from "@/lib/codemode-view";
 import { CodemodeCallList } from "./CodemodeToolView";
-import { isApplyPatchToolName, isEditToolName } from "@/lib/tool-names";
+import { isApplyPatchToolName, isEditToolName, isWriteToolName } from "@/lib/tool-names";
 import { isThinkingExpandedByDefault, THINKING_EXPANDED_EVENT } from "@/lib/thinking-expansion-preference";
 import type { TurnStats } from "@/lib/turn-stats";
 import { TurnWrittenFiles } from "./TurnWrittenFiles";
@@ -1660,7 +1660,7 @@ export function ToolCallBlock({ block, result, duration, onOpenFile, onOpenSessi
   const argsMounted = useCollapsePresence(expanded, undefined, argsCollapseRef);
   const resultCollapseRef = useRef<HTMLDivElement>(null);
   const resultMounted = useCollapsePresence(expanded, undefined, resultCollapseRef);
-  const inputStr = getToolCallInputText(block);
+  const inputStr = getWrittenFileText(block) ?? getToolCallInputText(block);
   const isStreamingInput = block.rawInput !== undefined;
   // fork:codemode-view（对齐上游 0.10）—— codemode 不再走「通用工具卡」：
   // 折叠头显示脚本第一行 + 调用数，展开处是脚本文本（不是 JSON 入参），
@@ -2871,6 +2871,19 @@ function safeJson(value: unknown): string {
 
 export function getToolCallInputText(block: ToolCallContent): string {
   return block.rawInput ?? JSON.stringify(block.input, null, 2);
+}
+
+// fork:pi-1.1（上游 038057f47 / #1024）—— write 工具卡直接显示写入的文件正文，
+// 而不是 JSON 入参。只在这些情况下才换：入参**只有** path/file_path/content
+// （多一个参数——mode、title——就会从这视图里消失）、不是流式（还是半截 JSON）、
+// 且正文非空；其余情况保持通用 JSON 视图。
+const WRITE_VIEW_KEYS = new Set(["path", "file_path", "content"]);
+
+function getWrittenFileText(block: ToolCallContent): string | null {
+  if (block.rawInput !== undefined || !isWriteToolName(block.toolName)) return null;
+  const { content } = block.input;
+  if (typeof content !== "string" || content === "") return null;
+  return Object.keys(block.input).every((key) => WRITE_VIEW_KEYS.has(key)) ? content : null;
 }
 
 function formatCustomType(type: string): string {

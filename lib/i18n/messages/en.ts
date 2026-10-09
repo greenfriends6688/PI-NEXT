@@ -1280,6 +1280,8 @@ export const enLocale: LocalePlugin = {
     "chat.extensionExpiresIn": "expires in {seconds}s",
     "chat.extensionPending": "Awaiting response",
     "chat.extensionCollapse": "Collapse",
+    "chat.extensionMaximize": "Maximize",
+    "chat.extensionRestoreSize": "Restore size",
     "chat.extensionExpand": "Expand",
     "chat.cancel": "Cancel",
     "chat.confirm": "Confirm",
