@@ -142,23 +142,40 @@ export function getSessionFlags(): SessionFlags {
 }
 
 /**
+ * fork:pi-1.1（上游 2e87ddb1b）—— 「归档着且没有新动静」。
+ *
+ * 归档后**又收到新消息**的会话自动回到列表：拿 `modified` 与归档时间（`archivedAt`）
+ * 比。老数据没有归档时间（或时间解析不出来）时保守保持归档，不会把用户手动的归档
+ * 当成自动回退。
+ */
+export function isArchivedAndQuiet(
+  session: Pick<SessionInfo, "id" | "modified">,
+  flags: SessionFlags,
+): boolean {
+  if (!flags.archived.includes(session.id)) return false;
+  const archivedAt = Date.parse(flags.archivedAt?.[session.id] ?? "");
+  const modified = Date.parse(session.modified);
+  if (!Number.isFinite(archivedAt) || !Number.isFinite(modified)) return true;
+  return modified <= archivedAt;
+}
+
+/**
  * Filter + order one project's sessions.
  *
  * Archived sessions are dropped from the main list; pinned ones move to the top
  * while keeping the existing relative order (a stable partition, so the list
  * does not reshuffle when a second session is pinned).
  */
-export function applySessionFlags<T extends Pick<SessionInfo, "id">>(
+export function applySessionFlags<T extends Pick<SessionInfo, "id" | "modified">>(
   sessions: readonly T[],
   flags: SessionFlags,
 ): T[] {
   if (flags.archived.length === 0 && flags.pinned.length === 0) return [...sessions];
-  const archived = new Set(flags.archived);
   const pinned = new Set(flags.pinned);
   const visible: T[] = [];
   const pinnedRows: T[] = [];
   for (const session of sessions) {
-    if (archived.has(session.id)) continue;
+    if (isArchivedAndQuiet(session, flags)) continue;
     if (pinned.has(session.id)) pinnedRows.push(session);
     else visible.push(session);
   }
@@ -173,13 +190,12 @@ export function applySessionFlags<T extends Pick<SessionInfo, "id">>(
  * (the sidebar's per-project "Archived" section), so the two behaviours stay
  * independent instead of weakening the filter for existing callers.
  */
-export function archivedSessions<T extends Pick<SessionInfo, "id">>(
+export function archivedSessions<T extends Pick<SessionInfo, "id" | "modified">>(
   sessions: readonly T[],
   flags: SessionFlags,
 ): T[] {
   if (flags.archived.length === 0) return [];
-  const archived = new Set(flags.archived);
-  return sessions.filter((session) => archived.has(session.id));
+  return sessions.filter((session) => isArchivedAndQuiet(session, flags));
 }
 
 export function useSessionFlags() {
