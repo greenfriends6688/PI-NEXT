@@ -288,3 +288,48 @@ npm run prod                         # 构建 + 起服 + 浏览器冒烟
 5. **子代理白名单是语义 bug**：`resourceBoolean` 把数组当 `true` 意味着「用户写了白名单，实际全加载」——这不是缺功能，是**做错了**，优先级高于观感类小改。
 6. **上游仍在推进**：`v0.11.0` 是 2026-10-08 的提交，执行前重新 `git fetch agegr` 对一次。
 7. **本文件的审计快照**：2026-10-09。上游再发版就重跑，不要在本文件上直接改数字。
+
+---
+
+## 8. 执行状态（2026-10-09 首轮）
+
+**已合入 main（11 个提交，59 文件 / +3500 −2164）**
+
+| PR | 内容 | 状态 |
+| --- | --- | --- |
+| PR-0 | 基线清理（PhaseRoll 过期断言） | ✅ |
+| PR-1 | preview 密钥轮换（3 条启动路径）+ next 16.3.8 | ✅ |
+| PR-2 | #1039 junction 越权 + 上传覆盖原子替换 | ✅ |
+| PR-3 | pi 1.0.0 → 1.1.0 + 六处适配 | ✅ |
+| PR-4a | `skills:` / `extensions:` 白名单语义 | ✅ |
+| PR-5 | deferred provider models（#1071） | ✅ |
+| PR-7 | 侧栏行菜单分叉 + 短后缀命名 | ✅ |
+| PR-9 | C1/C3/C4/C5/C6/C7/C8 七项 | ✅（C2/C9 见下） |
+| PR-10 | Git 忽略文件显示开关（#1092） | ✅ |
+| PR-11 | 手机切回桌面恢复侧栏 + 删除会话不跳空白 | ✅ |
+| PR-6 | 归档自动回归（B2 的一部分） | ✅ 部分 |
+
+**验收数据**
+- `tsc --noEmit` 0 错；`npm test` **3863 pass / 0 fail / 8 skipped**（含新增 30+ 用例）
+- `npm run build`（next build --webpack）成功；隔离端口 30249/30250 冒烟：
+  `/api/home` `/api/models` `/api/sessions` `/api/tools/settings` `/api/subagents/profiles?cwd`
+  `/` 全 200；`POST /api/sessions/nope/fork` 404；文件树默认 37 条 → `hidden=1` 58 条（21 条带原因）
+- PR-1 端到端：不受信 Host + 旧发布 id → 403；+ 当前磁盘 id → 200（证明该头确实跳过 proxy）；
+  启动时 `previewModeId` 确实被换新
+- 上游契约测试 37/37（0 skipped，`pi-sdk-internals` 内部件路径未变）
+
+**本轮未做（附理由，不是遗漏）**
+
+| 项 | 为什么没做 |
+| --- | --- |
+| PR-4b 子代理回合上限/结束状态（#1093/#1055） | 纯内部鲁棒性（队列多跑一轮、超限记 completed 而非带原因失败），改动面在 `subagent-runtime.ts` 的限流器重写，回归风险高于收益；单独一轮并配真实会话验证更稳 |
+| PR-6 B1 折叠组「运行中计数」 | **与本仓 V5 画板 02 的既有裁定冲突**：`components/SessionSidebar.test.mjs` 钉着「运行态归会话行底边扫掠线，项目行不长徽标」。属设计裁定项，不能照上游加 |
+| PR-6 B2 剩余（归档 10s 撤销 toast、一键归档 7 天前） | 纯 UI，可与 B3 一起做 |
+| PR-6 B3/B4 项目顺序固定 + 状态存服务端 | 要把 `session-flags` / `session-groups` / `project-flags` 三份 localStorage 迁到 `~/.pi/agent/pi-web-session-state.json` 并加跨端同步（L 级基础设施），单独一轮 |
+| PR-8 MCP 补齐（信任列表 / 连接状态 / OAuth 内联 / host 空闲卸载 / models-only 默认协议） | M–L；其中项目信任列表是安全相关，建议下一轮首项 |
+| PR-12 新会话模型/推理等级随行 | 本仓新会话栏是 `ProjectChip` 自绘（非上游 `NewSessionContextBar`），边际价值低；需要产品裁定 |
+| PR-9 C2 扩展状态栏命令按钮 | M；要动 composer 上方的状态架，本仓状态显示在顶栏浮窗里，形态需先裁定 |
+| PR-9 C9 自定义代码字体 + 字重 | M；新增设置分节要同步 15 张设置画板 + `SettingsPanel.boardnav.test.mjs` 计数 + `SETTINGS_HUB_GROUPS`，是设计门禁项 |
+
+**⚠️ 需要重启**：本轮已执行 `npm run build`（`next 16.3.8` + `pi 1.1.0` + 全部改动），
+`.next` 已被替换。正在跑的那个 30141 实例仍是旧进程，请 `npm run prod` 重启后再用。
