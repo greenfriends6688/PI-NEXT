@@ -333,3 +333,52 @@ npm run prod                         # 构建 + 起服 + 浏览器冒烟
 
 **⚠️ 需要重启**：本轮已执行 `npm run build`（`next 16.3.8` + `pi 1.1.0` + 全部改动），
 `.next` 已被替换。正在跑的那个 30141 实例仍是旧进程，请 `npm run prod` 重启后再用。
+
+---
+
+## 9. 第二轮：照上游优化侧栏 + PR-8a（2026-10-09 下午）
+
+### 9.1 侧栏（参照上游 `components/SessionSidebar.tsx` + `lib/session-tree.ts`）
+
+用户拿上游截图点名要的那几样，本仓原来都没有（项目 ⋯ 菜单只有「打开文件夹 / 重命名 /
+归档项目 / 移除」）：
+
+| 加的东西 | 落点 | 依据 |
+| --- | --- | --- |
+| 项目 ⋯ 菜单：置顶 / 取消置顶 | `lib/project-flags.ts` 新增 `pinned` + `applyProjectPins` | 上游 `groupMenuItems` |
+| 项目 ⋯ 菜单：上移 / 下移 | `lib/session-groups.ts` 新增 `moveProjectAdjacent`（与拖拽共用同一份 `order`） | 上游 `adjacentProjectMove` |
+| 项目 ⋯ 菜单：归档 7 天前的会话 · N | `lib/sidebar-bulk.ts` `familiesOlderThan` | 上游 `familiesToArchive` |
+| 项目 ⋯ 菜单：折叠其他 / 展开全部 | 侧栏 `collapseOtherProjects` / `expandAllProjects` | 上游 `setAllGroupsExpanded` |
+| 项目 ⋯ 菜单：查看已归档 · N | 打开「设置 → 归档」 | 上游 `openArchiveView` |
+| Alt+单击项目行 = 全部跟着这一个 | `ProjectRow.onToggleAll` | 上游 `handleToggleGroup(key, all)` |
+| 「显示更多 · N」 | `lib/sidebar-bulk.ts` `visibleFamilies` / `moreRowState`；每分组 6 → 每点 +20 | 上游 `visibleFamilies` / `showMoreFamilies` |
+| 归档条（撤销 / 查看 / 关闭） | `lib/session-flags.ts` `archiveSessions` / `restoreSessions` | 上游 `archiveFamilies` + `SidebarToast` |
+
+两个规则按上游原样搬：**运行中 / 未读 / 当前选中的行永远显示，且不占「显示更多」名额**；
+归档条上的「撤销」是真的把会话放回列表（归档是展示位，不动 `.jsonl`）。
+
+**没照搬**（本仓 V5 有裁定）：折叠组上的「运行中计数」徽标 —— `SessionSidebar.test.mjs`
+钉着画板 02 的「运行态归会话行底边扫掠线，项目行不长徽标」。
+
+### 9.2 PR-8a · 信任对话框列出项目 MCP server
+
+上游 `3e693c7b3`。信任一个文件夹 = 允许它的 `.pi/` 在本机执行，所以按「信任」之前
+必须先看清会跑什么 —— 这是 pi 的 `loadMcpConfig` 做不到的（它只在**已信任**时才读
+项目文件）。新增 `lib/project-trust-mcp.ts`：走 `loadMcpConfigFile` 的「只读一个文件」
+通道，只解析 + 校验，不起进程 / 不连网络 / 不展开 `${VAR}` / 不跑 `!command`。
+命令**按原文**（掩码会把要跑的东西藏起来，那正是这张表要回答的），URL 凭证掩码、
+host 保留，env / header 只列名字。
+
+### 9.3 仍未做
+
+| 项 | 状态 |
+| --- | --- |
+| PR-4b 子代理回合上限重写 | 未做（纯内部鲁棒性，重写限流器风险 > 收益） |
+| PR-6 B3/B4 项目顺序固定 + 状态存服务端 | 未做（三份 localStorage 迁服务端 + 跨端同步，L 级基础设施） |
+| PR-6 B2 剩余（单个归档的 10s 撤销、一键归档 7 天前的设置项） | 未做（批量归档已有归档条撤销；设置项本仓没有「自动归档」概念） |
+| PR-8b–8e MCP（连接状态 / OAuth 内联 / host 空闲卸载 / models-only 默认协议） | 未做（8a 已完成；其余 M 级） |
+| PR-9 C2 状态栏命令按钮 / C9 字体设置 | 未做（形态要先产品裁定；字体是设置画板族 + 门禁项） |
+| PR-12 新会话模型随行 | **核对后已满足**：`newSessionModel` / `thinkingLevel` 都不随 cwd 切换重置，没有要改的代码 |
+
+**验收（本轮追加）**：tsc 0 错 · `npm test` **3875 pass / 0 fail** · `check:design` 无新增违规 ·
+`check:icons` 全绿 · `npm run build` 成功。
