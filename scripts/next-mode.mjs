@@ -26,6 +26,8 @@ const PORT = "30141";
 // fork:lan-access —— 有令牌就绑 `::`（双栈：v4+v6，v6 是「出门 5G 直连」的通道），否则只绑本机。
 // 判定与启动器共用一份，见 bin/lan-supervisor.cjs 的头注。
 const { lanEnabledByConfig, superviseLanBind } = createRequire(import.meta.url)("../bin/lan-supervisor.cjs");
+// fork:rotate-preview-secrets —— 与 bin/pi-web.js / electron/main.js 共用同一份轮换器。
+const { rotatePreviewSecrets, getRotationWarning } = createRequire(import.meta.url)("../bin/rotate-preview-secrets.js");
 let HOST = lanEnabledByConfig() ? "::" : "127.0.0.1";
 
 /** 生产构建会写 BUILD_ID；dev（Turbopack）会写 dev/ 子目录。 */
@@ -148,6 +150,11 @@ if (mode === "prod") {
   }
 
   const displayHost = HOST === "0.0.0.0" || HOST === "::" ? "127.0.0.1" : HOST;
+  // fork:rotate-preview-secrets（上游 cf3ebfba5）—— `npm run prod` 是日常入口，
+  // 也必须把构建期固定的 previewModeId 换掉，否则带 `x-prerender-revalidate` 的请求
+  // 会跳过 proxy.ts。必须在 `next start` 之前。
+  const rotation = rotatePreviewSecrets(NEXT_DIR);
+  if (!rotation.ok) console.warn(getRotationWarning(rotation.reason));
   console.log(`[prod] 启动 next start（http://${displayHost}:${PORT}）...`);
   serveWithLanWatch();
 } else {

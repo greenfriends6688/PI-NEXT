@@ -23,6 +23,8 @@ const { superviseLanBind } = require("./lan-supervisor.cjs");
 const { getNextNodeArgs } = require("./pi-web-node-args");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { wireChildProcessLifecycle } = require("./process-lifecycle");
+// fork:rotate-preview-secrets —— 启动前重写 .next 里构建期固定的 preview 密钥。
+const { rotatePreviewSecrets, getRotationWarning } = require("./rotate-preview-secrets");
 
 let launchOptions;
 try {
@@ -71,6 +73,14 @@ const lanToken = (process.env.PI_WEB_LAN_TOKEN || "").trim();
 if (!fs.existsSync(nextDir)) {
   console.error("Build artifacts not found. Please report this issue.");
   process.exit(1);
+}
+
+// fork:rotate-preview-secrets（上游 cf3ebfba5）—— 把公开包里固定的 previewModeId
+// 换成新随机值，否则带 `x-prerender-revalidate` 的请求会跳过 proxy.ts（见模块头注）。
+// 必须在 `next start` 之前。
+const rotation = rotatePreviewSecrets(nextDir);
+if (!rotation.ok) {
+  console.warn(getRotationWarning(rotation.reason));
 }
 
 if (!loopbackHostnames.has(hostname)) {

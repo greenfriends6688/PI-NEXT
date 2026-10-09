@@ -42,6 +42,9 @@ const LEGACY_APP_NAMES = ["Pinkslab", "Pi Codex", "pi-web"];
 // 绑哪张网卡是 next 启动时定的、进程内改不了，所以「点一下立刻生效」只能由父进程重启
 // 子进程；桌面壳就是那个父进程。
 const { lanEnabledByConfig, superviseLanBind } = require("../bin/lan-supervisor.cjs");
+// fork:rotate-preview-secrets —— 桌面壳自己 spawn `next start`，不走 bin/pi-web.js，
+// 所以这里也必须接同一份轮换器（上游只接了 npm CLI 一条路径）。
+const { rotatePreviewSecrets, getRotationWarning } = require("../bin/rotate-preview-secrets.js");
 const { legacyUserDataSource } = require("./legacy-user-data");
 const { attachRendererRecovery } = require("./renderer-recovery");
 const {
@@ -160,6 +163,14 @@ async function startServer(appRoot) {
 
   const isDev = !app.isPackaged;
   const useDevServer = isDev && !fs.existsSync(path.join(appRoot, ".next"));
+
+  // fork:rotate-preview-secrets（上游 cf3ebfba5）—— `next start` 之前把构建期固定的
+  // previewModeId 换成新随机值，否则 `x-prerender-revalidate` 会跳过 proxy.ts。
+  // dev 服务器没有 prerender manifest，跳过以免打无用告警。
+  if (!useDevServer) {
+    const rotation = rotatePreviewSecrets(path.join(appRoot, ".next"));
+    if (!rotation.ok) console.warn(getRotationWarning(rotation.reason));
+  }
 
   // fork:lan-access —— 开机就按那份配置选网卡（令牌存在且 enabled 就绑 0.0.0.0）；
   // 监督器负责之后 off→on / on→off 的自动重启。每次 startServer 都先退订上一个，
