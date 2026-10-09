@@ -136,6 +136,44 @@ export function toggleArchived(id: string): void {
   write({ ...current, archived, archivedAt });
 }
 
+/**
+ * fork:pi-1.1（上游 archiveFamilies / sidebar.archiveOlderThanWeek）—— 批量归档。
+ *
+ * 一次写盘的原子操作：给每个 id 记同一个归档时刻，**不存在的 id 不写**（归档一个
+ * 已经不在列表里的会话是空操作）。返回真正被新归档的 id，调用方据此决定要不要弹
+ * 撤销条。
+ */
+export function archiveSessions(ids: readonly string[]): string[] {
+  const current = ensure();
+  const known = new Set(current.archived);
+  // 入参可能带重复（家族展开 / 两次点击）：先去重再筛，否则同一个 id 会被写两遍。
+  const added = [...new Set(ids)].filter((id) => id && !known.has(id));
+  if (added.length === 0) return [];
+  const at = new Date().toISOString();
+  const archivedAt = { ...current.archivedAt };
+  for (const id of added) archivedAt[id] = at;
+  write({ ...current, archived: [...current.archived, ...added], archivedAt });
+  return added;
+}
+
+/** 批量撤销（归档条上的 Undo）：只恢复确实在归档里的那几个。 */
+export function restoreSessions(ids: readonly string[]): string[] {
+  const current = ensure();
+  const known = new Set(current.archived);
+  const restored = ids.filter((id) => known.has(id));
+  if (restored.length === 0) return [];
+  const drop = new Set(restored);
+  const archivedAt = { ...current.archivedAt };
+  for (const id of restored) delete archivedAt[id];
+  write({ ...current, archived: current.archived.filter((id) => !drop.has(id)), archivedAt });
+  return restored;
+}
+
+/** 一行（或其家族）是否被钉在顶部。 */
+export function isPinnedSession(id: string, flags: SessionFlags): boolean {
+  return flags.pinned.includes(id);
+}
+
 /** Non-hook accessor for imperative callers (context menu actions). */
 export function getSessionFlags(): SessionFlags {
   return ensure();

@@ -296,6 +296,31 @@ export interface ProjectMove {
  * 之前就等于「A 移入 B 的组，且排在其前」。未知的 `beforeKey`（目标在本次渲染里
  * 不存在）按追加处理，不丢移动。
  */
+/**
+ * fork:pi-1.1（上游 adjacentProjectMove / sidebar.moveProjectUp）—— 菜单里的
+ * 「上移 / 下移」：把 `projectKey` 与 `visibleKeys` 里的邻居换位，其余 key 的相对
+ * 位置不动。走的是和拖拽同一份 `order`，所以两种排序不会打架；边界返回原 state。
+ */
+export function moveProjectAdjacent(
+  state: SessionGroupsState,
+  visibleKeys: readonly string[],
+  projectKey: string,
+  direction: "up" | "down",
+): SessionGroupsState {
+  const index = visibleKeys.indexOf(projectKey);
+  if (index < 0) return state;
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (target < 0 || target >= visibleKeys.length) return state;
+  const next = [...visibleKeys];
+  [next[index], next[target]] = [next[target], next[index]];
+  // 只有可见列表里那些 key 的顺序变了；不可见的（归档 / 隐藏 / 不在本列表里）
+  // 留在它们原来的相对位置，跟在后面。
+  const visible = new Set(next);
+  const order = [...next, ...state.order.filter((key) => !visible.has(key))]
+    .slice(0, MAX_PROJECT_ORDER_ENTRIES);
+  return { ...state, order };
+}
+
 export function moveProject(state: SessionGroupsState, move: ProjectMove): SessionGroupsState {
   const { projectKey } = move;
   if (!projectKey) return state;
@@ -385,6 +410,8 @@ export interface SessionGroupsStore {
   toggleGroupCollapsed: (id: string) => void;
   setGroupCollapsed: (id: string, collapsed: boolean) => void;
   moveProject: (move: ProjectMove) => void;
+  /** fork:pi-1.1 —— 菜单的「上移 / 下移」：在 `visibleKeys` 的可见顺序里与邻居换位。 */
+  moveProjectAdjacent: (projectKey: string, visibleKeys: readonly string[], direction: "up" | "down") => void;
   assignProject: (projectKey: string, groupId: string | null) => void;
 }
 
@@ -425,10 +452,16 @@ export function useSessionGroups(): SessionGroupsStore {
     if (next !== ensure()) write(next);
   }, []);
 
+  const moveAdjacent = useCallback((projectKey: string, visibleKeys: readonly string[], direction: "up" | "down") => {
+    const current = ensure();
+    const next = moveProjectAdjacent(current, visibleKeys, projectKey, direction);
+    if (next !== current) write(next);
+  }, []);
+
   const assign = useCallback((projectKey: string, groupId: string | null) => {
     const next = moveProject(ensure(), { projectKey, groupId });
     if (next !== ensure()) write(next);
   }, []);
 
-  return { state, createGroup: create, renameGroup: rename, deleteGroup: remove, toggleGroupCollapsed: toggle, setGroupCollapsed: setCollapsed, moveProject: move, assignProject: assign };
+  return { state, createGroup: create, renameGroup: rename, deleteGroup: remove, toggleGroupCollapsed: toggle, setGroupCollapsed: setCollapsed, moveProject: move, moveProjectAdjacent: moveAdjacent, assignProject: assign };
 }

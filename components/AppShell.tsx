@@ -2363,6 +2363,8 @@ export function AppShell() {
         onSessionsChange={handleSessionsChange}
         onToggleSidebar={handleSidebarToggle}
         searchRequestId={searchRequestId}
+        // fork:pi-1.1 —— 项目菜单的「查看已归档」：本仓的归档页在「设置 → 归档」。
+        onOpenArchive={() => setSettingsSection("archived")}
       />
       {/* fork:phone-push —— 底栏 = 画板 D-02 的 `.d-side-foot`：设置行（`d-row d-grow`）
           + 手机钮（`d-iconbtn`）+ 版本徽章（`d-badge mute`）三件同排。

@@ -9,7 +9,17 @@ import { dispatchSessionRowContextMenu } from "@/lib/session-row-context-menu";
 import { skillExpansionToCommand } from "@/lib/slash-display";
 import { chatProjectOf, getProjectActivity, getRecentProjects, sessionsForProject, withoutChatProject } from "@/lib/project-groups";
 import type { RecentProject } from "@/lib/project-groups";
-import { applySessionFlags, useSessionFlags } from "@/lib/session-flags";
+import { applySessionFlags, archiveSessions, restoreSessions, useSessionFlags } from "@/lib/session-flags";
+// fork:pi-1.1（上游 lib/session-tree.ts）—— 「显示更多」与「归档 N 天前」的纯规则。
+import {
+  GROUP_VISIBLE_LIMIT,
+  familiesOlderThan,
+  moreRowState,
+  showLessFamilies,
+  showMoreFamilies,
+  shownMoreFor,
+  visibleFamilies,
+} from "@/lib/sidebar-bulk";
 // fork:trace-menu —— 未读标记的共享存储（侧栏画点，顶栏 ⋯ 菜单写）。
 import {
   clearSessionUnread,
@@ -20,7 +30,7 @@ import {
 } from "@/lib/session-unread";
 import { filterArchivedProjects, useProjectFlags } from "@/lib/project-flags";
 // fork:zc-11 — 用户自定义项目分组 + 拖拽排序（localStorage 展示层偏好）。
-import { useSessionGroups } from "@/lib/session-groups";
+import { groupProjects, useSessionGroups } from "@/lib/session-groups";
 import { filterHiddenProjects, projectDisplayName, useProjectPrefs } from "@/lib/project-prefs";
 import { flatTimeGroupEntries, type TimeGroupEntry } from "@/lib/time-groups";
 import { desktopTrafficLightInset } from "@/lib/desktop-shell";
@@ -53,11 +63,13 @@ import { useTheme } from "@/hooks/useTheme";
 // 与偏移共用同一个数，所以两边不可能再各写一份。
 export const SESSION_LIST_ITEM_HEIGHT = 54;
 
-/** fork:session-tree —— 虚拟列表的槽位：分桶头 / 主会话 / 子代理会话（缩进一级）。 */
+/** fork:session-tree —— 虚拟列表的槽位：分桶头 / 主会话 / 子代理会话（缩进一级）/
+ *  fork:pi-1.1 —— 「显示更多」那一行。 */
 type SidebarEntry =
   | { type: "header"; bucket: string }
   | { type: "family"; family: SessionFamily }
-  | { type: "child"; session: SessionInfo };
+  | { type: "child"; session: SessionInfo }
+  | { type: "more"; key: string; hidden: number; canShowLess: boolean };
 
 /** 主会话后面接上它的子代理会话；**默认收起**，只有显式展开过的根会话才摊开
  *  子树（fork:session-tree-collapsed，用户 2026-10-05：「带多个 agent 的对话默认不
@@ -143,6 +155,9 @@ interface Props {
   /** fork:zn-21 — 折叠态的图标条点「搜索」时，把这里的计数 +1；
    *  SessionSidebar 借此在被展开的那一刻把搜索框打开。 */
   searchRequestId?: number;
+  /** fork:pi-1.1（上游 sidebar.viewArchived）—— 项目菜单里的「查看已归档」；
+   *  本仓的归档页在「设置 → 归档」，所以由 AppShell 注入「打开那一页」。 */
+  onOpenArchive?: () => void;
 }
 
 interface WorktreeEntry {
@@ -308,6 +323,22 @@ function ProjectRow({
   renaming = false,
   onRenameCommit,
   onRenameCancel,
+  // fork:pi-1.1（上游 groupMenuItems）—— 项目菜单里的批量动作。
+  pinned = false,
+  onTogglePin,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
+  olderCount = 0,
+  onArchiveOlder,
+  onCollapseOthers,
+  onExpandAll,
+  canCollapseOthers = false,
+  canExpandAll = false,
+  archivedCount = 0,
+  onViewArchived,
+  onToggleAll,
 }: {
   projectKey: string;
   label: string;
@@ -328,6 +359,24 @@ function ProjectRow({
   renaming?: boolean;
   onRenameCommit?: (name: string) => void;
   onRenameCancel?: () => void;
+  /** fork:pi-1.1 —— 置顶的项目排在项目列表最前。 */
+  pinned?: boolean;
+  onTogglePin?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  /** 「归档 N 天前的会话 · N」里的 N；0 时该项置灰。 */
+  olderCount?: number;
+  onArchiveOlder?: () => void;
+  onCollapseOthers?: () => void;
+  onExpandAll?: () => void;
+  canCollapseOthers?: boolean;
+  canExpandAll?: boolean;
+  archivedCount?: number;
+  onViewArchived?: () => void;
+  /** fork:pi-1.1（上游 Alt+click）—— 全部项目跟着这一个走（Finder 的大纲行为）。 */
+  onToggleAll?: () => void;
 }) {
   const { t } = useI18n();
   const [hovered, setHovered] = useState(false);
@@ -414,7 +463,16 @@ function ProjectRow({
     <div
       role="button"
       tabIndex={0}
-      onClick={onClick}
+      onClick={(event) => {
+        // fork:pi-1.1（上游 handleToggleGroup 的 `all`）—— Alt+单击：全部项目跟着
+        // 这一个的新状态走（Finder 大纲同款）。普通单击仍是原来的语义。
+        if (event.altKey && onToggleAll) {
+          event.preventDefault();
+          onToggleAll();
+          return;
+        }
+        onClick();
+      }}
       onKeyDown={(e) => {
         if (e.key !== "Enter" && e.key !== " ") return;
         e.preventDefault();
@@ -494,12 +552,61 @@ function ProjectRow({
         align="right"
       >
         <div role="menu">
+          {/* fork:pi-1.1（上游 groupMenuItems）—— 项目菜单前四组：置顶 / 上移下移 /
+              批量归档 / 折叠展开；后面的本地动作（重命名、归档项目、移除）原样留着。 */}
+          {onTogglePin && (
+            <button type="button" role="menuitem" className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onTogglePin(); }}>
+              <i data-ico={pinned ? "pin-off" : "pin"} data-size="14"></i>
+              {pinned ? t("sidebar.unpinProject") : t("sidebar.pinProject")}
+            </button>
+          )}
+          {onMoveUp && (
+            <button type="button" role="menuitem" disabled={!canMoveUp} className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%", opacity: canMoveUp ? 1 : 0.45 }} onClick={(event) => { event.stopPropagation(); if (!canMoveUp) return; setMenuOpen(false); onMoveUp(); }}>
+              <i data-ico="chevron-up" data-size="14"></i>
+              {t("sidebar.moveProjectUp")}
+            </button>
+          )}
+          {onMoveDown && (
+            <button type="button" role="menuitem" disabled={!canMoveDown} className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%", opacity: canMoveDown ? 1 : 0.45 }} onClick={(event) => { event.stopPropagation(); if (!canMoveDown) return; setMenuOpen(false); onMoveDown(); }}>
+              <i data-ico="chevron-down" data-size="14"></i>
+              {t("sidebar.moveProjectDown")}
+            </button>
+          )}
+          {onArchiveOlder && (
+            <button type="button" role="menuitem" disabled={olderCount === 0} className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%", opacity: olderCount === 0 ? 0.45 : 1 }} onClick={(event) => { event.stopPropagation(); if (olderCount === 0) return; setMenuOpen(false); onArchiveOlder(); }}>
+              <i data-ico="archive" data-size="14"></i>
+              {t("sidebar.archiveOlderThanWeek", { count: String(olderCount) })}
+            </button>
+          )}
           {onOpenFolder && (
             <button type="button" role="menuitem" className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onOpenFolder(); }}>
               <i data-ico="folder-open" data-size="14"></i>
               {t("sidebar.openProjectFolder")}
             </button>
           )}
+          {(onCollapseOthers || onExpandAll) && <div className={isPhone ? "m-sep" : "d-sep"} />}
+          {onCollapseOthers && (
+            <button type="button" role="menuitem" disabled={!canCollapseOthers} className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%", opacity: canCollapseOthers ? 1 : 0.45 }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onCollapseOthers(); }}>
+              <i data-ico="chevron-up" data-size="14"></i>
+              {t("sidebar.collapseOtherGroups")}
+            </button>
+          )}
+          {onExpandAll && (
+            <button type="button" role="menuitem" disabled={!canExpandAll} className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%", opacity: canExpandAll ? 1 : 0.45 }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onExpandAll(); }}>
+              <i data-ico="chevron-down" data-size="14"></i>
+              {t("sidebar.expandAllGroups")}
+            </button>
+          )}
+          {onViewArchived && (
+            <>
+              <div className={isPhone ? "m-sep" : "d-sep"} />
+              <button type="button" role="menuitem" disabled={archivedCount === 0} className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%", opacity: archivedCount === 0 ? 0.45 : 1 }} onClick={(event) => { event.stopPropagation(); if (archivedCount === 0) return; setMenuOpen(false); onViewArchived(); }}>
+                <i data-ico="history" data-size="14"></i>
+                {t("sidebar.viewArchived", { count: String(archivedCount) })}
+              </button>
+            </>
+          )}
+          {(onRename || onArchive || onOpenFolder || onTogglePin) && (onRename || onArchive) && <div className={isPhone ? "m-sep" : "d-sep"} />}
           {onRename && (
             <button type="button" role="menuitem" className={isPhone ? "m-menu-row" : "d-menu-row"} style={{ width: "100%" }} onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onRename(); }}>
               <i data-ico="square-pen" data-size="14"></i>
@@ -543,7 +650,7 @@ function ProjectRow({
   );
 }
 
-export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, skipInitialProjectSelection, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onBackgroundTaskDone, onRunningSessionIdsChange, onSessionsChange, onToggleSidebar, searchRequestId = 0 }: Props) {
+export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, skipInitialProjectSelection, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onBackgroundTaskDone, onRunningSessionIdsChange, onSessionsChange, onToggleSidebar, searchRequestId = 0, onOpenArchive }: Props) {
   const { t } = useI18n();
   const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
   // Tracked in a ref only: the version is compared against the polled value to
@@ -1488,8 +1595,13 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const { prefs: projectPrefs, setAlias: setProjectAlias, hideProject } = useProjectPrefs();
   // fork:project-archive — 归档只影响这一份列表：标志在 localStorage，选中项永远保留
   // （否则归档掉当前项目就看不出自己在哪了）。
-  const { flags: projectFlags, archive: archiveProject, restore: restoreProject } = useProjectFlags();
+  const { flags: projectFlags, archive: archiveProject, restore: restoreProject, pin: pinProject } = useProjectFlags();
   const [renamingProjectKey, setRenamingProjectKey] = useState<string | null>(null);
+  // fork:pi-1.1（上游 groupMenuItems）—— 「显示更多」的展开量（项目 key → 再多显示几个；
+  // 置顶分区用 PINNED_MORE_KEY）。只活在本机内存：它是一次浏览动作，不是偏好。
+  const [moreShown, setMoreShown] = useState<Record<string, number>>({});
+  // 归档条：一次归档（单个或「N 天前」那批）之后给一条带「撤销 / 查看」的提示。
+  const [archiveToast, setArchiveToast] = useState<{ ids: string[]; message: string } | null>(null);
   const visibleProjects = filterArchivedProjects(
     filterHiddenProjects(
       withoutChatProject(projectChoices, chatProjectKey),
@@ -1567,10 +1679,82 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   // fix:pin-partition —— 顺序在这里给（modified 倒序 → `applySessionFlags` 的置顶分区），
   // `listSessionFamilies` 不再自己按 `latestModified` 重排 —— 那个重排会把刚分出来的
   // 置顶分区又洗回时间序，置顶因此“点了没反应”。
-  const sessionFamilies = listSessionFamilies(applySessionFlags(
+  const allSessionFamilies = listSessionFamilies(applySessionFlags(
     [...filteredSessions].sort((a, b) => b.modified.localeCompare(a.modified)),
     sessionFlags,
   ));
+
+  // fork:pi-1.1（上游 visibleFamilies）—— 每个分组默认只画 GROUP_VISIBLE_LIMIT 个家族。
+  // 运行中 / 未读 / 当前选中的永远在，而且**不占**「显示更多」的名额，所以每点一次
+  // 恰好多出 SHOW_MORE_STEP 行。其余分组在各自的渲染分支里走同一套判定。
+  const familyIsSpecial = useCallback((family: SessionFamily) => (
+    runningSessionIds.has(family.root.id)
+    || unreadSessionIds.has(family.root.id)
+    || family.root.id === selectedSessionId
+    || family.subagents.some((child) => (
+      runningSessionIds.has(child.id) || unreadSessionIds.has(child.id) || child.id === selectedSessionId
+    ))
+  ), [runningSessionIds, selectedSessionId, unreadSessionIds]);
+
+  const selectedProjectKey = selectedProject?.key ?? null;
+  const selectedFamiliesSplit = visibleFamilies(
+    allSessionFamilies,
+    GROUP_VISIBLE_LIMIT,
+    selectedProjectKey ? shownMoreFor(moreShown, selectedProjectKey) : 0,
+    familyIsSpecial,
+  );
+  const sessionFamilies = selectedFamiliesSplit.visible;
+  const selectedMoreRow = moreRowState(allSessionFamilies.length, sessionFamilies.length, selectedFamiliesSplit.revealed);
+
+  // ── fork:pi-1.1（上游 groupMenuItems / familiesToArchive）──────────────────
+  // 侧栏项目菜单里那批批量动作。可见顺序就是 GroupedProjectList 的渲染顺序
+  // （`groupProjects` 展平），「上移 / 下移」按它算邻居，与拖拽共用同一份 order。
+  const projectVisibleKeys = useMemo(
+    () => groupProjects(visibleProjects, sessionGroups.state).flatMap((section) => section.projects.map((project) => project.key)),
+    [sessionGroups.state, visibleProjects],
+  );
+
+  const familyStatusInput = useMemo(() => ({
+    runningIds: runningSessionIds,
+    unreadIds: unreadSessionIds,
+    selectedSessionId,
+  }), [runningSessionIds, selectedSessionId, unreadSessionIds]);
+
+  /**
+   * 项目菜单里「归档 7 天前的会话 · N」。按 `projectChoices`（已 memo）整表算一次，
+   * 而不是每行现算：侧栏滚动会让整个组件重渲，逐行算是 O(项目 × 会话)。
+   */
+  const olderCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const project of projectChoices) {
+      map.set(project.key, familiesOlderThan(sortedProjectSessions(project.key), sessionFlags, familyStatusInput).length);
+    }
+    return map;
+  }, [familyStatusInput, projectChoices, sessionFlags, sortedProjectSessions]);
+
+  const archiveOlderSessions = useCallback((projectKey: string) => {
+    const ids = familiesOlderThan(sortedProjectSessions(projectKey), sessionFlags, familyStatusInput);
+    const added = archiveSessions(ids);
+    if (added.length === 0) return;
+    // 归档条给「撤销」和「查看已归档」两个出口（上游同款）。
+    setArchiveToast({ ids: added, message: t("sidebar.archivedManyToast", { count: String(added.length) }) });
+  }, [familyStatusInput, sessionFlags, sortedProjectSessions, t]);
+
+  const undoArchive = useCallback(() => {
+    if (!archiveToast) return;
+    restoreSessions(archiveToast.ids);
+    setArchiveToast(null);
+  }, [archiveToast]);
+
+  /** 「折叠其他项目」：只留点开的这个展开。 */
+  const collapseOtherProjects = useCallback((keepKey: string) => {
+    setExpandedProjects(new Set([keepKey]));
+  }, []);
+
+  /** 「展开全部项目」：现在列表里每一个都展开。 */
+  const expandAllProjects = useCallback(() => {
+    setExpandedProjects(new Set(projectVisibleKeys));
+  }, [projectVisibleKeys]);
 
   // fix:no-time-groups —— 不再按时间分桶（今天 / 昨天 / 本周 / 本月 / 更早）。
   // 顺序完全由上面的 modified 倒序 + `applySessionFlags` 的置顶分区决定，
@@ -1597,10 +1781,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       return next;
     });
   }, []);
-  const sidebarEntries = useMemo<SidebarEntry[]>(
-    () => expandSidebarEntries(sessionListEntries, expandedFamilies),
-    [sessionListEntries, expandedFamilies],
-  );
+  const sidebarEntries = useMemo<SidebarEntry[]>(() => {
+    const list = expandSidebarEntries(sessionListEntries, expandedFamilies);
+    if (!selectedMoreRow || !selectedProjectKey) return list;
+    return [...list, { type: "more", key: selectedProjectKey, hidden: selectedMoreRow.hidden, canShowLess: selectedMoreRow.canShowLess }];
+  }, [expandedFamilies, selectedMoreRow, selectedProjectKey, sessionListEntries]);
 
   // fork:session-row-overlap —— 窗口化的行高量自真行（见文件头 SESSION_LIST_ITEM_HEIGHT）。
   // 量的是滚动区里的第一行：`.d-sess`（Web）与 `.m-row`（PWA）都是**内容高 ≥ 拉伸高**
@@ -1661,6 +1846,23 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     );
   };
   /** 子代理会话：缩进一级 + 竖线 + 分支图标（画板 02 的子代理行）。 */
+  /** fork:pi-1.1（上游「显示更多」行）—— 一个分组多出来的那些会话。 */
+  const renderMoreRow = (key: string, hidden: number, canShowLess: boolean) => (
+    <button
+      type="button"
+      className={isMobile ? "m-trow" : "d-trow"}
+      style={{ width: "100%", justifyContent: "flex-start", gap: "var(--nx-sp-2)", color: "var(--nx-text-3)" }}
+      onClick={() => setMoreShown((prev) => (
+        canShowLess && hidden === 0 ? showLessFamilies(prev, key) : showMoreFamilies(prev, key)
+      ))}
+    >
+      <i data-ico={canShowLess && hidden === 0 ? "chevron-up" : "chevron-down"} data-size="13" aria-hidden="true"></i>
+      {canShowLess && hidden === 0
+        ? t("sidebar.showLess")
+        : t("sidebar.showMore", { count: String(hidden) })}
+    </button>
+  );
+
   const renderChildRow = (session: SessionInfo) => (
     <div style={{ flex: 1, minWidth: 0, marginLeft: 8, paddingLeft: 6, borderLeft: "1px solid var(--nx-line)" }}>
       <SessionItem
@@ -1982,6 +2184,25 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       body: JSON.stringify({ cwd: project.root }),
                     });
                   }}
+                  // fork:pi-1.1（上游 groupMenuItems）—— 项目菜单的批量动作。
+                  pinned={projectFlags.pinned.includes(project.key)}
+                  onTogglePin={() => pinProject(project.key)}
+                  onMoveUp={() => sessionGroups.moveProjectAdjacent(project.key, projectVisibleKeys, "up")}
+                  onMoveDown={() => sessionGroups.moveProjectAdjacent(project.key, projectVisibleKeys, "down")}
+                  canMoveUp={projectVisibleKeys.indexOf(project.key) > 0}
+                  canMoveDown={projectVisibleKeys.indexOf(project.key) >= 0 && projectVisibleKeys.indexOf(project.key) < projectVisibleKeys.length - 1}
+                  olderCount={olderCounts.get(project.key) ?? 0}
+                  onArchiveOlder={() => archiveOlderSessions(project.key)}
+                  onCollapseOthers={() => collapseOtherProjects(project.key)}
+                  onExpandAll={() => expandAllProjects()}
+                  canCollapseOthers={!projectVisibleKeys.every((key) => key === project.key)}
+                  canExpandAll={projectVisibleKeys.some((key) => !expandedProjects.has(key))}
+                  onToggleAll={() => {
+                    if (expandedProjects.has(project.key)) setExpandedProjects(new Set());
+                    else expandAllProjects();
+                  }}
+                  archivedCount={projectFlags.archived.length}
+                  onViewArchived={() => onOpenArchive?.()}
                   selected={isSelectedProject}
                   activity={projectActivity.get(project.key)}
                   onClick={() => {
@@ -2250,13 +2471,18 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 {isExpanded &&
                   (() => {
                     const projectSessions = orderedProjectSessions(project.key);
-                    const families = listSessionFamilies(projectSessions);
+                    const allFamilies = listSessionFamilies(projectSessions);
+                    // fork:pi-1.1 —— 与选中项目同一套「显示更多」规则（运行中/未读/选中
+                    // 的永远在，且不占名额）。
+                    const familySplit = visibleFamilies(allFamilies, GROUP_VISIBLE_LIMIT, shownMoreFor(moreShown, project.key), familyIsSpecial);
+                    const families = familySplit.visible;
+                    const projectMoreRow = moreRowState(allFamilies.length, families.length, familySplit.revealed);
                     // fork:ui-archive-history — 归档的会话不再在项目下开折叠区，
                     // 统一去 设置 → 归档历史 里看（用户要求）。
                     // fix:no-time-groups —— 项目下不再按「今天/昨天/本周」分段，
                     // 一行一个会话（顺序来自 orderedProjectSessions 的倒序 + 置顶分区）。
                     const projectEntries = flatTimeGroupEntries(families);
-                    if (families.length === 0) {
+                    if (allFamilies.length === 0) {
                       return (
                         <div className={isMobile ? "m-t-sm m-t-faint" : "d-t-sm d-t-faint"} style={{ padding: isMobile ? "6px 14px" : "var(--nx-sp-2) 0 var(--nx-sp-1) 34px" }}>{t("sidebar.noTasks")}</div>
                       );
@@ -2272,6 +2498,13 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                                 if (!entry || entry.type === "header") return null;
                                 const top = rowOffsets[index] ?? index * SESSION_LIST_ITEM_HEIGHT;
                                 const height = (rowOffsets[index + 1] ?? top + SESSION_LIST_ITEM_HEIGHT) - top;
+                                if (entry.type === "more") {
+                                  return (
+                                    <div key={`more:${entry.key}`} style={{ position: "absolute", top, left: 0, right: 0, height, display: "flex" }}>
+                                      {renderMoreRow(entry.key, entry.hidden, entry.canShowLess)}
+                                    </div>
+                                  );
+                                }
                                 const sessionId = entry.type === "family" ? entry.family.root.id : entry.session.id;
                                 return (
                                   <div key={sessionId} data-session-id={sessionId} onFocus={() => setFocusedSessionId(sessionId)} onBlur={() => setFocusedSessionId(null)} style={{ position: "absolute", top, left: 0, right: 0, height, display: "flex" }}>
@@ -2287,13 +2520,18 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     return (
                       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)", marginLeft: "var(--space-hair)", borderLeft: "1px solid var(--nx-line)", paddingLeft: "var(--nx-sp-1)" }}>
                         {expandSidebarEntries(projectEntries, expandedFamilies).map((entry) => {
-                          if (entry.type === "header") return null;
+                          if (entry.type !== "family" && entry.type !== "child") return null;
                           return (
                             <div key={entry.type === "family" ? entry.family.root.id : entry.session.id} style={{ display: "flex" }}>
                               {entry.type === "family" ? renderFamilyRow(entry.family) : renderChildRow(entry.session)}
                             </div>
                           );
                         })}
+                        {projectMoreRow && (
+                          <div style={{ display: "flex" }}>
+                            {renderMoreRow(project.key, projectMoreRow.hidden, projectMoreRow.canShowLess)}
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -2384,7 +2622,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       <div style={{ position: "relative", height: chatOffsets[chatSidebarEntries.length] }}>
                         {chatVirtualIndices.map((index) => {
                           const entry = chatSidebarEntries[index];
-                          if (!entry || entry.type === "header") return null;
+                          if (!entry || (entry.type !== "family" && entry.type !== "child")) return null;
                           const sessionId = entry.type === "family" ? entry.family.root.id : entry.session.id;
                           return (
                             <div key={sessionId} data-session-id={sessionId} onFocus={() => setFocusedSessionId(sessionId)} onBlur={() => setFocusedSessionId(null)} style={{ position: "absolute", top: chatOffsets[index], left: 0, right: 0, height: (chatOffsets[index + 1] ?? chatOffsets[index]) - chatOffsets[index], display: "flex" }}>
@@ -2398,7 +2636,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-hair)" }}>
                     {chatSidebarEntries.map((entry) => {
-                      if (entry.type === "header") return null;
+                      if (entry.type !== "family" && entry.type !== "child") return null;
                       return (
                         <div key={entry.type === "family" ? entry.family.root.id : entry.session.id} style={{ display: "flex" }}>
                           {entry.type === "family" ? renderFamilyRow(entry.family) : renderChildRow(entry.session)}
@@ -2414,6 +2652,22 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         </div>
       </SessionSearch>
       </div>
+      {/* fork:pi-1.1（上游 SidebarToast）—— 归档条：一次归档之后给「撤销 / 查看已归档」
+          两个出口。归档是**展示位**（不改文件），所以撤销就是把它放回列表；条自己
+          不会自动消失（上游同款），点掉才走。 */}
+      {archiveToast && (
+        <div className={isMobile ? "m-banner" : "d-banner"} role="status" style={{ position: "sticky", bottom: 0, margin: "var(--nx-sp-1)", zIndex: 5 }}>
+          <i data-ico="archive" data-size="14" aria-hidden="true"></i>
+          <span className={isMobile ? "m-grow" : "d-grow"} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{archiveToast.message}</span>
+          <button type="button" className={isMobile ? "m-btn sm ghost" : "d-btn sm ghost"} onClick={undoArchive}>{t("sidebar.undo")}</button>
+          {onOpenArchive && (
+            <button type="button" className={isMobile ? "m-btn sm ghost" : "d-btn sm ghost"} onClick={() => onOpenArchive()}>{t("sidebar.viewArchive")}</button>
+          )}
+          <button type="button" className={isMobile ? "m-iconbtn" : "d-iconbtn"} aria-label={t("sidebar.dismiss")} title={t("sidebar.dismiss")} onClick={() => setArchiveToast(null)}>
+            <i data-ico="x" data-size="13" aria-hidden="true"></i>
+          </button>
+        </div>
+      )}
     </>
   );
 }

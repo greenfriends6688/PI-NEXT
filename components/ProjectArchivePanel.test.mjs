@@ -89,7 +89,8 @@ test("project identity comes from the server, never from a browser-side path", (
 });
 
 test("the sidebar hides archived projects but never the selected one", () => {
-  assert.match(sidebar, /const \{ flags: projectFlags, archive: archiveProject, restore: restoreProject \} = useProjectFlags\(\)/);
+  // fork:pi-1.1 —— 同一份 store 现在还给出置顶动作；归档过滤本身一字未动。
+  assert.match(sidebar, /const \{ flags: projectFlags, archive: archiveProject, restore: restoreProject, pin: pinProject \} = useProjectFlags\(\)/);
   const filter = sidebar.slice(
     sidebar.indexOf("const visibleProjects = filterArchivedProjects("),
     sidebar.indexOf("const visibleProjects = filterArchivedProjects(") + 400,

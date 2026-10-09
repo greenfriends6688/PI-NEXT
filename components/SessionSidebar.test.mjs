@@ -155,10 +155,13 @@ test("hides subagent rows and aggregates their state into the main session row",
   // The session list feeds through the client-side pin/archive flags before it is
   // grouped into families, so a pinned row sorts first and an archived row drops out.
   // fix:pin-partition —— 排序在这里给：listSessionFamilies 不再重排（会把置顶洗掉）。
+  // fork:pi-1.1 —— 排序仍在这里给（listSessionFamilies 不重排），随后按「显示更多」
+  // 截断：`sessionFamilies` 是 `visibleFamilies(...)` 的结果，未截断的在 `allSessionFamilies`。
   assert.match(
     source,
-    /const sessionFamilies = listSessionFamilies\(applySessionFlags\(\s*\[\.\.\.filteredSessions\]\.sort\(\(a, b\) => b\.modified\.localeCompare\(a\.modified\)\),\s*sessionFlags,\s*\)\)/,
+    /const allSessionFamilies = listSessionFamilies\(applySessionFlags\(\s*\[\.\.\.filteredSessions\]\.sort\(\(a, b\) => b\.modified\.localeCompare\(a\.modified\)\),\s*sessionFlags,\s*\)\)/,
   );
+  assert.match(source, /const sessionFamilies = selectedFamiliesSplit\.visible;/);
   assert.match(source, /familySessions\.some\(\(session\) => session\.id === selectedSessionId\)/);
   assert.match(source, /familySessions\.some\(\(session\) => runningSessionIds\.has\(session\.id\)\)/);
   assert.doesNotMatch(source, /function SessionTreeItem/);

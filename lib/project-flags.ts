@@ -29,9 +29,14 @@ export interface ProjectFlags {
   archived: string[];
   /** projectKey → archive time (ISO). Older records may not have one. */
   archivedAt: Record<string, string>;
+  /**
+   * fork:pi-1.1（上游 sidebar.pinProject）—— 置顶的项目 key。置顶的排在项目列表
+   * 最前（在分组内也靠前），但仍可被拖拽 / 上移下移调整相对顺序。
+   */
+  pinned: string[];
 }
 
-const EMPTY: ProjectFlags = { archived: [], archivedAt: {} };
+const EMPTY: ProjectFlags = { archived: [], archivedAt: {}, pinned: [] };
 
 const listeners = new Set<() => void>();
 let cache: ProjectFlags | null = null;
@@ -63,6 +68,7 @@ export function parseProjectFlags(raw: string | null): ProjectFlags {
     return {
       archived: sanitizeProjectKeys(record.archived),
       archivedAt: sanitizeArchivedAt(record.archivedAt),
+      pinned: sanitizeProjectKeys(record.pinned),
     };
   } catch {
     return { ...EMPTY };
@@ -119,6 +125,7 @@ export function setProjectArchived(projectKey: string, archived: boolean): void 
       ? [...current.archived, projectKey]
       : current.archived.filter((key) => key !== projectKey),
     archivedAt: { ...current.archivedAt },
+    pinned: [...current.pinned],
   };
   if (archived) next.archivedAt[projectKey] = new Date().toISOString();
   else delete next.archivedAt[projectKey];
@@ -127,6 +134,42 @@ export function setProjectArchived(projectKey: string, archived: boolean): void 
 
 export function toggleProjectArchived(projectKey: string): void {
   setProjectArchived(projectKey, !ensure().archived.includes(projectKey));
+}
+
+/** 置顶 / 取消置顶一个项目。归档与置顶互不影响，但置顶的项目不会被归档。 */
+export function setProjectPinned(projectKey: string, pinned: boolean): void {
+  if (!projectKey || typeof window === "undefined") return;
+  const current = ensure();
+  if (pinned === current.pinned.includes(projectKey)) return;
+  write({
+    ...current,
+    pinned: pinned
+      ? [...current.pinned, projectKey]
+      : current.pinned.filter((key) => key !== projectKey),
+  });
+}
+
+export function toggleProjectPinned(projectKey: string): void {
+  setProjectPinned(projectKey, !ensure().pinned.includes(projectKey));
+}
+
+/**
+ * fork:pi-1.1 —— 置顶的项目排在最前，其余保持原顺序（稳定分区，与
+ * `applySessionFlags` 的会话置顶同一套语义：再置顶一个不会打乱别的）。
+ */
+export function applyProjectPins<T extends { key: string }>(
+  projects: readonly T[],
+  flags: ProjectFlags,
+): T[] {
+  if (flags.pinned.length === 0) return [...projects];
+  const pinned = new Set(flags.pinned);
+  const top: T[] = [];
+  const rest: T[] = [];
+  for (const project of projects) {
+    if (pinned.has(project.key)) top.push(project);
+    else rest.push(project);
+  }
+  return [...top, ...rest];
 }
 
 export function getProjectFlags(): ProjectFlags {
@@ -175,6 +218,7 @@ export function useProjectFlags() {
 
   const archive = useCallback((projectKey: string) => toggleProjectArchived(projectKey), []);
   const restore = useCallback((projectKey: string) => setProjectArchived(projectKey, false), []);
+  const pin = useCallback((projectKey: string) => toggleProjectPinned(projectKey), []);
 
-  return { flags, archive, restore };
+  return { flags, archive, restore, pin };
 }
