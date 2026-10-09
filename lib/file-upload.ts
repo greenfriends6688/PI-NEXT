@@ -57,3 +57,30 @@ export function inspectUploadTargets(directory: string, fileNames: string[]): Up
 
   return { conflicts, nonReplaceable };
 }
+
+// fork:file-integrity（上游 #1039）—— 覆盖上传改成原子替换：旧文件一直留到
+// 新内容**完整写入并 rename 成功**为止。旧写法先 `unlinkSync` 再 `writeFileSync`，
+// 中间任何失败（磁盘满 / 权限 / 进程被杀）都会把原文件永久丢掉。
+/** Keep the old entry intact until its complete replacement can be renamed over it. */
+export function replaceUploadFile(destination: string, bytes: Buffer): void {
+  const stat = fs.lstatSync(destination);
+  if (!stat.isFile() || stat.isSymbolicLink()) {
+    throw new Error("Cannot replace a directory or symbolic link");
+  }
+
+  // A private directory beside the destination keeps the rename on the same
+  // filesystem and gives us ownership of the staging file, even on write failure.
+  const stagingDirectory = fs.mkdtempSync(path.join(path.dirname(destination), ".pi-upload-"));
+  const stagingFile = path.join(stagingDirectory, "upload");
+  try {
+    fs.writeFileSync(stagingFile, bytes, { flag: "wx", mode: stat.mode & 0o777 });
+    // The destination may have changed since the multipart upload was inspected.
+    const current = fs.lstatSync(destination);
+    if (!current.isFile() || current.isSymbolicLink()) {
+      throw new Error("Cannot replace a directory or symbolic link");
+    }
+    fs.renameSync(stagingFile, destination);
+  } finally {
+    fs.rmSync(stagingDirectory, { recursive: true, force: true });
+  }
+}
