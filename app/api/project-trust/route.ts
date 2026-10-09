@@ -5,6 +5,8 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-access";
 import { invalidateModelsCache } from "@/lib/models-cache";
 import { getProjectTrustStatus, trustProject } from "@/lib/project-trust";
+// fork:pi-1.1（上游 3e693c7b3）—— 信任之前先把项目 .pi/mcp.json 的 server 与命令列出来。
+import { readProjectMcpSummary } from "@/lib/project-trust-mcp";
 import { destroyRpcSessionsForCwd, hasBusyRpcSessionForCwd } from "@/lib/rpc-manager";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +37,11 @@ async function validateCwd(value: unknown): Promise<
 export async function GET(req: Request) {
   const result = await validateCwd(new URL(req.url).searchParams.get("cwd"));
   if ("response" in result) return result.response;
-  return NextResponse.json(getProjectTrustStatus(result.cwd, getAgentDir()));
+  const status = getProjectTrustStatus(result.cwd, getAgentDir());
+  // 需要信任时才列 server：不需要信任的项目没有对话框，列了也没人看，
+  // 而读一次文件是要花 I/O 的。
+  const mcp = status.requiresTrust ? await readProjectMcpSummary(result.cwd) : null;
+  return NextResponse.json(mcp ? { ...status, mcp } : status);
 }
 
 export async function POST(req: Request) {

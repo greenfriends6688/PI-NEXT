@@ -5,6 +5,7 @@ import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { formatDuration } from "./MessageView";
 import { PwaTrustSheet } from "./pwa/PwaTrustSheet";
+import type { ProjectMcpSummary } from "@/lib/project-trust-mcp";
 
 /**
  * fork:design-components —— 项目信任对话框 = 画板 D-26b 帧 E「项目信任对话框」：
@@ -59,6 +60,25 @@ export function ProjectTrustDialog({
     return () => clearInterval(timer);
   }, [busy]);
 
+  // fork:pi-1.1（上游 3e693c7b3）—— 信任一个文件夹 = 允许它的 `.pi/` 在本机执行，
+  // 所以先把 `.pi/mcp.json` 里会跑的 server 与命令列出来。列不出来（请求失败）时
+  // 这一节不出现，信任本身照常可做。
+  const [mcp, setMcp] = useState<ProjectMcpSummary | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/project-trust?cwd=${encodeURIComponent(cwd)}`);
+        if (!res.ok) return;
+        const data = await res.json() as { mcp?: ProjectMcpSummary | null };
+        if (!cancelled) setMcp(data.mcp ?? null);
+      } catch {
+        // 读不出来就不显示这一节。
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [cwd]);
+
   if (isMobile) {
     return <PwaTrustSheet cwd={cwd} busy={busy} error={error} onCancel={onCancel} onConfirm={onConfirm} />;
   }
@@ -108,6 +128,45 @@ export function ProjectTrustDialog({
               <span className="d-grow d-mono">{cwd}</span>
             </div>
           </div>
+          {/* fork:pi-1.1（上游 3e693c7b3）—— 「信任之后它会跑什么」。命令按原文列出
+              （掩码会把要跑的东西藏起来，那正是这张表要回答的问题）；URL 的凭证已掩码；
+              env / header 只列名字、不列值。 */}
+          {mcp && mcp.exists && (
+            <div className="d-card">
+              <div className="d-card-head">
+                <i data-ico="server" data-size="13" aria-hidden="true" />
+                <span className="d-grow">{t("trust.mcpServers", { count: String(mcp.servers.length) })}</span>
+              </div>
+              <div className="d-card-body">
+                <div className="d-t-xs d-t-dim">{t("trust.mcpRuns")}</div>
+                {mcp.servers.length === 0 ? (
+                  <div className="d-t-xs d-t-faint">{t("trust.mcpNone")}</div>
+                ) : mcp.servers.map((server) => (
+                  <div key={server.name} className="d-code">
+                    <div className="d-code-head">
+                      <i data-ico={server.transport === "http" ? "globe" : "terminal"} data-size="12" aria-hidden="true" />
+                      <span className="d-grow d-mono">{server.name}</span>
+                    </div>
+                    {(server.command ?? server.url) && (
+                      <div className="d-mono d-t-xs" style={{ padding: "0 var(--nx-sp-2) var(--nx-sp-1)", overflowWrap: "anywhere" }}>
+                        {server.command ?? server.url}
+                      </div>
+                    )}
+                    {(server.envNames.length > 0 || server.headerNames.length > 0) && (
+                      <div className="d-t-xs d-t-faint" style={{ padding: "0 var(--nx-sp-2) var(--nx-sp-1)", overflowWrap: "anywhere" }}>
+                        {t("trust.mcpEnv", { names: [...server.envNames, ...server.headerNames].join(", ") })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {mcp.errors.length > 0 && (
+                  <div className="d-err" role="alert">
+                    {mcp.errors.map((message) => <div key={message} className="d-mono">{message}</div>)}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {error && (
             <div className="d-err" role="alert">
               <span className="d-mono">{error}</span>
