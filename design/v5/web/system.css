@@ -118,7 +118,12 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
      saturate 是 kit 的 Large/light 档 1.4；rim 与内阴影逐层照抄 kit 的共享样式。 */
   -webkit-backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
   backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
-  box-shadow: var(--nx-glass-rim), var(--nx-glass-inner), var(--nx-glass-ambient);
+  /* fork:apple-sketch §AD（2026-10-08，用户实拍「这个顶栏的下面的阴影效果给我去掉吧」）——
+     原来还有第三层 `--nx-glass-ambient`（`0 18px 46px rgba(0,0,0,.25)`），
+     就是顶栏下方那道 46px 的柔和投影（浅色实测 y=36..40 像素 218–219）。
+     去掉后边缘仍有两重定义：rim 的 0.5px #dbdbdb 与下面的 `border-bottom`。
+     令牌本体也已从 base.css 删掉（它只被这一处消费），不留零引用。 */
+  box-shadow: var(--nx-glass-rim), var(--nx-glass-inner);
   border-bottom: 1px solid var(--nx-line); position: relative; z-index: var(--nx-z-sticky); }
 /* fork:apple-sketch —— 改用 macOS kit 的具名样式。Apple 的排版单位是「样式」
    （size + line-height + weight 三件套），不是「尺寸梯子 + 手写 weight」。 */

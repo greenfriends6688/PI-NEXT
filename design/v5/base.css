@@ -298,8 +298,11 @@
   --nx-glass-inner: inset 0 2px 0.25px -1.5px #ffffff;
   /* 这里**曾有** `--nx-glass-inner-dark`（kit 的暗 inset + 白高光）。已删，理由见
      下面 `[data-theme="dark"]` 那块：白色高光在近黑顶栏上同样读成亮线。 */
-  --nx-glass-ambient: 0 18px 46px rgba(0, 0, 0, .25);
-  --nx-glass-ambient-dark: 0 18px 46px rgba(0, 0, 0, .45);
+  /* 这里**曾有** `--nx-glass-ambient` / `--nx-glass-ambient-dark`
+     （`0 18px 46px rgba(0,0,0,.25/.45)`）。已删 —— 用户 2026-10-08 实拍：
+     「这个顶栏的下面的阴影效果给我去掉吧」。它是 `.d-topbar` 下方那层 46px 柔和投影
+     （浅色实测顶栏下 y=36..40 像素 218–219，就是它）。唯一消费方是 `.d-topbar`，
+     删令牌与删消费点一起做，不留零引用。登记 `DIVERGENCE.md` §AD。 */
 
   /* ── fork:apple-sketch 第二轮修正（2026-10-08，深色实测）─────────────────────
    * 上面两条 `-dark` 变体原本**全仓零引用**，于是深色顶栏吃的是浅色那几条：
@@ -325,7 +328,6 @@
 [data-theme="dark"] {
   --nx-glass-rim: 0 0 0 0 transparent;
   --nx-glass-inner: 0 0 0 0 transparent;
-  --nx-glass-ambient: var(--nx-glass-ambient-dark);
 }
 
 /* ── 共享结构原子：两端都用，定义一次 ─────────────────────────────────────── */

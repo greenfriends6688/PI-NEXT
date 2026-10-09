@@ -1083,3 +1083,50 @@ Web `labels/dark/4-quaternary` = `#ffffff1a`，PWA `separators/dark/non-opaque` 
 于是**原暗色块自己的声明**也成了覆盖 —— 故意删掉修复仍然报 0 错误。
 判据必须是「在这个后置 `:root` 声明**之后**还有暗色声明」，不是「在第一个暗色块之后」。
 反向验证过：删掉修复，守卫精确报出 web / pwa 两条。
+
+## AD · 顶栏浮窗跑出屏幕 + 去掉顶栏下方阴影（2026-10-08 · fork:top-panel-portal / fork:apple-sketch）
+
+用户实拍：「多agent这个浮窗显示位置有问题，然后这个顶栏的下面的阴影效果给我去掉吧」。
+
+### AD.1 Agents 浮窗跑出屏幕 —— 与 0bb1af79 同一个根因，那一刀只修了一半
+
+**根因**：`backdrop-filter` 会成为后代 `position: fixed` 的**包含块**。顶栏 `.d-topbar`
+带着 `backdrop-filter: blur(6px) saturate(1.4)`（apple-sketch 的玻璃值），而顶栏那只**共用**
+浮窗壳（agents / system / tools 三选一）是它的后代 → `topPanelPos` 算出来的**视口坐标**
+被当成「相对顶栏」的坐标又叠加了一次顶栏原点。
+
+**真 Chrome 实测**（1440 视口，会话 `01a11632-…`，6 个子代理）：
+
+| | 值 |
+|---|---|
+| agents 钮 left | 1252 |
+| 浮窗 left（实际） | **1268** |
+| 浮窗 left（代码算出来的） | 1012 |
+| 偏差 | **+256 = 顶栏 left**（侧栏宽） |
+| 浮窗右缘 | 1688 > 视口 1440 → **出屏 248px** |
+
+`0bb1af79`（2026-10-07）已经为**会话分支**浮窗诊断出同一条根因、并把它挂到 body；
+但那只共用壳里的 agents / system / tools 没跟上 —— 所以同一个 bug 换一只浮窗又出现一次。
+
+**处置**：`createPortal(…, document.body)`（与 `fork:model-pop-portal` 同一刀）。
+`topPanelPos` 那套定位 / 翻转 / `ResizeObserver` 一个字没改。
+
+**实测（修复后）**：浮窗 left **1012**（= 代码算的值，偏差 **0**）、右缘 **1432 ≤ 1440**、
+top 32（紧贴按钮下沿）、6 行全可见、`parentElement === document.body`。
+
+**同类排查**（把「还有谁被包含块捕获」一次问清，别再一只一只等用户报）：全页扫
+`position: fixed` 与所有会产生包含块的元素（`backdrop-filter` / `filter` / `transform` /
+`perspective` / `contain: paint|layout`）—— **0 个 fixed 元素落在任何包含块里**。
+会产生包含块的共 5 处：侧栏 / 顶栏 / 右栏 / composer / `.d-jump`（后三者是元素自身，
+没有 fixed 后代；composer 那条早在 `fork:model-pop-portal` 就处理过了）。
+
+### AD.2 去掉顶栏下方那层阴影
+
+用户：「这个顶栏的下面的阴影效果给我去掉吧」。删掉 `.d-topbar` 的第三层
+`--nx-glass-ambient`（`0 18px 46px rgba(0,0,0,.25)` —— 浅色实测顶栏下 y=36..40 像素
+218–219 就是它）。令牌本体一并从 `base.css` 删掉（唯一消费方就是这一处），不留零引用；
+`[data-theme="dark"]` 里的映射行同删。
+
+边缘仍有两重定义：`--nx-glass-rim` 的 0.5px 与 `.d-topbar` 自己的
+`border-bottom: 1px solid var(--nx-line)`。修复后实测：浅色 y=36..43 回到内容本身的颜色
+（236–255，不再被压暗），深色同理（30–51，无渐变带）。

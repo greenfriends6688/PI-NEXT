@@ -26,6 +26,7 @@ function markAutoNameAttempted(sessionId: string): void {
 }
 
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { SessionSidebar } from "./SessionSidebar";
@@ -3655,11 +3656,27 @@ export function AppShell() {
               `.d-pop-float`；又因为窄屏芯片那路 `toggleTopPanel("branches")` 不带锚点，
               定位回落到顶栏左缘，于是空框贴在屏幕左上、还顺带盖住一块可点区域。 */}
           {activeTopPanel && activeTopPanel !== "branches" && topPanelPos && (
-            /* fork:v5-landing —— 顶栏浮窗壳 = 画板 D-02b 的 `.d-pop-float`（浮窗的
-               唯一一种描边/圆角/阴影/内边距）。它本来就是 fixed 定位，所以把壳放在这层
-               定位容器上，里面的 SystemPromptPanel / ToolDefinitionsPanel /
-               AgentSessionPanel 只负责内容（`d-pop-title` / `d-code` / `d-table` 等），
-               不再各自套一层 `pw-pop`。 */
+            /* fork:top-panel-portal（2026-10-08 用户实拍「多 agent 这个浮窗显示位置有问题」）——
+               这一层必须 **挂到 body**，和 0bb1af79 给会话分支浮窗、`fork:model-pop-portal`
+               给模型浮窗用的是同一条理由：`backdrop-filter` 会成为后代 `position: fixed` 的
+               **包含块**。
+
+               顶栏 `.d-topbar` 带着 `backdrop-filter: blur(6px) saturate(1.4)`（apple-sketch
+               的玻璃值），而这只浮窗是它的后代 → `topPanelPos` 算出来的**视口坐标**被当成
+               「相对顶栏」的坐标又叠加了一次顶栏原点。真 Chrome 实测（1440 视口，会话
+               `01a11632-…`，6 个子代理）：
+
+                 | | 值 |
+                 |---|---|
+                 | agents 钮 left | 1252 |
+                 | 浮窗 left（实际） | **1268** |
+                 | 浮窗 left（代码算的） | 1012 |
+                 | 偏差 | **+256 = 顶栏 left**（侧栏宽） |
+                 | 浮窗右缘 | 1688 > 1440 → 出屏 248px |
+
+               挂到 body 之后 fixed 重新相对视口，`topPanelPos` 那套定位/ResizeObserver
+               一个字都不用改。 */
+            createPortal(
             <div ref={topPanelRef} className="anim-popover-down d-pop-float" style={{
               position: "fixed",
               top: topPanelPos.top,
@@ -3692,7 +3709,9 @@ export function AppShell() {
                   translate={translate}
                 />
               )}
-            </div>
+            </div>,
+            document.body,
+            )
           )}
 
         </TopBarTag>
