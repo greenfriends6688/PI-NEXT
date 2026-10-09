@@ -215,7 +215,13 @@
   /* 底距要大于 homebar 的顶（6+5=11px），否则高输入卡会压到 homebar —— 12px 刚好过线 */
   padding: 0 var(--nx-sp-3) calc(var(--nx-sp-3) + env(safe-area-inset-bottom, 0px)); pointer-events: none; }
 .m-composer-wrap > * { pointer-events: auto; }
-.m-composer { background: var(--nx-glass);
+.m-composer { /* fork:composer-no-orbit —— `position: relative` 从 `.m-loader` 搬到这里。
+   它本来一直靠 `.m-loader` 那个类提供（`.m-loader { position: relative }`），而光带下线后
+   那个类名就该摘掉 —— 摘之前必须先把定位上下文挪到卡片自己身上，否则卡内任何
+   `position: absolute` 的子件都会以更外层为参照（桌面侧 `.chat-input-shell` 自带
+   `position: relative`，所以只缺窄屏这一边）。 */
+  position: relative;
+  background: var(--nx-glass);
   -webkit-backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
   backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
   border-radius: var(--nx-r-xl); box-shadow: var(--nx-sh-2), var(--nx-halo);

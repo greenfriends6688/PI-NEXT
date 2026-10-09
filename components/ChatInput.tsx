@@ -3833,7 +3833,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             SVG 的 viewBox 只是几何占位：`.m-loader-svg` 自己算尺寸 +
             preserveAspectRatio 把 path 拉满卡片边，pathLength=100 让 dashoffset
             走 -100 正好绕一圈（端点速度恒定、拐角也不变速）。 */}
-        <div className={`m-composer${isStreaming ? " m-loader" : ""}`}>
+        <div className="m-composer">
           {/* fork:composer-no-orbit —— 与桌面 `.d-loader` 同一件东西、同一条裁定，
               已经撤除（用户：「这个输入框的描边的跑马灯效果帮我去掉吧」）。
               这里原来是 `.m-loader-glow` + `.m-loader-svg` 那对。 */}
