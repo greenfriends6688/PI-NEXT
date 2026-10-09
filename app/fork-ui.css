@@ -3383,9 +3383,12 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  * 顺序：厂商前缀在前、标准属性在后 —— 构建期会把写在后面的那条留下
  * （反过来的写法会让无前缀那条被丢掉，现代 Chrome 于是完全不模糊，实测过）。
  * ═══════════════════════════════════════════════════════════════════════════ */
+/* fork:apple-sketch §AE（2026-10-08）—— 底色改成 kit 的两层填充（fill-1 白 70% +
+   fill-2 10% 灰）而不是原先那个手写的 `#ecececa1` 灰。合成从 #f3f3f3 提到 #f9f9f9，
+   侧栏不再把整页读成「发灰」。 */
 .sidebar-container,
 .right-panel-container {
-  background: var(--nx-mat-reg-bg-light);
+  background: linear-gradient(var(--nx-mat-reg-fill2-light), var(--nx-mat-reg-fill2-light)), var(--nx-mat-reg-bg-light);
   -webkit-backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-light));
   backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-light));
 }

@@ -260,7 +260,11 @@
    agent 在跑时，输入卡自己亮起来，不必再在消息流里插一行「正在跑」。
    SVG 用 pathLength=100 把周长归一化，于是 stroke-dashoffset 走 -100 正好绕行一圈：
    端点速度恒定、拐角也不变速（这两点用真实周长做不到，圆角处会明显加速）。
-   dasharray 的两个数在 pathLength 空间里，**不是长度**，所以只能是字面量。 */
+   dasharray 的两个数在 pathLength 空间里，**不是长度**，所以只能是字面量。
+
+   fork:composer-no-orbit（2026-10-08）—— **产品已下线这条光带**，与桌面 `.d-loader`
+   同一件东西、同一条裁定（用户：「这个输入框的描边的跑马灯效果帮我去掉吧」）：
+   ChatInput 里那对 glow + 闭环的 JSX 已删。规则留着是给画板 M-03 帧 D-1 用的。 */
 .m-loader { position: relative; }
 /* 描边的一半宽 —— 让光带正好压在卡片边框上，而不是浮在里侧或外侧 */
 .m-loader-svg { position: absolute; inset: calc(var(--nx-focus-w) / -2);

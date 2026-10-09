@@ -369,8 +369,15 @@ export function PhaseRoll({
           )}
         </span>
         {!isPwa && icon.spin && displayed && (
-          <span className="d-run">
-            <i data-ico="loader-circle" data-size="12" aria-hidden="true"></i>
+          /* fork:waiting-row（2026-10-08，用户实拍「正在等待模型...这个请你帮我也优化一下
+             展示吧，我不喜欢这个啊」）—— 原来右边是 `.d-run`：一枚**第二只**转圈图标 +
+             强调色秒数。一行里两个转圈、右边还是蓝的，读起来像两件事同时在跑；
+             左边那只图标已经说完了「在等」。现在只留秒数本身，用画板本来就有的
+             `.d-step-meta`（xs / `--nx-text-3` / nowrap / 不伸缩），数字走等宽，
+             免得每秒抖一下。
+             （同一次还修了「那根孤立的竖线」：导轨现在只在 `.d-steps` 时间轴里画，
+             PhaseRoll 这张单行卡不再挂导轨 —— 见 system.css 的 fork:phase-rail-scope。） */
+          <span className="d-step-meta" style={{ fontVariantNumeric: "tabular-nums" }}>
             {`${elapsed.toFixed(1)}s`}
           </span>
         )}

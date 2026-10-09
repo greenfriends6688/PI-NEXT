@@ -1130,3 +1130,54 @@ top 32（紧贴按钮下沿）、6 行全可见、`parentElement === document.bo
 边缘仍有两重定义：`--nx-glass-rim` 的 0.5px 与 `.d-topbar` 自己的
 `border-bottom: 1px solid var(--nx-line)`。修复后实测：浅色 y=36..43 回到内容本身的颜色
 （236–255，不再被压暗），深色同理（30–51，无渐变带）。
+
+## AE · 输入框环绕光带下线 + 等待行收拾 + 材质底色归位（2026-10-08）
+
+用户实拍三连：「这个输入框的描边的跑马灯效果帮我去掉吧，然后正在等待模型这个请你帮我也优化
+一下展示吧，我不喜欢这个啊，还有一个我总感觉现在的页面不是纯白色，有点发灰的感觉啊，你看看
+苹果里面关于白色的定义吧」。
+
+### AE.1 输入框环绕光带（跑马灯）下线
+
+`agent` 在跑时，输入卡边缘会画一条 `pathLength=100` 的闭环（`.d-loader-svg path`，`nx-dash`
+2600ms linear 无限绕行），外面再套一圈 3px 的 `.d-loader-glow`；窄屏那支 `.m-loader-*` 同构。
+
+**处置**：产品侧**不再渲染**（ChatInput 里那两对 glow + 闭环的 JSX 删掉，`d-loader` /
+`m-loader` 类名也不再挂）。CSS 规则**留着** —— 画板 D-04 帧 C / D-27 帧 B / M-03 帧 D-1
+还在用它们，板面是设计稿、产品主动下线（与 D-21 记忆与知识、D-38 语音输入同一口径）；
+删掉规则会让 `check-v5` 把板面里的类判成「未定义类」（实测报 3 条）。
+
+**副产品**：ChatInput 里**再没有手绘 svg** —— 原来那两条闭环是「图标一律走 `data-ico`」的
+唯一例外。`ChatInput.test.mjs` 的断言因此从「只允许这两条」收紧成「一条都不许有」
+（`<svg` 计数 2 → 0），并加了「先剥注释再断言」—— 注释里为了说明「这里原来是什么」必然会
+写出旧类名，那不是违规。
+
+### AE.2 等待行：导轨收进时间轴 + 秒数静音
+
+`PhaseRoll` 复用 `.d-step`，而 `.d-step::before` 是**时间轴**的竖导轨。单行状态卡
+（`.d-card` › `.d-card-body` › `.d-step`）里那根线既没有上家也没有下家，只在图标左边挂出
+一根孤立的 1px 竖线 —— 用户截图里那根就是它。**按容器收口**：导轨改成
+`.d-steps > .d-step::before`（含 `:first-child` / `:last-of-type` 两条端点规则）。
+实测：单行卡里 `::before` 的 `content` = `none`，时间轴里仍是 `""` / 1px（回归安全）。
+
+右侧那格原来是 `.d-run`：**第二只**转圈图标 + 强调色秒数 —— 一行里两个转圈、右边还是蓝的，
+读起来像两件事在跑。改成 `.d-step-meta`（画板本来就有的那格：xs / `--nx-text-3` / nowrap /
+不伸缩）+ 等宽数字。实测：一行只剩 **1** 个图标，秒数 `rgba(0,0,0,0.25)`、10.27px。
+
+### AE.3 材质底色：`#ececec` 是**手写的**，kit 里根本没有
+
+用户「页面发灰」的根因在侧栏：`.sidebar-container` / `.right-panel-container` 的材质底色写的
+是 `#ecececa1`（灰），而 **kit 里没有任何 `#ececec`** —— macOS kit 的
+`Glass/Light/Regular/{Large,Medium}` 是 fill-1 `#ffffffb3`（**白** 70%）+ fill-2
+`#bfbfbf1a`（10% 灰）两层。那个灰值是上一轮手写的，`saturate` 1.45/1.9 同样是手写的
+（kit 是 1.4/1.2）。
+
+**处置**：按 kit 的两层填重重写（`--nx-mat-reg-bg-light` + `--nx-mat-reg-fill2-light`，
+消费点在 `app/fork-ui.css` 用 `linear-gradient(fill2, fill2), fill1` 叠），saturate 取 kit 值。
+**实测**：侧栏像素 `(243,243,243)` → **`(248,248,248)`**；内容区本来就是
+`rgb(255,255,255)`（Apple 的 `Window Backgrounds/Light/Background` 就是 `#ffffff`，
+是今天早些时候的 apple-sketch 换过来的，0.1.9 里还是 `#fafafb`）。
+
+**没动**：深色那一档（`#2c2c2c9c` / sat 1.9）同样不是 kit 值（kit 是 `#1a1a1a80` / 1.2），
+但用户没报深色，而 kit 的值会把深色侧栏压得比页面更黑 —— 留给用户裁定。
+另：想再白一档就删掉 fill-2 那一层（侧栏即纯白，只剩一条分隔线）。

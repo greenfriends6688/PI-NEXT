@@ -199,9 +199,19 @@
    * 两侧的 saturate 都是 kit 原值（macOS 1.45–2、iOS ≈1–1.2）。
    */
   --nx-mat-blur: 60px;              /* macOS 标准材质的模糊半径 */
-  --nx-mat-reg-bg-light: #ecececa1;  /* Regular：侧栏 / 面板的默认档 */
+  /* fork:apple-sketch §AE 修正（2026-10-08）—— 这里原本写的是 `#ecececa1`（灰），
+     而那是**手写的、kit 里根本没有的值**：kit 的 `Glass/Light/Regular/{Large,Medium}`
+     是 fill-1 `#ffffffb3`（**白** 70%）+ fill-2 `#bfbfbf1a`（10% 灰）两层。
+     灰底正是用户「页面不是纯白、有点发灰」的来源 —— 侧栏 256px 全高，占屏 14%，
+     合成 #f3f3f3；换成 kit 的白底后合成 #f9f9f9。
+     saturate 也改成 kit 的值（light 1.4 / dark 1.2，原来 1.45/1.9 同样是手写的）。
+     登记 `DIVERGENCE.md` §AE。 */
+  --nx-mat-reg-bg-light: #ffffffb3;    /* kit fill-1 */
+  --nx-mat-reg-fill2-light: #bfbfbf1a; /* kit fill-2（叠在 fill-1 之上） */
+  /* 未动：深色那一档（`#2c2c2c9c` / sat 1.9）同样不是 kit 值（kit 是 `#1a1a1a80` /
+     1.2），但用户没报深色，而 kit 的值会把深色侧栏压得比页面更黑 —— 留待用户裁定。 */
   --nx-mat-reg-bg-dark: #2c2c2c9c;
-  --nx-mat-reg-sat-light: 1.45;
+  --nx-mat-reg-sat-light: 1.4;
   --nx-mat-reg-sat-dark: 1.9;
   /* Thick：弹层（压在面板之上）。fork:apple-sketch 调整（2026-10-08，用户「弹窗浮窗的
      透明度默认别太高」）—— kit 原值 0.76 / 0.71 在半透明底上会让底下的文字透上来，

@@ -3834,14 +3834,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             preserveAspectRatio 把 path 拉满卡片边，pathLength=100 让 dashoffset
             走 -100 正好绕一圈（端点速度恒定、拐角也不变速）。 */}
         <div className={`m-composer${isStreaming ? " m-loader" : ""}`}>
-          {isStreaming && (
-            <>
-              <div className="m-loader-glow"></div>
-              <svg className="m-loader-svg" viewBox="0 0 366 96" preserveAspectRatio="none" aria-hidden="true">
-                <path pathLength="100" d="M24,2 H342 A22,22 0 0 1 364,24 V72 A22,22 0 0 1 342,94 H24 A22,22 0 0 1 2,72 V24 A22,22 0 0 1 24,2 Z" />
-              </svg>
-            </>
-          )}
+          {/* fork:composer-no-orbit —— 与桌面 `.d-loader` 同一件东西、同一条裁定，
+              已经撤除（用户：「这个输入框的描边的跑马灯效果帮我去掉吧」）。
+              这里原来是 `.m-loader-glow` + `.m-loader-svg` 那对。 */}
           {/* 附件托盘（M-03 帧 D-2）：图片走 `.m-attachbar` 横滚，
               非图片附件走同一条 `.m-tray` 芯片行 —— 都是「卡片内横滚、不撑高卡片」。 */}
           {attachedImages.length > 0 && (
@@ -5066,7 +5061,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             ref={inputShellRef}
             /* fork:v5-skin D-04 帧 C / D-27 帧 B —— 运行中给输入卡挂 .d-loader
                （边缘环绕光带，.d-loader-glow + .d-loader-svg）。 */
-            className={`chat-input-shell d-composer${isStreaming ? " d-loader" : ""}${manualMode ? " is-manual-height" : ""}${readingCompact ? " is-compact" : ""}`}
+            className={`chat-input-shell d-composer${manualMode ? " is-manual-height" : ""}${readingCompact ? " is-compact" : ""}`}
             // fork:pr14-compact — focus 一定展开（状态机 kind: "focus"），
             // 焦点在 composer 内时也不允许塌陷。
             onFocus={() => {
@@ -5092,17 +5087,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               height: manualMode ? `${manualHeight}px` : undefined,
             } as React.CSSProperties}
           >
-          {/* fork:v5-skin D-04 帧 C —— agent 在跑时输入框边缘亮起来。svg path 用
-              pathLength=100，dash 走 -100 绕行一圈；这是画板点名的例外（图标仍走
-              data-ico，只有这条光带是需要 pathLength 的原生 svg）。 */}
-          {isStreaming && (
-            <>
-              <div className="d-loader-glow"></div>
-              <svg className="d-loader-svg" viewBox="0 0 760 56" preserveAspectRatio="none" aria-hidden="true">
-                <path pathLength="100" d="M16,2 H744 A14,14 0 0 1 758,16 V40 A14,14 0 0 1 744,54 H16 A14,14 0 0 1 2,40 V16 A14,14 0 0 1 16,2 Z" />
-              </svg>
-            </>
-          )}
+          {/* fork:composer-no-orbit（2026-10-08，用户实拍「这个输入框的描边的跑马灯效果
+              帮我去掉吧」）—— 这里原来是 D-04 帧 C / D-27 帧 B 的输入框环绕光带：
+              一层 `.d-loader-glow` + 一条 `pathLength=100` 的闭环 svg，靠 `nx-dash`
+              2600ms linear 无限绕行。两条都撤了。
+              副产品：ChatInput 里**再没有手绘 svg**（原来那两条光带是唯一的例外，
+              其余图标一律走 `data-ico`），测试里的 svg 标签计数因此从 2 收到 0。 */}
           {/* fork:pr23-resize — 手柄骑在卡片上边缘（向上拖变大）。移动端与引用回答
               形态不渲染；阅读态塌陷（.is-compact）时由 CSS 隐藏。 */}
           {!compact && !isMobile && (

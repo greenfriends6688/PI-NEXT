@@ -963,15 +963,16 @@ test("the composer's notices, chips and popover headers ride on the board compon
   assert.match(source, /<div className="d-pop-title">\{t\("chat\.permissionTitle"\)\}<\/div>/);
   assert.match(source, /className="d-pop-title"\n\s+style=\{\{\n\s+position: "sticky",/);
 
-  // 图标仍零手绘：保留的 <svg> 只有两条输入卡运行光带（都需要 pathLength 的环绕闭环）——
-  // 宽屏是画板 D-27 帧 B 的 .d-loader-svg，窄屏是 PWA 库的 .m-loader-svg
-  // （fork:v5-landing-close 补齐窄屏那一半），除此之外一条都不许有。
-  assert.equal((source.match(/<svg/g) ?? []).length, 2);
-  assert.match(source, /className="d-loader-svg"/);
-  assert.match(source, /className="m-loader-svg"/);
-  assert.match(source, /className="m-loader-glow"/);
-  // 光带只在运行中挂：两个形态都是 isStreaming 时才渲染，不改行为。
-  assert.equal((source.match(/isStreaming \? " m-loader"/g) ?? []).length, 1);
+  // fork:composer-no-orbit（2026-10-08）—— 输入框环绕光带整体退场后，ChatInput 里
+  // **再没有手绘 svg**：原来那两条 `pathLength=100` 的闭环（宽屏 `.d-loader-svg` /
+  // 窄屏 `.m-loader-svg`）是「图标一律走 data-ico」的**唯一例外**，现在例外归零。
+  // 断言从「只允许这两条」收紧成「一条都不许有」—— 比原来强，不是放松。
+  //
+  // 断言前先剥注释：注释里为了说明「这里原来是什么」必然会写出旧类名，那不是违规。
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.equal((code.match(/<svg/g) ?? []).length, 0, "ChatInput 不许手绘 svg（图标一律 data-ico）");
+  assert.doesNotMatch(code, /d-loader-svg|m-loader-svg|m-loader-glow|d-loader-glow/, "环绕光带已撤除");
+  // 光带只在运行中挂的那条断言（`isStreaming ? " m-loader"`）随光带一起退场。
 });
 
 test("the model notices render as board alerts with a leading icon", () => {

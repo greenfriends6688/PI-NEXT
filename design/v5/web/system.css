@@ -193,7 +193,12 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 /* fork:apple-sketch —— 纵向内边距 6 → 2（配合 PhaseRoll 外层一起收，见那里的注）。
    一行相位文字不再撑成一张高卡片。 */
 .d-step { position: relative; display: flex; gap: var(--nx-sp-2); padding: 2px 0 2px 2px; }
-.d-step::before { content: ""; position: absolute; left: 10px; top: 0; bottom: 0;
+/* fork:phase-rail-scope（2026-10-08，用户实拍「正在等待模型」那张卡）—— 竖导轨只属于
+   **时间轴**（`.d-steps` › `.d-step`）。PhaseRoll 也复用了 `.d-step`，但它是**单行**
+   状态卡（`.d-card` › `.d-card-body` › `.d-step`），导轨在那里没有上家也没有下家，
+   只会在图标左边挂出一根 1px 的孤立竖线 —— 用户截图里那根就是它。
+   按容器收口：只有时间轴里的步骤行才画导轨。 */
+.d-steps > .d-step::before { content: ""; position: absolute; left: 10px; top: 0; bottom: 0;
   width: 1px; background: var(--nx-line); }
 /* fork:rail-ends（用户 2026-10-05）—— 竖线两端都收在**图标中心**上。
    `14px` 是「6 padding + 8 半图标」的旧算式，漏了图标自己的 `margin-top: 2px`，
@@ -201,8 +206,8 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
    `:last-child` 更是从来没生效过 —— 每个步骤行的**兄弟**是折叠壳 div，末行永远不是
    最后一个子元素，于是线尾多挂 6px。改用 16px（= 6 + 2 + 8）并把末行改成
    `:last-of-type`（按标签数，折叠壳是 div，不参与 button 的计数）。 */
-.d-step:first-child::before { top: 16px; }
-.d-step:last-of-type::before { bottom: auto; height: 16px; }
+.d-steps > .d-step:first-child::before { top: 16px; }
+.d-steps > .d-step:last-of-type::before { bottom: auto; height: 16px; }
 .d-step-ico { width: 17px; height: 17px; flex: 0 0 auto; position: relative; z-index: 1; margin-top: 2px;
   /* fork:v5-landing —— 用户 2026-10-04 裁定：**去掉图标外的圆环**。环把 13 条步骤的导轨
      读成一串绿圈（`.done` 还染成 --nx-success），时间轴该由竖线 + 图标 + 文案讲，
@@ -1095,7 +1100,14 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-think-timer { font-variant-numeric: tabular-nums; color: var(--nx-text-3); }
 
 /* 输入框环绕光带：agent 在跑时，输入框边缘亮起来。
-   SVG pathLength=100 → dashoffset 走 -100 正好绕行一圈，端点速度恒定、拐角也不变速。 */
+   SVG pathLength=100 → dashoffset 走 -100 正好绕行一圈，端点速度恒定、拐角也不变速。
+
+   fork:composer-no-orbit（2026-10-08）—— **产品已下线这条光带**（用户实拍：「这个输入框
+   的描边的跑马灯效果帮我去掉吧」）：ChatInput 里那对 glow + 闭环的 JSX 已删，所以产品
+   运行时不再有 `.d-loader-svg` / `.d-loader-glow` 两个子节点。
+   **规则留着是给画板 D-04 帧 C / D-27 帧 B 用的** —— 板面是设计稿，产品主动下线，
+   与 D-21 记忆与知识、D-38 语音输入同一口径；删掉规则会让 `check-v5` 把板面里的类
+   判成「未定义类」。`nx-dash` 关键帧在 base.css，思考彗星 `.d-think-comet` 还在用。 */
 .d-loader { position: relative; }
 .d-loader-svg { position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px);
   pointer-events: none; overflow: visible; z-index: 1; }
