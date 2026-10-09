@@ -249,6 +249,8 @@ export interface McpOAuthSettings {
   scope?: string;
   /** 动态注册时发的 `client_name`。 */
   clientName?: string;
+  /** fork:pi-1.1 —— pi 1.0.1 新增：`dcr`（动态注册，默认）或 `cimd`（pi 自己的 Client ID Metadata Document）。 */
+  clientRegistration?: "dcr" | "cimd";
   /** 覆盖授权服务器元数据地址。 */
   authServerMetadataUrl?: URL;
 }
@@ -320,6 +322,8 @@ export interface McpSignInOptions {
   settings: McpOAuthSettings;
   challenge?: McpOAuthChallenge;
   prompt: McpSignInPrompt;
+  /** fork:pi-1.1 —— 任何一步取消/超时都会以 `McpSignInCancelledError` 中止登录（pi 1.1）。 */
+  signal?: AbortSignal;
 }
 
 export interface PiSdkInternals {
@@ -332,7 +336,8 @@ export interface PiSdkInternals {
   loadMcpConfig: (options: { agentDir: string; cwd: string; projectTrusted: boolean }) => LoadedMcpConfig;
   /** 同名条目被替换时返回 true。 */
   addMcpServerConfig: (path: string, name: string, config: McpServerConfig) => boolean;
-  updateMcpServerConfig: (path: string, name: string, patch: McpServerConfigPatch) => void;
+  /** fork:pi-1.1 —— 带 `override` 时，缺失的条目会作为项目覆盖写入（pi 1.0.1）。 */
+  updateMcpServerConfig: (path: string, name: string, patch: McpServerConfigPatch, options?: { override?: boolean }) => void;
   /** 文件里没有这个 server 时返回 false。 */
   removeMcpServerConfig: (path: string, name: string) => boolean;
   /** 返回配置，或者一句错误。 */

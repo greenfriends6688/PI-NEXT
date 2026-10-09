@@ -296,6 +296,8 @@ export class AgentSessionWrapper {
   private activeMutatingCommands = 0;
   private sessionReplacement: "fork" | "clone" | null = null;
   private agentRunNeedsCompletion = false;
+  // fork:pi-1.1 —— 上一轮是被停掉的（pi 1.1 的 agent_settled.aborted），不是跑完的。
+  private lastRunAborted = false;
   private promptAdmissionTail: Promise<void> = Promise.resolve();
   private extensionsBound = false;
   private extensionBindingPromise: Promise<void> | null = null;
@@ -423,7 +425,11 @@ export class AgentSessionWrapper {
 
   start(): void {
     this.unsubscribe = this.inner.subscribe((event: AgentEvent) => {
-      if (event.type === "agent_start") this.agentRunNeedsCompletion = true;
+      if (event.type === "agent_start") {
+        this.agentRunNeedsCompletion = true;
+        this.lastRunAborted = false;
+      }
+      if (event.type === "agent_settled") this.lastRunAborted = event.aborted === true;
       if (event.type === "agent_end") {
         invalidateSessionListCache();
       }
@@ -445,12 +451,18 @@ export class AgentSessionWrapper {
   private notifyAgentRunCompleteIfIdle(): void {
     if (!this.agentRunNeedsCompletion || this.isRunning()) return;
     this.agentRunNeedsCompletion = false;
-    if (this.suppressCompletionNotifications) return;
+    // fork:pi-1.1 —— 被停掉的运行没有完成任何任务：不报完成。
+    if (this.suppressCompletionNotifications || this.lastRunAborted) return;
     try {
       this.onAgentRunComplete?.(this.sessionId);
     } catch (error) {
       console.error("[pi-web] completion listener failed:", error instanceof Error ? error.message : error);
     }
+  }
+
+  /** fork:pi-1.1 —— `prompt_done`，被停掉时带上 `aborted`。 */
+  private promptDoneEvent(): AgentEvent {
+    return { type: "prompt_done", ...(this.lastRunAborted ? { aborted: true } : {}) };
   }
 
   beginExtensionBinding(): void {
@@ -836,6 +848,9 @@ export class AgentSessionWrapper {
               this.agentRunNeedsCompletion = true;
               if (preflightSettled) return;
               preflightSettled = true;
+              // fork:pi-1.1 —— 新的一轮 prompt（不是排进现有运行的）：上一轮 Stop 的结论到此为止。
+              // 只在**首次**接受时重置，否则 prompt.then() 的兼容兜底会把它抹掉。
+              if (!streamingBehavior) this.lastRunAborted = false;
               resolve();
             };
             rejectPreflight = (error) => {
@@ -881,7 +896,7 @@ export class AgentSessionWrapper {
             // the internal callback. This waits for the run, but never acks early.
             acceptPreflight();
             finishPrompt();
-            if (!streamingBehavior) this.emit({ type: "prompt_done" });
+            if (!streamingBehavior) this.emit(this.promptDoneEvent());
           }, (error) => {
             rejectPreflight(error);
             finishPrompt();
@@ -893,7 +908,7 @@ export class AgentSessionWrapper {
                 type: "prompt_error",
                 errorMessage: error instanceof Error ? error.message : String(error),
               });
-              if (!streamingBehavior) this.emit({ type: "prompt_done" });
+              if (!streamingBehavior) this.emit(this.promptDoneEvent());
             }
           }).catch((error) => {
             console.error(

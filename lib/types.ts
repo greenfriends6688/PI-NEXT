@@ -86,6 +86,8 @@ export interface AssistantMessage {
    * 回合结束行的耗时、思考块耗时、工具卡耗时全部由它算。
    */
   completedAt?: number;
+  /** fork:pi-1.1 —— 从 `timestamp` 到响应结束、由 pi 用单调时钟量出来的耗时（pi 1.1）；旧消息没有。 */
+  durationMs?: number;
   usage?: AgentUsage;
 }
 
@@ -97,6 +99,8 @@ export interface ToolResultMessage {
   isError?: boolean;
   details?: unknown;
   timestamp?: number;
+  /** fork:pi-1.1 —— 工具跑了多久，pi 用单调时钟量的（pi 1.1）；旧结果没有。 */
+  durationMs?: number;
   usage?: AgentUsage;
 }
 

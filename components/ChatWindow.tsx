@@ -44,7 +44,7 @@ import { useI18n } from "@/hooks/useI18n";
 import { ProcessGroup, summarizeProcessBlocks, summarizeProcessParts } from "./ProcessGroup";
 import { useCollapsePresence } from "@/hooks/useCollapsePresence";
 import { messageToProcessContentBlocks, type ProcessContentBlock } from "@/lib/process-content";
-import { useAgentSession, type NoticeItem } from "@/hooks/useAgentSession";
+import { useAgentSession, type AgentEndInfo, type NoticeItem } from "@/hooks/useAgentSession";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useIsMobile } from "@/hooks/useIsMobile";
 // fork:v5-wave-b —— PWA 形态（≤640px）转录壳：过程摘要那一行走画板 M-02 的
@@ -101,7 +101,7 @@ interface Props {
   reloadToken?: number;
   newSessionCwd: string | null;
   newSessionDraftKey: string | null;
-  onAgentEnd?: () => void;
+  onAgentEnd?: (end: AgentEndInfo) => void;
   /** fork:zn-16 — 一轮运行以错误收场；设置里「任务失败时通知」接这里。 */
   onAgentError?: (message: string) => void;
   onAttentionNeeded?: (request: BlockingExtensionUiRequest) => void;
@@ -700,11 +700,12 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   soundEnabledRef.current = soundEnabled;
   const soundedExtensionDialogIdRef = useRef<string | null>(null);
   const extensionDialogLastSoundAtRef = useRef(0);
-  const wrappedOnAgentEnd = useCallback(() => {
-    if (completionNotificationsEnabled && soundEnabledRef.current) {
+  const wrappedOnAgentEnd = useCallback((end: AgentEndInfo) => {
+    // fork:pi-1.1 —— 被停掉的运行不播完成音（pi 的 agent_settled.aborted）。
+    if (completionNotificationsEnabled && soundEnabledRef.current && !end.aborted) {
       playDoneSoundRef.current();
     }
-    onAgentEnd?.();
+    onAgentEnd?.(end);
   }, [completionNotificationsEnabled, onAgentEnd]);
 
   // 稳定化 onEditContent 引用，配合 React.memo 防止历史消息重渲染

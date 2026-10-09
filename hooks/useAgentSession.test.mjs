@@ -48,8 +48,9 @@ test("keeps the session event stream open through the idle grace window", () => 
   assert.doesNotMatch(agentEndSource, /closeEvents\(\)/);
   assert.match(agentStartSource, /cancelEventStreamGrace\(\)/);
   assert.match(agentSettledSource, /scheduleEventStreamClose\(sid\)/);
-  assert.match(agentSettledSource, /onAgentEnd\?\.\(\)/);
-  assert.match(promptDoneSource, /notifyPromptStage\(runId\)/);
+  // fork:pi-1.1 —— 被停掉的运行安静收尾：事件自己说了（agent_settled.aborted，随 prompt_done 传递）。
+  assert.match(agentSettledSource, /onAgentEnd\?\.\(\{ aborted: event\.aborted === true \}\)/);
+  assert.match(promptDoneSource, /notifyPromptStage\(runId, event\.aborted === true\)/);
   assert.match(promptDoneSource, /scheduleEventStreamClose\(sid\)/);
   assert.match(sendSource, /const definitivelyRejected = !promptRequestStarted/);
   assert.match(sendSource, /if \(!definitivelyRejected && sentSessionId\) \{[\s\S]*?waitForPromptSettlement/);

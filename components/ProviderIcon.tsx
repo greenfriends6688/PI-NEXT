@@ -38,6 +38,8 @@ const PROVIDER_ICONS: Record<string, { symbol: string; color: boolean }> = {
   "vercel-ai-gateway": { symbol: "vercel", color: false },
   "github-copilot": { symbol: "githubcopilot", color: false },
   "amazon-bedrock": { symbol: "aws", color: true },
+  // fork:pi-1.1 —— pi 1.1 把 provider id 改成 `azure`；旧名（<1.0.3 的 models.json）继续认。
+  azure: { symbol: "azure", color: true },
   "azure-openai-responses": { symbol: "azure", color: true },
   "kimi-coding": { symbol: "kimi", color: true },
   nvidia: { symbol: "nvidia", color: true },

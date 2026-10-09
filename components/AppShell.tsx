@@ -29,6 +29,8 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } fr
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+// fork:pi-1.1 —— 完成通知要知道这一轮是不是被停掉的（agent_settled.aborted）。
+import type { AgentEndInfo } from "@/hooks/useAgentSession";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
 import type { ChatScrollPosition } from "@/lib/chat-scroll-position";
@@ -1542,12 +1544,13 @@ export function AppShell() {
     }
   }, [handleSelectSession, locale]);
 
-  const handleAgentEnd = useCallback(() => {
+  const handleAgentEnd = useCallback((end: AgentEndInfo) => {
     setRefreshKey((k) => k + 1);
     setExplorerRefreshKey((k) => k + 1);
     if (selectedSession) hydrateSelectedSession(selectedSession.id);
 
-    if (selectedSession?.relation?.kind === "subagent") return;
+    // fork:pi-1.1 —— 被停掉的运行不是「任务完成」：不发完成通知。
+    if (end.aborted || selectedSession?.relation?.kind === "subagent") return;
     const prefs = getNotificationPrefs();
     if (!prefs.enabled || !prefs.onComplete) return;
     if (prefs.onlyWhenUnfocused && !shouldShowBrowserNotification()) return;

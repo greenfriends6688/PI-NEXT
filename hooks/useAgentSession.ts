@@ -195,12 +195,19 @@ export type BuiltinSlashCommandResult =
   | { handled: false }
   | { handled: true; message?: string; error?: string; action?: "openSessionStats" | "openSettings"; section?: string };
 
+// fork:pi-1.1（上游 86dea26a7）—— 一轮是怎么结束的，供完成音/通知判定。
+export interface AgentEndInfo {
+  /** 这一轮是**被停掉**的（Esc / Stop / 另一个客户端 abort），不是跑完的：没什么可报。 */
+  aborted: boolean;
+}
+
 export interface UseAgentSessionOptions {
   session: SessionInfo | null;
   sessionRunning?: boolean;
   newSessionCwd: string | null;
   newSessionDraftKey: string | null;
-  onAgentEnd?: () => void;
+  /** 一轮结束；`aborted` 为真表示它是被停掉的而不是跑完的（pi 的 `agent_settled.aborted`）。 */
+  onAgentEnd?: (end: AgentEndInfo) => void;
   /** fork:zn-16 — 一轮运行以错误收场（`prompt_error` / 提交抛错）。设置里的
    *  「任务失败时通知」接这里；完成与失败是两条独立开关，不能共用一个回调。 */
   onAgentError?: (message: string) => void;
@@ -1389,10 +1396,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     return wasRunning;
   }, [settleUiStage, flushNextTurnModel]);
 
-  const notifyPromptStage = useCallback((runId: number) => {
+  const notifyPromptStage = useCallback((runId: number, aborted = false) => {
     if (notifiedPromptRunIdRef.current === runId) return false;
     notifiedPromptRunIdRef.current = runId;
-    onAgentEnd?.();
+    onAgentEnd?.({ aborted });
     return true;
   }, [onAgentEnd]);
 
@@ -1476,7 +1483,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       if (promptWasPending) {
         notifyPromptStage(runId);
       } else if (agentWasActive && wasRunning) {
-        onAgentEnd?.();
+        onAgentEnd?.({ aborted: false });
       }
       if (sid) scheduleEventStreamClose(sid);
     }
@@ -1687,7 +1694,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           void loadSession(sid);
           scheduleEventStreamClose(sid);
         }
-        if (wasRunning) onAgentEnd?.();
+        if (wasRunning) onAgentEnd?.({ aborted: event.aborted === true });
         break;
       }
       case "prompt_done":
@@ -1696,7 +1703,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           const promptWasPending = rpcPromptPendingRef.current;
           rpcPromptPendingRef.current = false;
           optimisticUserMessageKeyRef.current = null;
-          const firstNotification = notifyPromptStage(runId);
+          const firstNotification = notifyPromptStage(runId, event.aborted === true);
           if (!promptWasPending && !firstNotification) break;
 
           const sid = sessionIdRef.current;
