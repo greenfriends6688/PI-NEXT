@@ -1,5 +1,5 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { createAgentSessionFromServices, createAgentSessionServices, getAgentDir, initTheme, SessionManager, SettingsManager, Theme } from "@earendil-works/pi-coding-agent";
+import { createAgentSessionFromServices, createAgentSessionServices, getAgentDir, initTheme, SessionManager, SettingsManager, Theme, type ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { KeybindingsManager as TuiKeybindingsManager, TUI_KEYBINDINGS } from "@earendil-works/pi-tui";
 import { randomUUID } from "crypto";
 import { existsSync, realpathSync, writeFileSync } from "fs";
@@ -31,6 +31,8 @@ import {
 } from "./queue-surgery";
 import { invalidateModelsCache } from "./models-cache";
 import { resolveVisibleModels, selectInitialModelScope } from "./model-scope";
+// fork:deferred-providers（上游 a13626794 / #1071）—— 只在 session_start 注册的 provider。
+import { findDeferredModel, rememberProviderModels } from "./deferred-provider-models";
 import {
   createProjectCommandBashExtension,
   createProjectCommandBashOperations,
@@ -2573,7 +2575,12 @@ export async function startRpcSession(
       services.modelRuntime,
       services.settingsManager.getEnabledModels(),
     );
-    const effectiveInitialModel = initialModel && (
+    // fork:deferred-providers（#1071）—— 只在 session_start 注册的 provider 此刻还没有
+    // 模型；先在默认模型上起会话，等扩展绑定后再切过去。
+    const deferredInitialModel = initialModel && !services.modelRuntime.getModel(initialModel.provider, initialModel.modelId)
+      ? findDeferredModel(services.modelRuntime, initialModel.provider, initialModel.modelId)
+      : undefined;
+    const effectiveInitialModel = initialModel && !deferredInitialModel && (
       !allowInitialModelFallback
       || scope.visible.some((model) => model.provider === initialModel.provider && model.id === initialModel.modelId)
     )
@@ -2601,6 +2608,13 @@ export async function startRpcSession(
     const startupModel = restoredModel && services.modelRuntime.hasConfiguredAuth(restoredModel.provider)
       ? restoredModel
       : initial?.model;
+    // fork:deferred-providers（#1071）—— 请求或恢复的那个模型属于延迟注册的 provider 时，
+    // 记住它，等扩展绑定后切过去。
+    const deferredModel = hasExistingMessages
+      ? savedModel && !restoredModel
+        ? findDeferredModel(services.modelRuntime, savedModel.provider, savedModel.modelId)
+        : undefined
+      : deferredInitialModel;
     const { session: inner } = await createAgentSessionFromServices({
       services,
       sessionManager,
@@ -2673,6 +2687,22 @@ export async function startRpcSession(
     });
     const realSessionId = inner.sessionId as string;
     registerRpcWrapper(wrapper);
+
+    // fork:deferred-providers（#1071）—— 扩展绑定后（session_start）把会话切到请求/恢复的
+    // 那个延迟 provider 模型；并把它注册的 provider 记下来供后续列举（否则会从选择器消失）。
+    if (!chatOnly) {
+      if (deferredModel) {
+        try {
+          await wrapper.waitUntilReady();
+          await wrapper.send({ type: "set_model", provider: deferredModel.provider, modelId: deferredModel.id });
+        } catch (error) {
+          console.error(`[pi-web] could not switch to ${deferredModel.provider}/${deferredModel.id}:`, error instanceof Error ? error.message : error);
+        }
+      }
+      void wrapper.waitUntilReady()
+        .then(() => rememberProviderModels(inner.modelRuntime as ModelRuntime))
+        .catch(() => undefined);
+    }
 
     return { session: wrapper, realSessionId };
   })().finally(() => {

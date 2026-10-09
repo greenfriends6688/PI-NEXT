@@ -3,6 +3,7 @@ import {
   getAgentDir,
   type ModelRuntime,
 } from "@earendil-works/pi-coding-agent";
+import { rememberProviderModels } from "./deferred-provider-models";
 
 /**
  * ModelRuntime that also includes providers registered by extensions (an
@@ -18,5 +19,7 @@ import {
 export async function createModelRuntimeWithExtensions(): Promise<ModelRuntime> {
   const agentDir = getAgentDir();
   const services = await createAgentSessionServices({ cwd: agentDir, agentDir });
+  // fork:deferred-providers —— 记下这次 runtime 见过的 provider，供后续 runtime 补回。
+  await rememberProviderModels(services.modelRuntime);
   return services.modelRuntime;
 }
