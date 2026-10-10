@@ -238,7 +238,12 @@ export function createBrowserToolsExtension(deps: BrowserToolDeps = {}): InlineE
         };
         let accepted = false;
         try {
-          accepted = await ctx.ui.confirm(text.title, `${text.body}\n\n[${text.accept}] / [${text.deny}]`);
+          /* fork:ext-i18n-keys（2026-10-08）—— 只发 title + body 两个 key，不再拼
+             `[accept] / [deny]`：对话框底部本来就有「取消 / 确认」两枚按钮，再拼一行
+             `[我知道了，继续] / [不开启]` 是把同一件事说两遍，而且那串括号在渲染端
+             翻不出来（用户实拍就是一行 `[browser.riskGate.accept] / [browser.riskGate.deny]`）。
+             `accept` / `deny` 仍留在类型里，供将来需要自定义按钮文案的宿主使用。 */
+          accepted = await ctx.ui.confirm(text.title, text.body);
         } catch {
           // 对话框被取消 / 用户点了停止：一律当拒绝。
           accepted = false;

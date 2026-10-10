@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Office DOCX</title>
+  <!--
+    fork:office-editor —— GenOffice DOCX 编辑器在本仓的宿主页。
+    产物来源与许可见 ./provenance.json 与 ./LICENSE（Apache-2.0）。
+    CSS 里的字体引用写成绝对路径 `/assets/*`（上游产物如此），由 next.config.mjs
+    的 rewrites 指回 /office/assets/*，所以这里不改上游字节。
+  -->
+  <link rel="stylesheet" href="./assets/index-JQsJMU5H.css" />
+  <link rel="stylesheet" href="./vendor-overrides.css" />
+  <link rel="stylesheet" href="./office.css" />
+</head>
+<body>
+  <main class="office-shell">
+    <div id="root" class="office-editor-root"></div>
+    <p class="office-status" role="status" hidden></p>
+  </main>
+  <script type="module" src="./host.js"></script>
+</body>
+</html>

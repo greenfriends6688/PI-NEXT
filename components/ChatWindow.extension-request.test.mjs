@@ -38,9 +38,19 @@ test("adds collapse without replacing cancel", () => {
 
 test("renders extension confirmation and options as markdown", () => {
   assert.match(source, /import \{ MarkdownBody \} from "\.\/MarkdownBody"/);
-  assert.match(dialogSource, /<MarkdownBody>\{request\.message\}<\/MarkdownBody>/);
-  assert.match(dialogSource, /role="button"[\s\S]*?data-extension-option[\s\S]*?<div inert>[\s\S]*?<MarkdownBody>\{option\}<\/MarkdownBody>/);
+  assert.match(dialogSource, /<MarkdownBody>\{messageText\}<\/MarkdownBody>/);
+  assert.match(dialogSource, /role="button"[\s\S]*?data-extension-option[\s\S]*?<div inert>[\s\S]*?<MarkdownBody>\{optionText\}<\/MarkdownBody>/);
   assert.match(dialogSource, /ref=\{index === 0 \? focusFirstOption : undefined\}/);
+});
+
+test("resolves the i18n keys a server-side extension emits", () => {
+  // fork:ext-i18n-keys —— 一方扩展跑在 agent 进程里，只能发 key；渲染端才有 locale。
+  // 断言标题 / 正文 / 选项都过同一道 resolveExtensionText（在扩展里拼译文是错的，
+  // 在每个调用点各译一遍也是错的）。
+  assert.match(source, /function resolveExtensionText\(/);
+  assert.match(dialogSource, /resolveExtensionText\(request\.title, t\)/);
+  assert.match(dialogSource, /resolveExtensionText\(request\.message, t\)/);
+  assert.match(dialogSource, /resolveExtensionText\(option, t\)/);
 });
 
 test("resets collapse state when a new extension request arrives", () => {

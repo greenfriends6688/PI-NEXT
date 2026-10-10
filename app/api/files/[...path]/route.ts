@@ -736,6 +736,8 @@ export async function GET(
       const documentMime = getDocumentMime(filePath);
       return NextResponse.json({
         size: stat.size,
+        // fork:office-editor — 编辑器的外部改动冲突检查要一个版本对（大小 + mtime）。
+        mtimeMs: stat.mtimeMs,
         language: getLanguage(filePath),
         mime: imageMime || audioMime || videoMime || documentMime || "text/plain",
         previewKind: documentPreviewKind(filePath),

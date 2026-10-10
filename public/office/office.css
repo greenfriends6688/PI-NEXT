@@ -1,0 +1,17 @@
+html, body { height: 100%; overflow: hidden; }
+body > main.office-shell { position: relative; display: flex; flex-direction: column; height: 100%; box-sizing: border-box; padding: 0; overflow: hidden; }
+.office-shell dialog button { padding: 6px 10px; border: 1px solid var(--lexora-border-subtle, ButtonBorder); border-radius: 6px; background: var(--lexora-surface-base, ButtonFace); color: var(--lexora-text-primary, ButtonText); font: 13px system-ui, sans-serif; cursor: pointer; }
+.office-shell dialog button:hover { background: var(--lexora-surface-hover, ButtonFace); }
+.office-shell dialog button:focus-visible { outline: 2px solid var(--lexora-accent, Highlight); outline-offset: 2px; }
+.office-status { position: absolute; inset: auto 12px 12px; z-index: 1000; margin: 0; padding: 8px 12px; border: 1px solid var(--lexora-border-subtle, ButtonBorder); border-radius: 6px; color: var(--lexora-text-primary, CanvasText); background: var(--lexora-surface-base, Canvas); font: 12px/1.5 system-ui, sans-serif; }
+.office-status[hidden] { display: none; }
+.office-status[role='alert'] { font-weight: 600; }
+.office-editor-root { flex: 1; min-height: 0; overflow: hidden; }
+.office-editor-root > .app { height: 100%; }
+.office-shell dialog { max-width: min(400px, calc(100vw - 48px)); border: 1px solid var(--lexora-border-subtle, ButtonBorder); border-radius: 8px; padding: 20px; color: var(--lexora-text-primary, CanvasText); background: var(--lexora-surface-base, Canvas); font: 14px/1.6 system-ui, sans-serif; }
+.office-shell dialog p { margin: 0 0 16px; }
+.office-shell dialog button + button { margin-inline-start: 8px; }
+.office-quote-submenu { position: fixed; z-index: 210; max-width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; }
+.office-quote-submenu[hidden] { display: none; }
+.office-quote-submenu .ctx-label { overflow: hidden; text-overflow: ellipsis; }
+@media (prefers-reduced-motion: reduce) { .office-shell *, .office-shell *::before, .office-shell *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }

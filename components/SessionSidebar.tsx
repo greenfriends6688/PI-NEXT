@@ -514,6 +514,19 @@ function ProjectRow({
           选中后再点一次即折叠，见调用点的 onClick。 */}
       <i data-ico="folder" data-size="14"></i>
       <span className={isPhone ? "m-grow" : "d-grow"} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      {/* fork:proj-running-spinner（2026-10-08，用户实拍「任务在运行时，在项目名这里加一个转圈的」）
+          —— 这个项目里有会话在跑时，名称右侧给一枚行内转圈。计数不进 UI（画板 02 那张
+          互斥表里项目行本来就不摆计数），只给「在动」这一个信号；未读仍由
+          `showProjectActivity` 的绿点计数表达，两者可以同时存在。 */}
+      {activity && activity.running > 0 && (
+        <span
+          className="fork-proj-running"
+          title={t("chat.running")}
+          aria-label={`${t("chat.running")} (${activity.running})`}
+        >
+          <i data-ico="loader-circle" data-size="12" aria-hidden="true"></i>
+        </span>
+      )}
       {showProjectActivity(activity, t, isPhone)}
       {/* fork:ui-project-actions — hover 才出现的两个入口（照 Zeno 的次序：⋯ 在内、⊕ 贴行尾）。
           fix:row-actions-drag —— `data-project-actions` 让行上的 dragstart 识别「这次

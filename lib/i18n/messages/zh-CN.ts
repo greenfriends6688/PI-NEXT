@@ -873,6 +873,8 @@ export const zhCNLocale: LocalePlugin = {
     "layout.showSecondaryWorkspace": "显示右侧工作区",
     "layout.resizeSecondaryWorkspace": "调整右侧工作区宽度",
     "layout.switchChatWorkspace": "交换聊天区与工作区",
+    "layout.enterFullscreen": "展开工作区",
+    "layout.exitFullscreen": "退出展开",
     "layout.resizeHint": "拖动调整宽度。双击或按 Enter 恢复默认值。",
     // fork:pr40-split —— 右栏双 Pane 分屏。
     "split.divider": "调整右侧两个视图的分界",
@@ -1185,6 +1187,8 @@ export const zhCNLocale: LocalePlugin = {
     "files.loading": "正在加载文件...",
     "files.noFiles": "未找到文件",
     "files.explorer": "文件浏览器",
+    "files.hideExplorer": "隐藏文件树",
+    "files.showExplorer": "显示文件树",
     "files.changedCount": "{count} 个文件",
     "files.changeStats": "{count} 个变更文件，新增 {additions} 行，删除 {deletions} 行",
     "files.conflictSummary": "已有 {count} 个文件：{files}",

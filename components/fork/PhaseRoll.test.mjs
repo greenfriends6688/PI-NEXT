@@ -157,11 +157,12 @@ test("compaction is its own phase identity so the status line rolls into it", ()
   assert.notEqual(phaseKeyOf({ kind: "waiting_model" }, true), phaseKeyOf({ kind: "waiting_model" }));
 });
 
-test("the compacting phase reuses the model spinner glyph", () => {
+test("the compacting phase reuses the model dot-matrix indicator", () => {
   const html = renderToStaticMarkup(
     React.createElement(PhaseRoll, { text: phaseLabel({ kind: "waiting_model" }, t, true), phaseKey: phaseKeyOf(null, true), reducedMotion: true }),
   );
   assert.match(html, /data-fork-phase-roll="compacting"/);
-  assert.match(html, /data-ico="loader-circle"/);
+  // fork:waiting-wave（2026-10-08）—— 等模型/压缩从转圈字形换成 3×3 对角波点阵。
+  assert.match(html, /d-think-dots wave/);
   assert.match(html, /chat\.compacting/);
 });

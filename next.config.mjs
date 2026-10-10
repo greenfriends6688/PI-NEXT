@@ -128,6 +128,15 @@ const nextConfig = {
     "172.31.*.*",
     "192.168.*.*",
   ],
+  // fork:office-editor —— GenOffice 编译产物（public/office/assets/*）里的字体与
+  // 图片引用写死成绝对路径 `/assets/*`。为了不改上游字节（provenance.json 里记的是
+  // 逐文件 sha256），在这里把 `/assets/*` 指到 office 资源目录；`public/assets/` 目前
+  // 无人使用，若将来要占用这个名字，先改掉这条 rewrite。
+  async rewrites() {
+    return [
+      { source: "/assets/:path*", destination: "/office/assets/:path*" },
+    ];
+  },
   async headers() {
     return [
       {

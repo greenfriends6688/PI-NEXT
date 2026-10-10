@@ -59,6 +59,7 @@ import { forgetClosedTab, loadRecentClosedTabs, recordClosedTab, saveRecentClose
 import { loadSessionList } from "@/lib/session-list";
 import { mergeCatalogRow } from "./session-catalog-helpers";
 import { loadRightTabs, saveRightTabs } from "@/lib/right-tabs-memory";
+import { loadExplorerColumnHidden, saveExplorerColumnHidden } from "@/lib/file-explorer-state";
 import { resolveRestoreTarget } from "@/lib/workspace-restore";
 import { GitGraphTab } from "./GitGraphTab";
 // fork:proma-39-changes — 右栏「改动」单例 tab（合并 Git / 会话 / 记忆三路来源）。
@@ -295,8 +296,12 @@ export function AppShell() {
   const selectedSessionRef = useRef(selectedSession);
   selectedSessionRef.current = selectedSession;
   const [sessionCatalog, setSessionCatalog] = useState<SessionInfo[]>([]);
+  /* fork:no-guide-flash —— 会话目录是否至少加载过一次。侧栏拉完第一份列表（哪怕是空的）
+     才算「知道有没有项目」，见 `NewSessionTargets.catalogLoaded`。 */
+  const [sessionCatalogLoaded, setSessionCatalogLoaded] = useState(false);
   const handleSessionsChange = useCallback((sessions: SessionInfo[]) => {
     setSessionCatalog(sessions);
+    setSessionCatalogLoaded(true);
     // The sidebar hydrates metadata after the selected session has already
     // mounted. Merge that update into the active session without changing the
     // ChatWindow key or restarting its history load.
@@ -367,6 +372,13 @@ export function AppShell() {
     setSearchTarget((current) => current === target ? null : current);
   }, []);
   const [explorerRefreshKey, setExplorerRefreshKey] = useState(0);
+  // fork:explorer-column-toggle —— 右侧文件树整列的手动显隐。与树内部折叠（ExplorerPanel
+  // 的 explorerOpen）是两件事：这里控制的是「文档旁边那一列树要不要出现」。默认不隐藏，
+  // 保持原来的自动规则；隐藏后由面板头行那枚钮再打开。
+  const [explorerColumnHidden, setExplorerColumnHidden] = useState(false);
+  useEffect(() => {
+    setExplorerColumnHidden(loadExplorerColumnHidden());
+  }, []);
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
   // fork:mobile-shell —— 设置弹层开着时，Android 系统返回键先关它。
   useNativeBack(settingsSection != null, () => setSettingsSection(null));
@@ -2204,6 +2216,7 @@ export function AppShell() {
     }));
     return {
       projects,
+      catalogLoaded: sessionCatalogLoaded,
       chatPath: chatWorkspaceTarget?.cwd ?? null,
       activeCwd: effectiveNewSessionCwd,
       error: homeTargetError,
@@ -2246,6 +2259,7 @@ export function AppShell() {
     refreshChatWorkspaceTarget,
     selectedSession,
     sessionCatalog,
+    sessionCatalogLoaded,
     startSessionIn,
   ]);
   const projectTrustCwd = selectedSession?.cwd ?? effectiveNewSessionCwd;
@@ -2305,11 +2319,10 @@ export function AppShell() {
       || selectedSession.firstMessage?.trim().replace(/\s+/g, " ").slice(0, 80)
       || translate("i18n.newSession"))
     : translate("i18n.newSession");
-  // fork:design-components —— 画板 01/02 顶栏的 .d-chipbtn：有会话时给分支（工作区列表
-  // 的触发钮）。新会话那枚工作区芯片已按用户要求撤掉 —— 它的两个职责都有更好的去处：
-  // 换工作区/目录在输入框上方的 `.pw-ctxbar`（ProjectChip + 分支芯片），
-  // 标题旁不再重复一枚可点的项目名。
-  const topBarBranch = selectedSession?.branch?.trim() || null;
+  // fork:no-tb-running（2026-10-08，用户实拍「顶栏那个『运行中』的提示帮我去掉吧」）——
+  // 顶栏的「运行中」芯片与分支芯片都已退场，标题之外不再挂任何芯片。运行态在别处
+  // 已经有三处表达：侧栏项目名的行内转圈（fork:proj-running-spinner）、会话行的扫掠线、
+  // 转录区过程抬头的点阵状态行；顶栏再摆一枚是第四遍，且会跟着会话切换闪进闪出。
 
   useEffect(() => {
     const syncWindowTitle = () => {
@@ -2733,26 +2746,7 @@ export function AppShell() {
         撤掉 → fork:v6-landing（2026-10-07 上午）按画板恢复 →
         fork:no-tb-sub-everywhere（2026-10-07 当天）用户再次要求去掉。**这是对画板的
         有意偏离**，与窄屏那一条同一个裁定。 */}
-  {selectedSession && (runningSessionIds.has(selectedSession.id) || topBarBranch) ? (
-    <span className="d-row" style={{ gap: "var(--nx-sp-2)" }}>
-      <span className="d-tb-title">{topBarSessionTitle}</span>
-      {runningSessionIds.has(selectedSession.id) && (
-        // 画板 01 帧 B：运行中在标题右侧给一枚状态芯片。
-        <span className="d-chipbtn">
-          {/* fork:v6-landing —— 画板 D-32 帧 A 顶栏的 `.d-orb.live`（beUI voice-orb 的
-              CSS 近似）：呼吸 + 波纹表达「这个会话活着」。它替代同位 spinner（.d-run
-              的转圈与呼吸球语义重复），文字保留。 */}
-          <span className="d-orb live" aria-hidden="true"></span>
-          {translate("chat.running")}
-        </span>
-      )}
-      {/* fork:tb-slim（2026-10-07 用户实拍「顶部这块的 main…帮我去掉，因为别的地方
-          已经有了」）—— 顶栏那枚分支 / 工作区芯片（`BranchChip`）退场。分支在
-          输入卡上方的上下文条与侧栏工作区切换器里都写着，顶栏再摆一枚是第三遍。 */}
-    </span>
-  ) : (
-    <span className="d-tb-title">{topBarSessionTitle}</span>
-  )}
+  <span className="d-tb-title">{topBarSessionTitle}</span>
 </div>
     );
   };
@@ -3240,6 +3234,34 @@ export function AppShell() {
     </button>
   );
 
+  // fork:explorer-column-toggle —— 拆成「能不能显示」（自动规则，原样）与「用户要不要
+  // 显示」（持久化开关）两层。这里用 `activeCwd` 而不是下面的 `explorerPanel` 元素
+  // 判「有没有树」：这个布尔值要在构造那个元素**之前**定下来（hide 钮要按它决定传不传）。
+  const explorerColumnAvailable = Boolean(
+    activeCwd
+    && !isMobile
+    // fork:pr40-split — 分屏时不要再抢一列树：两个 Pane 已经把 720px 的下限用满，
+    // 再塞一列树就是三个都读不了。退分屏后这一列自己回来。
+    && !splitPanes.isSplitActive
+    // fork:trace-pane-2026-10-04 —— 文件树不再被「调用轨迹」挤掉。真正需要整块宽度
+    // 的是 Git 图谱，它仍旧独占。
+    && activeFileTabId !== GIT_GRAPH_TAB_ID
+    && (fileTabs.length > 0
+      || terminalTabs.length > 0
+      || browserTabs.length > 0
+      || activeFileTabId === TRACE_TAB_ID),
+  );
+  // fork:explorer-column-toggle —— 手动收起**只在面板不够宽时生效**：元素照常渲染，
+  // 显隐交给 CSS —— `app/fork-ui.css` 里 `.explorer-column[data-explorer-hidden]`
+  // 默认 display:none，`@container (min-width: 760px)` 再把它强制显示回来。
+  // 用户 2026-10-09：「很宽的时候都给我隐藏了，这是不对的」——手动收起压在
+  // 容器查询之下，宽面板永远看得见树。
+  const showExplorerColumn = explorerColumnAvailable;
+  const hideExplorerColumn = useCallback(() => {
+    setExplorerColumnHidden(true);
+    saveExplorerColumnHidden(true);
+  }, []);
+
   const explorerPanel = activeCwd ? (
     <ExplorerPanel
       cwd={activeCwd}
@@ -3259,6 +3281,9 @@ export function AppShell() {
          一律不再画第二条 `.m-top`（画板 M-12 帧 B 的 pane 里只有一层内容）。 */
       inPanel={isMobile}
       trailingActions={isMobile && showExplorerToolbarRow ? browserTabButton : null}
+      /* fork:explorer-column-toggle —— 只有真挂在右侧那一列时才给「整列收起」钮；
+         没有文件 tab 时这棵树是主区内容，那时没有列可收。 */
+      onHideColumn={explorerColumnAvailable ? hideExplorerColumn : undefined}
     />
   ) : null;
   explorerPanelRef.current = explorerPanel;
@@ -3353,7 +3378,15 @@ export function AppShell() {
     }
     const browserTab = browserTabs.find((tab) => tab.id === tabId);
     if (browserTab) {
-      return box(<BrowserPanel tab={browserTab} onChangeUrl={handleBrowserUrlChange} />, browserTab.id);
+      return box(
+        <BrowserPanel
+          tab={browserTab}
+          onChangeUrl={handleBrowserUrlChange}
+          fullscreen={workspaceSwapped}
+          onToggleFullscreen={handleWorkspacePositionToggle}
+        />,
+        browserTab.id,
+      );
     }
     const terminalTab = terminalTabs.find((tab) => tab.id === tabId);
     if (terminalTab) {
@@ -3374,28 +3407,6 @@ export function AppShell() {
   // fork:v5-m12 —— 手机 M-12 那一层的惰性入口：挂在声明之后。列表项的 render
   // 只在切到那一块时才读它（那时它必然已初始化）。
   renderTabContentRef.current = renderTabContent;
-
-  // Only wide panels can afford a tree column next to the document (PiDeck-style
-  // "document in the middle, file tree on the right"). The width itself is
-  // measured by a container query on .file-panel-body — the panel's rendered
-  // width comes from the layout grid (1fr in the main region) and is not the
-  // resizer's stored width.
-  const showExplorerColumn = Boolean(
-    explorerPanel
-    && !isMobile
-    // fork:pr40-split — 分屏时不要再抢一列树：两个 Pane 已经把 720px 的下限用满，
-    // 再塞一列树就是三个都读不了。退分屏后这一列自己回来。
-    && !splitPanes.isSplitActive
-    // fork:trace-pane-2026-10-04 —— 文件树不再被「调用轨迹」挤掉。原来这一列的
-    // 条件是「**激活的**那个 tab 有没有路径」，于是切到 trace（无路径）整列消失，
-    // 用户说的就是「开了轨迹就看不到文件夹了」。它是个只读视图、有路径的邻居还开着，
-    // 给它一列树才是对的；真正需要整块宽度的是 Git 图谱，仍旧独占。
-    && activeFileTabId !== GIT_GRAPH_TAB_ID
-    && (fileTabs.length > 0
-      || terminalTabs.length > 0
-      || browserTabs.length > 0
-      || activeFileTabId === TRACE_TAB_ID),
-  );
 
   return (
     <ContextMenuProvider>
@@ -3538,7 +3549,7 @@ export function AppShell() {
             keeps refs mounted (no unmount/remount churn for the dropdown
             positioning effect) while removing the bar from layout and the
             accessibility tree. Mobile keeps the bar (drawer toggle). */}
-        <div ref={topBarRef} style={{ flexShrink: 0, background: "var(--bg)", display: hideTopBar ? "none" : undefined }}>
+        <div ref={topBarRef} style={{ flexShrink: 0, background: "transparent", display: hideTopBar ? "none" : undefined }}>
         {/* fork:design-components —— 顶栏挂画板 .pw-topbar（36px / 发丝底线 / 间距节奏）。
             fork:v5-frame-audit —— 窄屏换成画板 M-01 帧 A / M-02 帧 A 的 `.m-top`：
             绝对定位 + 渐隐底，**浮在内容上**，消息从下方穿过（留白由 `.m-scroll`
@@ -3991,6 +4002,25 @@ export function AppShell() {
             </button>
           )}
           {!isMobile && browserTabButton}
+          {/* fork:explorer-column-toggle —— 文件树整列的手动显隐。只在「这列本来会出现」
+              的前提下渲染（`explorerColumnAvailable`），否则它是个点了没反应的钮。
+              与旁边两枚同为面板级动作，沿用 `.d-iconbtn`；当前可见时挂 `.is-on`。 */}
+          {!isMobile && explorerColumnAvailable && (
+            <button
+              type="button"
+              className={`d-iconbtn${explorerColumnHidden ? "" : " is-on"}`}
+              title={translate(explorerColumnHidden ? "files.showExplorer" : "files.hideExplorer")}
+              aria-label={translate(explorerColumnHidden ? "files.showExplorer" : "files.hideExplorer")}
+              aria-pressed={!explorerColumnHidden}
+              onClick={() => setExplorerColumnHidden((hidden) => {
+                const next = !hidden;
+                saveExplorerColumnHidden(next);
+                return next;
+              })}
+            >
+              <span><i data-ico="folder-tree" data-size="14"></i></span>
+            </button>
+          )}
           {/* 2026-10-03 用户裁定 —— 这里原有的第二枚「改动」（git 图谱钮右侧、标题栏里那枚
             `file-diff`）已删除，随它一起删掉的还有整个改动 tab（`ChangesPanel` +
             `CHANGES_TAB_ID` + `/api/changes`）：文件树头行里有同一个入口（ExplorerPanel
@@ -4079,7 +4109,7 @@ export function AppShell() {
              「比会话行密一倍」的设计意图没了）、没有发丝右边线，
              `30-files-panel` 的 spec 把它报成了漂移（fs 12≠13 / lh 18≠19.5）。
              `explorer-column` 保留（宽度档位在 fork-ui.css:449）。 */
-          <div className="explorer-column">{explorerPanel}</div>
+          <div className="explorer-column" data-explorer-hidden={explorerColumnHidden ? "true" : undefined}>{explorerPanel}</div>
         ) : null}
         </div>
       </div>

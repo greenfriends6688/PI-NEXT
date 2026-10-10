@@ -149,17 +149,21 @@ export function dropLatePhaseBacklog(
  * 等待模型 = loader-circle（accent，滚起来）/ 排队 = clock / 准备工具 = wrench /
  * 执行命令 = terminal。相位身份来自 ChatWindow 的 `phaseKeyOf`，组件不新增 props。
  */
-const PHASE_ICON: Record<string, { ico: string; color?: string; spin?: boolean }> = {
-  waiting_model: { ico: "loader-circle", color: "var(--accent-text)", spin: true },
+const PHASE_ICON: Record<string, { ico: string; color?: string; spin?: boolean; dots?: boolean }> = {
+  /* fork:waiting-wave（2026-10-08，用户实拍「正在等待模型这个动效…改成第三张图红框的效果」）——
+     等模型不再是第二枚转圈，改用画板 D-03d 的 3×3 对角波点阵（`.d-think-dots.wave`）。
+     它回答的是「模型在算」，与 `.d-think-row` 的思考指示器是同一句话，所以同一件。
+     `spin` 仍为 true 只用来驱动右侧的秒数（`.d-step-meta`）与 `.running` 强调色。 */
+  waiting_model: { ico: "loader-circle", color: "var(--accent-text)", spin: true, dots: true },
   // fork:zm-08 —— 压缩同样是在等模型算（画板 53 帧 A 的词表只有四枚图标，
-  // 不为它新画一枚），沿用同一枚转圈字形，靠文案区分。
-  compacting: { ico: "loader-circle", color: "var(--accent-text)", spin: true },
+  // 不为它新画一枚），沿用同一枚点阵，靠文案区分。
+  compacting: { ico: "loader-circle", color: "var(--accent-text)", spin: true, dots: true },
   running_command: { ico: "terminal" },
   running_tools: { ico: "wrench" },
   tools: { ico: "wrench" },
 };
 
-function phaseIcon(key: string): { ico: string; color?: string; spin?: boolean } {
+function phaseIcon(key: string): { ico: string; color?: string; spin?: boolean; dots?: boolean } {
   const named = PHASE_ICON[key];
   if (named) return named;
   // `tools:<id>` 这类带后缀的相位（换工具才换相位）走工具图标，其余回落 clock。
@@ -346,7 +350,22 @@ export function PhaseRoll({
           图标不再套 `.d-step-ico` 方框：画板里 `i[data-ico]` 直接是 `.m-run` 的
           第一个子元素（`.m-run > i:first-child` 才是那条 1400ms linear 旋转规则）。 */}
       <span className={isPwa ? "m-run" : `d-step${icon.spin ? " running" : ""}`}>
-        {isPwa
+        {icon.dots ? (
+          /* fork:waiting-wave —— 对角波点阵。桌面套进 `.d-step-ico`（17px 方框，
+             与时间轴图标同一格、同一中线）；窄屏直接是 `.m-run` 的第一个子元素
+             （点阵 span 不触发 `.m-run > i:first-child` 的转圈规则，正好）。 */
+          isPwa ? (
+            <span className="m-think-dots wave" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </span>
+          ) : (
+            <span className="d-step-ico">
+              <span className="d-think-dots wave" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </span>
+            </span>
+          )
+        ) : isPwa
           ? <i data-ico={icon.ico} data-size="10" aria-hidden="true"></i>
           : (
             <span className="d-step-ico">

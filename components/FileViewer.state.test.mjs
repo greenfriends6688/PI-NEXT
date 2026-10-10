@@ -26,7 +26,8 @@ for (const [name, nextName] of [
 ]) {
   test(`${name} pauses its watcher and synchronizes after connecting`, () => {
     const block = functionBlock(name, nextName);
-    const guard = block.indexOf("if (!watchEnabled) return;");
+    const guardMatch = /if \(!watchEnabled[^\n]*\) return;/.exec(block);
+    const guard = guardMatch ? guardMatch.index : -1;
     const eventSource = block.indexOf("new EventSource", guard);
     const synchronize = block.indexOf("synchronize();", eventSource);
 

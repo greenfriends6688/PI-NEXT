@@ -34,9 +34,9 @@ test("the extension dialog head carries the clamp hooks and keeps pre-wrap", () 
   assert.doesNotMatch(head, /whiteSpace: "nowrap"/);
   // 完整标题另有出口，钳位不会让人看不到全文。
   assert.match(head, /title=\{titleHead\}/);
-  assert.match(dialogSource, /aria-label=\{request\.title\}/);
-  // head / rest 的切分仍然只由 splitDialogTitle 决定。
-  assert.match(windowSource, /const \{ head: titleHead, rest: titleRest \} = splitDialogTitle\(request\.title\)/);
+  assert.match(dialogSource, /aria-label=\{title\}/);
+  // head / rest 的切分仍然只由 splitDialogTitle 决定（fork:ext-i18n-keys 后传的是译好的 title）。
+  assert.match(windowSource, /const \{ head: titleHead, rest: titleRest \} = splitDialogTitle\(title\)/);
 });
 
 test("the head cap resolves against the viewport and the title clamps with an ellipsis", () => {

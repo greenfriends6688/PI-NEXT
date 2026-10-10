@@ -76,7 +76,7 @@
   /* ── 5 · 立体：浅色专业风 = 极轻投影 + 发丝描边共同分层 ─────────────────── */
   --nx-sh-1: 0 1px 2px rgba(16, 17, 22, .05), 0 2px 8px rgba(16, 17, 22, .05);
   --nx-sh-2: 0 4px 12px rgba(16, 17, 22, .07), 0 12px 36px rgba(16, 17, 22, .10);
-  --nx-glass: rgba(255, 255, 255, .82);        /* 顶栏毛玻璃底（配 backdrop-blur） */
+  --nx-glass: #ffffffb3;        /* 顶栏毛玻璃底（kit Glass/Light/Regular fill-1，配 backdrop-blur） */
 
   /* ── 6 · 代码块（转录区专用，两端同语义）────────────────────────────────── */
   --nx-code-bg:    #f7f7f9;
@@ -157,7 +157,14 @@
   /* 基准字号 = macOS Body（13pt）。全部 --nx-fs-* 由它派生 */
   --nx-ui: var(--nx-sk-t-body-size);
 
-  --nx-canvas:  var(--nx-sk-window-backgrounds-light-background);
+  /* fork:web-pwa-glass-parity（2026-10-09 用户裁定）—— Web 默认要跟 PWA 默认看齐。
+     macOS kit 只有一组 Window Backgrounds，canvas 与 panel 同值（都白），层次全靠
+     材质；而 Web 的材质是 `#ffffffb3` + blur(60px)，白底上的白玻璃就是一块平板 ——
+     用户原话：「只有开了壁纸之后，才是毛玻璃的感觉」。iOS kit 把页底和卡片分成两层
+     （Backgrounds.Grouped.Primary 作页底、Backgrounds.Primary 作卡片），玻璃才有东西
+     可透。这里照 iOS 那一档把 canvas 换成灰，panel 保持白。
+     值与 `design/v5/sketch-ios.css` 的 `--nx-sk-backgrounds-grouped-light-primary` 同值。 */
+  --nx-canvas:  #f2f2f7;
   --nx-panel:   var(--nx-sk-window-backgrounds-light-background);
 
   /* label 层级：primary 不是纯黑而是 #000000d9（kit 原值） */

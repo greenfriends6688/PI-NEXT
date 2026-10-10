@@ -113,6 +113,7 @@ export function ExplorerPanel({
   openChangesSignal,
   onReviewCountChange,
   inPanel,
+  onHideColumn,
 }: {
   cwd: string;
   /** fork:gap08-roots — 会话所属项目根（与 cwd 不同时文件树多出一个「项目」根）。 */
@@ -138,6 +139,9 @@ export function ExplorerPanel({
   /* fork:v5-m12-pane —— 转发给 FileExplorer：这一份树是不是挂在 M-12 那个 pane 里
      （那条路上上头已经有切换条了，树自己不要再画一条 `.m-top`）。 */
   inPanel?: boolean;
+  /* fork:explorer-column-toggle —— 把整列往右收起（不是折叠树内容）。只有挂在
+     AppShell 的右侧那一列时才由调用方传进来。 */
+  onHideColumn?: () => void;
 }) {
   const { t } = useI18n();
   const [explorerOpen, setExplorerOpen] = useState(true);
@@ -490,6 +494,14 @@ export function ExplorerPanel({
             标签）。两档都渲染：手机档它与「搜索 / 更多」同属头行右端那一小段，
             间距由 `fork:pwa-sb-hit-pitch` 兜住。 */}
         {trailingActions}
+        {/* fork:explorer-column-toggle —— 整列收起（往右走），排在头行最右端。
+            用户 2026-10-09：「文件树隐藏是往右隐藏，不是向上折叠」——头行那个带
+            箭头的大钮折的是**树内容**，这一枚收的是**整列**。 */}
+        {!isMobile && onHideColumn && (
+          <ToolbarIconButton onClick={onHideColumn} title={t("files.hideExplorer")}>
+            <i data-ico="chevrons-right-left" data-size="14" aria-hidden="true"></i>
+          </ToolbarIconButton>
+        )}
       </div>
       )}
       {fileManagerErrorMessage && (

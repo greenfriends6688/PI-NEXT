@@ -866,6 +866,8 @@ export const enLocale: LocalePlugin = {
     "layout.showSecondaryWorkspace": "Show right workspace",
     "layout.resizeSecondaryWorkspace": "Resize right workspace",
     "layout.switchChatWorkspace": "Swap chat and workspace",
+    "layout.enterFullscreen": "Expand workspace",
+    "layout.exitFullscreen": "Exit expanded workspace",
     "layout.resizeHint": "Drag to resize. Double-click or press Enter to reset.",
     // fork:pr40-split — 右栏双 Pane 分屏。
     "split.divider": "Resize the two right-pane views",
@@ -1177,6 +1179,8 @@ export const enLocale: LocalePlugin = {
     "files.loading": "Loading files...",
     "files.noFiles": "No files found",
     "files.explorer": "Explorer",
+    "files.hideExplorer": "Hide file tree",
+    "files.showExplorer": "Show file tree",
     "files.changedCount": "{count} files",
     "files.changeStats": "{count} changed files, {additions} lines added, {deletions} lines deleted",
     "files.conflictSummary": "{count} file{countSuffix} already exist: {files}",

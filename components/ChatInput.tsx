@@ -1230,6 +1230,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const [value, setValue] = useState(() => initialDraft?.value ?? "");
   const [toolDropdownOpen, setToolDropdownOpen] = useState(false);
   const [thinkingDropdownOpen, setThinkingDropdownOpen] = useState(false);
+  /* fork:composer-narrow-caps —— 窄列那枚「设置」钮的浮层开关（模型 / 权限 / 工具）。
+     与 PWA 的 `.m-cap-btn` 同一件事，只是桌面窄列用的是 `.d-pop` 而不是底部面板。 */
+  const [capsOpen, setCapsOpen] = useState(false);
   /* fork:think-seg-scroll —— 档位尺要能横向滚动，就得先知道「能有多宽」：浮层左缘锚在
      思考芯片上，而能用的右边是**输入卡的右缘**（卡片 `overflow-x: clip`，超出即被裁
      掉 —— 那正是这一段要修的毛病）。CSS 拿不到这个距离（百分比的基准是芯片自己那
@@ -1344,6 +1347,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const highlightViewportRef = useRef<HTMLDivElement>(null);
   const highlightLayerRef = useRef<HTMLDivElement>(null);
   const toolDropdownRef = useRef<HTMLDivElement>(null);
+  const capsRef = useRef<HTMLDivElement>(null);
   const thinkingDropdownRef = useRef<HTMLDivElement>(null);
   const permissionDropdownRef = useRef<HTMLDivElement>(null);
   // fork:mobile-action-panel —— 触发钮就是锚点（浮层 portal 到 body，位置由它算）。
@@ -3427,6 +3431,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       if (historyMenuRef.current && !historyMenuRef.current.contains(e.target as Node) && !textareaRef.current?.contains(e.target as Node)) {
         setHistoryMenuOpen(false);
       }
+      // fork:composer-narrow-caps —— 设置浮层：三枚芯片（含它们自己的下拉）都在
+      // 这个盒子里，所以一个 contains 就够。
+      if (capsRef.current && !capsRef.current.contains(e.target as Node)) {
+        setCapsOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -3437,6 +3446,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
     // 否则下次变窄会带着一个「上次开着的浮层」出现。
     if (!showActionPanel) setActionPanelOpen(false);
   }, [showActionPanel]);
+
+  useEffect(() => {
+    // fork:composer-narrow-caps —— 同一条口径：回到宽列时收起那个设置浮层。
+    if (!narrowControls) setCapsOpen(false);
+  }, [narrowControls]);
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * fork:v5-wave-b —— 窄屏（PWA 形态）输入卡。
@@ -5261,34 +5275,51 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             内容撑出来；`display: contents` 让**桌面（≥1025）的 DOM 保持一条平铺的
             flex 行**（两个分组盒都不生成，盒模型一个像素不变）。 */}
         {!compact && <div className="chat-input-toolbar d-composer-bar" style={{
-          display: narrowControls ? "grid" : "flex",
-          gridTemplateColumns: narrowControls ? "minmax(0, 1fr) auto auto" : undefined,
-          gridTemplateRows: narrowControls ? "var(--control-touch) var(--control-touch)" : undefined,
-          gridTemplateAreas: narrowControls ? '"models models models" "chips actions send"' : undefined,
-          rowGap: narrowControls ? "var(--s1)" : undefined,
-          alignItems: narrowControls ? "center" : undefined,
+          // fork:composer-narrow-slim —— 窄列（narrowControls）里模型 / 权限 / 工具
+          // 三枚芯片不再渲染（见下面三处 `!narrowControls`）：这一栏本来就窄，三枚
+          // 各占一格时工具条要两行（实测 436 宽下 138px 高）。收起后工具条回到单行
+          // flex：附件在左、上下文环与发送在右。原来的两行 grid 就是为那三枚芯片
+          // 排的，芯片没了它只会留下一条空行。
+          display: "flex",
+          alignItems: "center",
         }}>
 
-          {/* LEFT: attach + model selector (idle) or steer/followup toggle (streaming) */}
-          <div style={{ flex: narrowControls ? undefined : "0 1 auto", minWidth: 0, display: narrowControls ? "contents" : "flex", alignItems: "center", gap: 2 }}>
-            {/* fork:pwa-wb-composer —— 行一：附件 + 模型 + 供应商配额。
-                窄屏下它是 grid 的 `models` 区；宽屏下 `display: contents` 摊平回
-                左组（不生成盒子，桌面几何不变）。 */}
-            <div
-              className="fork-pwa-wb-models"
-              style={{ display: narrowControls ? "flex" : "contents", alignItems: "center", gap: "calc(var(--s1) / 2)", minWidth: 0, gridArea: narrowControls ? "models" : undefined }}
-            >
-            {/* 附件 +：直接使用画板 20 的 .d-iconbtn 组件（board.css：无边框 / hover 叠色 / is-on 选中），
-                有附件时挂 is-on（画板的选中态），图标与 20-composer.html 同款 plus。 */}
+          {/* fork:composer-narrow-caps —— 附件与「更多动作」始终留在工具条上；模型 /
+              权限 / 工具三枚芯片窄列时收进右边那枚「设置」钮（PWA 的 `.m-cap-btn`
+              同形，见下面那个 caps 盒）。宽列下这一格仍是原来的 flex 左组。 */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            title={t("chat.attachFile")}
+            className={`d-iconbtn fork-pwa-wb-act${attachedImages.length ? " is-on" : ""}`}
+            style={{ cursor: "pointer" }}
+          >
+            <i data-ico="plus" data-size="16"></i>
+          </button>
+          {narrowControls && (
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              title={t("chat.attachFile")}
-              className={`d-iconbtn fork-pwa-wb-act${attachedImages.length ? " is-on" : ""}`}
+              className={`d-iconbtn${capsOpen ? " is-on" : ""}`}
+              onClick={() => setCapsOpen((open) => !open)}
+              title={t("common.settings")}
+              aria-label={t("common.settings")}
+              aria-expanded={capsOpen}
               style={{ cursor: "pointer" }}
             >
-              <i data-ico="plus" data-size="16"></i>
+              <i data-ico="sliders-horizontal" data-size="16"></i>
             </button>
+          )}
+          <div
+            ref={capsRef}
+            className={narrowControls && capsOpen ? "d-pop is-open anim-popover" : undefined}
+            style={narrowControls
+              ? (capsOpen
+                  ? { position: "absolute", bottom: "calc(100% + 6px)", left: 0, zIndex: 100, minWidth: 220, display: "flex", flexDirection: "column", alignItems: "stretch", gap: "var(--s1)" }
+                  : { display: "none" })
+              : { flex: "0 1 auto", minWidth: 0, display: "flex", alignItems: "center", gap: 2 }}
+          >
+            {narrowControls && <div className="d-pop-title">{t("common.settings")}</div>}
+            <div className="fork-pwa-wb-models" style={{ display: "contents" }}>
             {/* fork:mobile-action-panel（2026-10-03）—— 窄屏「更多动作」：
                 带文字的宫格浮层（内容由 AppShell 组装，这里只给触发钮 + 壳）。
                 为什么不是「把 `+` 换成面板」（参照物的做法）：本仓 `+` 是**附件**，
@@ -5368,10 +5399,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             {/* fork:pwa-wb-composer —— 行二：思考 / 权限 / 工具预设 / 压缩四枚模式芯片。
                 窄屏下是 grid 的 `chips` 区（间隙 `--s1`，芯片命中区由 CSS 给到
                 `--control-touch + --s1`）；宽屏下 `display: contents` 摊平回左组。 */}
-            <div
-              className="fork-pwa-wb-modes"
-              style={{ display: narrowControls ? "flex" : "contents", alignItems: "center", gap: "var(--s1)", minWidth: 0, gridArea: narrowControls ? "chips" : undefined }}
-            >
+            <div className="fork-pwa-wb-modes" style={{ display: "contents" }}>
             {/* fork:proma-02-mode — 权限档位（Chat-only 会话没有意义，所以隐藏）。
                 2026-10-03 用户裁定 —— 从「点一下循环」改成下拉：三个档并列在浮窗里，
                 与思考档 / 工具档同一形态（`.d-select` + `.d-pop` / `.d-menu-row`），
@@ -5581,18 +5609,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           {/* 画板 20 的 .d-composer-bar 用 .grow 顶开左右两组。 */}
           {/* fork:pwa-wb-composer —— 窄屏下 `.grow` 会占掉 grid 的一个自动列，
               改由 `grid-template-areas` 定位左右两组，所以这一格在窄屏不生成盒子。 */}
-          <span className="d-grow" style={{ display: narrowControls ? "none" : undefined }} />
+          <span className="d-grow" />
 
-          {/* fork:pwa-wb-composer —— 窄屏：发送 / 停止作为工具条的第三个 grid 区
-              （`send`，行二最右），和桌面同一个「控件行右端」的位置语义。
-              改前它在 `.d-composer-top` 里（编辑行右上），两套形态不一致；
-              改后它还在这一格之外 —— 桌面完全不受影响（`narrowControls` 为 false
-              时不渲染，下方右组里的那一枚才是桌面的）。 */}
-          {narrowControls && (
-            <div className="fork-pwa-wb-send" style={{ gridArea: "send", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {composerSendCluster}
-            </div>
-          )}
+          {/* fork:composer-narrow-slim —— 窄屏那枚发送钮原来挂在工具条的 `send`
+              grid 区；工具条回到单行 flex 后它回到右组（与桌面同一处），
+              所以这一格连同 gridArea 一起删掉。 */}
 
           {/* RIGHT: 上下文环 + 声音 + 发送（停止） */}
           <div className="fork-pwa-wb-actions" style={{
@@ -5601,7 +5622,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             alignItems: "center",
             justifyContent: "flex-end",
             position: "relative",
-            marginLeft: narrowControls ? 0 : "auto",
+            marginLeft: "auto",
             gridArea: narrowControls ? "actions" : undefined,
           }}>
             {/* fork:pwa-composer-slim（2026-10-03）—— 这里原本是窄屏的「更多控件」
@@ -5628,9 +5649,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             {/* 用户 2026-10-07 裁定：完成提示音那一枚**从输入卡去掉** —— 它和
                 设置 → 通用 里的同一个开关重复（`soundEnabled` / `onSoundToggle`
                 就是那一个设置）。 */}
-            {/* fork:pwa-wb-composer —— 宽屏（≥1025）发送钮仍在右组里，与画板 20 一致；
-                窄屏时发送钮在工具条的 `send` 区（上方），这里不再画第二枚。 */}
-            {!narrowControls && composerSendCluster}
+            {/* fork:pwa-wb-composer —— 发送钮在右组，与画板 20 一致。 */}
+            {composerSendCluster}
             </div>
           </div>
 

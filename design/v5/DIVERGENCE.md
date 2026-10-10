@@ -1181,3 +1181,81 @@ top 32（紧贴按钮下沿）、6 行全可见、`parentElement === document.bo
 **没动**：深色那一档（`#2c2c2c9c` / sat 1.9）同样不是 kit 值（kit 是 `#1a1a1a80` / 1.2），
 但用户没报深色，而 kit 的值会把深色侧栏压得比页面更黑 —— 留给用户裁定。
 另：想再白一档就删掉 fill-2 那一层（侧栏即纯白，只剩一条分隔线）。
+
+## AF · 用户 2026-10-08 第三轮：材质再白一档 + 四处实拍（fork:apple-material-2 / no-guide-flash / proj-running-spinner / no-tb-running / waiting-wave / browser-fullscreen / browser-loading）
+
+用户原话：「加载的时候会闪现一下『开始使用』……当一个任务在运行时，在项目名这里加一个转圈的，
+顶栏那个『运行中』的提示帮我去掉，『正在等待模型』的动效改成第三张图红框的效果……页面整体的
+材质和透明度没有按照苹果规范，还欠缺东西，现在整体看起来灰蒙蒙的……浏览器 Web 版请优化一下，
+我喜欢 ZCode 的，还有它的右侧边栏展示方式，浏览器无法全屏展示，没有那个按钮。」
+
+### AF.1 材质：`#ececec` 彻底退场，弹层/侧栏/输入区全部换 kit 白
+
+§AE.3 自己写下的下一步（「想再白一档就删掉 fill-2 那一层」）在本轮执行：
+
+| 面 | 改前 | 改后 | kit 依据 |
+|---|---|---|---|
+| 侧栏 / 右栏 | `linear-gradient(fill2,fill2), #ffffffb3` → 合成 `#f9f9f9` | `#ffffffb3`（只留 fill-1） | `Glass/Light/Regular/Large` fill-1 |
+| 弹层（菜单/弹窗/设置） | `#ecececf2`（**手写灰**） | `#ffffffd9`（白 85%） | `Glass/Light/Regular` fill-1 白 70%；因弹层拿不到 backdrop-filter（§Z）抬到 85% |
+| 输入区 | `--nx-panel` 不透明白 + 无效 `blur(60px)` | `#ffffffb3` + 有效 blur | 同上 |
+| 顶栏 `--nx-glass` | `rgba(255,255,255,.82)`（手写） | `#ffffffb3` | `Glass/Light/Regular/Large` fill-1 |
+
+**没动**：深色档（用户未报，§AE 已记为留待裁定）；`--nx-surface`（10% 黑当大面底，改动面太广）；
+`--nx-text-2/3`（kit 的 50%/25%，与 AA 有张力，等用户裁定）；壁纸 scrim（用户自己的滑块设置）。
+
+### AF.2 首屏「开始使用」闪现（fork:no-guide-flash）
+
+`showEmptyStateGuide` 原来只判 `projects.length === 0`，而**会话目录还在加载**与**真没有会话**
+都是 0，于是引导块先弹出来、数据到了又消失。`NewSessionTargets` 加 `catalogLoaded`（侧栏拉完
+第一份列表才置 true），引导块只在它为 true 时才允许出现。实测：点「新建任务」后 3 秒内
+`text=开始使用` 计数恒为 0。
+
+### AF.3 侧栏项目名运行中转圈 + 顶栏「运行中」退场
+
+- 项目行名称右侧加 `.fork-proj-running`（`nx-spin` 1400ms，强调色），只在 `activity.running > 0`
+  时出现。这与画板 02「运行中 → 右侧标记 = 无」是**有意偏离**（用户 2026-10-02 已在会话行开过
+  同一先例，fork:session-row-running-spinner）。
+- 顶栏 `.d-chipbtn`（`.d-orb.live` + 「运行中」）与只服务它的 `topBarBranch` 条件整段删除。
+  运行态仍有三处表达：侧栏项目名转圈、会话行扫掠线、转录区过程抬头状态行。
+
+### AF.4 等待行图标换成对角波点阵（fork:waiting-wave）
+
+`PhaseRoll` 的 `waiting_model` / `compacting` 从 `loader-circle`（转圈）换成画板 D-03d 的
+`.d-think-dots.wave`（3×3 对角波，与思考指示器同一件）。`icon.spin` 保留，只用来驱动右侧秒数
+与 `.running` 强调色。`PhaseRoll.test.mjs` 的断言随之更新。
+
+### AF.5 浏览器：全屏钮 + 加载态（fork:browser-fullscreen / browser-loading）
+
+- 工具条加「展开工作区 / 退出展开」钮（`maximize-2` / `minimize-2`），接 AppShell 既有的
+  `workspaceSwapped` 工作区对调 —— 原来只有顶栏一枚 `columns-2`，用户找不到。
+- `EMPTY_PAGE_INFO.readyState` 恒为 `"loading"`，而 iframe 面读不到页面内部（`refreshPageInfo`
+  直接 return），于是 Web 版**永远**挂着「加载中…」。改为：iframe 面看 `onLoad` 事件，managed
+  面才看探针 readyState；加载态从底部一行裸文字改成居中覆盖层（点阵 + 流光）。
+- `.fork-browser-surface-note` 此前**没有样式**，给成底缘小字；新增 `.fork-browser-loading`。
+
+## AG · 扩展确认框里写着原始 i18n key（fork:ext-i18n-keys，2026-10-08）
+
+用户实拍：受管浏览器风险确认框的标题是 `browser.riskGate.title`、正文是 `browser.riskGate.body`、
+按钮行是 `[browser.riskGate.accept] / [browser.riskGate.deny]` —— 一句人话都没有。
+
+**根因**：一方扩展（`lib/browser-tools-extension.ts`）跑在 **agent 进程**里，拿不到浏览器的 locale，
+所以 `ctx.ui.confirm()` 发的是 **i18n key**；而对话框的渲染端（`components/ChatWindow.tsx` 的
+`ExtensionDialog`）拿到 key 直接当字符串画，从没查过 i18n 表。三语译文其实一直都在
+（`lib/i18n/messages/*.ts` 的 `browser.riskGate.*`），只是没人调用。
+
+**处置**（两处，缺一不可）：
+1. `ExtensionDialog` 里新增 `resolveExtensionText(raw, t)`：`t()` 对未知 key 原样返回，所以
+   「译出来 ≠ 原文」= 这是一个已知 key，译出；否则原样显示（扩展直接发人话时不受影响）。
+   标题 / 正文 / 选项文字都过这一道。**不要在扩展里拼译文**（它没有 locale），
+   也不要在每个调用点各译一遍。
+2. 扩展侧不再把 `[accept] / [deny]` 拼进正文：对话框底部本来就有「取消 / 确认」两枚按钮，
+   再拼一行是把同一件事说两遍，而且那串括号在渲染端翻不出来。`BrowserRiskText.accept/deny`
+   保留在类型里，供将来需要自定义按钮文案的宿主使用。
+
+`components/ChatWindow.extension-request.test.mjs` 与 `lib/browser-tools-extension.test.mjs`
+各加一条断言（正文不含 `[`、三处都走 `resolveExtensionText`）。
+
+**外观（fork:ext-risk-notice）**：`ctx.ui.confirm` 只有 title + message、没有 severity，所以
+按扩展发来的 **title key** 识别警示类确认框（`EXTENSION_NOTICE_PRESENTATION`，目前只登记
+`browser.riskGate.title`）：通用 blocks 图标换成 `shield-alert` + `--nx-warning`。让「要你确认
+风险」一眼可辨，而不是一条普通扩展请求。不改协议、不加新字段。

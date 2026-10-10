@@ -1774,7 +1774,11 @@ textarea,
 }
 .chat-slot {
   /* On compact layouts this slot can become a fixed overlay.  Give the chat
-     its own opaque surface so an editor beneath it never shows through. */
+     its own opaque surface so an editor beneath it never shows through.
+     fork:glass-by-default（2026-10-09）—— 默认态改成「开着壁纸」那一套：这一层
+     透明，让玻璃表面背后有东西可透（背后是 body 的 v5 画布灰）。透明度由
+     `app/fork-ui.css` 末尾那一条 `!important` 接管，这里保留不透明色作为没有
+     那一条时的兵底。 */
   background: var(--bg);
 }
 

@@ -464,6 +464,20 @@ html.keyboard-open .extension-status-shelf {
     width: 200px;
   }
 }
+/* fork:explorer-column-toggle —— 手动收起（面板头行 / 文件树头行那两枚钮）只在
+   「面板不够宽」时生效：窄面板里让位给文档，宽面板就强制显示回来。
+   用户 2026-10-09：「很宽的时候都给我隐藏了，这是不对的」。
+   阈取 700px（不是 `EXPLORER_COLUMN_MIN_PANEL_WIDTH` 那个 760）：实测默认
+   面板就在 759 上下，取 760 会把「宽面板」整个落在阈值之外，手动收起等于永久生效。
+   0-1-1 压过上面 0-1-0 的 `display: block`，这条再压过本条。 */
+.explorer-column[data-explorer-hidden="true"] {
+  display: none;
+}
+@container (min-width: 700px) {
+  .explorer-column[data-explorer-hidden="true"] {
+    display: block;
+  }
+}
 /* ---------------------------------------------------------------------------
  * fork:zn-01 — Zeno layout metrics (read-only aliases).
  *
@@ -777,6 +791,13 @@ html.keyboard-open .extension-status-shelf {
    min-content width is larger than the column and it pushes everything right. */
 .chat-input-toolbar > * {
   min-width: 0;
+}
+/* fork:composer-placeholder —— textarea 自己的字形是透明的（可见文字全部来自高亮层
+   `.chat-input-highlight`），所以 `::placeholder` 也继承了透明色、**从来没有显示过**。
+   实测输入框空着时是一片空白，看不出这里能输入什么。单独给占位符一个可读颜色。 */
+.chat-input-textarea::placeholder {
+  color: var(--nx-text-3);
+  opacity: 1;
 }
 .chat-input-shell > .chat-input-resize-handle {
   position: absolute;
@@ -1583,6 +1604,19 @@ html[data-theme-skin="true"] .main-workspace-header {
   font-size: var(--nx-fs-body);
   font-weight: 500;
   color: var(--nx-text);
+}
+
+/* fork:proj-running-spinner（用户 2026-10-08）—— 项目名右侧的行内转圈。
+   用与 `.d-run > i:first-child` 同一条 `nx-spin` 1400ms（关键帧在 base.css，
+   两端共用），只染强调色；不占行高、不撑行宽（flex 0 0 auto）。 */
+.fork-proj-running {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--nx-accent);
+}
+.fork-proj-running > i {
+  animation: nx-spin 1400ms linear infinite;
 }
 
 .fork-session-meta {
@@ -3061,6 +3095,31 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  * UA 归零 / 定位 / 指针行为的钩子。颜色一律走令牌，不写字面量。
  * =========================================================================== */
 .fork-browser-slot { position: relative; }
+
+/* fork:browser-loading / browser-surface-note（2026-10-08，用户实拍 Web 版一直挂着
+   一行「加载中…」）—— 这两个类此前**根本没有样式**，所以加载文案与宿主说明都是
+   一条贴着面板底部的裸 `<p>`。这里给它们形态：
+   · 加载态居中盖在正文上（点阵 + 流光文案），加载完就整块消失；
+   · 宿主说明降为底缘一枚小字（不抢内容）。 */
+.fork-browser-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--nx-sp-2);
+  background: var(--nx-panel);
+  color: var(--nx-text-2);
+  font-size: var(--nx-fs-cap);
+  z-index: 2;
+}
+.fork-browser-surface-note {
+  margin: 0;
+  padding: 0 var(--nx-sp-3) var(--nx-sp-2);
+  font-size: var(--nx-fs-xs);
+  color: var(--nx-text-3);
+  text-align: center;
+}
 .fork-browser-pick {
   position: absolute;
   inset: 0;
@@ -3385,10 +3444,15 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  * ═══════════════════════════════════════════════════════════════════════════ */
 /* fork:apple-sketch §AE（2026-10-08）—— 底色改成 kit 的两层填充（fill-1 白 70% +
    fill-2 10% 灰）而不是原先那个手写的 `#ecececa1` 灰。合成从 #f3f3f3 提到 #f9f9f9，
-   侧栏不再把整页读成「发灰」。 */
+   侧栏不再把整页读成「发灰」。
+   fork:apple-material-2（2026-10-08 第二轮，用户实拍「整体看起来灰蒙蒙的」）——
+   **再白一档**：删掉 fill-2 那层 10% 灰，侧栏/面板只剩 kit 的 fill-1 白 70%。
+   这正是 §AE.3 自己写下的下一步（「想再白一档就删掉 fill-2 那一层」）。
+   桌面无壁纸时，白 70% 叠在白色窗口底上 = 纯白（不再是 #f9f9f9）；
+   开着壁纸时它是真玻璃（模糊 + 饱和），不是一层乳白。 */
 .sidebar-container,
 .right-panel-container {
-  background: linear-gradient(var(--nx-mat-reg-fill2-light), var(--nx-mat-reg-fill2-light)), var(--nx-mat-reg-bg-light);
+  background: var(--nx-mat-reg-bg-light);
   -webkit-backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-light));
   backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-light));
 }
@@ -3411,9 +3475,13 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   background: var(--nx-mat-thick-bg-light);
 }
 
-/* 输入区（composer）—— 与顶栏同级的功能层 */
+/* 输入区（composer）—— 与顶栏同级的功能层。
+   fork:apple-material-2 —— 原来只给了 `backdrop-filter`，底色却还是 `var(--nx-panel)`
+   的不透明白（system.css 的 `.d-composer`）：滤镜背后是不透明底，等于**白模糊**，
+   读起来就是一块平板。这里补上 kit 的 Regular 材质底，让模糊真的有东西可透。 */
 .chat-input-shell,
 .d-composer {
+  background: var(--nx-mat-reg-bg-light);
   -webkit-backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-light));
   backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-light));
 }
@@ -3449,4 +3517,53 @@ html[data-theme="dark"] .d-pop-float {
   border-radius: 0;
   margin-inline: 0;
   inset-inline: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:glass-by-default（2026-10-09 用户裁定）
+ *
+ * 用户原话：「把开启壁纸后的当作默认状态，只不过壁纸不用帮我显示而已」。
+ * 所以把 `app/wallpaper.css` 里那套「开着壁纸」的表面处理提升为**默认**：
+ * 壳与聊天列透明，侧栏 / 右栏 / 顶栏走 65% 面板色（毛玻璃），
+ * **不画壁纸图** —— 玻璃背后是 v5 的画布灰（`--nx-canvas`），不是一张照片。
+ *
+ * 用 `!important`：这些面在 JSX 里写着内联底色（壳 / 聊天列 / 顶栏 / 侧栏 / 面板），
+ * 不加就赢不了内联声明。
+ * 放文件末尾：要压过上面 fork:apple-sketch 的 Regular 材质（那套是「只给模糊、
+ * 底色仍是 `--nx-panel` 不透明白」，白玻璃在白底上读起来就是平板）。
+ * 装壁纸时这组值与 wallpaper.css 那套同值，两者不打架。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* 与 wallpaper.css 的 `html[data-wallpaper="on"]` 同值；那边由 JS 按 scrim 重算，
+     这里给不开壁纸时的默认档。 */
+  --wp-panel-alpha: 65%;
+  --wp-blur-panel: 14px;
+}
+/* 画布：玻璃背后要有东西可透。`body` 默认是白，这里换成 v5 画布色
+   （`design/v5/web/tokens.css` 的 `--nx-canvas`）。 */
+body {
+  background: var(--nx-canvas);
+}
+/* 壳与聊天列让位，露出的就是那一层画布。
+   聊天列只在 ≥960px 透明：窄屏它会变成固定浮层，透过去会看到下面的编辑器
+   （wallpaper.css 同一条口径）。 */
+.app-shell-layout {
+  background: transparent !important;
+}
+@media (min-width: 960px) {
+  .chat-slot {
+    background: transparent !important;
+  }
+}
+/* 侧栏 / 右栏头行 / 聊天顶栏 = 65% 面板色 + 毛玻璃。 */
+.sidebar-container,
+.right-panel-container,
+.main-workspace-header,
+.d-topbar {
+  background: color-mix(in srgb, var(--bg-panel) var(--wp-panel-alpha), transparent) !important;
+}
+.sidebar-container,
+.right-panel-container {
+  -webkit-backdrop-filter: blur(var(--wp-blur-panel)) saturate(var(--nx-mat-reg-sat-light));
+  backdrop-filter: blur(var(--wp-blur-panel)) saturate(var(--nx-mat-reg-sat-light));
 }

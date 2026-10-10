@@ -279,8 +279,10 @@ test("流式中这一格随草稿在 ⏸ 与 ↑ 之间切换（fork:send-stop-o
   // 直接全文匹配会被自己的文档判成「旧写法还在」。
   const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
   assert.doesNotMatch(code, /isStreaming \? stopButton : sendButton/);
-  // 一处定义 + 三处渲染位（compact / 窄屏 / 桌面）= 4，且三个渲染位都只经由它。
-  assert.equal(code.match(/\bcomposerSendCluster\b/g)?.length, 4);
+  // 一处定义 + 两处渲染位（compact / 桌面右组）= 3，且都只经由它。
+  // fork:composer-narrow-slim —— 窄列工具条回到单行 flex 后，发送钮不再单独占一个
+  // grid 区，与桌面共用右组那一处，所以渲染位从 3 收到 2。
+  assert.equal(code.match(/\bcomposerSendCluster\b/g)?.length, 3);
 });
 
 test("renders the upstream model error", () => {
@@ -929,11 +931,12 @@ test("the composer's notices, chips and popover headers ride on the board compon
   // / 命令菜单补画板 21 的搜索头（slash 图标 + 查询），分组小标题仍是 .d-pop-title。
   assert.match(source, /className="d-searchfield"/);
   assert.match(source, /<i data-ico="slash" data-size="14"><\/i>/);
-  // 七个弹层头都挂画板 21 的 .d-pop-title：输入历史 / 收藏 / / 命令分组 /
+  // 八个弹层头都挂画板 21 的 .d-pop-title：输入历史 / 收藏 / / 命令分组 /
   // 思考档 / 工具档 / 权限档 / 上下文环浮窗（fork:v5-frame-audit D-04 帧 A `m-ctx`
-  // 补回标题行：此前环浮窗把标题塞在 .d-row 里，与另外四层不是一套）。
-  // @ 文件面板这一轮从 .d-pop-title 换成了画板 `m-mention` 的 .d-searchfield 头，所以总数仍是 7。
-  assert.equal((source.match(/className="d-pop-title"/g) ?? []).length, 7);
+  // 补回标题行：此前环浮窗把标题塞在 .d-row 里，与另外四层不是一套）/ 窄列那枚
+  // 「设置」钮的浮层（fork:composer-narrow-caps，PWA 的 .m-cap-btn 同形）。
+  // @ 文件面板这一轮从 .d-pop-title 换成了画板 `m-mention` 的 .d-searchfield 头。
+  assert.equal((source.match(/className="d-pop-title"/g) ?? []).length, 8);
   // fork:v5-frame-audit D-04 帧 A `m-think`：思考档浮层收成分段控件（.d-seg + is-on），
   // 不再是权限 / 工具档那种一列 .d-menu-row。
   // fork:think-seg-scroll —— `.d-seg` 后多挂一个 `fork-think-seg`：档位装不下时那一行

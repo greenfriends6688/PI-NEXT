@@ -1609,7 +1609,11 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
 
   const isEmptyNew = isNew && messages.length === 0 && !streamState.isStreaming && !sessionBusy;
   // fork:zc-17 — 零会话首屏引导：新会话页 + 已知项目为空（= 侧栏一个会话都没有）才出现。
-  const showEmptyStateGuide = isEmptyNew && (newSessionTargets?.projects.length ?? -1) === 0;
+  // fork:no-guide-flash —— 必须等会话目录**加载过一次**（`catalogLoaded`）再判空，
+  // 否则「还在加载」会被当成「没有会话」，引导块先弹出来、数据到了又消失（用户实拍闪现）。
+  const showEmptyStateGuide = isEmptyNew
+    && newSessionTargets?.catalogLoaded === true
+    && newSessionTargets.projects.length === 0;
   // fork:zn-03 — report emptiness up (Zeno shows ThreadHeader only once the
   // timeline has activity). Effect, not render-time call: the parent setState
   // must not run during this render.
@@ -2955,7 +2959,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               // The minimap preview may expand leftward, but it must never cover
               // or intercept the composer at the bottom of the chat.
               zIndex: 2,
-              background: "var(--bg)",
+              // fork:glass-by-default —— 输入条这一层原来是内联的 `var(--bg)`（不透明白），
+              // 在灰画布上就是一条白带（用户实拍）。交给 fork-ui.css 的那套玻璃：透明，
+              // 露出的就是画布灰；输入卡自己是 70% 白的玻璃。
+              background: "transparent",
             }),
         }}
       >
@@ -3118,10 +3125,38 @@ function NoticeShelf({ notices, floating = false, onPauseChange }: { notices: No
 
 type ExtensionDialogRequest = Extract<ExtensionUiRequest, { method: "select" | "confirm" | "input" | "editor" }>;
 
-function getExtensionDialogSummary(request: ExtensionDialogRequest): string | undefined {
-  if (request.method === "select" && request.options.length > 0) return request.options[0];
+/**
+ * fork:ext-risk-notice（2026-10-08）—— 需要「警示」外观的确认框，按扩展发来的 **title key**
+ * 识别。`ctx.ui.confirm` 只有 title + message 两个字段，没有 severity，所以这是不改协议
+ * 的前提下唯一的识别方式。目前只有一处（受管浏览器的风险告知门）：把通用的 blocks 图标
+ * 换成盾牌 + 警示色，让人一眼看出这是「要你确认风险」而不是一条普通请求。
+ */
+const EXTENSION_NOTICE_PRESENTATION: Record<string, { ico: string; tone: string }> = {
+  "browser.riskGate.title": { ico: "shield-alert", tone: "var(--nx-warning)" },
+};
+
+/**
+ * fork:ext-i18n-keys（2026-10-08，用户实拍确认框里全是 `browser.riskGate.*` 原文）——
+ * 一方扩展跑在 **agent 进程**里，拿不到浏览器的 locale，所以它发过来的是 **i18n key**；
+ * 有 locale 的是**渲染端**（这里）。`t()` 对未知 key 会原样返回，所以「译出来和原文不同」
+ * 就说明这是一个已知 key，译出；否则原样显示（扩展直接发人话时不受影响）。
+ * 这是修「弹窗里写着 key」这类 bug 的**唯一一处**：不要在扩展里自己拼译文，也不要在
+ * 每个调用点各译一遍。
+ */
+function resolveExtensionText(raw: string | undefined, t: (key: string) => string): string | undefined {
+  if (!raw) return raw;
+  const translated = t(raw);
+  return translated === raw ? raw : translated;
+}
+
+function getExtensionDialogSummary(
+  request: ExtensionDialogRequest,
+  messageText: string,
+  t: (key: string) => string,
+): string | undefined {
+  if (request.method === "select" && request.options.length > 0) return resolveExtensionText(request.options[0], t);
   if (request.method === "confirm") {
-    const firstLine = request.message.split("\n").find((line) => line.trim());
+    const firstLine = messageText.split("\n").find((line) => line.trim());
     return firstLine?.trim();
   }
   return undefined;
@@ -3259,6 +3294,12 @@ function ExtensionDialog({
   const { t } = useI18n();
   const [value, setValue] = useState(request.method === "editor" ? request.prefill ?? "" : "");
   const [collapsed, setCollapsed] = useState(false);
+  /* fork:ext-i18n-keys —— 展示一律走译好的 title / messageText；`request` 本身仍是
+     回传用的原值（选项值、id 等都不能被翻译）。 */
+  const title = resolveExtensionText(request.title, t) ?? request.title;
+  const messageText = request.method === "confirm" ? (resolveExtensionText(request.message, t) ?? request.message) : "";
+  /* fork:ext-risk-notice —— 警示类确认框的图标/颜色（按原始 title key 识别）。 */
+  const notice = EXTENSION_NOTICE_PRESENTATION[request.title];
   // fork:pi-1.1（#1032）—— 对话框默认 560px，只在自身内容装不下（代码块/表格会横滚）
   // 时才长宽；「最大化」是用户对这一张的覆盖。
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -3267,8 +3308,8 @@ function ExtensionDialog({
   const [full, setFull] = useState(false);
   const toggleFull = useCallback(() => setFull((prev) => !prev), []);
   const focusFirstOption = useCallback((element: HTMLDivElement | null) => element?.focus(), []);
-  const summary = getExtensionDialogSummary(request);
-  const { head: titleHead, rest: titleRest } = splitDialogTitle(request.title);
+  const summary = getExtensionDialogSummary(request, messageText, t);
+  const { head: titleHead, rest: titleRest } = splitDialogTitle(title);
 
   useLayoutEffect(() => {
     if (collapsed) return;
@@ -3368,7 +3409,7 @@ function ExtensionDialog({
       ) : (
       <div
         role="dialog"
-        aria-label={request.title}
+        aria-label={title}
         aria-modal="true"
         className="anim-dialog d-modal-box"
         style={{
@@ -3399,7 +3440,7 @@ function ExtensionDialog({
         >
           <div className="d-col d-grow" style={{ gap: "var(--nx-sp-1)" }}>
             <div className="d-row">
-              <i data-ico="blocks" data-size="15" aria-hidden="true" style={{ color: "var(--nx-accent)", flexShrink: 0 }} />
+              <i data-ico={notice?.ico ?? "blocks"} data-size="15" aria-hidden="true" style={{ color: notice?.tone ?? "var(--nx-accent)", flexShrink: 0 }} />
               <span
                 className="d-grow d-t-b fork-ext-dialog-title"
                 title={titleHead}
@@ -3453,7 +3494,7 @@ function ExtensionDialog({
             </div>
           )}
           {request.method === "confirm" && (
-            <MarkdownBody>{request.message}</MarkdownBody>
+            <MarkdownBody>{messageText}</MarkdownBody>
           )}
           {request.method === "select" && (
             isApprovalSelect(request) ? (
@@ -3479,13 +3520,16 @@ function ExtensionDialog({
               className="d-tree"
               style={{ gap: "var(--nx-sp-1)" }}
             >
-              {request.options.map((option, index) => (
+              {request.options.map((option, index) => {
+                /* fork:ext-i18n-keys —— 选项文字也允许是 key；回传的 `value` 仍是原值。 */
+                const optionText = resolveExtensionText(option, t) ?? option;
+                return (
                 <div
                   key={option}
                   role="button"
                   tabIndex={0}
                   data-extension-option
-                  aria-label={option}
+                  aria-label={optionText}
                   /* fork:design-components —— 选项行挂画板 `.d-menu-row`（文本行，
                      不裁切 Markdown；内含 MarkdownBody 需要更大的触达面）。 */
                   className="d-menu-row"
@@ -3504,10 +3548,11 @@ function ExtensionDialog({
                   }}
                 >
                   <div inert>
-                    <MarkdownBody>{option}</MarkdownBody>
+                    <MarkdownBody>{optionText}</MarkdownBody>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
             )
           )}

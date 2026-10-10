@@ -98,12 +98,14 @@ test("subagent completion stays silent and never becomes unread", () => {
   );
 });
 
-test("keeps the unread count in an accessible label and no running badge on the project row", () => {
-  // fork:no-running-badge-on-project-row-2026-10-02 —— 运行态归会话行的底边扫掠线
-  // （画板 02 三者互斥表：运行中 → 右侧标记 = 无）。这条断言钉住那枚「转圈 + 运行中
-  // 会话数」不会再长回项目行。
+test("keeps the unread count in an accessible label and shows a running spinner on the project row", () => {
+  // fork:no-running-badge-on-project-row-2026-10-02 —— 原来这里钉的是「项目行不许有
+  // 运行态」；fork:proj-running-spinner（用户 2026-10-08）明确要求「任务在运行时，
+  // 在项目名这里加一个转圈的」，所以断言翻面：允许并要求那枚行内转圈，但它只是
+  // 一个「在动」的信号，**不摆计数**（画板 02 的「运行中 → 右侧标记 = 无」仍然管着计数）。
   assert.doesNotMatch(source, /sidebar\.agentRunning/);
-  assert.doesNotMatch(source, /activity\.running/);
+  assert.match(source, /activity && activity\.running > 0/);
+  assert.match(source, /className="fork-proj-running"/);
   assert.match(
     source,
     /aria-label=\{`\$\{t\("sidebar\.newSessionActivity"\)\} \(\$\{activity\.unread\}\)`\}/,

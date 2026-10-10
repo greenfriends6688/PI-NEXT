@@ -48,6 +48,11 @@ interface Props {
   onChangeUrl: (tabId: string, url: string) => void;
   /** 聊天会话 id：桌面端按它隔离浏览器 profile，Web 端忽略。 */
   sessionId?: string;
+  /* fork:browser-fullscreen（2026-10-08，用户实拍「浏览器无法全屏展示，没有那个按钮」）——
+     把右侧面板的「工作区对调」接进面板自己的工具条。宿主（AppShell）持有
+     `workspaceSwapped`，这里只读它画图标、点一下回传切换。 */
+  fullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 /* fork:v5-boards D-23 帧 A —— 画了刘海的机型。板面上只有 iPhone 15 / 16 Pro Max
@@ -78,7 +83,7 @@ const BROWSER_DEVICE_NOTCH_IDS: ReadonlySet<string> = new Set([
  * APIs directly — a missing bridge is a one-line degradation in the adapter, never a
  * blank panel.
  */
-export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
+export function BrowserPanel({ tab, onChangeUrl, sessionId, fullscreen, onToggleFullscreen }: Props) {
   const { t } = useI18n();
   // M-07 —— 手机档：地址栏 + 设备视口条 + 缩放档 + 元素拾取，四个控制件常驻。
   // 桌面分支（下面那个 return）一个字都没动。
@@ -256,6 +261,11 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
      iframe 面读不到（跨源），保持 EMPTY_PAGE_INFO，UI 如实显示主机名。 */
   const [pageInfo, setPageInfo] = useState<BrowserPageInfo>(EMPTY_PAGE_INFO);
   const [loadFailed, setLoadFailed] = useState(false);
+  /* fork:browser-loading（2026-10-08，用户实拍 Web 版一直挂着一行「加载中…」）——
+     iframe 面读不到页面内部（`refreshPageInfo` 直接 return），`pageInfo` 永远是
+     `EMPTY_PAGE_INFO`（readyState 恒为 "loading"），于是那行文案**永远不消失**。
+     iframe 自己有 load 事件，用它做真加载态；managed 面仍看探针的 readyState。 */
+  const [iframeLoaded, setIframeLoaded] = useState(false);
 
   const refreshPageInfo = useCallback(async () => {
     if (surface !== "managed" || !hostSessionId) return;
@@ -281,11 +291,17 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
 
   useEffect(() => {
     setLoadFailed(false);
+    setIframeLoaded(false);
     // URL 一变就重探；加载刚结束时再补一次（标题常常在 load 之后才定下来）。
     void refreshPageInfo();
     const timer = setTimeout(() => { void refreshPageInfo(); }, 800);
     return () => clearTimeout(timer);
   }, [refreshPageInfo, currentUrl]);
+
+  /* 真在等的那一刻：managed 面看探针，iframe 面看 iframe 自己的 load 事件。 */
+  const browserLoading = !loadFailed && (surface === "managed"
+    ? pageInfo.readyState === "loading"
+    : !iframeLoaded);
 
   const navigate = (input: string, { replace = false } = {}) => {
     const url = normalizeBrowserUrl(input);
@@ -695,6 +711,7 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
                     title={tab.url}
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
                     referrerPolicy="no-referrer"
+                    onLoad={() => setIframeLoaded(true)}
                     style={{ width: "100%", height: "100%", border: "none", background: "var(--nx-panel)", transform: renderSize.scale === 1 ? undefined : `scale(${renderSize.scale})`, transformOrigin: "top left" }}
                   />
                   {(["left", "right"] as const).map((side) => (
@@ -727,6 +744,7 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
                   /* 沙箱属性与桌面逐字一致（见桌面分支的注释）。 */
                   sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
                   referrerPolicy="no-referrer"
+                  onLoad={() => setIframeLoaded(true)}
                   style={{
                     flex: viewport === null ? 1 : "0 0 auto",
                     minHeight: 0,
@@ -741,8 +759,11 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
             ) : null}
             <p className="fork-browser-surface-note">{browserSurfaceHint(surface, t)}</p>
             {pickError && <p className="fork-browser-surface-note">{pickError}</p>}
-            {!loadFailed && pageInfo.readyState === "loading" && (
-              <p className="fork-browser-surface-note" role="status">{t("browser.loading")}</p>
+            {browserLoading && (
+              <div className="fork-browser-loading" role="status">
+                <span className="m-think-dots wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                <span className="d-shimmer">{t("browser.loading")}</span>
+              </div>
             )}
           </div>
         ) : (
@@ -939,6 +960,20 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
             onClick={() => (picking ? setPicking(false) : void startPicking())}
           >
             <i data-ico={picking ? "x" : "square-mouse-pointer"} data-size="14" aria-hidden="true"></i>
+          </button>
+        )}
+        {/* fork:browser-fullscreen（2026-10-08，用户实拍「浏览器无法全屏展示，没有那个按钮」）
+            —— 把右侧面板的工作区对调接到面板自己的工具条（与顶栏那枚 columns-2 同一动作）。 */}
+        {onToggleFullscreen && (
+          <button
+            type="button"
+            className={`d-iconbtn${fullscreen ? " is-on" : ""}`}
+            title={fullscreen ? t("layout.exitFullscreen") : t("layout.enterFullscreen")}
+            aria-label={fullscreen ? t("layout.exitFullscreen") : t("layout.enterFullscreen")}
+            aria-pressed={fullscreen}
+            onClick={onToggleFullscreen}
+          >
+            <i data-ico={fullscreen ? "minimize-2" : "maximize-2"} data-size="14" aria-hidden="true"></i>
           </button>
         )}
       </div>
@@ -1180,6 +1215,7 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
                   title={tab.url}
                   sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
                   referrerPolicy="no-referrer"
+                  onLoad={() => setIframeLoaded(true)}
                   style={{ flex: "1 1 auto", minHeight: 0, width: "100%", border: "none", background: "var(--nx-panel)" }}
                 />
               </div>
@@ -1209,6 +1245,7 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
               title={tab.url}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
               referrerPolicy="no-referrer"
+              onLoad={() => setIframeLoaded(true)}
               style={{ width: viewportSize.width, height: viewportSize.height, border: "none", background: "var(--nx-panel)", transform: renderSize.scale === 1 ? undefined : `scale(${renderSize.scale})`, transformOrigin: "top left" }}
             />
             {viewportSizeHandles}
@@ -1224,6 +1261,7 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
              就是这里唯一的兜底，所以它留在 iframe 元素上、不进适配层。 */
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
           referrerPolicy="no-referrer"
+          onLoad={() => setIframeLoaded(true)}
           style={{
             flex: viewport === null ? 1 : "0 0 auto",
             minHeight: 0,
@@ -1248,12 +1286,13 @@ export function BrowserPanel({ tab, onChangeUrl, sessionId }: Props) {
           {/* fork:browser-page-info —— 加载 / 失败两态。改之前只有空态与一句
               “跨站策略会白屏” 的提示，页面挂掉时面板就静静地卡在上一帧。 */}
           {loadFailed && <p className="fork-browser-surface-note">{t("browser.loadFailed")}</p>}
-          {!loadFailed && pageInfo.readyState === "loading" && (
-            /* fork:v5-boards D-27 帧 A / D-28 帧 B —— 真在等的文案才走 `.d-shimmer`：
-               这里是 iframe 页面 readyState=loading 的等待态（跑 typecheck 那种「知道自己在等」）。 */
-            <p className="fork-browser-surface-note" role="status">
+          {browserLoading && (
+            /* fork:browser-loading —— 真在等的居中加载态（点阵 + 流光文案），
+               不再是一条贴在底部的裸文字。绝对定位盖在面板正文上（正文已是 relative）。 */
+            <div className="fork-browser-loading" role="status">
+              <span className="d-think-dots wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
               <span className="d-shimmer">{t("browser.loading")}</span>
-            </p>
+            </div>
           )}
         </div>
       ) : (

@@ -217,9 +217,16 @@
      透明度默认别太高」）—— kit 原值 0.76 / 0.71 在半透明底上会让底下的文字透上来，
      读起来发糊。弹层是**要读内容**的面，不是装饰面，所以抬到 0.95 / 0.95。
      要更透（看得到底层内容）时用 Thin 那两枚。 */
-  --nx-mat-thick-bg-light: #ecececf2;
+  --nx-mat-thick-bg-light: #ffffffd9;
   --nx-mat-thick-bg-dark: #2c2c2cf2;
-  --nx-mat-thin-bg-light: #ececec80;  /* Thin：需要看见底下内容时 */
+  /* fork:apple-material-2（2026-10-08，用户实拍「整体看起来灰蒙蒙的，没按苹果规范」）——
+     Thick 原先写的是手写的 `#ecececf2`（不透明的灰）。kit 里没有 `#ececec`：弹层属
+     `Glass/Light/Regular`，fill-1 是 **白 70%（`#ffffffb3`）**。这里取白 85%（`#ffffffd9`）：
+     比 kit 略实一档，因为**弹层拿不到 backdrop-filter**（§Z：会让它成为 fixed 后代的包含块，
+     浮窗被裁到视口外），没有模糊的 70% 白压在花背景上会透字。换成白底后弹层是「透光白卡」，
+     不再是灰卡；将来若能给弹层补上模糊，再把 alpha 降到 kit 的 0.70。
+     深色那档（`#2c2c2cf2`）**未动** —— 用户没报深色，§AE 已把它记为「留待裁定」。 */
+  --nx-mat-thin-bg-light: #ffffff80;  /* Thin：需要看见底下内容时 */
   --nx-mat-thin-bg-dark: #2929297d;
   --nx-mat-ios-blur: 75px;            /* iOS 标准材质 */
   --nx-mat-ios-reg-bg-light: #ffffff40;

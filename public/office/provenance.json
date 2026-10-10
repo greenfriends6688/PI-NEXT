@@ -1,0 +1,189 @@
+{
+  "upstream": "https://github.com/genspark-ai/genoffice/",
+  "commit": "d1280d153362071de433a6439ca31585af4af8f7",
+  "referenceRendererSha256": "91d16c0602689b62523566d914f67d7b6f7ad9b72dc50223dd605a415978413c",
+  "pdfControlsRemoved": 2,
+  "pdfBridgeCallsRemoved": 0,
+  "resources": [
+    {
+      "name": "Caladea-Bold-D8qQyaGr.ttf",
+      "size": 58892,
+      "sha256": "74eda4fc5ffba0d8dc4aa76d41499f5ab76168d9ed6141c6417064c6244db9b6"
+    },
+    {
+      "name": "Caladea-BoldItalic-wZEKqfeH.ttf",
+      "size": 61828,
+      "sha256": "f47a35ad6cd0efa9914d93f9d03c93e30c55da43674bccfabac73b3c0d522c01"
+    },
+    {
+      "name": "Caladea-Italic-B_Jy4Zu6.ttf",
+      "size": 61860,
+      "sha256": "9c968bf60ba1e851cdfea77c71e3540c57792f77482dd241acc29d1425569c4e"
+    },
+    {
+      "name": "Caladea-Regular-BTbwo_Qo.ttf",
+      "size": 58964,
+      "sha256": "d2f6cad33f191e65b68bd74e6d4f7708080a41b32db635866109df3090265d91"
+    },
+    {
+      "name": "Carlito-Bold-BhbXr__n.ttf",
+      "size": 686240,
+      "sha256": "ed778b78ce652f5b17647344fb9a4c4dcb2e6f8bafe75a0366300da7f8c199ac"
+    },
+    {
+      "name": "Carlito-BoldItalic-0dXjwGA0.ttf",
+      "size": 812344,
+      "sha256": "0468067dde1d54111862f20f3fc4a5e8dcbc0ad4549e318c601b8ff7bdec935d"
+    },
+    {
+      "name": "Carlito-Italic-KkZUqxJW.ttf",
+      "size": 619052,
+      "sha256": "de59348ac812a347537b90a3d70796cfd5369048ecf9c78f5bca79ab55dd28a7"
+    },
+    {
+      "name": "Carlito-Regular-Cbe9FLjp.ttf",
+      "size": 631712,
+      "sha256": "cca497a63f1cf8111d2189424ec38b95002e43799efe4f1486ec7f8063bb93c1"
+    },
+    {
+      "name": "GenOfficeCheLatinKR-CFVfemg_.woff2",
+      "size": 8296,
+      "sha256": "06d44399fdb8a13855414d64e92f404d941fb453fe4f333a704ca1e4e5128610"
+    },
+    {
+      "name": "GenOfficeGothicKR-Regular-subset-Bkvj_MFZ.woff2",
+      "size": 281980,
+      "sha256": "c72779cf46f16c8d45e8db2b1377f4e627d43264e906107666f2c2621e9423b6"
+    },
+    {
+      "name": "GenOfficePoppins-Bold-subset-CLJyStaw.woff2",
+      "size": 14128,
+      "sha256": "ec6c07101aa4d62b559847a93e3e9358554bd253e153f7fdfbf74d866b59a024"
+    },
+    {
+      "name": "GenOfficePoppins-Regular-subset-RElVmxhA.woff2",
+      "size": 14160,
+      "sha256": "a43b5060988c6400673f99ce795ea6814ecc86dcb9adb33a5b78f9308708344b"
+    },
+    {
+      "name": "GenOfficeSansKR-Regular-subset-CVxxonE8.woff2",
+      "size": 266128,
+      "sha256": "f99d21b62616a24d25d1a2ba5e5e7fc68008b4bafc2a9a0c5d5abe05e48ffe61"
+    },
+    {
+      "name": "GenOfficeSerifKR-Regular-subset-BkQyd75u.woff2",
+      "size": 512436,
+      "sha256": "ef34d00ded53b3ca655cf6faeaa554c76715b0ee19421c06e12949e5e7d57d8f"
+    },
+    {
+      "name": "GenOfficeTamil-Regular-DLISHPmH.woff2",
+      "size": 33072,
+      "sha256": "b1571cf888c26f1c7822d169bfa201f3e4cf58f03d5eb76885f10c3cc2b5c1ef"
+    },
+    {
+      "name": "GenOfficeUIKanaJP-Bold-DbcaglVT.woff2",
+      "size": 26204,
+      "sha256": "68e149ce17eeb14bbdfaf7775e157439f34baab027d29d72e7e4de549cc7a78c"
+    },
+    {
+      "name": "GenOfficeUIKanaJP-Regular-Bj_7JzTT.woff2",
+      "size": 25288,
+      "sha256": "3910237ea1074a33fb3b16a18f9df166573895e3a3f9914e837ab9215226ee05"
+    },
+    {
+      "name": "index-CiXp5RFk.js",
+      "size": 3902301,
+      "sha256": "f124efa59f855d3f27481d1d560c9b0640320f0aa3e9849545ab6d9df0b1806b"
+    },
+    {
+      "name": "index-JQsJMU5H.css",
+      "size": 208571,
+      "sha256": "fbdaa8cc9f437a7be904eda2c0f2a1e54d35d2078df7bda30c7f5449690e73e8"
+    },
+    {
+      "name": "LiberationMono-Bold-JpIqZVyK.ttf",
+      "size": 307996,
+      "sha256": "bd62a0672d0b9b6710b01df434c80ad54fa5f0835207eb7b17b7a761463067bb"
+    },
+    {
+      "name": "LiberationMono-BoldItalic-CW50-m9W.ttf",
+      "size": 284068,
+      "sha256": "79451f3c09fe25116098853b7a2ca6e2436220ccc11af022979adbcf195be130"
+    },
+    {
+      "name": "LiberationMono-Italic-BaW6sbi8.ttf",
+      "size": 281536,
+      "sha256": "605c01c711b44480a7508d349dfbf3264e81fa43d69e61cfa7d10b86e764c4d1"
+    },
+    {
+      "name": "LiberationMono-Regular-CscJ8ftk.ttf",
+      "size": 319508,
+      "sha256": "f2b83c763e8afd21709333370bed4774337fae82267937e2b5aea7e2fbd922c1"
+    },
+    {
+      "name": "LiberationSans-Bold-CAnzDFU4.ttf",
+      "size": 414456,
+      "sha256": "788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173"
+    },
+    {
+      "name": "LiberationSans-BoldItalic-BC07J_j6.ttf",
+      "size": 408996,
+      "sha256": "698da70fc191cc5f33ad4d6d3fe830fe4624b898ea2e3169955928b7c491f1ee"
+    },
+    {
+      "name": "LiberationSans-Italic-D6GtLuAT.ttf",
+      "size": 415816,
+      "sha256": "e5bae5c4cde31f22142753855f4f8fb86da6ff39955ed3c0a11248b0d16948b0"
+    },
+    {
+      "name": "LiberationSans-Regular-CqxnOoBp.ttf",
+      "size": 410712,
+      "sha256": "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8"
+    },
+    {
+      "name": "LiberationSerif-Bold-CT7WGLoV.ttf",
+      "size": 370096,
+      "sha256": "d754ba427cfe0bca54ae052384baa8f842da5bd6550ad4da024ac441e7a7d5ce"
+    },
+    {
+      "name": "LiberationSerif-BoldItalic-DHf5skZ4.ttf",
+      "size": 376772,
+      "sha256": "f17db8af71e24d2066b587546021d4f0b296be389512b658dec3c09affeb11a7"
+    },
+    {
+      "name": "LiberationSerif-Italic-Bwtmn-ni.ttf",
+      "size": 375632,
+      "sha256": "0e3dea9f8d613e006ccfa62201f33e265d19167bd0907725c3e145368b04fc2e"
+    },
+    {
+      "name": "LiberationSerif-Regular-DREh6cMU.ttf",
+      "size": 393576,
+      "sha256": "058ea80864aef09a23f45cbec2bb5400bc3dfbdea01c3f10538a21fcb497fb74"
+    },
+    {
+      "name": "NotoNaskhArabic-Regular-subset-DQSqx2ZA.woff2",
+      "size": 69624,
+      "sha256": "9c90d66fa736481513d86f17927ca22f5054bcd4c702d3cc7c8a611ca9a091ec"
+    },
+    {
+      "name": "NotoSansArabic-Regular-subset-D207GVuU.woff2",
+      "size": 63672,
+      "sha256": "3ae72fd620251f4c1da3f295ea49a4d949eadc08c16fc83b36d0959f09c72ed3"
+    },
+    {
+      "name": "NotoSansCJKsc-Regular-subset-BuHGXxnc.woff2",
+      "size": 2533160,
+      "sha256": "e527a37d1025cd0e03dc42667582cbfdfc8ea35699dae51b722de5f91e58b0d8"
+    },
+    {
+      "name": "NotoSerifCJKsc-Regular-subset-CLPB6QGT.woff2",
+      "size": 3495928,
+      "sha256": "1b60526f07128255e4a3bfe315b7764a6c89612154bb40804b0d480a374cae43"
+    },
+    {
+      "name": "send-enter-off-B0IfWMyy.png",
+      "size": 4247,
+      "sha256": "322f8180c5a9eddf9cc79b1147e8656e8537c61b4e458fed7fc476508a81ea69"
+    }
+  ]
+}

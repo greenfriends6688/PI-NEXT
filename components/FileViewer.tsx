@@ -1377,9 +1377,10 @@ function FileSelectionQuotePopover({
 }
 
 function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMentionLines, onAskInNewChat, watchEnabled = true }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   // M-06 —— 手机档同一个查看器换 m-* 形态。
   const isMobile = useIsMobile();
+  const { theme } = useTheme();
   const skin = viewerSkin(isMobile);
   const [watching, setWatching] = useState(false);
   const [bust, setBust] = useState(0);
@@ -1387,6 +1388,10 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
   const [error, setError] = useState<string | null>(null);
   const [frameSelection, setFrameSelection] = useState<{ text: string; top: number; left: number } | null>(null);
   const [frameQuoteInputOpen, setFrameQuoteInputOpen] = useState(false);
+  // fork:office-editor —— docx 可在只读预览（mammoth）与 GenOffice 编辑器之间切换。
+  const [mode, setMode] = useState<"preview" | "edit">("preview");
+  const [tooLarge, setTooLarge] = useState(false);
+  const editFrameRef = useRef<HTMLIFrameElement | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const syncRequestRef = useRef(0);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -1395,6 +1400,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
 
   const ext = getFileExt(filePath);
   const isPdf = ext === "pdf";
+  const canEdit = ext === "docx";
   // fork:gap-viewer-zoom — PDF 缩放。
   // 这里仍然是浏览器内置的 PDF 阅读器（不引 pdfjs），但通过 `#zoom=<percent>`
   // fragment 给它一个缩放档位，于是至少有了和图片一致的 −/+/100% 控件。
@@ -1405,10 +1411,53 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
     : getFileApiUrl(filePath, "preview", sourceSessionId, bust ? { v: bust } : undefined);
   const previewUrl = isPdf ? withPdfZoom(rawPreviewUrl, pdfZoom) : rawPreviewUrl;
 
+  // fork:office-editor —— 编辑态挂在同源 iframe（public/office/host.html）里，
+  // 语言/主题随宿主，保存走 /api/files 的 upload 通路（见 public/office/host.js）。
+  const officeSrc = useMemo(() => {
+    if (!canEdit) return "";
+    const search = new URLSearchParams({
+      path: filePath,
+      lang: locale.startsWith("zh") ? "zh" : "en",
+      theme: theme === "dark" ? "dark" : "light",
+    });
+    if (sourceSessionId) search.set("sessionId", sourceSessionId);
+    return `/office/host.html?${search.toString()}`;
+  }, [canEdit, filePath, locale, sourceSessionId, theme]);
+
+  // 离开编辑态前让编辑器把未保存改动写回；没有响应最多等 60s。
+  const flushEditor = useCallback(() => new Promise<void>((resolve) => {
+    const target = editFrameRef.current?.contentWindow;
+    if (!target) {
+      resolve();
+      return;
+    }
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const timer = window.setTimeout(finish, 60000);
+    function finish() {
+      window.clearTimeout(timer);
+      window.removeEventListener("message", onMessage);
+      resolve();
+    }
+    function onMessage(event: MessageEvent) {
+      if (event.source !== target) return;
+      const data = event.data as { type?: string; id?: string } | null;
+      if (data?.type !== "pi-office:flush-result" || data.id !== id) return;
+      finish();
+    }
+    window.addEventListener("message", onMessage);
+    target.postMessage({ type: "pi-office:flush", id }, window.location.origin);
+  }), []);
+
+  const toggleMode = useCallback(async () => {
+    if (mode === "edit") await flushEditor();
+    setMode((current) => (current === "edit" ? "preview" : "edit"));
+  }, [mode, flushEditor]);
+
   useEffect(() => {
     setBust(0);
     setSize(null);
     setError(null);
+    setTooLarge(false);
     setWatching(false);
     setPdfZoom(1);
 
@@ -1422,7 +1471,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
         if (typeof d.size === "number") {
           setSize(d.size);
           if (!isPdf && d.size > DOCX_PREVIEW_MAX_BYTES) {
-            setError("DOCX too large for preview (>10MB)");
+            setTooLarge(true);
           }
         }
       })
@@ -1443,7 +1492,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
       esRef.current = null;
     }
 
-    if (!watchEnabled) return;
+    if (!watchEnabled || mode === "edit") return;
 
     let active = true;
     const synchronize = () => {
@@ -1459,10 +1508,11 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
           if (typeof d.size === "number") {
             setSize(d.size);
             if (!isPdf && d.size > DOCX_PREVIEW_MAX_BYTES) {
-              setError("DOCX too large for preview (>10MB)");
+              setTooLarge(true);
               return;
             }
           }
+          setTooLarge(false);
           setError(null);
           setBust((value) => value + 1);
         })
@@ -1485,11 +1535,12 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
         if (typeof d.size === "number") {
           setSize(d.size);
           if (!isPdf && d.size > DOCX_PREVIEW_MAX_BYTES) {
-            setError("DOCX too large for preview (>10MB)");
+            setTooLarge(true);
             return;
           }
         }
       } catch { /* ignore */ }
+      setTooLarge(false);
       setError(null);
       setBust((b) => b + 1);
     });
@@ -1504,7 +1555,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
       es.close();
       if (esRef.current === es) esRef.current = null;
     };
-  }, [filePath, isPdf, sourceSessionId, watchEnabled]);
+  }, [filePath, isPdf, mode, sourceSessionId, watchEnabled]);
 
   // The docx preview is a same-origin iframe, so its selection is invisible to
   // the parent document. Read it straight out of the frame and anchor the
@@ -1657,6 +1708,17 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
             </button>
           </span>
         )}
+        {canEdit && (
+          <button
+            type="button"
+            className={skin.iconBtn}
+            onClick={toggleMode}
+            aria-label={mode === "edit" ? t("i18n.preview") : t("i18n.edit")}
+            title={mode === "edit" ? t("i18n.preview") : t("i18n.edit")}
+          >
+            <i data-ico={mode === "edit" ? "eye" : "pencil"} data-size="13"></i>
+          </button>
+        )}
         <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} mobile={isMobile} />
         <span
           title={watching ? t("i18n.liveSync") : t("i18n.notWatching")}
@@ -1667,11 +1729,19 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
         </span>
       </div>
       <div className={skin.scrollClass} style={{ background: "var(--nx-panel)" }}>
-        {error ? (
+        {error || (tooLarge && mode !== "edit") ? (
           <div className={skin.emptyClass} style={{ height: "100%" }}>
             <div className={skin.emptyIco}><i data-ico="triangle-alert" data-size="20"></i></div>
-            <div className={skin.emptyTitle}>{error}</div>
+            <div className={skin.emptyTitle}>{error ?? "DOCX too large for preview (>10MB)"}</div>
           </div>
+        ) : mode === "edit" ? (
+          <iframe
+            ref={editFrameRef}
+            src={officeSrc}
+            sandbox="allow-scripts allow-same-origin allow-downloads allow-modals allow-forms allow-popups"
+            title={getFileName(filePath)}
+            style={{ width: "100%", height: "100%", border: "none", background: "var(--n-surface)" }}
+          />
         ) : (
           <iframe
             ref={iframeRef}

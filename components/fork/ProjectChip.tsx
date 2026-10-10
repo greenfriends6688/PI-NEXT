@@ -36,6 +36,11 @@ export interface NewSessionProject {
 export interface NewSessionTargets {
   /** Known projects, most recent first. The chat workspace is already excluded. */
   projects: NewSessionProject[];
+  /* fork:no-guide-flash（2026-10-08，用户实拍「加载时红框里的『开始使用』闪现一下」）——
+     会话目录是否已经**至少加载过一次**。空目录与会话还在路上都是 `projects.length === 0`，
+     只看长度会把「还没加载完」误判成「一个会话都没有」，引导块先弹出来、数据到了又消失。
+     `catalogLoaded` 是两者的唯一区分，引导块只在它为 true 时才允许出现。 */
+  catalogLoaded: boolean;
   /** Chat workspace directory used for "not in a project". */
   chatPath: string | null;
   /** Target cwd of the pending draft session. */
