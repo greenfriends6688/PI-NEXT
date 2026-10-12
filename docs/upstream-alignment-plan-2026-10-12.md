@@ -329,7 +329,7 @@ npm run prod                         # 构建 + 起服 + 浏览器冒烟
 
 ## 8. 执行状态（2026-10-12 首轮）
 
-**已合入 main（15 个提交）**：`ee36c84a..3c559512`
+**已合入 main（19 个提交）**：`ee36c84a..f2f00d46`
 
 | PR | 内容 | 状态 |
 | --- | --- | --- |
@@ -340,30 +340,30 @@ npm run prod                         # 构建 + 起服 + 浏览器冒烟
 | PR-3 | 侧栏状态服务端化（session-ui-state，L） | ⬜ 未做 |
 | PR-4 | 子代理 A（profile 决定 spawn 参数 + model:level 后缀） | ✅（A6 右侧面板查看器 未做） |
 | PR-5 | 子代理 B（builtin-extensions 地基 + codemode + mcp:on + session_start 工具，L） | ⬜ 未做 |
-| PR-6 | 聊天小改（C2 处理详情 / C3 历史去重 / C5 二维码 / C6 隐藏消息 / C11 序号 / C12 桌面链接） | ✅ 部分（C1 自定义消息标题折叠 / C4 停止按钮让位 / C7 切会话状态 / C8 小地图编号 / C9 小地图锁定 / C10 错误提示 未做） |
-| PR-7 | 渲染性能（Prism 按需 / turn-views / 流式 store，L） | ⬜ 未做 |
+| PR-6 | 聊天小改（C2 处理详情 / C3 历史去重 / C5 二维码 / C6 隐藏消息 / C9 小地图锁定 / C11 序号 / C12 桌面链接） | ✅ 部分（C1/C4/C7/C8/C10 未做） |
+| PR-7 | 渲染性能 | ✅ 部分（**Prism 按需加载**；流式 store / turn-views 缓存未做） |
 | PR-8 | 文件（HTML > 256KB 预览 + 文件树按项目记住展开目录） | ✅ |
 | PR-9 | 模型（Kimi 用量 / 能力元数据 / `/model` 顺序） | ✅ |
 | PR-10 | 终端（Termux 额外键 + 软键盘输入保活） | ✅ |
 | PR-11 | 音频（空闲挂起 + 运行期间保持） | ✅ |
-| PR-12 | CLI（5 命令 + Windows 修复，L） | ⬜ 未做 |
+| PR-12 | CLI（5 命令 + Windows 修复） | ✅ |
 | PR-13 | 工作树（裸克隆归组 + 已删工作树回退） | ✅ |
 
 **验收数据**
 - `tsc --noEmit` **0 错**
-- `npm test` **3949 pass / 0 fail / 8 skipped**
+- `npm test` **3976 pass / 0 fail / 8 skipped**
 - `npm run build`（next build --webpack）**成功**
 - `npm run check:styles` / `check:icons` **绿**；`npm run lint` **0 error**（此前 583 error，见 PR-0）
+- CLI 端到端：`pi-web start → status → stop` 跑通；`lib/pi-web-cli-commands.test.mjs` 23 pass
 
 **本轮未做（附理由）**
 
 | 项 | 为什么没做 |
 | --- | --- |
-| PR-3 侧栏状态服务端化 | L 级基础设施：三份 localStorage 迁服务端 + revision 合并，单独一轮 |
-| PR-5 子代理 B（builtin-extensions / codemode / mcp:on / session_start 工具） | L 级：先落 `lib/builtin-extensions.ts` 地基，再补三个 frontmatter 字段，需真实会话验证 |
-| PR-7 渲染性能（流式 store / turn-views / Prism 按需） | L 级纯重构，对着本仓分叉的渲染器做，回归面大，建议单独一轮并配重渲染计数回归 |
-| PR-12 CLI 五命令 | L 级：本仓 `bin/pi-web.js` 已带 lan-supervisor / rotate-preview-secrets，上游四模块须围绕合并 |
+| PR-3 侧栏状态服务端化 | L 级基础设施：三份 localStorage 迁服务端 + revision 合并，单独一轮（新代码 ~1000 行） |
+| PR-5 子代理 B（builtin-extensions / codemode / mcp:on / session_start 工具） | L 级：先落 `lib/builtin-extensions.ts` 地基（477 行），再补三个 frontmatter 字段，需真实会话验证 |
+| PR-7 剩余（流式 store / turn-views 缓存） | L 级纯重构，对着本仓分叉的渲染器做，回归面大；**Prism 按需加载已单独落地（PR-7a）** |
 | PR-4 A6 子代理查看器标签 | M 级 UI 新增（`SubagentViewer.tsx` + AppShell `agentTabs` + MessageView 入口） |
-| PR-6 剩余小项（C1/C4/C7/C8/C9/C10） | S 级，可与下一轮一起做 |
+| PR-6 剩余小项（C1 自定义消息标题折叠 / C4 停止按钮让位 / C7 切会话状态 / C8 小地图编号 / C10 错误提示） | S–M 级，可与下一轮一起做；**C9 小地图锁定已落地（PR-6c）** |
 | PR-2 S8 文件标签 park/恢复 | M 级：`file-tab-state.ts` + AppShell 切换逻辑 |
 
