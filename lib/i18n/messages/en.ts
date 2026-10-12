@@ -584,6 +584,10 @@ export const enLocale: LocalePlugin = {
     "agentSwitcher.status.failed": "Failed",
     "agentSwitcher.status.aborted": "Aborted",
     "agentSwitcher.status.interrupted": "Interrupted",
+    "subagent.refresh": "Refresh",
+    "subagent.viewer.starting": "Sub-agent session is starting…",
+    "subagent.viewer.empty": "No messages yet",
+    "subagent.viewer.error": "Failed to load sub-agent session",
     "appUpdate.releaseNotes": "PI NEXT v{version} is available. View release notes",
     // fork:phone-push — 手机配对 + IM 推送合成一栏（用户 2026-10-03 裁定）。
     "phonePush.title": "Phone & push",

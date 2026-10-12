@@ -588,6 +588,10 @@ export const zhCNLocale: LocalePlugin = {
     "agentSwitcher.status.failed": "失败",
     "agentSwitcher.status.aborted": "已中止",
     "agentSwitcher.status.interrupted": "已中断",
+    "subagent.refresh": "刷新",
+    "subagent.viewer.starting": "子代理会话正在启动…",
+    "subagent.viewer.empty": "还没有消息",
+    "subagent.viewer.error": "加载子代理会话失败",
     "appUpdate.releaseNotes": "PI NEXT v{version} 可用，查看更新说明",
     // fork:phone-push — 手机配对 + IM 推送合成一栏（用户 2026-10-03 裁定）。
     "phonePush.title": "手机与推送",

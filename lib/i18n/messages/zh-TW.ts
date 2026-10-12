@@ -587,6 +587,10 @@ export const zhTWLocale: LocalePlugin = {
     "agentSwitcher.status.failed": "失敗",
     "agentSwitcher.status.aborted": "已中止",
     "agentSwitcher.status.interrupted": "已中斷",
+    "subagent.refresh": "重新整理",
+    "subagent.viewer.starting": "子代理工作階段正在啟動…",
+    "subagent.viewer.empty": "還沒有訊息",
+    "subagent.viewer.error": "載入子代理工作階段失敗",
     "appUpdate.releaseNotes": "PI NEXT v{version} 已推出，查看版本資訊",
     // fork:phone-push — 手機配對 + IM 推送合成一欄（使用者 2026-10-03 裁定）。
     "phonePush.title": "手機與推送",

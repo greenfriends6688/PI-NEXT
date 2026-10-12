@@ -70,6 +70,7 @@ import { PwaTrustBanner } from "./pwa/PwaTrustSheet";
 import { InstallPromptBanner, PwaOfflineBanner, PwaUpdateBanner } from "./fork/InstallPromptBanner";
 import { DirectoryPicker } from "./DirectoryPicker";
 import { BranchNavigator, findSiblingIndex, hasSessionBranches } from "./BranchNavigator";
+import { SubagentViewer } from "./SubagentViewer";
 // fix:mcp-topbar-icons —— 顶栏右侧两枚状态图标（MCP / 插件）+ 可点的分支芯片。
 import { PluginStatusButton, splitStatusesByKind } from "./TopBarPopovers";
 import { MobileActionPanel } from "./fork/MobileActionPanel";
@@ -906,6 +907,8 @@ export function AppShell() {
   const [traceOpen, setTraceOpen] = useState(false);
   // fork:proma-05-explore — 探索分支的右栏只读 tab（可与主线并排看）
   const [branchTabs, setBranchTabs] = useState<{ id: string; sessionId: string; parentSessionId: string | null; label: string }[]>([]);
+  // fork:upstream-0.12-subagent-parity —— 子代理查看器标签（#1129）。
+  const [agentTabs, setAgentTabs] = useState<{ id: string; sessionId: string; label: string; running: boolean }[]>([]);
   const [browsersRestored, setBrowsersRestored] = useState(false);
   // fork:right-tabs-memory — 每个工作区记一份文件 tab（含激活项）：切工作区或刷新后
   // 回到该工作区时把 tab 列表恢复回来。只存文件 tab —— 终端持有活 PTY、浏览器有独立
@@ -1011,7 +1014,12 @@ export function AppShell() {
     label: tab.label,
     filePath: tab.sessionId,
     kind: "session" as const,
-  }))], tabOrder), [branchTabs, browserTabs, changesOpen, changesUnseen, fileTabs, gitGraphOpen, tabOrder, terminalTabs, traceOpen, translate]);
+  })), ...agentTabs.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    filePath: tab.sessionId,
+    kind: "session" as const,
+  }))], tabOrder), [agentTabs, branchTabs, browserTabs, changesOpen, changesUnseen, fileTabs, gitGraphOpen, tabOrder, terminalTabs, traceOpen, translate]);
 
   // fork:proma-38-tab-reorder —— 拖拽落点只说「插到谁前面」；第一次拖就把当前默认顺序
   // 整张物化成顺序表（之后只在这张表上搬），所以关掉重开 tab 不会把顺序打回去。
@@ -1551,10 +1559,24 @@ export function AppShell() {
       .catch(() => {});
   }, []);
 
+  const openSubagentTab = useCallback((sessionId: string, label: string, running: boolean) => {
+    const id = `agent:${sessionId}`;
+    setAgentTabs((tabs) => (tabs.some((tab) => tab.id === id)
+      ? tabs.map((tab) => (tab.id === id ? { ...tab, label, running } : tab))
+      : [...tabs, { id, sessionId, label, running }]));
+    setActiveFileTabId(id);
+    setRightPanelOpen(true);
+  }, []);
+
   const handleOpenSession = useCallback(async (sessionId: string) => {
+    // fork:upstream-0.12-subagent-parity —— 子代理开成只读查看器标签，而不是接管主聊天（#1129）。
+    const catalogued = sessionCatalog.find((s) => s.id === sessionId);
+    if (catalogued?.relation?.kind === "subagent") {
+      openSubagentTab(sessionId, catalogued.name || catalogued.firstMessage || sessionId, runningSessionIds.has(sessionId));
+      return;
+    }
     // Prefer the catalogue the sidebar already delivered: selecting from it
     // avoids a full detail round trip just to obtain the SessionInfo.
-    const catalogued = sessionCatalog.find((s) => s.id === sessionId);
     if (catalogued && !catalogued.transient) {
       handleSelectSession(catalogued);
       return;
@@ -1567,7 +1589,7 @@ export function AppShell() {
     } catch (error) {
       console.error("[pi-web] failed to open session:", error instanceof Error ? error.message : error);
     }
-  }, [handleSelectSession, sessionCatalog]);
+  }, [handleSelectSession, openSubagentTab, runningSessionIds, sessionCatalog]);
 
   // Called by ChatWindow when a new session gets its real id from pi
   const handleSessionCreated = useCallback((session: SessionInfo, sourceDraftKey: string) => {
@@ -2035,6 +2057,14 @@ export function AppShell() {
     if (branchTabs.some((tab) => tab.id === tabId)) {
       const remaining = branchTabs.filter((tab) => tab.id !== tabId);
       setBranchTabs(remaining);
+      setActiveFileTabId((current) => (current !== tabId
+        ? current
+        : pickFocusAfterClose(tabId, remaining.at(-1)?.id ?? fileTabs.at(-1)?.id ?? null)));
+      return;
+    }
+    if (agentTabs.some((tab) => tab.id === tabId)) {
+      const remaining = agentTabs.filter((tab) => tab.id !== tabId);
+      setAgentTabs(remaining);
       setActiveFileTabId((current) => (current !== tabId
         ? current
         : pickFocusAfterClose(tabId, remaining.at(-1)?.id ?? fileTabs.at(-1)?.id ?? null)));
@@ -3410,6 +3440,18 @@ export function AppShell() {
         branchTab.id,
       );
     }
+    const agentTab = agentTabs.find((tab) => tab.id === tabId);
+    if (agentTab) {
+      return box(
+        <SubagentViewer
+          sessionId={agentTab.sessionId}
+          fallbackLabel={agentTab.label}
+          running={agentTab.running || runningSessionIds.has(agentTab.sessionId)}
+          onOpenFile={(filePath, page) => handleOpenFile(filePath, filePath.split(/[\\/]/).pop() ?? filePath, page !== undefined ? { page } : undefined)}
+        />,
+        agentTab.id,
+      );
+    }
     const browserTab = browserTabs.find((tab) => tab.id === tabId);
     if (browserTab) {
       return box(
@@ -4110,6 +4152,7 @@ export function AppShell() {
             <>
           {fileTabs.map((tab) => renderTabContent(tab.id, true))}
           {branchTabs.map((tab) => renderTabContent(tab.id, true))}
+          {agentTabs.map((tab) => renderTabContent(tab.id, true))}
           {browserTabs.map((tab) => renderTabContent(tab.id, true))}
           {terminalTabs.map((tab) => renderTabContent(tab.id, true))}
           {/* fork:git-graph-tab / fork:trace-pane —— 两个单例 tab 常驻（hidden 而非卸载），

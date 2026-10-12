@@ -1,0 +1,272 @@
+/* ===========================================================================
+ * PI NEXT · 设计体系 v6 · pwa/tokens.css —— PWA 形态值（m- 前缀）
+ *
+ * 与 Web 的差异**不在尺寸，在手感**：
+ *   基准字号 17 · 圆角 8/12/16/20/24/28 · 触控下限 44px · 渐隐顶栏 · 光晕立体。
+ * 强调色与 Web **完全同一个**（var(--nx-accent)）—— 一套真值的体现：品牌只有一种，
+ * 手感各长各的。深色同 Web：html[data-theme="dark"] 变量覆盖。
+ * =========================================================================== */
+
+/* fork:apple-sketch 返修（2026-10-10）—— 同 web/tokens.css：角色层指向 `--nx-sk-*`，
+   数值层必须在这里导入，否则画板整页背景解析成透明。 */
+@import "../sketch-ios.css";
+@import "../base.css";
+
+:root {
+  /* 品牌渐变（logo 本身是渐变，标记要跟着它走而不是单色） */
+  --nx-brand: linear-gradient(135deg, #22b8e6 0%, #4f6df5 45%, #b45cf0 100%);
+  --nx-ui: 17px;
+
+  /* Apple semantic roles for iOS PWA. */
+  --nx-radius-control: 12px;
+  --nx-radius-row: 12px;
+  --nx-radius-card: 20px;
+  --nx-radius-pane: 24px;
+  --nx-radius-popover: 24px;
+  --nx-radius-sheet: 28px;
+  --nx-radius-pill: 999px;
+
+  --nx-ctl-xs: var(--nx-sk-c-buttons-content-sm-h);
+  --nx-ctl-sm: 36px;
+  /* fork:apple-sketch —— iOS kit 的 Buttons 实测三档：Small 28 / Regular 34 / Large 50 */
+  --nx-ctl-md: var(--nx-sk-c-buttons-content-rg-h);
+  --nx-ctl-lg: 48px;
+  --nx-touch-min: 44px;
+
+  /* 浅色：PWA 画布带一点暖灰，卡片更白（Aether 的「灰底白卡」层次） */
+  --nx-canvas:     #f4f4f6;
+  --nx-panel:      #ffffff;
+  --nx-sidebar:    #f4f4f6;
+  --nx-surface:    #efeff2;
+  --nx-surface-hi: #e4e4e9;
+  --nx-selected:   rgba(85, 102, 216, .10);
+  --nx-line:       rgba(18, 18, 24, .07);
+  --nx-line-hi:    rgba(18, 18, 24, .13);
+  --nx-text:       #404040;
+  /* fork:zcode-type —— 同 Web：浅色 100 / 75 / 55，深色 100 / 60 / 30。 */
+  --nx-text-2:     color-mix(in srgb, var(--nx-text) 75%, transparent);
+  --nx-text-3:     color-mix(in srgb, var(--nx-text) 55%, transparent);
+
+  --nx-accent: #0a84ff;
+  --nx-accent-fg: #ffffff;
+  --nx-accent-soft: color-mix(in srgb, var(--nx-accent) 14%, transparent);
+  --nx-ring: rgba(10, 132, 255, .55);
+
+  --nx-success:  #238551;
+  --nx-warning:  #b07a1f;
+  --nx-danger:   #cf3f43;
+  --nx-info:     #3a6fd8;
+  --nx-diff-add: #238551;
+  --nx-diff-del: #cf3f43;
+
+  /* 立体：触屏 = 模糊光晕（接触阴影）为主，投影为辅 */
+  /* Apple iOS 27 kit material/shadow values. */
+  --nx-sh-1: var(--nx-sk-glass-light-regular-small-shadow);
+  --nx-sh-2: var(--nx-sk-glass-light-regular-medium-shadow);
+  --nx-halo: var(--nx-sk-glass-light-regular-small-shadow);
+  --nx-glass: var(--nx-sk-glass-light-regular-medium-fill-1);
+
+  --nx-code-bg:    #f7f7f9;
+  --nx-code-line:  rgba(18, 18, 24, .06);
+  --nx-code-key:   var(--nx-accent);
+  --nx-code-str:   #238551;
+  --nx-code-num:   #b07a1f;
+  --nx-code-com:   #9a9aa2;
+}
+
+[data-theme="dark"] {
+  --nx-canvas:     #0e0e12;
+  --nx-panel:      #17171c;
+  --nx-sidebar:    #0e0e12;
+  --nx-surface:    #1e1e25;
+  --nx-surface-hi: #26262e;
+  --nx-selected:   color-mix(in srgb, var(--nx-accent) 16%, transparent);
+  --nx-line:       rgba(255, 255, 255, .08);
+  --nx-line-hi:    rgba(255, 255, 255, .15);
+  --nx-text:       #e5e5e5;
+  --nx-text-2:     color-mix(in srgb, var(--nx-text) 60%, transparent);
+  --nx-text-3:     color-mix(in srgb, var(--nx-text) 30%, transparent);
+
+  --nx-accent: #0a84ff;
+  --nx-accent-fg: #ffffff;
+  --nx-accent-soft: color-mix(in srgb, var(--nx-accent) 14%, transparent);
+  --nx-ring:        rgba(10, 132, 255, .55);
+
+  --nx-success:  #4cb782;
+  --nx-warning:  #d9a04a;
+  --nx-danger:   #e5484d;
+  --nx-info:     #6b9bff;
+  --nx-diff-add: #4cb782;
+  --nx-diff-del: #e5484d;
+
+  --nx-sh-1: var(--nx-sk-glass-dark-regular-small-shadow);
+  --nx-sh-2: var(--nx-sk-glass-dark-regular-medium-shadow);
+  --nx-halo: var(--nx-sk-glass-dark-regular-small-shadow);
+  --nx-glass: var(--nx-sk-glass-dark-regular-medium-fill-1);
+
+  --nx-code-bg:    #121218;
+  --nx-code-line:  rgba(255, 255, 255, .06);
+  --nx-code-key:   #93a1ff;
+  --nx-code-str:   #6fd3a1;
+  --nx-code-num:   #e5b566;
+  --nx-code-com:   #6c6c78;
+}
+
+/* PWA 滚动条隐藏（惯性滚动） */
+* { scrollbar-width: none; }
+::-webkit-scrollbar { display: none; }
+
+::selection { background: var(--nx-accent-soft); }
+[data-theme="dark"] ::selection { background: rgba(10, 132, 255, .26); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 角色层 → Apple iOS 27 值（fork:apple-sketch · 2026-10-08）
+ *
+ * 数值来自 `design/v6/sketch-ios.css`（从 `Apple iOS 27 UI Kit.sketch` 生成）。
+ * 本形态 = PWA ↦ **iOS** kit。
+ *
+ * iOS 与 macOS 的两处不同，这里照 iOS 来：
+ *   · label **4 级**（无 Quinary / Seximal）；
+ *   · 有 **Backgrounds / Backgrounds Grouped 各三级** → canvas 与 panel 是分开的两层
+ *     （grouped.Primary = #f2f2f7 作页底，Primary = #ffffff 作卡片）。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* 基准字号 = iOS Body（17pt） */
+  --nx-ui: var(--nx-sk-t-body-size);
+
+  /* 页底取 grouped（iOS 惯例：成组列表的底是灰、卡片是白） */
+  --nx-canvas:  var(--nx-sk-backgrounds-grouped-light-primary);
+  --nx-panel:   var(--nx-sk-backgrounds-light-primary);
+
+  --nx-text:    var(--nx-sk-labels-light-1-primary);
+  --nx-text-2:  var(--nx-sk-labels-light-2-secondary);
+  --nx-text-3:  var(--nx-sk-labels-light-3-tertiary);
+
+  --nx-line:    var(--nx-sk-separators-light-non-opaque);
+  --nx-accent:  var(--nx-sk-system-colors-light-8-blue);
+}
+
+[data-theme="dark"] {
+  --nx-canvas:  var(--nx-sk-backgrounds-grouped-dark-base-primary);
+  --nx-panel:   var(--nx-sk-backgrounds-dark-base-primary);
+
+  --nx-text:    var(--nx-sk-labels-dark-1-primary);
+  --nx-text-2:  var(--nx-sk-labels-dark-2-secondary);
+  --nx-text-3:  var(--nx-sk-labels-dark-3-tertiary);
+
+  /* fork:apple-sketch 修正（2026-10-08 第二轮）—— 与 Web 同一个漏：上面那个 :root 块
+     排在原文件的 `[data-theme="dark"]` 之后，把 `--nx-line` 覆盖成了浅色值，
+     暗色下所有分隔线在近黑底上等于没有。这里补回 kit 的暗色档。 */
+  --nx-line:    var(--nx-sk-separators-dark-non-opaque);
+  --nx-accent:  var(--nx-sk-system-colors-dark-8-blue);
+}
+
+/* fork:apple-sketch —— 补齐 kit 里有、但第一轮没绑的角色（iOS 侧多一级 Backgrounds.Tertiary） */
+:root {
+  --nx-surface:     var(--nx-sk-fills-light-1-primary);
+  --nx-surface-hi:  var(--nx-sk-fills-light-2-secondary);
+  --nx-selected:    var(--nx-sk-fills-light-2-secondary);
+  --nx-line-hi:     var(--nx-sk-separators-light-opaque);
+  --nx-text-dim:    var(--nx-sk-labels-light-4-quaternary);
+  --nx-gray:        var(--nx-sk-grays-light-gray);
+}
+[data-theme="dark"] {
+  --nx-surface:     var(--nx-sk-fills-dark-1-primary);
+  --nx-surface-hi:  var(--nx-sk-fills-dark-2-secondary);
+  --nx-selected:    var(--nx-sk-fills-dark-2-secondary);
+  --nx-line-hi:     var(--nx-sk-separators-dark-opaque);
+  --nx-text-dim:    var(--nx-sk-labels-dark-4-quaternary);
+  --nx-gray:        var(--nx-sk-grays-dark-gray);
+}
+
+/* fork:apple-sketch —— kit 的 12 个系统色全量绑定（此前只绑了 blue）。
+   纪律不变：这些**只作 accent 与状态指示**，语义色仍是那 6 个。 */
+:root {
+  --nx-accent-red: var(--nx-sk-system-colors-light-1-red);
+  --nx-accent-orange: var(--nx-sk-system-colors-light-2-orange);
+  --nx-accent-yellow: var(--nx-sk-system-colors-light-3-yellow);
+  --nx-accent-green: var(--nx-sk-system-colors-light-4-green);
+  --nx-accent-mint: var(--nx-sk-system-colors-light-5-mint);
+  --nx-accent-teal: var(--nx-sk-system-colors-light-6-teal);
+  --nx-accent-cyan: var(--nx-sk-system-colors-light-7-cyan);
+  --nx-accent-indigo: var(--nx-sk-system-colors-light-9-indigo);
+  --nx-accent-purple: var(--nx-sk-system-colors-light-10-purple);
+  --nx-accent-pink: var(--nx-sk-system-colors-light-11-pink);
+  --nx-accent-brown: var(--nx-sk-system-colors-light-12-brown);
+}
+[data-theme="dark"] {
+  --nx-accent-red: var(--nx-sk-system-colors-dark-1-red);
+  --nx-accent-orange: var(--nx-sk-system-colors-dark-2-orange);
+  --nx-accent-yellow: var(--nx-sk-system-colors-dark-3-yellow);
+  --nx-accent-green: var(--nx-sk-system-colors-dark-4-green);
+  --nx-accent-mint: var(--nx-sk-system-colors-dark-5-mint);
+  --nx-accent-teal: var(--nx-sk-system-colors-dark-6-teal);
+  --nx-accent-cyan: var(--nx-sk-system-colors-dark-7-cyan);
+  --nx-accent-indigo: var(--nx-sk-system-colors-dark-9-indigo);
+  --nx-accent-purple: var(--nx-sk-system-colors-dark-10-purple);
+  --nx-accent-pink: var(--nx-sk-system-colors-dark-11-pink);
+  --nx-accent-brown: var(--nx-sk-system-colors-dark-12-brown);
+}
+
+/* fork:apple-sketch —— accent 的 blue 别名（`--nx-accent` 就是绑到它上的） */
+:root { --nx-accent-blue: var(--nx-sk-system-colors-light-8-blue); }
+[data-theme="dark"] { --nx-accent-blue: var(--nx-sk-system-colors-dark-8-blue); }
+
+/* fork:apple-sketch —— 色板全绑定（iOS 侧只有 4 级 label + Quinary，没有 Seximal 与 vibrant label 组；
+   iOS 的「玻璃上用的」色是独立的 `Labels - Liquid Glass` 组） */
+:root {
+  --nx-label-1: var(--nx-sk-labels-light-1-primary);
+  --nx-label-2: var(--nx-sk-labels-light-2-secondary);
+  --nx-label-3: var(--nx-sk-labels-light-3-tertiary);
+  --nx-label-4: var(--nx-sk-labels-light-4-quaternary);
+  --nx-label-5: var(--nx-sk-labels-light-5-quinary);
+  --nx-vibrant-1: var(--nx-sk-labels-liquid-glass-light-1-primary);
+  --nx-vibrant-2: var(--nx-sk-labels-liquid-glass-light-2-secondary);
+  --nx-vibrant-3: var(--nx-sk-labels-liquid-glass-light-3-tertiary);
+  --nx-vibrant-4: var(--nx-sk-labels-liquid-glass-light-4-quaternary);
+  --nx-fill-1: var(--nx-sk-fills-light-1-primary);
+  --nx-fill-2: var(--nx-sk-fills-light-2-secondary);
+  --nx-fill-3: var(--nx-sk-fills-light-3-tertiary);
+  --nx-fill-4: var(--nx-sk-fills-light-4-quaternary);
+  --nx-fill-5: var(--nx-sk-fills-light-5-quinary);
+  --nx-gray: var(--nx-sk-grays-light-gray);
+  --nx-gray-2: var(--nx-sk-grays-light-gray-2);
+  --nx-gray-3: var(--nx-sk-grays-light-gray-3);
+  --nx-gray-4: var(--nx-sk-grays-light-gray-4);
+  --nx-gray-5: var(--nx-sk-grays-light-gray-5);
+  --nx-gray-6: var(--nx-sk-grays-light-gray-6);
+}
+[data-theme="dark"] {
+  --nx-label-1: var(--nx-sk-labels-dark-1-primary);
+  --nx-label-2: var(--nx-sk-labels-dark-2-secondary);
+  --nx-label-3: var(--nx-sk-labels-dark-3-tertiary);
+  --nx-label-4: var(--nx-sk-labels-dark-4-quaternary);
+  --nx-label-5: var(--nx-sk-labels-dark-5-quinary);
+  --nx-vibrant-1: var(--nx-sk-labels-liquid-glass-dark-1-primary);
+  --nx-vibrant-2: var(--nx-sk-labels-liquid-glass-dark-2-secondary);
+  --nx-vibrant-3: var(--nx-sk-labels-liquid-glass-dark-3-tertiary);
+  --nx-vibrant-4: var(--nx-sk-labels-liquid-glass-dark-4-quaternary);
+  --nx-fill-1: var(--nx-sk-fills-dark-1-primary);
+  --nx-fill-2: var(--nx-sk-fills-dark-2-secondary);
+  --nx-fill-3: var(--nx-sk-fills-dark-3-tertiary);
+  --nx-fill-4: var(--nx-sk-fills-dark-4-quaternary);
+  --nx-fill-5: var(--nx-sk-fills-dark-5-quinary);
+  --nx-gray: var(--nx-sk-grays-dark-gray);
+  --nx-gray-2: var(--nx-sk-grays-dark-gray-2);
+  --nx-gray-3: var(--nx-sk-grays-dark-gray-3);
+  --nx-gray-4: var(--nx-sk-grays-dark-gray-4);
+  --nx-gray-5: var(--nx-sk-grays-dark-gray-5);
+  --nx-gray-6: var(--nx-sk-grays-dark-gray-6);
+}
+
+/* fork:apple-sketch —— iOS 侧组件几何角色别名（值在 sketch-ios.css 的 `--nx-sk-c-*`） */
+:root {
+  --nx-c-menu-h:        var(--nx-sk-c-menus-menus-default-h);          /* 42 */
+  --nx-c-list-row-h:    var(--nx-sk-c-lists-content-default-h);        /* 52 */
+  --nx-c-alert-btn-h:   var(--nx-sk-c-alerts-content-default-h);       /* 48 */
+  --nx-c-toolbar-h:     var(--nx-sk-c-toolbars-content-default-h);     /* 48 */
+  --nx-c-sidebar-item-h: var(--nx-sk-c-sidebars-sidebar-default-h);    /* 44 */
+  --nx-c-seg-h:         var(--nx-sk-c-segmented-controls-content-default-h); /* 28 */
+  --nx-c-picker-h:      var(--nx-sk-c-date-and-time-pickers-content-default-h); /* 36 */
+  --nx-c-pagecontrol-h: var(--nx-sk-c-page-controls-content-default-h); /* 44 */
+}

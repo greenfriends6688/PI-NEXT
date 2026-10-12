@@ -1,0 +1,434 @@
+/* ===========================================================================
+ * PI NEXT · 设计体系 v6 · web/tokens.css —— Web 形态值（浅色默认 + 深色全覆盖）
+ *
+ * v4 = 浅色专业风（Linear / Notion 质感）：白底、发丝边框、克制强调色、极轻阴影。
+ * 深色不再是另一套画板，而是同一套类名下的变量覆盖：html[data-theme="dark"]。
+ * 画板右上角的主题开关（data-demo-theme）一键切换，一张画板 = 两个主题。
+ *
+ * 与 v3 的关键差异（为什么改）：
+ *   1. 强调色从「近黑反色块（无品牌色）」改为**低饱和蓝紫 var(--nx-accent)** —— v1 用户
+ *      已长期认可的色相，v3 的纯黑白被评「不好看」；
+ *   2. 圆角整体 +1 档柔和度（3/5/8/12 → 4/6/8/10/14），发丝边框替代硬分隔；
+ *   3. 阴影成为正式角色（--nx-sh-1/2），浅色下极轻、深色下靠描边分层；
+ *   4. 顶栏毛玻璃（--nx-glass）成为正式角色；
+ *   5. 深色从「第二套画板」改为「变量覆盖」—— 从机制上保证两主题永不脱节。
+ * =========================================================================== */
+
+/* fork:apple-sketch 返修（2026-10-10）—— 本文件自 10-08 起把角色层（`--nx-*`）指向
+   `--nx-sk-*`，而那是 `sketch-macos.css` 生成的数值层。画板只 link 本文件（不 link
+   `sketch-macos.css`），所以必须在这里导入，否则每一条 --nx-sk-* 的引用都解析成空 ——
+   表现就是面板/卡片背景变透明。产品侧 `app/design/v6-forms.css` 也显式导入同一份，
+   重复导入是幂等的。顺序与 check-v6.mjs 的拼接一致：sketch → base → 角色层。 */
+@import "../sketch-macos.css";
+@import "../base.css";
+
+:root {
+  /* 品牌渐变（logo 本身是渐变，标记要跟着它走而不是单色） */
+  --nx-brand: linear-gradient(135deg, #22b8e6 0%, #4f6df5 45%, #b45cf0 100%);
+  /* ── 1 · 基准字号（Web = 14）────────────────────────────────────────────── */
+  --nx-ui: 14px;
+
+  /* ── 2 · 圆角：比 v3 柔一档。xs 徽章 / sm 小件 / md 控件行 / lg 卡 /
+     xl 浮层 / 2xl 模态 / pill 开关轨道 ──────────────────────────────────── */
+  /* Apple semantic roles for macOS Web. */
+  --nx-radius-control: 6px;
+  --nx-radius-row: 6px;
+  --nx-radius-card: 10px;
+  --nx-radius-pane: 14px;
+  --nx-radius-popover: 20px;   /* kit Popovers 页实测（Body r=20）*/
+  --nx-radius-sheet: 18px;
+  --nx-radius-pill: 999px;
+
+  /* ── 3 · 控件高度：xs 徽章 / sm 行内 / md 默认 / lg 主行动 ─────────────── */
+  /* fork:apple-sketch —— 控件高取 macOS kit 的 Text Fields 四档 Sm/Rg/Lg/XL */
+  /* fork:apple-sketch —— 控件高取 macOS kit 的 Text Fields 四档 Sm/Rg/Lg/XL */
+  --nx-ctl-xs: var(--nx-mac-ctl-xs);
+  --nx-ctl-sm: var(--nx-mac-ctl-sm);
+  --nx-ctl-md: var(--nx-mac-ctl-md);
+  --nx-ctl-lg: var(--nx-mac-ctl-lg);
+  /* 按钮的 Regular 档直接引 kit 的 Buttons 页实测值（24，与 --nx-ctl-sm 同） */
+  --nx-btn-default-h: var(--nx-sk-c-buttons-content-rg-h);
+  --nx-touch-min: 28px;
+
+  /* ── 4 · 浅色色板（默认主题）──────────────────────────────────────────────
+     层次：canvas（最底）→ sidebar → panel → surface(hover 面) → surface-hi */
+  --nx-canvas:     #fafafb;
+  --nx-panel:      #ffffff;
+  --nx-sidebar:    #f6f6f8;
+  --nx-surface:    #f4f4f6;
+  --nx-surface-hi: #ececef;
+  --nx-selected:   rgba(85, 102, 216, .08);
+  --nx-line:       rgba(18, 18, 24, .08);
+  --nx-line-hi:    rgba(18, 18, 24, .14);
+  --nx-text:       #404040;
+  /* fork:zcode-type —— 三档同一支墨的不同浓度（浅色 100 / 75 / 55，深色 100 / 60 / 30），
+     不再用三个不透明的灰堆层次；为什么不照抄 ZCode 的 60% / 40%，见 base.css 的注。 */
+  --nx-text-2:     color-mix(in srgb, var(--nx-text) 75%, transparent);
+  --nx-text-3:     color-mix(in srgb, var(--nx-text) 55%, transparent);
+
+  /* 强调色：低饱和蓝紫（v1 同源色相），全系统唯一品牌色 */
+  --nx-accent: #0a84ff;
+  --nx-accent-fg: #ffffff;
+  --nx-accent-soft: color-mix(in srgb, var(--nx-accent) 14%, transparent);   /* 选中/激活底 */
+  --nx-ring: rgba(10, 132, 255, .55);
+
+  /* 语义色（4 个 + diff 两用） */
+  --nx-success:  #238551;
+  --nx-warning:  #b07a1f;
+  --nx-danger:   #cf3f43;
+  --nx-info:     #3a6fd8;
+  --nx-diff-add: #238551;
+  --nx-diff-del: #cf3f43;
+
+  /* ── 5 · 立体：浅色专业风 = 极轻投影 + 发丝描边共同分层 ─────────────────── */
+  /* Apple macOS 27 kit material/shadow values, not custom approximations. */
+  --nx-sh-1: var(--nx-sk-glass-light-regular-small-shadow);
+  --nx-sh-2: var(--nx-sk-glass-light-regular-medium-shadow);
+  --nx-glass: var(--nx-sk-glass-light-regular-medium-fill-1);
+
+  /* ── 6 · 代码块（转录区专用，两端同语义）────────────────────────────────── */
+  --nx-code-bg:    #f7f7f9;
+  --nx-code-line:  rgba(18, 18, 24, .06);
+  --nx-code-key:   var(--nx-accent);
+  --nx-code-str:   #238551;
+  --nx-code-num:   #b07a1f;
+  --nx-code-com:   #9a9aa2;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * 深色主题：同一套类名，只覆写变量。任何组件不许为深色单写规则
+ * （例外见 system.css 内注释标明的 ::selection 与阴影）。
+ * ════════════════════════════════════════════════════════════════════════ */
+[data-theme="dark"] {
+  --nx-canvas:     #101014;
+  --nx-panel:      #17171c;
+  --nx-sidebar:    #131318;
+  --nx-surface:    #1e1e25;
+  --nx-surface-hi: #26262e;
+  --nx-selected:   color-mix(in srgb, var(--nx-accent) 13%, transparent);
+  --nx-line:       rgba(255, 255, 255, .09);
+  --nx-line-hi:    rgba(255, 255, 255, .16);
+  --nx-text:       #e5e5e5;
+  /* 深色同理（ZCode `styles.css:408-410`：neutral-200 / 60% / 30%）。 */
+  --nx-text-2:     color-mix(in srgb, var(--nx-text) 60%, transparent);
+  --nx-text-3:     color-mix(in srgb, var(--nx-text) 30%, transparent);
+
+  --nx-accent: #0a84ff;
+  --nx-accent-fg: #ffffff;
+  --nx-accent-soft: color-mix(in srgb, var(--nx-accent) 14%, transparent);
+  --nx-ring:        rgba(10, 132, 255, .55);
+
+  --nx-success:  #4cb782;
+  --nx-warning:  #d9a04a;
+  --nx-danger:   #e5484d;
+  --nx-info:     #6b9bff;
+  --nx-diff-add: #4cb782;
+  --nx-diff-del: #e5484d;
+
+  /* 深色分层主要靠描边 + 微弱投影（纯黑背景上投影本就不可见） */
+  --nx-sh-1: var(--nx-sk-glass-dark-regular-small-shadow);
+  --nx-sh-2: var(--nx-sk-glass-dark-regular-medium-shadow);
+  --nx-glass: var(--nx-sk-glass-dark-regular-medium-fill-1);
+
+  --nx-code-bg:    #121218;
+  --nx-code-line:  rgba(255, 255, 255, .06);
+  --nx-code-key:   #93a1ff;
+  --nx-code-str:   #6fd3a1;
+  --nx-code-num:   #e5b566;
+  --nx-code-com:   #6c6c78;
+}
+
+/* ── 滚动条：Web 显式 8px（PWA 隐藏）───────────────────────────────────── */
+* { scrollbar-width: thin; scrollbar-color: var(--nx-line-hi) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--nx-line-hi); border-radius: 999px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+::selection { background: var(--nx-accent-soft); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 角色层 → Apple macOS 27 值（fork:apple-sketch · 2026-10-08）
+ *
+ * 数值来自 `design/v6/sketch-macos.css`（从 `Apple macOS 27 UI Kit.sketch` 生成，
+ * 由 `npm run sketch:extract && npm run sketch:tokens` 刷）。这一块**只做绑定**：
+ * 左边是我们的角色语义，右边是 Apple 的值。要换绑或跟进 Apple 更新都只动右边。
+ *
+ * 本形态 = Web ↦ **macOS** kit。PWA 形态绑的是 iOS kit（见 pwa/tokens.css）。
+ *
+ * 两个 macOS 与 iOS 不同的地方，这里照 macOS 来：
+ *   · **label 有 6 级**（Primary…Seximal），iOS 只有 4 级；
+ *   · **没有 `Backgrounds` 三级**，只有一组 `Window Backgrounds` —— macOS 的层次
+ *     靠材质与投影分，不靠背景色分。所以 canvas 与 panel 同值，这是 kit 的原样，
+ *     不是漏绑。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* 基准字号 = macOS Body（13pt）。全部 --nx-fs-* 由它派生 */
+  --nx-ui: var(--nx-sk-t-body-size);
+
+  /* fork:web-pwa-glass-parity（2026-10-09 用户裁定）—— Web 默认要跟 PWA 默认看齐。
+     macOS kit 只有一组 Window Backgrounds，canvas 与 panel 同值（都白），层次全靠
+     材质；而 Web 的材质是 `#ffffffb3` + blur(60px)，白底上的白玻璃就是一块平板 ——
+     用户原话：「只有开了壁纸之后，才是毛玻璃的感觉」。iOS kit 把页底和卡片分成两层
+     （Backgrounds.Grouped.Primary 作页底、Backgrounds.Primary 作卡片），玻璃才有东西
+     可透。这里照 iOS 那一档把 canvas 换成灰，panel 保持白。
+     值与 `design/v6/sketch-ios.css` 的 `--nx-sk-backgrounds-grouped-light-primary` 同值。
+
+     ⚠️ 2026-10-10 返修：今天上午有一版把它改绑回 macOS kit 的白（window-backgrounds），
+     用户实拍「背景都变成纯白的了」——**改回灰**。macOS 与 iOS 在这一点上真的不同：
+     macOS 靠整窗材质分层次，Web 拿不到整窗材质，只能照 iOS 的「页底灰 / 卡片白」来。 */
+  --nx-canvas:  #f2f2f7;
+  --nx-panel:   var(--nx-sk-window-backgrounds-light-background);
+
+  /* label 层级：primary 不是纯黑而是 #000000d9（kit 原值） */
+  --nx-text:    var(--nx-sk-labels-light-1-primary);
+  --nx-text-2:  var(--nx-sk-labels-light-2-secondary);
+  --nx-text-3:  var(--nx-sk-labels-light-3-tertiary);
+
+  --nx-line:    var(--nx-sk-labels-light-4-quaternary);
+  --nx-accent:  var(--nx-sk-system-colors-light-8-blue);
+}
+
+[data-theme="dark"] {
+  --nx-canvas:  var(--nx-sk-window-backgrounds-dark-background);
+  --nx-panel:   var(--nx-sk-window-backgrounds-dark-background);
+
+  --nx-text:    var(--nx-sk-labels-dark-1-primary);
+  --nx-text-2:  var(--nx-sk-labels-dark-2-secondary);
+  --nx-text-3:  var(--nx-sk-labels-dark-3-tertiary);
+
+  /* fork:apple-sketch 修正（2026-10-08 第二轮）—— **这一条是补漏**：上面那个 :root 块
+     排在原文件的 `[data-theme="dark"]`（第 94 行）**之后**，同特异性后来者胜，
+     而它把 `--nx-line` 声明成了浅色值 —— 于是暗色下所有分隔线（侧栏右缘、面板边、
+     顶栏下缘）都变成 10% **黑**，在近黑底上等于没有。实测暗色下 `.d-side` 的
+     `border-right-color` 曾是 `rgba(0,0,0,0.1)`。这里补回 kit 的暗色档。
+     排查方式：见 `design/v6/dark-token-coverage.test.mjs`。 */
+  --nx-line:    var(--nx-sk-labels-dark-4-quaternary);
+  --nx-accent:  var(--nx-sk-system-colors-dark-8-blue);
+}
+
+/* fork:apple-sketch —— 补齐 kit 里有、但第一轮没绑的角色 */
+:root {
+  --nx-surface:     var(--nx-sk-fills-light-1-primary);   /* hover 面 = kit 的 Fill/Primary */
+  --nx-surface-hi:  var(--nx-sk-fills-light-2-secondary);
+  --nx-selected:    var(--nx-sk-fills-light-2-secondary);
+  --nx-line-hi:     var(--nx-sk-labels-light-3-tertiary);
+  --nx-text-dim:    var(--nx-sk-labels-light-4-quaternary);
+  --nx-gray:        var(--nx-sk-grays-light-grey);
+}
+[data-theme="dark"] {
+  --nx-surface:     var(--nx-sk-fills-dark-1-primary);
+  --nx-surface-hi:  var(--nx-sk-fills-dark-2-secondary);
+  --nx-selected:    var(--nx-sk-fills-dark-2-secondary);
+  --nx-line-hi:     var(--nx-sk-labels-dark-4-quaternary);
+  --nx-text-dim:    var(--nx-sk-labels-dark-4-quaternary);
+  --nx-gray:        var(--nx-sk-grays-dark-grey);
+}
+
+/* fork:apple-sketch —— kit 的 12 个系统色全量绑定（此前只绑了 blue）。
+   纪律不变：这些**只作 accent 与状态指示**，语义色仍是那 6 个。 */
+:root {
+  --nx-accent-red: var(--nx-sk-system-colors-light-1-red);
+  --nx-accent-orange: var(--nx-sk-system-colors-light-2-orange);
+  --nx-accent-yellow: var(--nx-sk-system-colors-light-3-yellow);
+  --nx-accent-green: var(--nx-sk-system-colors-light-4-green);
+  --nx-accent-mint: var(--nx-sk-system-colors-light-5-mint);
+  --nx-accent-teal: var(--nx-sk-system-colors-light-6-teal);
+  --nx-accent-cyan: var(--nx-sk-system-colors-light-7-cyan);
+  --nx-accent-indigo: var(--nx-sk-system-colors-light-9-indigo);
+  --nx-accent-purple: var(--nx-sk-system-colors-light-10-purple);
+  --nx-accent-pink: var(--nx-sk-system-colors-light-11-pink);
+  --nx-accent-brown: var(--nx-sk-system-colors-light-12-brown);
+}
+[data-theme="dark"] {
+  --nx-accent-red: var(--nx-sk-system-colors-dark-1-red);
+  --nx-accent-orange: var(--nx-sk-system-colors-dark-2-orange);
+  --nx-accent-yellow: var(--nx-sk-system-colors-dark-3-yellow);
+  --nx-accent-green: var(--nx-sk-system-colors-dark-4-green);
+  --nx-accent-mint: var(--nx-sk-system-colors-dark-5-mint);
+  --nx-accent-teal: var(--nx-sk-system-colors-dark-6-teal);
+  --nx-accent-cyan: var(--nx-sk-system-colors-dark-7-cyan);
+  --nx-accent-indigo: var(--nx-sk-system-colors-dark-9-indigo);
+  --nx-accent-purple: var(--nx-sk-system-colors-dark-10-purple);
+  --nx-accent-pink: var(--nx-sk-system-colors-dark-11-pink);
+  --nx-accent-brown: var(--nx-sk-system-colors-dark-12-brown);
+}
+
+/* fork:apple-sketch —— accent 的 blue 别名（`--nx-accent` 就是绑到它上的） */
+:root { --nx-accent-blue: var(--nx-sk-system-colors-light-8-blue); }
+[data-theme="dark"] { --nx-accent-blue: var(--nx-sk-system-colors-dark-8-blue); }
+
+/* fork:apple-sketch —— 色板全绑定（此前只绑了 13 个角色）
+ *
+ * kit 里成体系的三组此前都没接：
+ *   · **Labels 6 级**（macOS 独有 Primary…Seximal；iOS 只到 5）—— 后三级是弱提示与
+ *     分隔性文字用的，此前没有对应角色；
+ *   · **Vibrant 组** —— 在材质（玻璃/半透明面）**上面**用的色。玻璃上直接铺不透明色
+ *     会读成「糊」，kit 为此单独调过一组，之前我们一直在玻璃上用普通 label；
+ *   · **Grays 全阶** —— Black / White / Grey 三档 × 普通与 vibrant。
+ *
+ * 命名直接沿用 kit：`--nx-sk-labels-light-5-quinary` → `--nx-label-5`。
+ */
+:root {
+  --nx-label-1: var(--nx-sk-labels-light-1-primary);
+  --nx-label-2: var(--nx-sk-labels-light-2-secondary);
+  --nx-label-3: var(--nx-sk-labels-light-3-tertiary);
+  --nx-label-4: var(--nx-sk-labels-light-4-quaternary);
+  --nx-label-5: var(--nx-sk-labels-light-5-quinary);
+  --nx-label-6: var(--nx-sk-labels-light-6-seximal);
+  /* 玻璃/材质之上用这一组 */
+  --nx-vibrant-1: var(--nx-sk-labels-light-vibrant-vibrant-use-plus-darker-1-primary);
+  --nx-vibrant-2: var(--nx-sk-labels-light-vibrant-vibrant-use-plus-darker-2-secondary);
+  --nx-vibrant-3: var(--nx-sk-labels-light-vibrant-vibrant-use-plus-darker-3-tertiary);
+  --nx-vibrant-4: var(--nx-sk-labels-light-vibrant-vibrant-use-plus-darker-4-quaternary);
+  --nx-fill-1: var(--nx-sk-fills-light-1-primary);
+  --nx-fill-2: var(--nx-sk-fills-light-2-secondary);
+  --nx-fill-3: var(--nx-sk-fills-light-3-tertiary);
+  --nx-fill-4: var(--nx-sk-fills-light-4-quatenary);
+  --nx-fill-5: var(--nx-sk-fills-light-5-quinary);
+  --nx-gray-black: var(--nx-sk-grays-light-black);
+  --nx-gray: var(--nx-sk-grays-light-grey);
+  --nx-gray-white: var(--nx-sk-grays-light-white);
+}
+[data-theme="dark"] {
+  --nx-label-1: var(--nx-sk-labels-dark-1-primary);
+  --nx-label-2: var(--nx-sk-labels-dark-2-secondary);
+  --nx-label-3: var(--nx-sk-labels-dark-3-tertiary);
+  --nx-label-4: var(--nx-sk-labels-dark-4-quaternary);
+  --nx-label-5: var(--nx-sk-labels-dark-5-quinary);
+  --nx-label-6: var(--nx-sk-labels-dark-6-seximal);
+  --nx-vibrant-1: var(--nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-1-primary);
+  --nx-vibrant-2: var(--nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-2-secondary);
+  --nx-vibrant-3: var(--nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-3-tertiary);
+  --nx-vibrant-4: var(--nx-sk-labels-dark-vibrant-vibrant-use-plus-lighter-4-quaternary);
+  --nx-fill-1: var(--nx-sk-fills-dark-1-primary);
+  --nx-fill-2: var(--nx-sk-fills-dark-2-secondary);
+  --nx-fill-3: var(--nx-sk-fills-dark-3-tertiary);
+  --nx-fill-4: var(--nx-sk-fills-dark-4-quatenary);
+  --nx-fill-5: var(--nx-sk-fills-dark-5-quinary);
+  --nx-gray-black: var(--nx-sk-grays-dark-black);
+  --nx-gray: var(--nx-sk-grays-dark-grey);
+  --nx-gray-white: var(--nx-sk-grays-dark-white);
+}
+
+/* fork:apple-sketch —— 组件几何的**角色别名**（原值在 sketch-macos.css 的 `--nx-sk-c-*`）
+ * 这里只给常用组件一个短名字，避免组件层出现 `--nx-sk-c-pop-up-and-pull-down-buttons-content-rg-h` 这种长名。
+ * 值全部是 macOS kit 符号表的实测众数，括号里是「同高变体数/该档总数」。 */
+:root {
+  --nx-c-menu-h:        var(--nx-sk-c-menus-menus-rg-h);              /* 24 */
+  --nx-c-menubar-h:     var(--nx-sk-c-titlebars-and-toolbars-content-rg-h); /* 24 */
+  --nx-c-combo-h:       var(--nx-sk-c-combo-boxes-content-rg-h);      /* 24 */
+  --nx-c-searchfield-h: var(--nx-sk-c-search-fields-content-rg-h);    /* 24 */
+  --nx-c-popupbtn-h:    var(--nx-sk-c-pop-up-and-pull-down-buttons-content-rg-h); /* 24 */
+  --nx-c-progress-h:    var(--nx-sk-c-progress-indicators-content-rg-h); /* 32 */
+  --nx-c-stepper-h:     var(--nx-sk-c-steppers-content-rg-h);         /* 12 */
+  --nx-c-sidebar-item-h: var(--nx-sk-c-sidebars-content-rg-h);        /* 32 */
+  --nx-c-checkbox-h:    var(--nx-sk-c-toggles-checkboxes-content-rg-h); /* 24 */
+  --nx-c-radio-h:       var(--nx-sk-c-toggles-radio-buttons-content-rg-h); /* 24 */
+  --nx-c-slider-h:      var(--nx-sk-c-sliders-content-rg-h);          /* 24 */
+  --nx-c-textfield-h:   var(--nx-sk-c-text-fields-content-rg-h);      /* 24 */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 控件内核（fork:kit-strict · 2026-10-10）—— 严格取自 macOS 27 kit 的共享图层样式
+ *
+ * 出处：`Content Area/{Light,Dark}/0X - …` 与 `Over-Glass/...` 的共享样式，
+ * 生成层在 `--nx-sk-cs-*`（scripts/sketch-tokens.mjs §5）。这里**只做绑定**。
+ *
+ * 三处「符号级不透明度」不在共享样式里（kit 把透明度放在使用处），逐条注明来源：
+ *   · Tinted 22% / 28% / 10%  ← `Buttons/Light/Content Area/Bordered Tinted/3 Rg/*` 的 BG
+ *   · Prominent Disabled 40%  ← `…/Bordered Default/3 Rg/Active, Off, 4 Disabled` 的 BG
+ * 其余推导（kit 未定义）都记在 DIVERGENCE.md §AH。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* 控件圆角阶梯 = 高 ÷ 4（kit 实测：16→4 / 20→5 / 24→6 / 28→7 / 36→9） */
+  --nx-radius-ctl-mn: 4px;
+  --nx-radius-ctl-sm: 5px;
+  --nx-radius-ctl-lg: 7px;
+  --nx-radius-ctl-xl: 9px;
+
+  /* 标准按钮（01 - Bordered）：灰洗底、无边框。kit 无 hover 档 —— web 推导 12% */
+  --nx-ctl-bg:          var(--nx-sk-cs-bordered-light-idle-fill-1);      /* #00000014 */
+  --nx-ctl-bg-hover:    color-mix(in srgb, #000 12%, transparent);       /* 推导：8%↔16% 之间 */
+  --nx-ctl-bg-active:   var(--nx-sk-cs-bordered-light-clicked-fill-1);   /* #00000029 */
+  --nx-ctl-bg-disabled: var(--nx-sk-cs-bordered-light-disabled-fill-1);  /* #0000000a */
+  --nx-ctl-fg-disabled: var(--nx-label-3);                               /* #00000040 */
+
+  /* Tinted（02）：accent 洗底 + accent 字 */
+  --nx-ctl-tint:            var(--nx-sk-cs-tinted-light-idle-fill-1);    /* #0088ff */
+  --nx-ctl-tint-bg:         color-mix(in srgb, var(--nx-ctl-tint) 22%, transparent);
+  --nx-ctl-tint-bg-active:  color-mix(in srgb, var(--nx-ctl-tint) 28%, transparent);
+  --nx-ctl-tint-bg-disabled: color-mix(in srgb, var(--nx-ctl-tint) 10%, transparent);
+
+  /* Prominent（04，主行动）：实心 accent */
+  --nx-ctl-prom-bg:          var(--nx-sk-cs-prominent-light-idle-fill-1);    /* #0088ff */
+  --nx-ctl-prom-bg-active:   var(--nx-sk-cs-prominent-light-clicked-fill-1); /* #0078f0 */
+  --nx-ctl-prom-bg-disabled: color-mix(in srgb, var(--nx-ctl-prom-bg-active) 40%, transparent);
+
+  /* Destructive（03）：红洗底 + 红字。20% / 28% 来自符号 BG 的 contextSettings
+     （`Bordered Destructive/3 Rg/…` 实测 Idle 0.20 / Clicked 0.28）。 */
+  --nx-ctl-destr:           var(--nx-sk-cs-destructive-light-idle-fill-1); /* #ff383c */
+  --nx-ctl-destr-bg:        color-mix(in srgb, var(--nx-ctl-destr) 20%, transparent);
+  --nx-ctl-destr-bg-active: color-mix(in srgb, var(--nx-ctl-destr) 28%, transparent);
+
+  /* 输入框（Input Fields/01）：白底 + 5% 发丝边；聚焦 = 1px 实线 + 3.5px 50% 外环。 */
+  --nx-field-bg:   var(--nx-sk-cs-input-light-idle-fill-1);              /* #ffffff */
+  --nx-field-line: #0000000d;                                            /* = input-idle border-1 */
+  --nx-field-bg-disabled: var(--nx-sk-cs-input-light-disabled-fill-1);   /* #ffffff80 */
+  --nx-focus-halo: 3.5px;                                                /* kit Focus Ring 外圈厚 */
+  --nx-focus-halo-a: 50%;                                                /* kit Focus Ring 透明度 */
+
+  /* 菜单：hover/键盘高亮 = #0069f9 + 白字，高亮圆角 8（Menus 页 Items/2 - Hover 实测） */
+  --nx-menu-hover: #0069f9;
+  --nx-menu-radius: 8px;
+
+  /* 开关（Tracks/Knobs - Toggle）：轨道关 #0000001a、开 = accent；旋钮白药丸 32×20 */
+  --nx-track-off: var(--nx-sk-cs-fill-light-default-4);                  /* #0000001a */
+  --nx-knob-bg:   #ffffff;
+  --nx-knob-shadow: var(--nx-sk-cs-knob-light-idle-shadow);              /* 0 3px 36px #0000000d */
+
+  /* 复选/单选：未选中 = 4% 底无描边（kit Unchecked 的 fill #0000001a→选中在组件层） */
+  --nx-check-off: var(--nx-sk-cs-fill-light-default-4);                  /* #0000001a */
+
+  /* 浮层表面：菜单与下拉的 kit 出处是 Menus 玻璃（Liquid Glass/Light/Menus，#e6e6e68c）。
+     但 §Z 已裁定**弹层不得用 backdrop-filter**（会成为 fixed 后代的包含块、浮窗被裁），
+     没有模糊的 55% 灰会透字 —— 收敛为同色相的实面（#e6e6e6 → 94% 不透明度），
+     与 --nx-mat-thick-bg-light 的「抬实」口径一致（见 base.css §AE）。 */
+  --nx-pop-fill:   #e9e9e9f0;
+  --nx-pop-shadow: var(--nx-sk-glass-light-menus-shadow);
+}
+
+[data-theme="dark"] {
+  --nx-ctl-bg:          var(--nx-sk-cs-bordered-dark-idle-fill-1);
+  --nx-ctl-bg-hover:    color-mix(in srgb, #fff 12%, transparent);
+  --nx-ctl-bg-active:   var(--nx-sk-cs-bordered-dark-clicked-fill-1);
+  --nx-ctl-bg-disabled: var(--nx-sk-cs-bordered-dark-disabled-fill-1);
+
+  --nx-ctl-tint:            var(--nx-sk-cs-tinted-dark-idle-fill-1);
+  --nx-ctl-tint-bg:         color-mix(in srgb, var(--nx-ctl-tint) 22%, transparent);
+  --nx-ctl-tint-bg-active:  color-mix(in srgb, var(--nx-ctl-tint) 28%, transparent);
+  --nx-ctl-tint-bg-disabled: color-mix(in srgb, var(--nx-ctl-tint) 10%, transparent);
+
+  --nx-ctl-prom-bg:          var(--nx-sk-cs-prominent-dark-idle-fill-1);
+  --nx-ctl-prom-bg-active:   var(--nx-sk-cs-prominent-dark-clicked-fill-1);
+  --nx-ctl-prom-bg-disabled: color-mix(in srgb, var(--nx-ctl-prom-bg-active) 40%, transparent);
+
+  --nx-ctl-destr:           var(--nx-sk-cs-destructive-dark-idle-fill-1);
+  --nx-ctl-destr-bg:        color-mix(in srgb, var(--nx-ctl-destr) 20%, transparent);
+  --nx-ctl-destr-bg-active: color-mix(in srgb, var(--nx-ctl-destr) 28%, transparent);
+
+  --nx-field-bg:   transparent;                                          /* 暗色输入框底 = 材质透传 */
+  --nx-field-line: #ffffff0a;                                            /* = input-dark border-1 */
+  --nx-field-bg-disabled: #ffffff08;
+
+  --nx-track-off: var(--nx-sk-cs-fill-dark-default-4);                   /* #ffffff1a */
+  --nx-check-off: var(--nx-sk-cs-fill-dark-default-4);
+
+  /* kit 明暗同值的三条也照写（门禁 §3c：暗色块之后不许留浅色独有声明） */
+  --nx-menu-hover: #0069f9;                                              /* 暗色菜单同为这个蓝 */
+  --nx-knob-bg:   #ffffff;
+  --nx-knob-shadow: var(--nx-sk-cs-knob-dark-idle-shadow);
+
+  --nx-pop-fill:   #3d3d3df0;                                            /* Menus 暗色档的实面收敛 */
+  --nx-pop-shadow: var(--nx-sk-glass-dark-menus-shadow);
+}
