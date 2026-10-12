@@ -1146,11 +1146,13 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
   // fork:zc-15 — the section keyword table moved into `lib/settings-navigation.ts`
   //（fork:command-palette 又把它抽成了带 labelKey 的单一真值 `SETTINGS_SECTIONS`，
   //  两边读同一份，加分节不会再漏掉面板里的搜索入口）。
-  const sections = SETTINGS_SECTIONS.map((entry) => ({
+  // fork:lint-gate —— memo 化，否则每次渲染都产出新数组，React Compiler 无法保留
+  // 下面 settingsFindResults 的手动 memoization（preserve-manual-memoization）。
+  const sections = useMemo(() => SETTINGS_SECTIONS.map((entry) => ({
     id: entry.id,
     label: t(entry.labelKey),
     requiresProject: entry.requiresProject,
-  }));
+  })), [t]);
 
   /* fork:v5-landing Wave N1 · D-07 —— 左导航的四段分组标题 `.d-set-navsep`
      （基础 / 能力 / 运行 / 数据与连接）。分组表就是手机 hub 的那四张卡
