@@ -1734,6 +1734,7 @@ export const zhCNLocale: LocalePlugin = {
     "models.specsContextShort": "上下文 {value}",
     "models.specsOutputShort": "输出 {value}",
     "models.specsImageShort": "支持图片",
+    "models.specsReasoningShort": "支持推理",
     "models.discoveryShowing": "显示前 {shown} 个，共 {total} 个",
     "models.discoveryFetched": "已获取 {count} 个模型",
     "models.discoveryAddSelected": "添加所选模型",

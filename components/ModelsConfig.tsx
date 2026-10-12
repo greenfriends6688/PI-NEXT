@@ -913,6 +913,7 @@ function ModelDiscovery({ providerId, provider, onAddModels, onClose }: {
     if (model.contextWindow) parts.push(t("models.specsContextShort", { value: formatTokenLimit(model.contextWindow) }));
     if (model.maxTokens) parts.push(t("models.specsOutputShort", { value: formatTokenLimit(model.maxTokens) }));
     if (model.input?.includes("image")) parts.push(t("models.specsImageShort"));
+    if (model.reasoning) parts.push(t("models.specsReasoningShort"));
     return parts.length ? parts.join(" · ") : null;
   };
 
@@ -2373,6 +2374,9 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
         if (discoveredModel.contextWindow !== undefined) entry.contextWindow = discoveredModel.contextWindow;
         if (discoveredModel.maxTokens !== undefined) entry.maxTokens = discoveredModel.maxTokens;
         if (discoveredModel.input !== undefined) entry.input = [...discoveredModel.input];
+        // fork:upstream-0.12-model-parity —— 端点声明的推理支持与档位映射也带上（#856）。
+        if (discoveredModel.reasoning) entry.reasoning = true;
+        if (discoveredModel.thinkingLevelMap !== undefined) entry.thinkingLevelMap = { ...discoveredModel.thinkingLevelMap };
         models.push(entry);
       }
       return { ...prev, providers: { ...(prev.providers ?? {}), [providerName]: { ...provider, models } } };

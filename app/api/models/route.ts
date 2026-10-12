@@ -9,24 +9,13 @@ import {
   type ModelsData,
   type ThinkingProfileInputs,
 } from "@/lib/models-cache";
-import { resolveVisibleModels, selectInitialModelScope } from "@/lib/model-scope";
+import { orderSelectorModels, resolveVisibleModels, selectInitialModelScope } from "@/lib/model-scope";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-access";
 import { projectTrustReloadOptions } from "@/lib/project-trust";
 import { getThinkingLevelMemory } from "@/lib/thinking-level-memory";
 import { rememberProviderModels, withDeferredProviderModels } from "@/lib/deferred-provider-models";
 
 export const dynamic = "force-dynamic";
-
-const modelNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
-
-function compareModelEntries(
-  a: { id: string; name: string; provider: string },
-  b: { id: string; name: string; provider: string }
-): number {
-  return modelNameCollator.compare(a.name || a.id, b.name || b.id)
-    || modelNameCollator.compare(a.provider, b.provider)
-    || modelNameCollator.compare(a.id, b.id);
-}
 
 async function loadModels(cwd: string): Promise<ModelsData> {
   const nameMap = new Map<string, string>();
@@ -61,7 +50,8 @@ async function loadModels(cwd: string): Promise<ModelsData> {
     settings.getEnabledModels(),
   );
   const { visible, thinkingLevelPins, warnings } = scope;
-  modelList = visible.map((m) => ({
+  // fork:upstream-0.12-model-parity —— 按 pi 的 /model 顺序列出，不按名字（#1111）。
+  modelList = orderSelectorModels(scope).map((m) => ({
     id: m.id,
     name: m.name,
     provider: m.provider,
@@ -78,7 +68,7 @@ async function loadModels(cwd: string): Promise<ModelsData> {
     ...(m.thinkingLevelMap ? { thinkingLevelMap: m.thinkingLevelMap } : {}),
     ...(m.compat ? { compat: m.compat } : {}),
     ...(m.inputLimits ? { inputLimits: m.inputLimits } : {}),
-  })).sort(compareModelEntries);
+  }));
   for (const m of visible) {
     const key = `${m.provider}:${m.id}`;
     nameMap.set(key, m.name);

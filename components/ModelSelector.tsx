@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/hooks/useI18n";
 import {
@@ -53,13 +53,6 @@ interface ModelSelectorProps {
 }
 
 const MODEL_FILTER_THRESHOLD = 8;
-const MODEL_OPTION_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
-
-function compareModelOptions(a: ModelSelectorOption, b: ModelSelectorOption): number {
-  return MODEL_OPTION_COLLATOR.compare(a.name || a.modelId, b.name || b.modelId)
-    || MODEL_OPTION_COLLATOR.compare(a.provider, b.provider)
-    || MODEL_OPTION_COLLATOR.compare(a.modelId, b.modelId);
-}
 
 export function filterModelOptions(options: ModelSelectorOption[], query: string): ModelSelectorOption[] {
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -101,9 +94,10 @@ export function ModelSelector({
   const [anchorRect, setAnchorRect] = useState<{ top: number; right: number; bottom: number; left: number; width: number } | null>(null);
   const [filter, setFilter] = useState("");
   const locked = disabled || busy;
-  const sortedOptions = useMemo(() => [...options].sort(compareModelOptions), [options]);
-  const filteredOptions = filterModelOptions(sortedOptions, filter);
-  const showFilter = sortedOptions.length > MODEL_FILTER_THRESHOLD;
+  // fork:upstream-0.12-model-parity —— 选项已按 pi 的 /model 顺序到达
+  // （orderSelectorModels()）；绝不重排，否则 models.json provider 会丢掉文件给的顺序（#783）。
+  const filteredOptions = filterModelOptions(options, filter);
+  const showFilter = options.length > MODEL_FILTER_THRESHOLD;
   const modelsByProvider: { provider: string; options: ModelSelectorOption[] }[] = [];
 
   // fork:ui — 收藏的模型单独成组置顶（见下方渲染），分组时先排除它们。
@@ -121,11 +115,11 @@ export function ModelSelector({
   }
 
   const currentOption = value
-    ? sortedOptions.find((option) => option.modelId === value.modelId && option.provider === value.provider)
+    ? options.find((option) => option.modelId === value.modelId && option.provider === value.provider)
     : undefined;
   const currentName = selectedLabel ?? (currentOption?.name ?? (value
     ? value.modelId
-    : emptyLabel ?? (sortedOptions.length > 0 ? "Select model" : "No models")));
+    : emptyLabel ?? (options.length > 0 ? "Select model" : "No models")));
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -333,7 +327,7 @@ export function ModelSelector({
         aria-expanded={open}
         aria-busy={busy || undefined}
         disabled={locked}
-        title={busy ? "Switching model" : locked ? currentName : sortedOptions.length > 0 || onClear ? "Change model" : "No available models"}
+        title={busy ? "Switching model" : locked ? currentName : options.length > 0 || onClear ? "Change model" : "No available models"}
         style={buttonStyle}
         onClick={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
@@ -439,7 +433,7 @@ export function ModelSelector({
             <div className="d-pop-body d-t-xs d-t-faint" style={{ whiteSpace: "nowrap", flexShrink: 0 }}>
               {filter.trim()
                 ? (filteredOptions.length === 1 ? t("chat.match") : t("chat.matches", { count: filteredOptions.length }))
-                : (sortedOptions.length === 1 ? t("chat.match") : t("chat.matches", { count: sortedOptions.length }))}
+                : (options.length === 1 ? t("chat.match") : t("chat.matches", { count: options.length }))}
             </div>
             <div className="d-sep" style={{ flexShrink: 0 }} />
             <div style={{ minHeight: 0, overflowY: "auto", padding: "var(--nx-sp-1)" }}>

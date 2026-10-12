@@ -171,6 +171,18 @@ export async function resolveVisibleModels(
 }
 
 /**
+ * fork:upstream-0.12-model-parity —— 模型选择器的顺序，与 pi 的 `/model`（TUI 的
+ * ModelSelectorComponent）一致（#1111）：有 scope 就保留 `enabledModels` 顺序；
+ * 完整列表只按 provider id 排，于是每个 provider 保留其 registry 顺序（对 models.json
+ * provider 就是文件里的顺序）。TUI 还会把当前/默认模型提到最前；Web 选择器只就地标记。
+ */
+export function orderSelectorModels(scope: ModelScopeResult): Model<Api>[] {
+  if (scope.scopedModels.length > 0) return [...scope.visible];
+  // Array.prototype.sort is stable: models of one provider keep their order.
+  return [...scope.visible].sort((a, b) => a.provider.localeCompare(b.provider));
+}
+
+/**
  * Select the model and thinking level used to create a new AgentSession.
  *
  * This mirrors pi's startup rule: prefer an explicit selection, otherwise use

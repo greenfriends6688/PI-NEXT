@@ -1729,6 +1729,7 @@ export const enLocale: LocalePlugin = {
     "models.specsContextShort": "ctx {value}",
     "models.specsOutputShort": "out {value}",
     "models.specsImageShort": "image in",
+    "models.specsReasoningShort": "reasoning",
     "models.discoveryShowing": "Showing first {shown} of {total}",
     "models.discoveryFetched": "{count} models fetched",
     "models.discoveryAddSelected": "Add selected",

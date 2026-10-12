@@ -4,6 +4,13 @@
  * `metadata` / `limits` / `capabilities` / `top_provider` 下面。只认正整数，这样上游的
  * 脏值不会覆盖掉一份已经配好的配置。
  */
+/** fork:upstream-0.12-model-parity —— 上游 `/models` 发布的能力（#856）：推理支持与档位映射。 */
+const EFFORT_LEVELS = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
+type EffortLevel = typeof EFFORT_LEVELS[number];
+
+const REASONING_FIELDS = ["supports_reasoning", "supportsReasoning", "reasoning", "thinking"] as const;
+const EFFORT_LIST_FIELDS = ["supported_efforts", "supportedEfforts"] as const;
+
 const CONTEXT_WINDOW_KEYS = [
   "context_window",
   "contextWindow",
@@ -14,6 +21,8 @@ const CONTEXT_WINDOW_KEYS = [
   "max_input_tokens",
   "maxInputTokens",
   "limit_context",
+  // fork:upstream-0.12-model-parity —— Google 的 inputTokenLimit（#856）。
+  "inputTokenLimit",
 ] as const;
 
 const MAX_OUTPUT_TOKEN_KEYS = [
@@ -25,6 +34,8 @@ const MAX_OUTPUT_TOKEN_KEYS = [
   "maxCompletionTokens",
   "max_new_tokens",
   "maxNewTokens",
+  // fork:upstream-0.12-model-parity —— Google 的 outputTokenLimit（#856）。
+  "outputTokenLimit",
 ] as const;
 
 /** 输入模态：数组写法（OpenRouter / 自己写网关）与布尔写法（vLLM / Together）都有。 */
@@ -66,6 +77,10 @@ export interface DiscoveredModel {
   maxTokens?: number;
   /** Input modalities the endpoint reports (`text` / `image`); never a guess. */
   input?: string[];
+  /** fork:upstream-0.12-model-parity —— 端点声明支持推理（#856）。 */
+  reasoning?: true;
+  /** 端点声明的档位列表映射到 pi 的档位（未列的标 null）。 */
+  thinkingLevelMap?: Partial<Record<EffortLevel, string | null>>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -74,6 +89,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function cleanString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+/**
+ * fork:upstream-0.12-model-parity —— 端点声明的档位列表用的是 pi 自己的档位名（pi 在
+ * thinkingLevelMap 没有条目时就把档位名当 effort 发出去）。它未列的档位标为不支持（null），
+ * `xhigh` / `max` 要有条目才会被提供。`off` 不映射：列表没说能不能关掉思考。
+ * 一个都没列到 pi 档位的列表不映射任何东西（#856）。
+ */
+function thinkingLevelMapFromEfforts(value: Record<string, unknown>): DiscoveredModel["thinkingLevelMap"] {
+  const list = EFFORT_LIST_FIELDS.map((field) => value[field]).find(Array.isArray);
+  if (!list) return undefined;
+  const advertised = new Set(list.filter((effort): effort is string => typeof effort === "string"));
+  if (!EFFORT_LEVELS.some((level) => advertised.has(level))) return undefined;
+  const map: NonNullable<DiscoveredModel["thinkingLevelMap"]> = {};
+  for (const level of EFFORT_LEVELS) {
+    if (!advertised.has(level)) map[level] = null;
+    else if (level === "xhigh" || level === "max") map[level] = level;
+  }
+  return map;
+}
+
+function reasoningCapabilities(value: Record<string, unknown>): Pick<DiscoveredModel, "reasoning" | "thinkingLevelMap"> {
+  const reasoning = REASONING_FIELDS.some((field) => value[field] === true);
+  if (!reasoning) return {};
+  const thinkingLevelMap = thinkingLevelMapFromEfforts(value);
+  return { reasoning: true, ...(thinkingLevelMap ? { thinkingLevelMap } : {}) };
 }
 
 function readLimit(value: unknown): number | undefined {
@@ -188,6 +229,7 @@ function modelFromValue(value: unknown): DiscoveredModel | null {
   if (specs.contextWindow !== undefined) discovered.contextWindow = specs.contextWindow;
   if (specs.maxTokens !== undefined) discovered.maxTokens = specs.maxTokens;
   if (specs.input !== undefined) discovered.input = specs.input;
+  Object.assign(discovered, reasoningCapabilities(value));
   return discovered;
 }
 

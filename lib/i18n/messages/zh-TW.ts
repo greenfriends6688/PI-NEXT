@@ -1723,6 +1723,7 @@ export const zhTWLocale: LocalePlugin = {
     "models.specsContextShort": "上下文 {value}",
     "models.specsOutputShort": "輸出 {value}",
     "models.specsImageShort": "支援圖片",
+    "models.specsReasoningShort": "支援推理",
     "models.discoveryShowing": "顯示前 {shown} 個，共 {total} 個",
     "models.discoveryFetched": "已取得 {count} 個模型",
     "models.discoveryAddSelected": "新增所選模型",
