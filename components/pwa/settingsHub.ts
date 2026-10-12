@@ -22,7 +22,7 @@ export const SETTINGS_HUB_GROUPS: ReadonlyArray<{
   // fork:imagegen —— 生图模型档案跟「模型」同段（基础）：都是模型配置面。
   { id: "base", sections: ["general", "models", "imagegen"] },
   // fork:memory —— 记忆扩展跟「插件」同段（能力）：它就是一个包。
-  { id: "capability", sections: ["skills", "agents", "plugins", "memory", "websearch", "mcp"] },
+  { id: "capability", sections: ["skills", "agents", "plugins", "memory", "websearch", "mcp", "features"] },
   { id: "runtime", sections: ["automation", "usage"] },
   { id: "data", sections: ["archived", "import", "phonePush"] },
 ];
@@ -116,6 +116,12 @@ const SECTION_HINTS: Record<string, HubCopy> = {
     en: "Servers · transports · OAuth · import from another agent",
     "zh-CN": "服务器 · 传输 · OAuth · 从其它 agent 导入",
     "zh-TW": "伺服器 · 傳輸 · OAuth · 從其它 agent 匯入",
+  },
+  // fork:feature-toggles —— 「界面与功能」的一句副行（右栏 / 顶栏入口与整块工具的开关）。
+  features: {
+    en: "Right-rail panels · top-bar entries · browser and search tools",
+    "zh-CN": "右栏面板 · 顶栏入口 · 浏览器与搜索工具",
+    "zh-TW": "右欄面板 · 頂欄入口 · 瀏覽器與搜尋工具",
   },
   automation: {
     en: "Task list · run history · schedule and notify rules",

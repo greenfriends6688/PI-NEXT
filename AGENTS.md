@@ -395,6 +395,28 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 * **`pi-web-preferences.json` 的读写只有一处**（`lib/pi-web-preferences.ts`）：原先内联在
   `lib/thinking-level-memory.ts` 里，现在两个模块共用 —— 同一个文件两个写入者各自读-改-写会互相抹键。
 
+### 界面与功能开关（fork:feature-toggles，2026-10-13）
+
+用户 2026-10-13：「右侧边栏和顶部的各种 icon 的显示或功能的启用，我想让你在设置中帮我加个开关」。
+设置新增分节「界面与功能」（左导航 `features`，画板 `D-39-settings-features.html`）。
+
+* **开关表是单一真值**：`lib/feature-toggles.ts` 的 `FEATURE_DESCRIPTORS`（8 个）。设置页
+  `components/fork/FeaturesConfig.tsx` **不硬编码任何开关名** —— 加一个 = 改那张表 + 三语文案。
+* **两类开关的生效时机写在数据上**（`scope`）：`session`（浏览器 / 联网搜索 / 生图 / 自动命名）
+  是工具类，扩展在会话启动时加载所以**新会话生效**；`ui`（终端面板 / Git 图 / 调用轨迹 /
+  小地图）**立即生效**。设置页按这个显示徐标，不画「界面变了、行为没变」的假开关。
+* **关掉工具 = 不注册**，不是藏按钮：接线在 `lib/rpc-manager.ts` 的 `extensionFactories`，
+  与内置子代理总开关同一口径（运行时再查一道，过期调用也拦得住）。
+* **默认全开**：这一节是「让你能关」，不是替你决定。默认关掉内置浏览器会把用户正在用的
+  能力悄悄拿走 —— 那是另一个决策，不藏在一改版里。
+* **只存差异**：`~/.pi/agent/pi-web-preferences.json` 的 `features` 段
+  （`{ browser: false }`），走唯一写入者 `lib/pi-web-preferences.ts`；默认值以后可改、不需迁移。
+* **画板/测试同步**：新分节要同步 **18 张**设置画板左导航（46 帧）＋
+  `SettingsPanel.boardnav.test.mjs` 的条数（14→15）与同构清单＋ `SettingsPanel.test.mjs` 的
+  hub 条数＋ `SettingsPanel.tsx` 的 `SECTION_ICON_BY_ID`（`panels-top-left`）＋
+  `design/v5/README.md` 与 `SETTINGS_HUB_GROUPS` 分组。`npm run design:v5` 会重生成
+  `design/v5/index.html` 与 `manifest.json`（画板索引），那是生成物，一起提交。
+
 ### 联网搜索（fork:websearch，2026-10-07）
 
 免 API key 的联网搜索：`web_search` 工具（`lib/websearch-extension.ts`，`extensionFactories` 注册）
@@ -660,14 +682,19 @@ Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 
 ### 设计系统 V6：`design/v6/`（2026-10-12 起，毛玻璃版；**尚未落地产品**）
 
-V6 是 v5 的**并行副本**，只换材质：页面底换成内置色场 `--nx-canvas-field`，壳面（侧栏 / 导轨 /
-顶栏 / 输入框）在其上 `blur(40px) saturate(150%)` 半透明，**开箱即玻璃**；转录与卡片仍是近实底的
-`--nx-panel`。配方逐字借 deepseek-harness 的菜单材质，逐条异同在 `design/v6/DIVERGENCE.md §AI`，
+V6 是 v5 的**并行副本**，换两件事：① 材质 —— 页面底换成内置色场 `--nx-canvas-field`，壳面（侧栏 /
+导轨 / 顶栏 / 输入框）在其上 `blur(40px) saturate(150%)` 半透明，**开箱即玻璃**；转录与卡片仍是近实底的
+`--nx-panel`（§AI）；② 三处形态按 deepseek-harness 改版（用户 2026-10-12 口令，**fork:v6-process**，
+§AJ）—— 过程从「竖线时间轴」改成「33px 折叠摘要行 + 24px 行式步骤」、用户气泡从强调色铺底改成
+`--nx-user-bubble` 淡蓝底深字、转录列宽 760 → `--nx-chat-col: 920px`（输入卡恒比列宽 + 32）；
+另加 PWA 渐隐顶栏去双层叠加（`.m-top` 不带底，渐隐只留 `.m-fade` 一层）。
 材质规格台是 `design/v6/web/boards/D-38-v6-glass.html`。
 
 * **V5 目录一个字没动**（已落地真值）；两条铁律与四步法照旧，只是命令换成
-  `npm run design:v6` / `design:v6:land` / `design:v6:shots`（静态门禁 0 错误、落地清单 0 项已落、
+  `npm run design:v6` / `design:v6:land` / `design:v6:shots`（静态门禁 0 错误、
   真浏览器明暗两套出图全过 —— 唯一红的 D-27「重播流光」在 v5 里同样红，是既有问题）。
+  `design:v6:land` 现读 98%：**V6 沿用 v5 的类名**，产品 CSS 里早就有同名类，
+  所以那个百分比量的是「名字落没落」而不是「V6 的材质落没落」—— V6 真正未落地的就是材质本身。
 * **§Z 不变式在 V6 里是硬边界**：浮层不许挂 backdrop-filter（会成为 fixed 后代的包含块），
   只吃 `--nx-glass-shell-hi` 94% 填充 + `--nx-elev-panel`；输入框霜化走 `::before`
   （`.d-composer` 自身 `position:relative; isolation:isolate`）。

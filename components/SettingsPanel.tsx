@@ -39,6 +39,7 @@ import { PhoneAndPushPanel } from "./fork/PhoneAndPushPanel";
 import { ImageGenSettingsPanel } from "./fork/ImageGenSettingsPanel";
 // fork:memory —— 设置 → 记忆（画板 D-36）。
 import { MemorySettingsPanel } from "./fork/MemorySettingsPanel";
+import { FeaturesConfig } from "./fork/FeaturesConfig";
 // fork:websearch —— 设置 → 联网搜索（画板 D-37）。
 import { WebSearchSettingsPanel } from "./fork/WebSearchSettingsPanel";
 import { setupPushSubscription } from "@/lib/push-client";
@@ -156,6 +157,8 @@ const SECTION_ICON_BY_ID: Record<string, string> = {
   // fork:phone-push —— 原来这一节没有图标映射，左导航博回 `settings`（齿轮）：
   // 「手机与推送」挂齿轮既读不出意思，也和 V5 画板（smartphone）对不上。
   phonePush: "smartphone",
+  // fork:feature-toggles —— 「界面与功能」（画板 D-39 左导航的 `panels-top-left`）。
+  features: "panels-top-left",
 };
 
 /** fork:design-system SW-07 — 画板 40「主题」三档的芯片图标（sun / moon / monitor）。
@@ -1396,6 +1399,10 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
 
         {/* fork:phone-push — 手机配对 + IM 推送。全局页，与项目无关。 */}
         {sectionHost("phonePush", <PhoneAndPushPanel />)}
+
+        {/* fork:feature-toggles —— 「界面与功能」：右栏 / 顶栏那些入口与工具的总开关。
+            全局页（开关存在 `pi-web-preferences.json`，与项目无关）。 */}
+        {sectionHost("features", <FeaturesConfig />)}
   </>);
 
   return (

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-12T02:05",
+  "generatedAt": "2026-10-12T08:55",
   "boards": [
     {
       "id": "D-01",
@@ -588,6 +588,20 @@
         "组件：WebSearchSettingsPanel · /api/websearch · web_search",
         "状态：关着 / 已开启 / 测试通过 / 被风控",
         "免 key：Bing · DuckDuckGo · Mojeek · SearXNG"
+      ]
+    },
+    {
+      "id": "D-39",
+      "file": "D-39-settings-features.html",
+      "form": "web",
+      "group": "core",
+      "title": "D-39 · 界面与功能",
+      "desc": "右栏的面板、顶栏的入口、以及整块工具的开关。用户 2026-10-13 的原话：「右侧边栏和顶部的各种 icon 的显示或功能的启用，我想让你在设置中帮我加个开关，这样的话我好去进行控制」。 开关存在 ~/.pi/agent/pi-web-preferences.json 的 features 段， 只写与默认值不同的项（默认值以后可以改",
+      "tags": [
+        "页面：设置 / 界面与功能",
+        "组件：FeaturesConfig · /api/features · lib/feature-toggles.ts",
+        "单一真值：FEATURE_DESCRIPTORS（这一页不硬编码任何开关名）",
+        "状态：全开（默认）/ 关掉若干个"
       ]
     },
     {

@@ -12,6 +12,8 @@ export const SETTINGS_SECTION_VALUES = [
   "websearch",
   // fork:mcp-section — a global section added by this fork.
   "mcp",
+  // fork:feature-toggles —— 「界面与功能」：右栏 / 顶栏那些入口与工具的总开关（全局）。
+  "features",
   // fork:proma-43-automation — 定时任务（全局，与项目无关）。位置沿用 1ed2708a
   // 删掉的那个 cron 分节：mcp 之后、usage 之前。
   "automation",
@@ -70,6 +72,9 @@ export const SETTINGS_SECTIONS: ReadonlyArray<{
   // fork:mcp-section — a global section added by this fork.
   // fork:v5-landing D-07 —— 导航标签是「MCP」（`settings.navMcp`），页头才是「MCP 服务器」。
   { id: "mcp", labelKey: "settings.navMcp", requiresProject: false },
+  // fork:feature-toggles —— 「界面与功能」：右栏 / 顶栏那些入口与工具的总开关。
+  // 全局节：开关存在 `pi-web-preferences.json`，与项目无关；位置跟画板 D-39 左导航。
+  { id: "features", labelKey: "settings.features", requiresProject: false },
   // fork:proma-43-automation — 定时任务（全局，与项目无关）。面板把 cwd 只当**新建任务的
   // 初值**，每条任务自己的 cwd 在编辑器里填，所以没有项目时传空串也能用。
   { id: "automation", labelKey: "automation.title", requiresProject: false },

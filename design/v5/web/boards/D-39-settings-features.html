@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-39 · 界面与功能 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-39 · 界面与功能</h1>
+  <p>
+    右栏的面板、顶栏的入口、以及<b>整块工具</b>的开关。用户 2026-10-13 的原话：「右侧边栏和顶部的各种
+    icon 的显示或功能的启用，我想让你在设置中帮我加个开关，这样的话我好去进行控制」。
+    开关存在 <code>~/.pi/agent/pi-web-preferences.json</code> 的 <code>features</code> 段，
+    <b>只写与默认值不同的项</b>（默认值以后可以改，不需要迁移旧文件）。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / 界面与功能</span>
+    <span class="d-tag">组件：FeaturesConfig · /api/features · lib/feature-toggles.ts</span>
+    <span class="d-tag">单一真值：FEATURE_DESCRIPTORS（这一页不硬编码任何开关名）</span>
+    <span class="d-tag">状态：全开（默认）/ 关掉若干个</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 默认全开<span class="d-grow"></span>两段按<b>生效时机</b>分，不按功能树分</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">PI NEXT</span>
+          <span class="d-badge mute">界面与功能</span>
+        </div>
+        <div class="d-md"><p>这一页只回答「哪些入口和工具在我这儿是开着的」。关掉工具类开关，它就不再注册给模型 —— 模型连它的名字都看不到，不是只把按钮藏起来。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住开关与生效时机</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · 界面与功能">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · 界面与功能</span>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <button class="d-set-navitem"><i data-ico="image" data-size="14"></i>生图模型</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="brain" data-size="14"></i>记忆</button>
+              <button class="d-set-navitem"><i data-ico="globe" data-size="14"></i>联网搜索</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <button class="d-set-navitem is-on"><i data-ico="panels-top-left" data-size="14"></i>界面与功能</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">工具与能力<span class="d-badge mute">新会话生效</span></div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">内置浏览器</div>
+                      <div class="d-set-row-s">浏览器工具（打开网页 / 读页面 / 点击输入）与右栏的浏览器面板。关掉后模型不再有这些工具，也不会开出真实浏览器窗口。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-switch on" role="switch" aria-checked="true" aria-label="内置浏览器"></button></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">联网搜索</div>
+                      <div class="d-set-row-s">web_search 工具。关掉后模型只能靠自己的知识与你给的文件，需要联网时会明说做不到。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-switch on" role="switch" aria-checked="true" aria-label="联网搜索"></button></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">生成图片</div>
+                      <div class="d-set-row-s">generate_image 工具（走「生图模型」那一节的档案）。关掉后模型无法出图，标书自动配图也会停下来。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-switch on" role="switch" aria-checked="true" aria-label="生成图片"></button></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">自动命名会话</div>
+                      <div class="d-set-row-s">新会话第一次对话后，用模型给它起一个短标题。关掉后自己改标题，也少花一次模型调用。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-switch on" role="switch" aria-checked="true" aria-label="自动命名会话"></button></span>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <div class="d-set-sec-t">界面入口<span class="d-badge ok">立即生效</span></div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">终端面板</div>
+                      <div class="d-set-row-s">右栏的终端标签。只藏界面：模型手上的 shell 工具不受影响。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-switch on" role="switch" aria-checked="true" aria-label="终端面板"></button></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">Git 图</div>
+                      <div class="d-set-row-s">右栏的提交历史 / 泳道图标签。仓库很大时不显示它，打开会话会轻一点。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-switch on" role="switch" aria-checked="true" aria-label="Git 图"></button></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">调用轨迹</div>
+                      <div class="d-set-row-s">顶栏的「完整历史」入口与右栏的轨迹标签（就是导出那页，内嵌）。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-switch on" role="switch" aria-checked="true" aria-label="调用轨迹"></button></span>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">会话小地图</div>
+                      <div class="d-set-row-s">聊天区右侧那一条导航柱与悬停预览。长会话里它每帧都要重算，关掉能省一点。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-switch" role="switch" aria-checked="false" aria-label="会话小地图"></button></span>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <span class="d-t-xs d-t-faint">开关存在 ~/.pi/agent/pi-web-preferences.json（只写与默认值不同的项）。关掉工具类开关后，它不再注册给模型 —— 模型连它的名字都看不到，不是只把按钮藏起来。</span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+          </div>
+          </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>两段按「生效时机」分，不按功能树分</b>：工具类开关（浏览器 / 搜索 / 生图 / 自动命名）
+        是<b>新会话生效</b> —— 扩展在会话启动时加载，关掉不会把正在跑的会话里的它摘掉；
+        界面类开关（终端 / Git 图 / 轨迹 / 小地图）<b>立即生效</b>。每一段头上那枚徽标
+        就是这件事，不画「界面变了、行为没变」的假开关。</li>
+    <li><b>关掉工具 = 不注册</b>：接线在 <code>lib/rpc-manager.ts</code> 的
+        <code>extensionFactories</code>，与「内置子代理总开关」同一条口径
+        （运行时再查一次，过期调用也拦得住）。只藏按钮是另一种东西，本页不做。</li>
+    <li><b>默认全开</b>：这一节是「让你能关」，不是「替你决定」。默认关掉内置浏览器
+        会把用户正在用的能力悄悄拿走 —— 那是另一个决策，不藏在一次改版里。</li>
+    <li><b>只存差异</b>：<code>{ features: { chatMinimap: false } }</code>，
+        默认值以后可以改而不需要迁移旧文件。</li>
+    <li><b>这一页不硬编码开关名</b>：开关表是 <code>lib/feature-toggles.ts</code> 的
+        <code>FEATURE_DESCRIPTORS</code>（单一真值）。加一个开关 = 改那张表 + 三语文案，
+        页面自己会多一行 —— 这正是它和「手写一堆开关」的区别。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

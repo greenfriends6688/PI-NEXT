@@ -14,6 +14,12 @@ export interface PiWebPreferences {
   memoryExtensionEnabled?: boolean;
   /** fork:websearch —— 「设置 → 联网搜索」的配置（形状由 `lib/websearch-settings.ts` 归一化）。 */
   webSearch?: unknown;
+  /**
+   * fork:feature-toggles —— 「设置 → 界面与功能」的开关**差异**
+   * （`{ browser: false }`；形状由 `lib/feature-toggles.ts` 归一化）。
+   * 只存与默认值不同的项，所以默认值以后可以改而不需要迁移旧文件。
+   */
+  features?: unknown;
 }
 
 /** per-model 记忆的 key 约定：`provider/modelId`（斜杠形式）。 */
