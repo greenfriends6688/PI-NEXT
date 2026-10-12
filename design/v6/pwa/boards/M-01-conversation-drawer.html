@@ -23,7 +23,7 @@
   </p>
   <div class="m-doc-tags" data-board-tags>
     <span class="m-doc-tag">页面：会话流 / 会话抽屉 / 模型选择</span>
-    <span class="m-doc-tag">组件：m-top · m-composer · m-drawer · m-sheet · m-scrim</span>
+    <span class="m-doc-tag">组件：m-top · m-turnproc · m-composer · m-drawer · m-sheet · m-scrim</span>
     <span class="m-doc-tag">状态：常态 / 抽屉拉出（项目分组 · worktree） / 底部面板 / Plus 分离</span>
   </div>
 </header>
@@ -58,13 +58,19 @@
           <span class="m-badge mute">claude-opus-4-6</span>
         </div>
 
-        <div class="m-tool nx-shrink-0">
-          <div class="m-tool-head">
+        <details class="m-turnproc-wrap">
+          <summary class="m-turnproc">
             <i data-ico="list-checks" data-size="14"></i>
             <span class="m-grow">已执行 4 步 · 11.2s</span>
-            <i data-ico="chevron-right" data-size="14"></i>
+            <i class="m-chev" data-ico="chevron-down" data-size="14"></i>
+          </summary>
+          <div class="m-steps">
+            <div class="m-step-row done"><span class="m-step-dot"></span><span class="m-grow">read(design/v6/base.css)</span><span class="m-step-n">1.2k</span></div>
+            <div class="m-step-row done"><span class="m-step-dot"></span><span class="m-grow">grep(--nx-frost- · 6 处)</span><span class="m-step-n">0.4s</span></div>
+            <div class="m-step-row fail"><span class="m-step-dot"></span><span class="m-grow">node --test lib/check-v6.test.mjs</span><span class="m-step-n">1.9s</span></div>
+            <div class="m-step-row"><span class="m-step-dot"></span><span class="m-grow">write(pwa/system.css) —— 等你决定</span><span class="m-step-n">—</span></div>
           </div>
-        </div>
+        </details>
 
         <div class="m-md">
           <p>先按 PWA 形态值把三层骨架搭起来。顶栏绝对定位、内容从下方穿过；输入卡浮在底部，玻璃底 + 光晕，圆角走 <span class="m-math">--nx-r-xl</span>。</p>

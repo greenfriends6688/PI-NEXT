@@ -23,6 +23,7 @@ import { MarkdownBody } from "./MarkdownBody";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import type { FileLocationTarget } from "./FileViewer";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
+import { selectStreamingState, useStreamingSelector } from "@/hooks/useStreamingSelector";
 import { NewSessionHome } from "./fork/NewSessionHome";
 import { ProjectChip, type NewSessionTargets } from "./fork/ProjectChip";
 // fork:ui-ctxbar —— 新会话上下文条的分支项：与顶栏同一枚工作区（worktree）下拉。
@@ -760,7 +761,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   }, [chatInputRef, onSessionStatsPanelOpen]);
 
   const {
-    loading, error, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, earlierTurnCount, streamState,
+    loading, error, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, earlierTurnCount, streamingStore,
     refreshing, refreshAfterReload,
     agentRunning, bashRunning, pendingBash, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, toolPreset, thinkingLevel,
     retryInfo, retryNotices, contextUsage, forkingEntryId,
@@ -795,6 +796,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     deferInitialScroll: Boolean(pendingScrollRestore),
   });
   const sessionBusy = agentRunning || bashRunning;
+
+  // fork:upstream-0.12-chat-parity（PR-7c）—— 流式状态从 store 读（目前整块订阅，
+  // 行为与之前一致；下一步把逐片段渲染收回 StreamingReply 子组件）。
+  const streamState = useStreamingSelector(streamingStore, selectStreamingState);
 
   // fork:upstream-0.12-audio-parity —— 运行期间保持音频上下文运行，锁屏手机上完成音也能响（#1157）。
   useEffect(() => {

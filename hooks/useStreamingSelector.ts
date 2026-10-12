@@ -24,3 +24,5 @@ export function useStreamingSelector<T>(store: StreamingStore, select: (state: S
 export const selectIsStreaming = (state: StreamingState) => state.isStreaming;
 export const selectHasStreamingContent = (state: StreamingState) => Boolean(state.streamingMessage?.content.length);
 export const selectStreamingMessage = (state: StreamingState) => state.streamingMessage;
+/** 整个流式状态（过渡：ChatWindow 仍读它；逐步搬进 StreamingReply 后不再用）。 */
+export const selectStreamingState = (state: StreamingState) => state;

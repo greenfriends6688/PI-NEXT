@@ -1331,6 +1331,49 @@ Web 拿不到整窗材质，页底/卡片分层照 iOS（Grouped 灰 / Primary �
 ### AI3 · 登记不改（V6 内有意如此）
 
 - **转录正文与卡片不玻璃**：`.d-panel` / `.d-card` 仍是 `--nx-panel` 近实底，`.d-toast` / `.d-banner` 的语义边框不动。玻璃只给「壳」（页面底 / 侧栏 / 顶栏 / 输入框 / 浮层填充），正文永远是可读优先。
-- **`--nx-canvas` 不删**：PWA 的 `.m-fade` 等渐隐层仍从它取色，且它是无色场场景的兜底；新增的 `--nx-canvas-field` 是壳面背后的色场，两者各一用途。
+- **`--nx-canvas` 不删**：`.d-tool-body` 的详情底、`.d-device-screen`、PWA 告警底色混色都还取它，且它是无色场场景的兜底；新增的 `--nx-canvas-field` 是壳面背后的色场，两者各一用途。（渐隐层 `.m-fade` 自 fork:v6-process 起已改从 `--nx-glass-shell` 取色，不再是它的用例。）
 - **输入框霜化走 `::before`**：`.d-composer` 自身 `position:relative; isolation:isolate; background:transparent`，填充与 blur 放在 `z-index:-1` 的伪元素里（`app/wallpaper.css` 的既有先例），避免它成为内部 absolute 后代的包含块。
 - **发丝描边两档**：`--nx-elev-panel` 自带 0.5px 描边（配 `border:0`），`--nx-elev-soft` 不带（配还留 1px 线的面），避免双线。
+
+
+## AJ · 过程行式 + 气泡淡蓝 + 列宽对齐（2026-10-12 · fork:v6-process）
+
+用户同一天三条口令：①「M-01 顶栏那块白别那么突兀」②「AI 处理过程参考 deepseek 改版」
+③「用户气泡那个蓝别那么辣，像 deepseek 那种淡蓝」。逐条依据：
+
+| 改了什么 | v5 / 第一版的样子 | deepseek 的样子（实读） | V6 的落点 |
+|---|---|---|---|
+| **过程呈现** | 竖线时间轴：`.d-step` 串在 1px 导轨上、图标带 `--nx-panel` 圆底遮线、首末行各收 16px（`fork:rail-ends`） | 无容器、无竖线；整轮折叠摘要行 33px + 底线；单行 24px = 16 图标 + 6 gap + 13 文案，整行 tertiary、hover 升 secondary；标题与组头间距 6/12/16 | `.d-steps` / `.d-step` **改成行式**（导轨规则整条删除），新增 `.d-turnproc` + `.d-turnproc-wrap`（`<details>` 原生开合，已完成默认收起）；PWA 同形 `.m-turnproc`，M-01 的白卡换成它 |
+| **用户气泡** | `background: var(--nx-accent)` + `--nx-accent-fg` 白字，代码块得跟着翻成深底 | `MessageItem.module.css:20` `--dsw-specific-bubble`：light `rgb(237 243 254)` 淡蓝 + 深字、dark `rgb(44 44 46)`（它自己命名的 neutral-**bluish**-850），radius 20 / padding 10 16 / 无描边无投影 | 新角色令牌 `--nx-user-bubble`（两端成对，进 `check-v6` 的 ROLES）；`.d-msg-user` / `.m-msg-user` 换底换字，`--nx-accent` 回到它本来的职责（链接 / 开关 / 选中 / 运行态） |
+| **顶栏渐隐** | `.m-top`（42% 实色段）**与** `.m-fade`（30% 实色段）两层叠着 → 合成 alpha ≈ 0.91 的一块近实白，42% 处的拐点把「9:41」下缘切出硬边 | 顶栏不带底（`TopBar` 透明 + 0.5px 底线），滚动靠内容自然穿过 | `.m-top` `background: none`；只剩 `.m-fade` **一层**、120px、三段全透明收尾（无实色段 → 无拐点） |
+| **列宽 / 留白** | 转录列 760、输入卡 800、滚动区内边距 24/40 | `clamp(680, 64%, 920)`、输入卡 = 列 + 32、滚动区 16/32 | 新令牌 `--nx-chat-col: 920px`（web-only，所以**不进** ROLES）；`.d-chat-inner` 取它，`.d-ctxbar` / `.d-composer` 取 `calc(col + sp-8)` = 952，`.d-chat` 内边距 `sp-4 sp-8` = 16/32 |
+
+### AJ1 · 为什么气泡颜色**不叫降级**
+
+`--nx-accent` 在本仓同时是交互色（链接、开关、选中、运行态、模型芯片）。拿它铺满
+每一条用户消息，等于把「这一块能点」读成「这是我说的」，且饱和蓝一排排出现就是用户
+原话「太辣」。deepseek 把这两件事拆开：**气泡只回答「谁说的」，交互永远另有一套色**。
+拆开之后代码块也不必再翻成深底浅字（`--nx-code-bg` 的 override 一并删除）。
+`.warn` / `.bad` 两档语气变体**不跟着走**：它们是状态色底 + 深字，语义不变。
+
+### AJ2 · 时间轴作废的连带影响
+
+- 竖导轨那三组规则（`.d-steps > .d-step::before` / `:first-child` / `:last-of-type`）
+  连同 `fork:phase-rail-scope` 的「按容器收口」一起删 —— **没有导轨之后，PhaseRoll
+  复用 `.d-step` 会挂孤立竖线的那个问题自动消失**，不必再按容器区分。
+- `.d-step-ico` 去掉 `--nx-panel` 圆底：它当初存在的唯一理由是遮住穿过的竖线。
+- 过程行的行间距 6px 是 deepseek 的组内间距；`.d-steps` 由「无间距 + 2px padding」
+  改成 `gap: 6px`，行高下限 24px（触控无关，它是纯展示行）。
+- **工具卡 `.d-tool` 没动**：deepseek 没有等价物，而本仓的 diff 三视图 / 嵌入终端 /
+  子代理卡都住在这张卡里 —— 它是「内容容器」不是「过程行」，改了会把那三帧拆散。
+
+### AJ3 · 登记不改
+
+- **气泡圆角仍有尾巴**：deepseek 是 20px 单一圆角，我们保留「右下角收一档」——
+  「谁说的靠形状 + 颜色一起读」是 v5 既有规则，不是这次要动的东西。
+- **过程行没有 2px 圆点分隔**：靠 `[16px 图标][6px gap][13px 文案]` 三段 + 右贴时长，
+  不插点（点在 13px 文案里会读成省略号）。
+- **整轮摘要行的底线 1px**：deepseek 是 0.5px（AI2 已裁定 0.5px 不做结构线）。
+- **PWA 步骤行仍是 `text-2`**：web 改到 tertiary 后两端不同色 —— 手机屏小、
+  行又是唯一的信息载体，压到 30% 不透明度会读不清。
+- **侧栏 256 / 顶栏 36px / 结构线 1px**：AC、apple-sketch 已裁定，这次不动。

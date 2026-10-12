@@ -68,10 +68,12 @@ import {
 } from "@/lib/chat-lazy-load";
 import {
   INITIAL_STREAMING_STATE,
+  createStreamingStore,
   streamReducer,
   type ClientAssistantMessageEvent,
   type StreamAction,
   type StreamingState,
+  type StreamingStore,
 } from "@/lib/streaming-message";
 import { createStreamUpdateScheduler, type StreamUpdateScheduler } from "@/lib/stream-update-scheduler";
 import type { SelectionContext, SessionReference } from "@/lib/composer-context";
@@ -400,7 +402,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   // fork:upstream-0.12-chat-parity —— 已加载页之前的回合数，小地图从它开始编号（#791）。
   const [earlierTurnCount, setEarlierTurnCount] = useState(0);
   const [hasEarlierMessages, setHasEarlierMessages] = useState(false);
-  const [streamState, dispatchStreamState] = useReducer(streamReducer, INITIAL_STREAMING_STATE);
+  // fork:upstream-0.12-chat-parity（PR-7c）—— 流式状态搬到 React 之外的 store：
+  // 逐片段变化的只有订阅 store 的组件（ChatWindow 的 StreamingReply），
+  // 输入框 / 小地图等不再跟着每个片段重渲染。
+  const [streamingStore] = useState<StreamingStore>(createStreamingStore);
+  const dispatchStreamState = streamingStore.dispatch;
   const [agentRunning, setAgentRunning] = useState(false);
   const [bashRunning, setBashRunning] = useState(false);
   const [pendingBash, setPendingBash] = useState<{ command: string; excludeFromContext: boolean } | null>(null);
@@ -3163,7 +3169,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   return {
     // State
-    data, loading, refreshing, error, activeLeafId, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, earlierTurnCount, streamState,
+    data, loading, refreshing, error, activeLeafId, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, earlierTurnCount, streamingStore,
     refreshAfterReload,
     agentRunning, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, newSessionModel, toolPreset, thinkingLevel,
     retryInfo, retryNotices, contextUsage, systemPrompt, forkingEntryId,

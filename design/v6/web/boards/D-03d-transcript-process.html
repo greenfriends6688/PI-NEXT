@@ -99,87 +99,96 @@
               </div>
 
               <section data-demo-pane="p-run">
-                <div class="d-card">
-                  <div class="d-card-head">
-                    <i data-ico="chevron-down" data-size="14"></i>
-                    <span class="d-grow"><b>2 个文件</b> · 5 条命令 · 7 次工具调用 · 2 段思考</span>
-                    <span class="d-badge"><i data-ico="loader-circle" data-size="11"></i>进行中</span>
+              <details class="d-turnproc-wrap" open>
+                <summary class="d-turnproc">
+                  <i data-ico="loader-circle" data-size="14"></i>
+                  <span class="d-grow"><b>进行中</b> · 2 个文件 · 5 条命令 · 7 次工具调用 · 2 段思考</span>
+                  <span class="d-step-meta">11.2s</span>
+                  <i class="d-chev" data-ico="chevron-down" data-size="14"></i>
+                </summary>
+                <div class="d-steps">
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="brain" data-size="10"></i></span>
+                    <span class="d-step-body">先看三个调用点的实际取值，再决定 hook 的签名…</span>
+                    <span class="d-step-meta">2.1s</span>
                   </div>
-                  <div class="d-card-body">
-                    <div class="d-steps">
-                      <div class="d-step done">
-                        <span class="d-step-ico"><i data-ico="brain" data-size="10"></i></span>
-                        <span class="d-step-body">先看三个调用点的实际取值，再决定 hook 的签名…</span>
-                        <span class="d-step-meta">2.1s</span>
-                      </div>
-                      <div class="d-step done">
-                        <span class="d-step-ico"><i data-ico="file-search" data-size="10"></i></span>
-                        <span class="d-step-body d-mono">search("RIGHT_PANEL_FALLBACK_WIDTH")</span>
-                        <span class="d-step-meta">0.6s</span>
-                      </div>
-                      <div class="d-step done">
-                        <span class="d-step-ico"><i data-ico="file-text" data-size="10"></i></span>
-                        <span class="d-step-body d-mono">hooks/useResizablePanel.ts</span>
-                        <span class="d-badge mute">×3</span>
-                        <span class="d-step-meta">6s</span>
-                      </div>
-                      <div class="d-step running">
-                        <span class="d-step-ico"><i data-ico="terminal" data-size="10"></i></span>
-                        <span class="d-step-body d-mono">node --test hooks/useResizablePanel.test.mjs</span>
-                        <span class="d-run"><i data-ico="loader-circle" data-size="11"></i></span>
-                        <span class="d-step-meta">3.1s</span>
-                      </div>
-                    </div>
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="file-search" data-size="10"></i></span>
+                    <span class="d-step-body d-mono">search("RIGHT_PANEL_FALLBACK_WIDTH")</span>
+                    <span class="d-step-meta">0.6s</span>
+                  </div>
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="file-text" data-size="10"></i></span>
+                    <span class="d-step-body d-mono">hooks/useResizablePanel.ts</span>
+                    <span class="d-badge mute">×3</span>
+                    <span class="d-step-meta">6s</span>
+                  </div>
+                  <div class="d-step running">
+                    <span class="d-step-ico"><i data-ico="terminal" data-size="10"></i></span>
+                    <span class="d-step-body d-mono">node --test hooks/useResizablePanel.test.mjs</span>
+                    <span class="d-run"><i data-ico="loader-circle" data-size="11"></i></span>
+                    <span class="d-step-meta">3.1s</span>
                   </div>
                 </div>
+              </details>
               </section>
 
               <section data-demo-pane="p-fail" hidden>
-                <div class="d-card">
-                  <div class="d-card-head">
-                    <i data-ico="chevron-down" data-size="14"></i>
-                    <span class="d-grow"><b>2 个文件</b> · 5 条命令 · 7 次工具调用 · <span class="d-err">1 次失败</span> · 2 段思考</span>
+              <details class="d-turnproc-wrap" open>
+                <summary class="d-turnproc">
+                  <i data-ico="triangle-alert" data-size="14"></i>
+                  <span class="d-grow"><b>含 1 次失败</b> · 2 个文件 · 5 条命令 · 7 次工具调用 · 2 段思考</span>
+                  <span class="d-step-meta">13.4s</span>
+                  <i class="d-chev" data-ico="chevron-down" data-size="14"></i>
+                </summary>
+                <div class="d-steps">
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="file-text" data-size="10"></i></span>
+                    <span class="d-step-body d-mono">hooks/useResizablePanel.ts</span>
+                    <span class="d-step-meta">0.2s</span>
+                  </div>
+                  <div class="d-step fail">
+                    <span class="d-step-ico"><i data-ico="triangle-alert" data-size="10"></i></span>
+                    <span class="d-step-body d-mono">npm run test:panel</span>
+                    <span class="d-step-meta">3s</span>
                     <span class="d-badge bad">失败</span>
                   </div>
-                  <div class="d-card-body">
-                    <div class="d-steps">
-                      <div class="d-step done">
-                        <span class="d-step-ico"><i data-ico="file-text" data-size="10"></i></span>
-                        <span class="d-step-body d-mono">hooks/useResizablePanel.ts</span>
-                        <span class="d-step-meta">0.2s</span>
-                      </div>
-                      <div class="d-step fail">
-                        <span class="d-step-ico"><i data-ico="triangle-alert" data-size="10"></i></span>
-                        <span class="d-step-body d-mono">npm run test:panel</span>
-                        <span class="d-step-meta">3s</span>
-                        <span class="d-badge bad">失败</span>
-                      </div>
-                      <div class="d-step done">
-                        <span class="d-step-ico"><i data-ico="brain" data-size="10"></i></span>
-                        <span class="d-step-body">测试文件没跟上新签名，先补断言…</span>
-                        <span class="d-step-meta">1.4s</span>
-                      </div>
-                      <div class="d-step done">
-                        <span class="d-step-ico"><i data-ico="terminal" data-size="10"></i></span>
-                        <span class="d-step-body d-mono">node --test hooks/useResizablePanel.test.mjs</span>
-                        <span class="d-step-meta">3.0s</span>
-                      </div>
-                    </div>
-                    <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">失败就地标红：图标与动词进 error，右侧挂一枚「失败」徽标。要看详情才展开成工具卡 —— 不为一次失败另开一张卡。</div>
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="brain" data-size="10"></i></span>
+                    <span class="d-step-body">测试文件没跟上新签名，先补断言…</span>
+                    <span class="d-step-meta">1.4s</span>
+                  </div>
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="terminal" data-size="10"></i></span>
+                    <span class="d-step-body d-mono">node --test hooks/useResizablePanel.test.mjs</span>
+                    <span class="d-step-meta">3.0s</span>
                   </div>
                 </div>
+              </details>
+              <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">失败就地标红：图标与动词进 error，右侧挂一枚「失败」徽标 —— 不为一次失败另开一张卡。</div>
               </section>
 
               <section data-demo-pane="p-done" hidden>
-                <div class="d-card">
-                  <div class="d-card-head">
-                    <i data-ico="chevron-right" data-size="14"></i>
-                    <span class="d-grow"><b>2 个文件</b> · 5 条命令 · 7 次工具调用 · 2 段思考</span>
-                    <span class="d-badge ok"><i data-ico="check" data-size="11"></i>已完成</span>
-                    <span class="d-t-xs d-t-faint">展开</span>
+              <details class="d-turnproc-wrap">
+                <summary class="d-turnproc">
+                  <i data-ico="check" data-size="14"></i>
+                  <span class="d-grow"><b>已完成</b> · 用时 11.2s · 2 个文件 · 5 条命令 · 7 次工具调用 · 2 段思考</span>
+                  <i class="d-chev" data-ico="chevron-down" data-size="14"></i>
+                </summary>
+                <div class="d-steps">
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="brain" data-size="10"></i></span>
+                    <span class="d-step-body">先看三个调用点的实际取值，再决定 hook 的签名…</span>
+                    <span class="d-step-meta">2.1s</span>
+                  </div>
+                  <div class="d-step done">
+                    <span class="d-step-ico"><i data-ico="terminal" data-size="10"></i></span>
+                    <span class="d-step-body d-mono">node --test hooks/useResizablePanel.test.mjs</span>
+                    <span class="d-step-meta">3.1s</span>
                   </div>
                 </div>
-                <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">一步不折（直接显示）；多步完成后折成一行；进行中默认展开最新一步。只有一行内容的时间轴永远不折。</div>
+              </details>
+              <div class="d-t-xs d-t-faint" style="margin-top:var(--nx-sp-2)">已完成默认收起成一行（deepseek 的默认值）；进行中默认展开最新一步。只有一行内容的过程不折。</div>
               </section>
 
             </div>

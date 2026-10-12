@@ -141,6 +141,22 @@
 .m-step-n { margin-left: auto; font-size: var(--nx-fs-xs); color: var(--nx-text-3);
   font-variant-numeric: tabular-nums; }
 
+/* 整轮过程的折叠摘要行（fork:v6-process，与 web .d-turnproc 同形）：
+   33px 行 + 一条结构线 + tertiary，<details> 原生开合、默认收起 —— 抄 deepseek
+   `AIProcessDisclosure`，推翻 v5「白底卡片 + chevron-right」那张卡。 */
+.m-turnproc-wrap { display: block; }
+.m-turnproc { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 33px;
+  padding: 0 0 8px; margin: 0; border: 0; border-bottom: 1px solid var(--nx-line);
+  background: none; font-family: inherit; font-size: var(--nx-fs-cap); color: var(--nx-text-3);
+  cursor: pointer; user-select: none; width: 100%; text-align: left; }
+.m-turnproc::-webkit-details-marker { display: none; }
+.m-turnproc:active { color: var(--nx-text-2); }
+.m-turnproc > .m-grow { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-turnproc .m-chev { margin-left: auto; flex: 0 0 auto;
+  transition: transform var(--nx-dur-2) var(--nx-ease); }
+.m-turnproc-wrap[open] .m-turnproc .m-chev { transform: rotate(180deg); }
+.m-turnproc-wrap > .m-steps { padding-top: 8px; }
+
 /* 文件引用芯片（M-02 帧 A 已画）：一步一行地列出这一轮碰过的文件，
    命中态用实心圆点 + 强调底。与 `.m-tray-chip` 的区别：tray 是**动作**芯片
    （托盘里的按钮），cite 是**文件名**（只读，指“这个文件被碰过”）。 */
