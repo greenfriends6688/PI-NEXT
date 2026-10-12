@@ -24,5 +24,7 @@ export function useStreamingSelector<T>(store: StreamingStore, select: (state: S
 export const selectIsStreaming = (state: StreamingState) => state.isStreaming;
 export const selectHasStreamingContent = (state: StreamingState) => Boolean(state.streamingMessage?.content.length);
 export const selectStreamingMessage = (state: StreamingState) => state.streamingMessage;
-/** 整个流式状态（过渡：ChatWindow 仍读它；逐步搬进 StreamingReply 后不再用）。 */
+/** 整个流式状态 —— **不要再用**（fork:upstream-0.12-chat-parity PR-7c 已把最后一处
+ *  调用从 `ChatWindow` 里拆掉：它会让整个聊天树跟着每个片段重渲染）。逐片段读取只能
+ *  出现在**自己订阅 store 的子组件**里：`StreamingReply` / `StreamSpeedBadge` / `ChatMinimap`。 */
 export const selectStreamingState = (state: StreamingState) => state;

@@ -222,6 +222,19 @@
 - **接触面**：T1 · slug=`fork:chat-polish`
 
 ### PR-7 · 渲染性能（L，纯重构，最后做、可单独 revert）
+
+**PR-7c 第 ③ 步（2026-10-13 完成）** —— 逐片段的流式读取全部搬进自己订阅 store 的子组件：
+
+* `StreamingReply`（`components/ChatWindow.tsx`，`memo`）接过 `streamingProcess` /
+  `streamingTailRenders` / `liveTurnGroup`，渲染在消息列表**之后**（与原来「push 进 `rendered`
+  的最后一块」等价）；本仓特有的 fork:process-live-2 / fork:no-head-flicker 形态原样保留。
+* `StreamSpeedBadge`（新文件）自己订阅 store —— 它以前是顶层算出来当 prop 传给 `ChatInput` 的，
+  于是**输入框本体**也跟着每个片段重渲染。
+* `ChatMinimap` 改收 `streamingStore` 自己订阅，不再每片段收一个新 `streamingMessage` prop。
+* 顶层 `ChatWindow` 因此只订阅两个低频量（`selectIsStreaming` / `selectHasStreamingContent`），
+  `selectStreamingState` 已从全仓移除；锚点修正确认改为直接 `store.subscribe`（时机不变）。
+
+回归：`components/ChatWindow.streaming-subscription.test.mjs`（锁「谁在订阅」，3 条）。
 - C16 Prism 按需（`lib/prism-languages.ts` + `hooks/usePrismLanguages.ts` + `AsyncCodeHighlighter.tsx` 换入口）
 - C15 `lib/turn-views.ts` 缓存 answer/process/writtenFiles
 - C14 外部 `StreamingStore` + `hooks/useStreamingSelector.ts` + `lib/tool-call-expansion.ts`
@@ -337,11 +350,11 @@ npm run prod                         # 构建 + 起服 + 浏览器冒烟
 | PR-0 | 基线清理（+ 让 lint 门禁真正可跑：排除 vendored 资产 + memo sections，583 错 → 0 错） | ✅ |
 | PR-1 | 基础设施小项（SDK 预导入 / Tailwind .claude / PWA 名 / httpIdleTimeoutMs / SSE 图片去重 / reload 守卫） | ✅ |
 | PR-2 | 侧栏/会话（2a 删除全部/新标签页/已删链接/显示更多/等待输入/外部发现 + 2b 列表与文件树性能 + S8 文件标签 park/恢复） | ✅ |
-| PR-3 | 侧栏状态服务端化（session-ui-state，L） | ✅ 部分（3a 存储层 + API + 42 条单测；3b 客户端改写 未做） |
+| PR-3 | 侧栏状态服务端化（session-ui-state，L） | ✅（3a 存储层 + API + 42 条单测；3b 客户端：开关 / 项目置顶 / 项目名 / 项目顺序走服务端） |
 | PR-4 | 子代理 A（profile 决定 spawn 参数 + model:level 后缀 + 右侧面板查看器） | ✅ |
 | PR-5 | 子代理 B（codemode / mcp:on / session_start 工具） | ✅ |
 | PR-6 | 聊天小改（C1–C12 全部） | ✅ |
-| PR-7 | 渲染性能（Prism 按需 + turn-views 缓存） | ✅ 大部分（流式 store 未做） |
+| PR-7 | 渲染性能（Prism 按需 + turn-views 缓存 + 流式 store） | ✅ |
 | PR-8 | 文件（HTML > 256KB 预览 + 文件树按项目记住展开目录） | ✅ |
 | PR-9 | 模型（Kimi 用量 / 能力元数据 / `/model` 顺序） | ✅ |
 | PR-10 | 终端（Termux 额外键 + 软键盘输入保活） | ✅ |
@@ -351,7 +364,7 @@ npm run prod                         # 构建 + 起服 + 浏览器冒烟
 
 **验收数据**
 - `tsc --noEmit` **0 错**
-- `npm test` **3989 pass / 0 fail / 8 skipped**
+- `npm test` **4034 pass / 0 fail / 8 skipped**
 - `npm run build`（next build --webpack）**成功**
 - `npm run check:styles` / `check:icons` **绿**；`npm run lint` **0 error**（此前 583 error，见 PR-0）
 - CLI 端到端：`pi-web start → status → stop` 跑通；`lib/pi-web-cli-commands.test.mjs` 23 pass
@@ -360,6 +373,5 @@ npm run prod                         # 构建 + 起服 + 浏览器冒烟
 
 | 项 | 为什么没做 |
 | --- | --- |
-| PR-3b 客户端改写 | 服务端层已就绪（PR-3a）；要把 4 个同步 localStorage 模块改成服务端 hydrated + 异步写，单独一轮 |
-| PR-7c 流式 store | L 级纯重构（每次片段只重渲染正在生成的回复）；Prism 按需与 turn-views 缓存已落地 |
+| — | 14 个 PR 全部落地。PR-3b 只把上游 `SessionUiState` 有的 4 个字段服务端化（侧栏开关 / 项目置顶 / 项目名 / 项目顺序）；本仓独有的**项目归档**与**项目分组**按设计仍留 localStorage。 |
 

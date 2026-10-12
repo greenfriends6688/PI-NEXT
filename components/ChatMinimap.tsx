@@ -3,13 +3,16 @@
 import { useEffect, useRef, useState, useCallback, useMemo, type RefObject } from "react";
 import { isMessageGroupAnchor, splitFinalAssistantBlocks } from "@/lib/message-display";
 import type { AgentMessage, AssistantMessage, CustomMessage, TextContent, UserMessage } from "@/lib/types";
+import type { StreamingStore } from "@/lib/streaming-message";
+import { selectStreamingMessage, useStreamingSelector } from "@/hooks/useStreamingSelector";
 import { useI18n } from "@/hooks/useI18n";
 import { loadMinimapPreviewLocked, saveMinimapPreviewLocked } from "@/lib/minimap-preview-lock";
 
 
 interface Props {
   messages: AgentMessage[];
-  streamingMessage: Partial<AgentMessage> | null;
+  /** fork:upstream-0.12-chat-parity（PR-7c）—— 自己订阅流式消息；宿主不再因为每个片段重渲染。 */
+  streamingStore: StreamingStore;
   scrollContainer: RefObject<HTMLDivElement | null>;
   messageRefs: RefObject<(HTMLDivElement | null)[]>;
   onRevealHistory: () => void;
@@ -183,13 +186,14 @@ function layoutNodes(allNodes: NodeInfo[], minimapHeight: number): NodeLayout {
 
 export function ChatMinimap({
   messages,
-  streamingMessage,
+  streamingStore,
   scrollContainer,
   messageRefs,
   onRevealHistory,
   turnsBefore = 0,
 }: Props) {
   const { t } = useI18n();
+  const streamingMessage = useStreamingSelector(streamingStore, selectStreamingMessage) as Partial<AgentMessage> | null;
   const [visible, setVisible] = useState(false);
   const [allNodes, setAllNodes] = useState<NodeInfo[]>([]);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);

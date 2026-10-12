@@ -1,6 +1,6 @@
 "use client";
 import { registerAbortHandler } from "@/hooks/useKeyboardShortcuts";
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { AgentMessage, AssistantContentBlock, AssistantMessage, BashExecutionMessage, BlockingExtensionUiRequest, ExtensionStatusItem, ExtensionUiRequest, ExtensionWidgetItem, SessionInfo, SessionTreeNode, ToolResultMessage, UserMessage } from "@/lib/types";
 import { normalizeCustomPanelLines } from "@/lib/ansi";
@@ -23,7 +23,8 @@ import { MarkdownBody } from "./MarkdownBody";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import type { FileLocationTarget } from "./FileViewer";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
-import { selectStreamingState, useStreamingSelector } from "@/hooks/useStreamingSelector";
+import type { StreamingStore } from "@/lib/streaming-message";
+import { selectHasStreamingContent, selectIsStreaming, selectStreamingMessage, useStreamingSelector } from "@/hooks/useStreamingSelector";
 import { NewSessionHome } from "./fork/NewSessionHome";
 import { ProjectChip, type NewSessionTargets } from "./fork/ProjectChip";
 // fork:ui-ctxbar —— 新会话上下文条的分支项：与顶栏同一枚工作区（worktree）下拉。
@@ -685,6 +686,178 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   );
 }
 
+/**
+ * fork:upstream-0.12-chat-parity（PR-7c）—— 流式回复单独成一块，**自己订阅 store**。
+ *
+ * 以前这些值（streamingProcess / streamingTailRenders / liveTurnGroup）全在 `ChatWindow`
+ * 顶层算：store 每落一个片段，ChatWindow 就整棵重渲染一遍（消息列表元素全重建 +
+ * minimap 预览重算）。搬到这里之后，每个片段只重渲染这一块。
+ *
+ * 两条本仓特有的形态原样保留：
+ *  · fork:process-live-2 —— 正在跑的那一轮是**一条时间线**：已提交的步骤与流式块合并
+ *    在同一个过程组里，过程组当回答消息的 `prefix`。
+ *  · fork:no-head-flicker —— 「还没有正文」与「有正文」两支必须走**同一个**
+ *    `<MessageView>`（元素类型恒定，React 原地复用，不闪不重排）。
+ *
+ * 与原来逐分支等价：只有 `streamingTailRenders` 为真（在流式 + 有内容 + 有过程组）才是
+ * 上面那两支；否则只把这一轮的过程组渲染出来（原来由 `isLiveTail` 分支 push 进列表）。
+ */
+const StreamingReply = memo(function StreamingReply({
+  store,
+  messages,
+  liveUserIdx,
+  entryIds,
+  toolResultsMap,
+  messageRefs,
+  visibleRefIndexByMessage,
+  modelNames,
+  messageCwd,
+  onOpenFile,
+  onOpenSession,
+  expandedToolIds,
+  onToggleTool,
+}: {
+  store: StreamingStore;
+  messages: readonly AgentMessage[];
+  liveUserIdx: number;
+  entryIds: readonly string[];
+  toolResultsMap: Map<string, ToolResultMessage>;
+  messageRefs: RefObject<(HTMLDivElement | null)[]>;
+  visibleRefIndexByMessage: Map<number, number>;
+  modelNames: Record<string, string>;
+  messageCwd?: string;
+  onOpenFile?: (path: string) => void;
+  onOpenSession?: (id: string) => void;
+  expandedToolIds: Set<string>;
+  onToggleTool: (toolCallId: string) => void;
+}) {
+  const { t } = useI18n();
+  const isStreaming = useStreamingSelector(store, selectIsStreaming);
+  const hasStreamingContent = useStreamingSelector(store, selectHasStreamingContent);
+  const liveMessage = useStreamingSelector(store, selectStreamingMessage) as AgentMessage | undefined;
+
+  const streamingProcess = useMemo(() => {
+    if (!isStreaming || !liveMessage || liveMessage.role !== "assistant") return null;
+    const split = splitFinalAssistantBlocks(liveMessage);
+    return {
+      answerBlocks: split.answerBlocks,
+      blocks: messageToProcessContentBlocks(
+        { ...liveMessage, content: split.processBlocks } as AgentMessage,
+        { messageIndex: messages.length, phase: "process", toolResults: toolResultsMap, isStreaming: true },
+      ),
+    };
+  }, [isStreaming, liveMessage, messages.length, toolResultsMap]);
+
+  // 这一轮**已提交**的步骤（锚点之后到文件末尾），与 `isLiveTail` 分支原来那段逐字对应。
+  const committed = useMemo(() => {
+    const blocks: ProcessContentBlock[] = [];
+    let firstIdx: number | undefined;
+    if (liveUserIdx < 0) return { blocks, firstIdx };
+    for (let i = liveUserIdx + 1; i < messages.length; i++) {
+      const message = messages[i];
+      if (message.role !== "assistant" && message.role !== "custom") continue;
+      const displayBlocks = message.role === "assistant" ? getDisplayableAssistantBlocks(message) : [];
+      if (message.role === "assistant" && displayBlocks.length === 0) continue;
+      firstIdx ??= i;
+      blocks.push(...messageToProcessContentBlocks(message, {
+        messageIndex: i,
+        entryId: entryIds[i],
+        phase: "process",
+        toolResults: toolResultsMap,
+      }));
+    }
+    return { blocks, firstIdx };
+  }, [messages, liveUserIdx, entryIds, toolResultsMap]);
+
+  const liveBlocks = useMemo(
+    () => (streamingProcess ? [...committed.blocks, ...streamingProcess.blocks] : committed.blocks),
+    [committed, streamingProcess],
+  );
+  const liveToolCalls = liveBlocks.filter((block) => block.type === "toolCall").length;
+  const rangeGroup = useMemo(() => {
+    if (liveBlocks.length === 0) return null;
+    const refIdx = committed.firstIdx === undefined ? undefined : visibleRefIndexByMessage.get(committed.firstIdx);
+    return (
+      <div
+        key="process-group-live"
+        ref={refIdx === undefined ? undefined : (el) => { messageRefs.current[refIdx] = el; }}
+      >
+        <ProcessDetailsGroup
+          messageCount={Math.max(1, liveToolCalls)}
+          toolCallCount={liveToolCalls}
+          // 正在跑就一直展开，正文一开始收起来 —— 与收尾后的那一组同一条规则。
+          defaultExpanded={!streamingProcess || streamingProcess.answerBlocks.length === 0}
+          summaryText={summarizeProcessBlocks(liveBlocks, (key, params) => t(key, params), (key) => t(key))}
+          summaryParts={summarizeProcessParts(liveBlocks, (key, params) => t(key, params), (key) => t(key))}
+          // fork:proc-badge-running（用户 2026-10-02）—— 这一组就是**正在跑的那一轮**。
+          status="running"
+          t={t}
+        >
+          <ProcessGroup
+            blocks={liveBlocks}
+            isStreaming={isStreaming}
+            toolResults={toolResultsMap}
+            onOpenFile={onOpenFile ? (filePath: string) => onOpenFile(filePath) : undefined}
+            onOpenSession={onOpenSession}
+          />
+        </ProcessDetailsGroup>
+      </div>
+    );
+  }, [liveBlocks, liveToolCalls, committed, visibleRefIndexByMessage, messageRefs, streamingProcess, t, isStreaming, toolResultsMap, onOpenFile, onOpenSession]);
+
+  // 尾部不渲染的那一帧：这一轮的过程组自己就是那一块（原来由 `isLiveTail` push 进列表）。
+  if (!isStreaming || !hasStreamingContent || !streamingProcess || !liveMessage) return <>{rangeGroup}</>;
+
+  if (streamingProcess.blocks.length === 0 && !rangeGroup) {
+    // 未改动的扁平渲染：流式消息必须继续收到 `toolResultsMap`，实时 shell 输出才挂得住。
+    return <MessageView message={liveMessage} toolResults={toolResultsMap} isStreaming modelNames={modelNames} cwd={messageCwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} expandedToolIds={expandedToolIds} onToggleTool={onToggleTool} />;
+  }
+
+  let groupNode: ReactNode = rangeGroup;
+  if (!groupNode) {
+    const calls = streamingProcess.blocks.filter((block) => block.type === "toolCall").length;
+    groupNode = (
+      <div key="process-group-live">
+        <ProcessDetailsGroup
+          messageCount={Math.max(1, calls)}
+          toolCallCount={calls}
+          defaultExpanded={streamingProcess.answerBlocks.length === 0}
+          summaryText={summarizeProcessBlocks(streamingProcess.blocks, (key, params) => t(key, params), (key) => t(key))}
+          summaryParts={summarizeProcessParts(streamingProcess.blocks, (key, params) => t(key, params), (key) => t(key))}
+          status="running"
+          t={t}
+        >
+          <ProcessGroup
+            blocks={streamingProcess.blocks}
+            isStreaming
+            toolResults={toolResultsMap}
+            onOpenFile={onOpenFile ? (filePath: string) => onOpenFile(filePath) : undefined}
+            onOpenSession={onOpenSession}
+          />
+        </ProcessDetailsGroup>
+      </div>
+    );
+  }
+  /* fork:no-head-flicker（2026-10-06 用户实拍「一会儿有一会儿没有，还会闪现」）
+     —— 两支合一：**始终**走 `<MessageView>`，`answerBlocks` 为空时正文那半自然是空的，
+     `prefix={groupNode}` 保证过程组照旧挂在身份行之后（`MessageView` 对 `prefix` 有豁免：
+     挂了它就绝不返回 null）。元素类型与位置恒定，React 原地复用同一个 DOM。 */
+  return (
+    <MessageView
+      message={{ ...liveMessage, content: streamingProcess.answerBlocks } as AgentMessage}
+      toolResults={toolResultsMap}
+      isStreaming
+      modelNames={modelNames}
+      cwd={messageCwd}
+      onOpenFile={onOpenFile}
+      onOpenSession={onOpenSession}
+      expandedToolIds={expandedToolIds}
+      onToggleTool={onToggleTool}
+      prefix={groupNode}
+    />
+  );
+});
+
 export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, reloadToken, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onOpenSettingsSection, onContextUsageChange, onExtensionStatusChange, actionPanel, onOpenFile, onOpenSession, onOpenSkill, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, holdAudio, onEmptyChange, }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
@@ -799,7 +972,6 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
 
   // fork:upstream-0.12-chat-parity（PR-7c）—— 流式状态从 store 读（目前整块订阅，
   // 行为与之前一致；下一步把逐片段渲染收回 StreamingReply 子组件）。
-  const streamState = useStreamingSelector(streamingStore, selectStreamingState);
 
   // fork:upstream-0.12-audio-parity —— 运行期间保持音频上下文运行，锁屏手机上完成音也能响（#1157）。
   useEffect(() => {
@@ -1599,7 +1771,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
 
   const visibleMessages = messages.filter((m) => isMessageGroupAnchor(m) || m.role === "assistant");
   // Stable Map identity: `messages` doesn't change during streaming updates
-  // (the streaming message lives in streamState), so memoized MessageViews
+  // (the streaming message lives in the streaming store), so memoized MessageViews
   // skip re-rendering on every message_update event. An inline `new Map()`
   // here used to defeat MessageView's memo() on each streamed chunk.
   const toolResultsMap = useMemo(() => {
@@ -1634,7 +1806,9 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     setVisibleCount((current) => Math.max(current, messages.length * 2));
   }, [messages.length]);
 
-  const isEmptyNew = isNew && messages.length === 0 && !streamState.isStreaming && !sessionBusy;
+  // fork:upstream-0.12-chat-parity（PR-7c）—— 顶层只订阅低频量。
+  const isStreaming = useStreamingSelector(streamingStore, selectIsStreaming);
+  const isEmptyNew = isNew && messages.length === 0 && !isStreaming && !sessionBusy;
   // fork:zc-17 — 零会话首屏引导：新会话页 + 已知项目为空（= 侧栏一个会话都没有）才出现。
   // fork:no-guide-flash —— 必须等会话目录**加载过一次**（`catalogLoaded`）再判空，
   // 否则「还在加载」会被当成「没有会话」，引导块先弹出来、数据到了又消失（用户实拍闪现）。
@@ -1883,59 +2057,13 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // walks the message list and the transcript re-renders on every streamed chunk.
   const todoSummary = useMemo(() => extractTodoState(messages), [messages]);
   const hasChatMinimap = !isEmptyNew && !isMobile && !pendingScrollRestore;
-  const hasStreamingContent = Boolean(streamState.streamingMessage?.content.length);
-  // fork:process-live-2 — the in-flight message's process blocks, converted once.
-  // The running turn's timeline is assembled from two sources (the committed
-  // messages of the turn and this partial one), so both call sites read the same
-  // memo instead of converting the streaming message twice.
-  const streamingProcess = useMemo(() => {
-    const live = streamState.streamingMessage as AgentMessage | undefined;
-    if (!streamState.isStreaming || !live || live.role !== "assistant") return null;
-    const split = splitFinalAssistantBlocks(live);
-    return {
-      answerBlocks: split.answerBlocks,
-      blocks: messageToProcessContentBlocks(
-        { ...live, content: split.processBlocks } as AgentMessage,
-        { messageIndex: messages.length, phase: "process", toolResults: toolResultsMap, isStreaming: true },
-      ),
-    };
-  }, [streamState.isStreaming, streamState.streamingMessage, messages.length, toolResultsMap]);
-  // fork:composer-speed —— 输入区那枚「实时速度」徽标的数据源。
-  //
-  // 为什么不能直接用 usage：pi 只在消息**收尾**时把 usage 落到 result 上
-  // （agent-loop.js:658 `finalized.result.usage`），流式中途 streamingMessage.usage
-  // 恒为空，所以真 token 数在整个流式期间拿不到。于是按已流出文本估算：
-  // CJK 一字≈1 token，其余四字符≈1 token（混合中英的实测误差 ~±20%）。
-  // 速率 = 估算 token ÷ 首字节以来的秒数，随每个 delta 重算（不额外起 interval）。
-  const streamingAnswerText = useMemo(() => {    const live = streamState.streamingMessage as AgentMessage | undefined;
-    if (!streamState.isStreaming || !live || live.role !== "assistant") return "";
-    let text = "";
-    for (const block of streamingProcess?.answerBlocks ?? live.content) {
-      if (block.type === "text") text += block.text;
-    }
-    return text;
-  }, [streamState.isStreaming, streamState.streamingMessage, streamingProcess]);
-  // fork:turn-head-order —— 底部那段（流式回答）**这一帧**会不会渲染。过程组要么当它的
-  // `prefix`，要么就地自己渲染 —— 判据与下面那段 JSX 的守卫逐字相同，两处共用一个值，
-  // 否则会出现「组被存起来没人取」的帧（组凭空消失）。
-  const streamingTailRenders = Boolean(streamState.isStreaming && hasStreamingContent && streamState.streamingMessage && streamingProcess);
-  const streamSpeed = (() => {
-    if (!streamState.isStreaming) return null;
-    const chars = streamingAnswerText.length;
-    // fork:upstream-0.12-chat-parity —— 测量起点按「这条回复」（provider/model/请求时间戳）
-    // 存在视图外：切会话会让聊天重挂，重新计时会把已流出的每个 token 除以半秒（#877）。
-    const key = streamState.streamingMessage ? streamRateKey(streamState.streamingMessage as { provider?: string; model?: string; timestamp?: number }) : null;
-    const now = performance.now();
-    const live = streamRateStart(key, chars, now);
-    const seconds = (now - live.at) / 1000;
-    if (chars === 0 || seconds < 0.5) return null;
-    const cjk = (streamingAnswerText.match(/[\u3000-\u9fff]/g) ?? []).length;
-    return Math.round((cjk + (chars - cjk) / 4) / seconds);
-  })();
-  // fork:turn-head-order —— 那一组过程卡本身，由 `isLiveTail` 分支存进来。它不作为
-  // 独立块渲染，而是当**回答消息的 `prefix`**（身份行之后、正文之前，画板 D-03 帧 A 的
-  // 顺序）；为 null 表示尾部那段不渲染，组已经在自己的位置上。
-  let liveTurnGroup: ReactNode = null;
+  // fork:upstream-0.12-chat-parity（PR-7c）—— 顶层只订阅**低频**量：流式消息本身交给
+  // <StreamingReply> 自己订阅，否则每落一个片段 ChatWindow 就整棵重渲染一遍
+  // （消息列表元素全重建 + minimap 预览重算）。
+  const hasStreamingContent = useStreamingSelector(streamingStore, selectHasStreamingContent);
+  // 下面那个 IIFE 里算出、尾部那一块（`<StreamingReply>`）要用，所以带出作用域。
+  let liveTurnAnchorIdx = -1;
+  let visibleRefIndexByMessage: Map<number, number> = new Map();
   const messageCwd = session?.cwd ?? newSessionCwd ?? undefined;
   const promptAnchorSpacerRef = useRef<HTMLDivElement | null>(null);
   const promptAnchorSpacerHeightRef = useRef(0);
@@ -2031,9 +2159,12 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     scrollUserMsgToTop,
   ]);
 
+  // fork:upstream-0.12-chat-parity（PR-7c）—— 改成直接订阅 store：修正锚点的时机
+  // 不变（挂载后 + 每次 store 变化），但它不再让 ChatWindow 跟着重渲染。
   useLayoutEffect(() => {
     promptAnchorUpdateRef.current?.();
-  }, [streamState.streamingMessage]);
+    return streamingStore.subscribe(() => promptAnchorUpdateRef.current?.());
+  }, [streamingStore]);
 
   const availableThinkingLevels = displayModelValue
     ? (modelThinkingLevels[`${displayModelValue.provider}:${displayModelValue.modelId}`] ?? null)
@@ -2119,7 +2250,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       onCompact={session || isNew ? handleCompact : undefined}
       onAbortCompaction={handleAbortCompaction}
       isCompacting={isCompacting}
-      streamSpeed={streamSpeed}
+      streamStore={streamingStore}
       compactError={compactError}
       compactResult={compactResult}
       toolPreset={toolPreset}
@@ -2364,8 +2495,11 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               for (let i = messages.length - 1; i >= 0; i--) {
                 if (isMessageGroupAnchor(messages[i])) { lastAnchorIdx = i; break; }
               }
+              // fork:upstream-0.12-chat-parity（PR-7c）—— 带出 IIFE：列表之后的
+              // <StreamingReply> 要知道这一轮从哪个锚点开始。
+              liveTurnAnchorIdx = lastAnchorIdx;
 
-              const visibleRefIndexByMessage = new Map<number, number>();
+              visibleRefIndexByMessage = new Map<number, number>();
               let refIdx = 0;
               messages.forEach((msg, idx) => {
                 if (isMessageGroupAnchor(msg) || msg.role === "assistant") {
@@ -2423,7 +2557,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                     if (r === "assistant") { showTimestamp = false; break; }
                   }
                   // Hide on the currently-streaming tail (the streaming bubble owns the live timestamp)
-                  if (showTimestamp && streamState.isStreaming && idx === messages.length - 1) {
+                  if (showTimestamp && isStreaming && idx === messages.length - 1) {
                     showTimestamp = false;
                   }
                 }
@@ -2514,69 +2648,12 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 // to `messages` and only came back once the turn finished — the "it
                 // flips back to the flat list" report. The whole running turn is now one
                 // timeline: its committed steps and the in-flight blocks share a group.
-                const isLiveTail = (sessionBusy || streamState.isStreaming) && endIdx === messages.length && userIdx === lastAnchorIdx;
+                const isLiveTail = (sessionBusy || isStreaming) && endIdx === messages.length && userIdx === lastAnchorIdx;
                 if (isLiveTail) {
+                  // fork:upstream-0.12-chat-parity（PR-7c）—— 锚点行照旧在这里渲染；
+                  // 这一轮的过程组与流式回答交给列表之后的 <StreamingReply>（它自己订阅
+                  // store）。位置与原来「作为最后一块 push 进 rendered」等价。
                   rendered.push(renderMessage(userIdx));
-
-                  const liveBlocks: ProcessContentBlock[] = [];
-                  let liveToolCalls = 0;
-                  let liveRefIdx: number | undefined;
-                  for (let processIdx = userIdx + 1; processIdx < endIdx; processIdx++) {
-                    const processMessage = messages[processIdx];
-                    if (processMessage.role !== "assistant" && processMessage.role !== "custom") continue;
-                    const blocks = processMessage.role === "assistant"
-                      ? getDisplayableAssistantBlocks(processMessage)
-                      : [];
-                    if (processMessage.role === "assistant" && blocks.length === 0) continue;
-                    liveRefIdx ??= visibleRefIndexByMessage.get(processIdx);
-                    if (processMessage.role === "assistant") liveToolCalls += countToolCallBlocks(blocks);
-                    liveBlocks.push(...messageToProcessContentBlocks(processMessage, {
-                      messageIndex: processIdx,
-                      entryId: entryIds[processIdx],
-                      phase: "process",
-                      toolResults: toolResultsMap,
-                    }));
-                  }
-                  if (streamingProcess) {
-                    liveBlocks.push(...streamingProcess.blocks);
-                    liveToolCalls += streamingProcess.blocks.filter((block) => block.type === "toolCall").length;
-                  }
-
-                  if (liveBlocks.length > 0) {
-                    const liveRefIndex = liveRefIdx;
-                    const liveGroupNode = (
-                      <div
-                        key="process-group-live"
-                        ref={liveRefIndex === undefined ? undefined : (el) => { messageRefs.current[liveRefIndex] = el; }}
-                      >
-                        <ProcessDetailsGroup
-                          messageCount={Math.max(1, liveToolCalls)}
-                          toolCallCount={liveToolCalls}
-                          // Open while the model is still working, collapse once the answer
-                          // starts — the same rule the finalized group uses.
-                          defaultExpanded={!streamingProcess || streamingProcess.answerBlocks.length === 0}
-                          summaryText={summarizeProcessBlocks(liveBlocks, (key, params) => t(key, params), (key) => t(key))}
-                          summaryParts={summarizeProcessParts(liveBlocks, (key, params) => t(key, params), (key) => t(key))}
-                          // fork:proc-badge-running（用户 2026-10-02）—— 这一组就是**正在跑
-                          // 的那一轮**（`isLiveTail` 为真才走到这里，判据见上：`sessionBusy`
-                          // 或流式中 + 它是尾巴）。徽标原来没接 `status`，默认落到「已完成」，
-                          // 于是用户看着一条在跑的过程抬头写着「已完成」。
-                          status="running"
-                          t={t}
-                        >
-                          <ProcessGroup
-                            blocks={liveBlocks}
-                            isStreaming={streamState.isStreaming}
-                            toolResults={toolResultsMap}
-                            onOpenFile={onOpenFile ? (filePath: string) => onOpenFile(filePath) : undefined}
-                            onOpenSession={onOpenSession}
-                          />
-                        </ProcessDetailsGroup>
-                      </div>
-                    );
-                    if (streamingTailRenders) liveTurnGroup = liveGroupNode;
-                    else rendered.push(liveGroupNode);
-                  }
                   idx = endIdx;
                   continue;
                 }
@@ -2659,7 +2736,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                         summaryText={groupedSummary}
                         summaryParts={summarizeProcessParts(groupedProcessBlocks, (key, params) => t(key, params), (key) => t(key))}
                         // fork:proc-badge-running（用户 2026-10-02）—— 徽标原来只看
-                        // `streamState.isStreaming`，而它在「模型发完一条消息 → 下一条
+                        // `isStreaming`，而它在「模型发完一条消息 → 下一条
                         // 还没来」的窗口里是 false（长命令执行期间尤其如此）：于是正在跑
                         // 的那一轮抬头恒显「已完成」，用户问「怎么没有运行中」。
                         // 两个信号单用都不够：`sessionBusy` 会把**上一轮**也点亮；
@@ -2675,7 +2752,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                       >
                         <ProcessGroup
                           blocks={groupedProcessBlocks}
-                          isStreaming={streamState.isStreaming && finalAssistantIdx === messages.length - 1}
+                          isStreaming={isStreaming && finalAssistantIdx === messages.length - 1}
                           toolResults={toolResultsMap}
                           onOpenFile={onOpenFile ? (filePath: string) => onOpenFile(filePath) : undefined}
                           onOpenSession={onOpenSession}
@@ -2741,86 +2818,21 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 </>
               );
             })()}
-            {streamingTailRenders && (
-              (() => {
-                // fork:process-live — the in-flight message used to render through the flat
-                // MessageView, so switching the process-display setting mid-run changed
-                // nothing until the turn finished and the finalized message reached the
-                // grouped path below. Build the same group from the streaming message and
-                // keep the flat renderer only for `legacy`.
-                //
-                // fork:process-live-2 — when the running turn's timeline has already been
-                // emitted above (`liveTurnGroup`), these process blocks are part of it
-                // and only the answer half is still owed here.
-                const live = streamState.streamingMessage as AgentMessage;
-                if (!streamingProcess || (streamingProcess.blocks.length === 0 && !liveTurnGroup)) {
-                  // Unchanged flat renderer (and unchanged expression): the streaming
-                  // message must keep receiving `toolResultsMap` so live shell output
-                  // stays attached to its tool call.
-                  return <MessageView message={streamState.streamingMessage as AgentMessage} toolResults={toolResultsMap} isStreaming modelNames={modelNames} cwd={messageCwd} onOpenFile={onOpenFile} onOpenSession={onOpenSession} expandedToolIds={expandedToolIds} onToggleTool={handleToggleTool} />;
-                }
-                // fork:turn-head-order —— 过程组当回答消息的 `prefix`（身份行之后），
-                // 还没有回答可挂时就自己渲染出去 —— 两种情况都只出一块。
-                // fork:turn-head-first（用户 2026-10-05）—— 「还没有回答」的那段里
-                // **也把身份行画出来**：整轮只有它时（工具在跑、等首条正文），
-                // 用户看到的是一张无主的卡片，「PI NEXT」要等正文到了才出现 ——
-                // 读成「最后才出现」。这一支仍然不出 MessageView（正文没有，消息壳
-                // 也没有正文可渲染），所以身份行按它自己的组件画一份，外层仍用
-                // `.d-msg-ai` / `.m-msg-ai` 拿到与 MessageView 一样的 12px 间距。
-                let groupNode: ReactNode = liveTurnGroup;
-                if (!groupNode) {
-                  const liveToolCalls = streamingProcess.blocks.filter((block) => block.type === "toolCall").length;
-                  groupNode = (
-                    <div key="process-group-live">
-                      <ProcessDetailsGroup
-                        messageCount={Math.max(1, liveToolCalls)}
-                        toolCallCount={liveToolCalls}
-                        // Open while the model is still working, collapse once the answer
-                        // starts — the same rule the finalized group uses.
-                        defaultExpanded={streamingProcess.answerBlocks.length === 0}
-                        summaryText={summarizeProcessBlocks(streamingProcess.blocks, (key, params) => t(key, params), (key) => t(key))}
-                        summaryParts={summarizeProcessParts(streamingProcess.blocks, (key, params) => t(key, params), (key) => t(key))}
-                        status={streamState.isStreaming ? "running" : "done"}
-                        t={t}
-                      >
-                        <ProcessGroup
-                          blocks={streamingProcess.blocks}
-                          isStreaming
-                          toolResults={toolResultsMap}
-                          onOpenFile={onOpenFile ? (filePath: string) => onOpenFile(filePath) : undefined}
-                          onOpenSession={onOpenSession}
-                        />
-                      </ProcessDetailsGroup>
-                    </div>
-                  );
-                }
-                /* fork:no-head-flicker（2026-10-06 用户实拍「一会儿有一会儿没有，还会闪现」）
-                   —— 这里原本有一个 `answerBlocks.length === 0` 的提前返回，
-                   自己拿一个固定 key 的 `<div>` + `TurnIdentityHead` 画身份行；
-                   正文一到就改走下面的 `<MessageView>`（它自己再画一个身份行）。
-                   两支的**元素类型不同**（`div` vs 组件）、key 也不同，React 不会原地
-                   复用 —— 旧节点整个拆掉、新节点重建：那枚 `<img src="/pi-next-logo.png">`
-                   重新解码、`.m-msg-ai` 重排，于是「空正文 → 有正文」每切一次就闪一次。
-                   现在两支合一：**始终**走 `<MessageView>`，`answerBlocks` 为空时正文那半
-                   自然是空的，而 `prefix={groupNode}` 保证过程组照旧挂在身份行之后
-                   （`MessageView` 对 `prefix` 有豁免：挂了它就绝不返回 null）。
-                   元素类型与位置恒定，React 原地复用同一个 DOM —— 不闪、也不重排。 */
-                return (
-                  <MessageView
-                    message={{ ...live, content: streamingProcess.answerBlocks } as AgentMessage}
-                    toolResults={toolResultsMap}
-                    isStreaming
-                    modelNames={modelNames}
-                    cwd={messageCwd}
-                    onOpenFile={onOpenFile}
-                    onOpenSession={onOpenSession}
-                    expandedToolIds={expandedToolIds}
-                    onToggleTool={handleToggleTool}
-                    prefix={groupNode}
-                  />
-                );
-              })()
-            )}
+            <StreamingReply
+              store={streamingStore}
+              messages={messages}
+              liveUserIdx={liveTurnAnchorIdx}
+              entryIds={entryIds}
+              toolResultsMap={toolResultsMap}
+              messageRefs={messageRefs}
+              visibleRefIndexByMessage={visibleRefIndexByMessage}
+              modelNames={modelNames}
+              messageCwd={messageCwd}
+              onOpenFile={onOpenFile}
+              onOpenSession={onOpenSession}
+              expandedToolIds={expandedToolIds}
+              onToggleTool={handleToggleTool}
+            />
 
             {agentRunning && !hasStreamingContent && (agentPhase || isCompacting) && (
               // fork:zm-07 — 垂直间距放在 PhaseRoll 自己身上，不放在这层 wrapper 上：
@@ -3046,7 +3058,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       {hasChatMinimap && (
         <ChatMinimap
           messages={messages}
-          streamingMessage={streamState.streamingMessage}
+          streamingStore={streamingStore}
           scrollContainer={scrollContainerRef}
           messageRefs={messageRefs}
           turnsBefore={earlierTurnCount}

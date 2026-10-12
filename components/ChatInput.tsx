@@ -7,6 +7,7 @@ import type { TextContent, UserMessage } from "@/lib/types";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 // fork:ui-stats-ring — 环浮窗的完整会话明细（原 composer 下方的统计长条内容）。
 import { SessionStatsDetails } from "./SessionStatsBar";
+import { StreamSpeedBadge } from "./StreamSpeedBadge";
 import {
   clearDraft,
   getDraft,
@@ -155,7 +156,8 @@ interface Props {
   /** fork:composer-speed — AI 响应期间（流式）显示的实时输出速度（估算 token/秒），
    *  空 = 不显示；停流即隐。数据在 ChatWindow 算（见那里的注释：pi 的 usage 只在
    *  消息收尾才有，所以流式中途只能按已流出的文本估算）。 */
-  streamSpeed?: number | null;
+  /** fork:upstream-0.12-chat-parity（PR-7c）—— 速度徽标自己订阅 store，输入框不跟着片段重渲染。 */
+  streamStore?: import("@/lib/streaming-message").StreamingStore;
   compactError?: string | null;
   compactResult?: CompactResultInfo | null;
   toolPreset?: ToolPreset;
@@ -1133,7 +1135,7 @@ export function isRunEndStrayClick(detail: number, msSinceRunEnd: number): boole
 }
 
 export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({  onSend, onAbort, onFollowUp, isStreaming, model, isAutoModelSelection, modelNames, modelList, modelError, modelScopeWarnings, onModelChange, modelSwitching, pendingModel, onCancelPendingModel,
-  onCompact, onAbortCompaction, isCompacting, streamSpeed, compactError, compactResult, toolPreset, onToolPresetChange,
+  onCompact, onAbortCompaction, isCompacting, streamStore, compactError, compactResult, toolPreset, onToolPresetChange,
   permissionMode, onPermissionModeChange,
   thinkingLevel, onThinkingLevelChange, availableThinkingLevels, thinkingLevelMap,
   retryInfo, queuedMessages, inputHistory = [], onRecallQueue, todoSummary, currentSessionId,
@@ -5670,12 +5672,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               alignItems: "center",
               gap: narrowControls ? 1 : 2,
             }}>
-            {streamSpeed != null && streamSpeed > 0 && (
-              <span className="d-badge" title={t("chat.streamSpeed")} role="status" aria-live="off">
-                <i data-ico="gauge" data-size="11"></i>
-                {streamSpeed} t/s
-              </span>
-            )}
+            {streamStore && <StreamSpeedBadge store={streamStore} />}
             {contextRing}
 
             {/* 用户 2026-10-07 裁定：完成提示音那一枚**从输入卡去掉** —— 它和

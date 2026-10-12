@@ -358,8 +358,8 @@ test("delegates event stream readiness and hides an empty agent phase", () => {
   assert.match(source, /shouldMaintain: \(sid\)[\s\S]*?sessionIdRef\.current === sid/);
   assert.match(ensureSource, /eventConnectionRef\.current!\.ensureConnected\(sid\)/);
   assert.match(ensureSource, /eventConnectionRef\.current!\.maintain\(sid\)/);
-  assert.match(chatWindowSource, /const hasStreamingContent = Boolean\(streamState\.streamingMessage\?\.content\.length\)/);
-  assert.match(chatWindowSource, /streamState\.isStreaming && hasStreamingContent && streamState\.streamingMessage/);
+  assert.match(chatWindowSource, /const hasStreamingContent = useStreamingSelector\(streamingStore, selectHasStreamingContent\)/);
+  assert.match(chatWindowSource, /!isStreaming \|\| !hasStreamingContent \|\| !streamingProcess/);
   // fork:zm-07 — 相位行现在由 PhaseRoll 渲染。契约不变（没相位就不占位），
   // 但拆成了两半：挂载点只负责 agentRunning && !hasStreamingContent，
   // “空相位不渲染”由 PhaseRoll 自己的 null 分支保证；同时外层 wrapper 不得带 padding，
@@ -513,7 +513,7 @@ test("reconnects active shell output to its streaming tool call", () => {
   assert.match(updateSource, /content,/);
   assert.match(endSource, /setActiveToolResults[\s\S]*next\.delete\(id\)/);
   assert.match(chatWindowSource, /const map = new Map\(activeToolResults\)/);
-  assert.match(chatWindowSource, /<MessageView message=\{streamState\.streamingMessage as AgentMessage\} toolResults=\{toolResultsMap\}/);
+  assert.match(chatWindowSource, /<MessageView message=\{liveMessage\} toolResults=\{toolResultsMap\}/);
 });
 
 test("plays the enabled sound once for each extension dialog", () => {
@@ -740,7 +740,7 @@ test("keeps prompt anchor measurement outside the React update cycle", () => {
   assert.match(anchorLifecycleEffectSource, /if \(disposed \|\| promptAnchorMeasureFrameRef\.current !== null\) return/);
   assert.match(anchorLifecycleEffectSource, /promptAnchorMeasureFrameRef\.current = requestAnimationFrame\(\(\) => \{\s*promptAnchorMeasureFrameRef\.current = null;\s*updatePromptAnchorSpacer\(\)/);
   assert.match(anchorLifecycleEffectSource, /disposed = true;[\s\S]*?promptAnchorUpdateRef\.current === updatePromptAnchorSpacer[\s\S]*?cancelAnimationFrame\(promptAnchorMeasureFrameRef\.current\)/);
-  assert.match(anchorSyncEffectSource, /promptAnchorUpdateRef\.current\?\.\(\);\s*\}, \[streamState\.streamingMessage\]\)/);
+  assert.match(anchorSyncEffectSource, /promptAnchorUpdateRef\.current\?\.\(\);\s*return streamingStore\.subscribe\([\s\S]*?\}, \[streamingStore\]\)/);
   // fork:design-components —— 消息列挂 .pw-col 后属性分行写，断言同步跟上：
   // 要守的是「被测量的那个元素就是带内联 style 的消息列本体」。
   assert.match(chatWindowSource, /<div\s+ref=\{messageContentRef\}[\s\S]*?style=\{\{/);

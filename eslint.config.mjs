@@ -12,9 +12,10 @@ const eslintConfig = [
     // 不属于本项目源码；漏掉它们会让 `npm run lint` 在别人的素材上炸出一堆 TS 规则报错。
     ignores: ["release/**", "参考项目/**", "pi参考项目/**", "家里电脑跑的/**", "设计风格/**", ".playwright-mcp/**",
       // fork:lint-gate —— 第三方 vendored 资产，不是本项目源码：office 预览器（public/office，
-      // 559 条报错）、Motion 动效（design/v5/assets/vendor）、本地 UI kit（design/ui-components-main）。
+      // 559 条报错）、Motion 动效（design/v5 与 design/v6 的 assets/vendor ——
+      // v6 是 2026-10-12 起的并行副本，那份 Motion 是同一份）、本地 UI kit（design/ui-components-main）。
       // 不排除它们会让 `npm run lint` 永远红着，门禁形同虚设。
-      "public/office/**", "design/v5/assets/vendor/**", "design/ui-components-main/**",
+      "public/office/**", "design/v5/assets/vendor/**", "design/v6/assets/vendor/**", "design/ui-components-main/**",
       // docs/**/evidence/ 放的是**上游仓库原样拷贝**的产物（上游自己的
       // zcode-*.js 打包文件），不是本项目源码：它们是 minified 的第三方代码，
       // 过 TS/React 规则必然报解析错。归档证据不该被 lint。
