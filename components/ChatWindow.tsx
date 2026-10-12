@@ -61,6 +61,7 @@ import { streamRateKey, streamRateStart } from "@/lib/stream-token-rate";
 import { computeTurnStats } from "@/lib/turn-stats";
 import {
   captureScrollDistance,
+  getNextVisibleCount,
   getPromptAnchorSpacerHeight,
   getVisibleRenderWindow,
   isScrollAtTail,
@@ -1053,7 +1054,9 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // Only render the last N messages initially. When the user scrolls to the
   // top, load another page while keeping the scroll position stable.
   const [visibleCount, setVisibleCount] = useState(VISIBLE_PAGE_SIZE);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  // fork:upstream-0.12-chat-parity —— state 而非 ref：哨兵可能在别的不变时出现
+  //（一个完成的回合重组出更多行），那时也要给它接上 observer（#896）。
+  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
   const messageContentRef = useRef<HTMLDivElement | null>(null);
   const prevScrollDistanceRef = useRef<number | null>(null);
   // fork:zm-03 — 滚动跟随权 + prepend 锚点（纯逻辑见 lib/scroll-follow.ts）。
@@ -1304,19 +1307,25 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // IntersectionObserver on the sentinel div at the top of the message list.
   // When it becomes visible, load the next page of older messages.
   useEffect(() => {
-    const sentinel = sentinelRef.current;
     const container = scrollContainerRef.current;
     if (!sentinel || !container) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries[0]?.isIntersecting) return;
+        // fork:upstream-0.12-chat-parity —— 全都加载了但哨兵仍可见：消息渲染成的行数比
+        // 窗口多（一条回答和它的思考是两行），于是加宽窗口（#896）。
+        if (!hasEarlierMessages) {
+          prevScrollDistanceRef.current = captureScrollDistance(container.scrollHeight, container.scrollTop);
+          setVisibleCount((current) => getNextVisibleCount(current));
+          return;
+        }
         void loadOlderPage();
       },
       { root: container, threshold: 0 }
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [loadOlderPage, scrollContainerRef]);
+  }, [sentinel, visibleCount, hasEarlierMessages, loadOlderPage, scrollContainerRef]);
 
   // Keep the rendered window at least as large as what's loaded, so prepended
   // (older) pages stay visible instead of being sliced off the top.
@@ -2727,7 +2736,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               return (
                 <>
                   {hasMore && (
-                     <div ref={sentinelRef} className="py-3 text-center text-xs" style={{ color: "var(--text-muted)" }}>
+                     <div ref={setSentinel} className="py-3 text-center text-xs" style={{ color: "var(--text-muted)" }}>
                        {t("chat.loadEarlier")}
                     </div>
                   )}

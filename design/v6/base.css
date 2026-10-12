@@ -350,6 +350,32 @@
   --nx-glass-inner: 0 0 0 0 transparent;
 }
 
+/* ── 14 · V6 毛玻璃（fork:v6-glass · 2026-10-12，配方借 deepseek-harness）────────
+ * V5 的材质是 Apple/kit 的标准材质（上一节的 6px 锚点 + rim），而且**只在用户自己
+ * 开了壁纸时才透得出内容** —— 默认态页面底是实色 `--nx-canvas`，毛玻璃根本不存在。
+ * V6 把这件事反过来：**页面底换成一层色场**（`--nx-canvas-field`，形态值在各自
+ * tokens.css，因为明暗的调子不同），壳面在其上半透明 + blur，开箱即玻璃。
+ *
+ * 模糊半径与饱和度是**角色**（两端同值、明暗同值），配方逐字取 deepseek-harness：
+ *     --dsw-menu-backdrop-filter: blur(40px) saturate(150%)
+ *     （packages/client/ui-theme/src/styles/gradient-shadow-text.css:20）
+ * 抬升面同口径：**0.5px 发丝描边当第一层**，再叠两层极轻柔影（`--dsw-elevation-panel`
+ * / `-prominent`，design-platform.css 一带），抬升面自己 `border: 0` —— 分层靠描边 +
+ * 柔光，不靠 1px 边框 + 硬影。这条与 v5 的实质差别登记在 `DIVERGENCE.md` §G。
+ *
+ * **§Z 不变式（V5 原样继承）：弹层不许挂 backdrop-filter。** 它会让元素成为
+ * `position: fixed` 后代的**包含块**，浮窗被裁到视口外。所以：
+ *   · 浮层（`.d-pop` / `.d-pop-float` / `.m-pop-float` / `.d-modal-box` …）
+ *     只吃 94% 不透明填充 + elevation —— deepseek 自己在 macOS 上也是这个口径
+ *     （`--dsw-specific-menu` 约 94% 不透明）；
+ *   · 壳面（`.d-side` / `.d-rail` / `.d-topbar` / `.d-composer` / `.m-drawer`）
+ *     才挂 blur。板内所有 `.d-pop*` 都是 absolute（`.d-frame` 兜底那条），锚点
+ *     `.d-anchor` / 已 `position: relative` 的 `.d-topbar` 排在壳面与浮层之间，
+ *     所以壳面成为包含块不改变任何浮层的定位 —— 已在 D-01/D-02/D-04 核对过。
+ */
+--nx-frost-blur: 40px;    /* deepseek 菜单材质：blur(40px) */
+--nx-frost-sat: 1.5;      /* deepseek 菜单材质：saturate(150%) */
+
 /* ── 共享结构原子：两端都用，定义一次 ─────────────────────────────────────── */
 .nx-grow  { flex: 1 1 auto; min-width: 0; }
 .nx-shrink-0 { flex: 0 0 auto; }
