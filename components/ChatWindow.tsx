@@ -57,6 +57,7 @@ import type { SessionStatsInfo } from "@/lib/pi-types";
 import type { AppUpdateResponse } from "@/lib/api-types";
 import type { ToolEntry } from "@/lib/tool-presets";
 import { findChatScrollAnchor, type ChatScrollPosition } from "@/lib/chat-scroll-position";
+import { streamRateKey, streamRateStart } from "@/lib/stream-token-rate";
 import { computeTurnStats } from "@/lib/turn-stats";
 import {
   captureScrollDistance,
@@ -1909,20 +1910,15 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // `prefix`，要么就地自己渲染 —— 判据与下面那段 JSX 的守卫逐字相同，两处共用一个值，
   // 否则会出现「组被存起来没人取」的帧（组凭空消失）。
   const streamingTailRenders = Boolean(streamState.isStreaming && hasStreamingContent && streamState.streamingMessage && streamingProcess);
-  const streamSpeedRef = useRef<{ startedAt: number; chars: number } | null>(null);
   const streamSpeed = (() => {
-    if (!streamState.isStreaming) {
-      streamSpeedRef.current = null;
-      return null;
-    }
+    if (!streamState.isStreaming) return null;
     const chars = streamingAnswerText.length;
-    // 文本变短 = 新的一条助手消息（流式被重置），重新计时。
-    if (!streamSpeedRef.current || chars < streamSpeedRef.current.chars) {
-      streamSpeedRef.current = { startedAt: performance.now(), chars };
-    }
-    const live = streamSpeedRef.current;
-    live.chars = chars;
-    const seconds = (performance.now() - live.startedAt) / 1000;
+    // fork:upstream-0.12-chat-parity —— 测量起点按「这条回复」（provider/model/请求时间戳）
+    // 存在视图外：切会话会让聊天重挂，重新计时会把已流出的每个 token 除以半秒（#877）。
+    const key = streamState.streamingMessage ? streamRateKey(streamState.streamingMessage as { provider?: string; model?: string; timestamp?: number }) : null;
+    const now = performance.now();
+    const live = streamRateStart(key, chars, now);
+    const seconds = (now - live.at) / 1000;
     if (chars === 0 || seconds < 0.5) return null;
     const cjk = (streamingAnswerText.match(/[\u3000-\u9fff]/g) ?? []).length;
     return Math.round((cjk + (chars - cjk) / 4) / seconds);
