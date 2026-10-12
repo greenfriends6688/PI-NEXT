@@ -149,6 +149,10 @@ test("fork:design-components — 缩放器工具条用 lucide data-ico，不再�
 });
 
 test("fork:v5-landing — 高亮 token 映射到画板 D-03b 的 .tok-* 分层", async () => {
+  // fork:upstream-0.12-perf-parity —— 语言现在按需加载（#1183）：先等它们注册好，
+  // 组件才会走高亮那一支（未就绪时按纯文本渲染）。
+  const { loadPrismLanguages } = await jiti.import("@/lib/prism-languages");
+  await loadPrismLanguages();
   const { default: AsyncCodeHighlighter } = await jiti.import("./AsyncCodeHighlighter.tsx");
   const html = renderToStaticMarkup(
     React.createElement(AsyncCodeHighlighter, { language: "javascript" }, "const x = 1;\n// note"),

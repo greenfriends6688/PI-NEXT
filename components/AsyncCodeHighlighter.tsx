@@ -35,11 +35,12 @@
 import { usePwaSkin } from "@/components/pwa/skin";
 
 import {
-  Prism as SyntaxHighlighter,
+  PrismLight as SyntaxHighlighter,
   createElement as renderSyntaxNode,
   type SyntaxHighlighterProps,
 } from "react-syntax-highlighter";
 import { type ReactNode } from "react";
+import { usePrismLanguages } from "@/hooks/usePrismLanguages";
 import { FILE_CODE_STYLE, FILE_LINE_NUMBER_STYLE } from "@/lib/file-source-styles";
 import vs from "react-syntax-highlighter/dist/esm/styles/prism/vs";
 import vscDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus";
@@ -119,6 +120,9 @@ export interface FileSourceViewProps {
 
 /** The file viewer's highlighted source view (see useLazyHighlighter.ts). */
 export function AsyncFileSourceView({ code, language, isDark, wrapLines }: FileSourceViewProps) {
+  // fork:upstream-0.12-perf-parity —— PrismLight 只带 core；语言按需注册（#1183）。
+  // 未注册前它自己就渲染纯文本，注册完重渲染成高亮。
+  usePrismLanguages();
   return (
     <SyntaxHighlighter
       className={wrapLines ? "file-source-view is-wrapped" : "file-source-view"}
@@ -226,6 +230,16 @@ function BoardCodeInner({ children }: { children?: ReactNode }) {
  */
 export default function AsyncCodeHighlighter({ children, language, showLineNumbers = true }: HighlighterProps) {
   const isPwa = usePwaSkin();
+  // fork:upstream-0.12-perf-parity —— Prism 的 ~300 种语言不再随首屏 / 懒块加载，
+  // 首次出现代码块时才单独取一个 chunk；未就绪前按纯文本渲染（#1183）。
+  const prismReady = usePrismLanguages();
+  if (!prismReady) {
+    return (
+      <BoardCodeBody isPwa={isPwa}>
+        <code style={{ whiteSpace: "pre" }}>{children}</code>
+      </BoardCodeBody>
+    );
+  }
   return (
     <SyntaxHighlighter
       language={language}
