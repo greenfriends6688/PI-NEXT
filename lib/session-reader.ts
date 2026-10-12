@@ -223,7 +223,20 @@ function resolveScannedSessionRelation(
  * 且每次运行后每个打开的标签页都要再拉一次。skill 展开走它行里显示的 /skill: 命令；
  * 其余文本截到 CATALOG_FIRST_MESSAGE_MAX 个码元，不切 surrogate pair（#1176）。
  */
-const CATALOG_FIRST_MESSAGE_MAX = 500;
+/**
+ * fork:perf-session-open（P3）—— 侧栏标题只读到 160 个码元。
+ *
+ * 这里原来是 500，而**客户端每一处用法都在 50–80 处截断**
+ * （`AppShell` 的 `.slice(0, 80)` / `.slice(0, 50)`、`ArchivedSessionsPanel` 的
+ * `.slice(0, 80)`），行本身还是单行省略 —— 也就是每次刷新侧栏都要为一段永远不显示的
+ * 文本付 ~150 KB（606 个会话的实测：`firstMessage` 一项占列表载荷的 **43.7%**，
+ * 中位数正好卡在 500 上限）。
+ *
+ * 160 而不是 80：`AgentSessionPanel` 的筛选是拿它做过匹配的（不是纯标题展示），
+ * 留一倍余量给「搜到的是后半句」这种情况。完整正文本来就不靠它 —— 打开会话时
+ * 详情接口会带真的内容。
+ */
+const CATALOG_FIRST_MESSAGE_MAX = 160;
 
 export function catalogFirstMessage(text: string): string {
   const display = skillExpansionToCommand(text) ?? text;

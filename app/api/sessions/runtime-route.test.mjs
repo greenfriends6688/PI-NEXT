@@ -89,7 +89,8 @@ test("session listing returns a gzip-compressed response when the client accepts
     await rm(dir, { recursive: true, force: true });
   });
 
-  // fork:upstream-0.12-sidebar-parity —— 列表每条首条消息最多带 500 字符（#1176），
+  // fork:upstream-0.12-sidebar-parity —— 列表每条首条消息最多带一段（#1176；
+  // fork:perf-session-open 把上限从 500 收到 160，因为客户端每处用法都在 50–80 截断）。
   // 所以用几条会话把 body 撑到值得压缩。
   const firstMessage = "compressible session content ".repeat(500);
   for (let index = 0; index < 4; index++) {
@@ -108,7 +109,7 @@ test("session listing returns a gzip-compressed response when the client accepts
   assert.match(response.headers.get("Vary") ?? "", /(?:^|,\s*)Accept-Encoding(?:\s*,|$)/i);
   const payload = JSON.parse(gunzipSync(Buffer.from(await response.arrayBuffer())).toString("utf8"));
   assert.equal(payload.sessions.length, 4);
-  assert.equal(payload.sessions[0].firstMessage, firstMessage.slice(0, 500));
+  assert.equal(payload.sessions[0].firstMessage, firstMessage.slice(0, 160));
 });
 
 test("deleting an unpersisted session shuts down its runtime and invalidates caches", async (t) => {
