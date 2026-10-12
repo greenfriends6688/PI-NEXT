@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useContextMenu } from "./ContextMenu";
 import { useI18n } from "@/hooks/useI18n";
 import { SESSION_ROW_CONTEXT_MENU_EVENT, type SessionRowContextMenuDetail } from "@/lib/session-row-context-menu";
+import { sessionDeepLink } from "@/lib/session-links";
 import { getSessionFlags, toggleArchived, togglePinned } from "@/lib/session-flags";
 
 /**
@@ -92,6 +93,20 @@ export function SessionRowContextMenuBridge({
               "_blank",
               "noopener,noreferrer",
             );
+          },
+        },
+        {
+          // fork:upstream-0.12-sidebar-parity —— 会话行菜单的「在新标签页打开」（#1169）。
+          label: t("session.openInNewTab"),
+          icon: (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 3h6v6" />
+              <path d="M10 14 21 3" />
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            </svg>
+          ),
+          onSelect: () => {
+            window.open(sessionDeepLink(detail.id), "_blank", "noopener,noreferrer");
           },
         },
         {

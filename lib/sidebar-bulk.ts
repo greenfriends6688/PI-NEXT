@@ -28,6 +28,34 @@ export interface FamilyStatusInput {
 function familyMemberIds(family: { root: SessionInfo; subagents: SessionInfo[] }): string[] {
   return [family.root.id, ...family.subagents.map((session) => session.id)];
 }
+
+/** 一次 POST /api/sessions/delete 最多带多少个 id（与服务端 MAX_SESSION_DELETE_IDS 对齐）。 */
+export const PROJECT_DELETE_IDS_PER_REQUEST = 500;
+
+/**
+ * 一个项目的「删除全部会话」要删哪些：**家族根 id**，以及会因在跑而被保留的家族数。
+ *
+ * fork:upstream-0.12-sidebar-parity —— 传进来的是**已经按项目过滤好**的会话（#1182）。
+ * 排除还没落盘（transient）的；有成员在跑（或等待输入）的整个家族保留并计数，
+ * 与服务端 `keepRunning` 同一口径。
+ */
+export function familiesToDelete(
+  sessions: readonly SessionInfo[],
+  status: FamilyStatusInput & { awaitingIds?: ReadonlySet<string> },
+): { ids: string[]; running: number } {
+  const ids: string[] = [];
+  let running = 0;
+  for (const family of listSessionFamilies(sessions)) {
+    if (family.root.transient) continue;
+    const members = familyMemberIds(family);
+    if (members.some((id) => status.runningIds.has(id) || status.awaitingIds?.has(id))) {
+      running += 1;
+      continue;
+    }
+    ids.push(family.root.id);
+  }
+  return { ids, running };
+}
 /**
  * 「归档 N 天前的会话」要归档哪些：**家族根 id**。
  *

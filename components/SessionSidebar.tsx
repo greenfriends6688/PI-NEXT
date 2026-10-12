@@ -13,7 +13,9 @@ import { applySessionFlags, archiveSessions, restoreSessions, useSessionFlags } 
 // fork:pi-1.1（上游 lib/session-tree.ts）—— 「显示更多」与「归档 N 天前」的纯规则。
 import {
   GROUP_VISIBLE_LIMIT,
+  PROJECT_DELETE_IDS_PER_REQUEST,
   familiesOlderThan,
+  familiesToDelete,
   forgetShownMoreOfFolded,
   moreRowState,
   showLessFamilies,
@@ -135,6 +137,8 @@ interface Props {
   onSelectSession: (session: SessionInfo, isRestore?: boolean, entryId?: string, blockIndex?: number) => void;
   onNewSession?: (sessionId: string, cwd: string) => void;
   initialSessionId?: string | null;
+  /** fork:upstream-0.12-sidebar-parity —— `initialSessionId` 是 URL 的 `?session=`：它不在时提示一声（#1180）。 */
+  initialSessionLinked?: boolean;
   skipInitialProjectSelection?: boolean;
   onInitialRestoreDone?: () => void;
   refreshKey?: number;
@@ -340,6 +344,9 @@ function ProjectRow({
   archivedCount = 0,
   onViewArchived,
   onToggleAll,
+  deleteCount = 0,
+  deleteRunning = 0,
+  onDeleteAll,
 }: {
   projectKey: string;
   label: string;
@@ -378,11 +385,18 @@ function ProjectRow({
   onViewArchived?: () => void;
   /** fork:pi-1.1（上游 Alt+click）—— 全部项目跟着这一个走（Finder 的大纲行为）。 */
   onToggleAll?: () => void;
+  /** fork:upstream-0.12-sidebar-parity —— 「删除全部会话… · N」的 N 与运行中保留数（#1182）。 */
+  deleteCount?: number;
+  deleteRunning?: number;
+  onDeleteAll?: () => void;
 }) {
   const { t } = useI18n();
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameDraft, setRenameDraft] = useState(label);
+  // fork:upstream-0.12-sidebar-parity —— ⋯ 菜单末尾的「删除全部会话…」把菜单变成一个问题，
+  // 默认焦点在「取消」上，回车不会误删（#1182）。
+  const [askDelete, setAskDelete] = useState(false);
   // fork:pwa-sb —— 触控设备上没有 hover：行内动作区默认隐藏，等用户「恰好」把手指
   // 落在行上才出现（合成 mouseenter），而抽屉一点就跟着关掉，等于永远点不到。
   // 更糟的是隐藏不等于不可点：`opacity: 0` 的 ⊕ 仍然吃 tap（实测 390 宽下
@@ -565,7 +579,7 @@ function ProjectRow({
         width={210}
         align="right"
       >
-        <div role="menu">
+        <div role="menu" style={askDelete ? { display: "none" } : undefined}>
           {/* fork:pi-1.1（上游 groupMenuItems）—— 项目菜单前四组：置顶 / 上移下移 /
               批量归档 / 折叠展开；后面的本地动作（重命名、归档项目、移除）原样留着。 */}
           {onTogglePin && (
@@ -642,7 +656,37 @@ function ProjectRow({
               </button>
             </>
           )}
+          {onDeleteAll && (
+            <>
+              <div className={isPhone ? "m-sep" : "d-sep"} />
+              <button type="button" role="menuitem" disabled={deleteCount === 0} className={isPhone ? "m-menu-row danger" : "d-menu-row danger"} style={{ width: "100%", opacity: deleteCount === 0 ? 0.45 : 1 }} onClick={(event) => { event.stopPropagation(); if (deleteCount === 0) return; setAskDelete(true); }}>
+                <i data-ico="trash-2" data-size="14"></i>
+                {t("sidebar.deleteProjectSessions", { count: String(deleteCount) })}
+              </button>
+            </>
+          )}
         </div>
+        {askDelete && (
+          <div className="sidebar-menu-question">
+            <div className="sidebar-menu-header" title={title}>{t("sidebar.deleteProjectSessionsHeading", { name: label })}</div>
+            <p className="sidebar-menu-question-text">{t("sidebar.deleteProjectSessionsMessage")}</p>
+            {deleteRunning > 0 && <p className="sidebar-menu-question-text">{t("sidebar.deleteProjectSessionsRunning", { count: String(deleteRunning) })}</p>}
+            <div className="sidebar-menu-question-buttons">
+              <button
+                type="button"
+                className="sidebar-menu-question-confirm"
+                disabled={deleteCount === 0}
+                onClick={() => { setAskDelete(false); setMenuOpen(false); onDeleteAll?.(); }}
+              >
+                {t("sidebar.deleteCount", { count: String(deleteCount) })}
+              </button>
+              {/* 默认焦点在「取消」：回车不会误删。 */}
+              <button type="button" className="sidebar-menu-question-cancel" autoFocus onClick={() => setAskDelete(false)}>
+                {t("sidebar.cancel")}
+              </button>
+            </div>
+          </div>
+        )}
       </PortalDropdown>
       {/* ⊕：直接在这个项目里开新会话（workbuddy 的 ⊕），排在 ⋯ 右侧、贴行尾。 */}
       {onNewSession && (
@@ -664,7 +708,7 @@ function ProjectRow({
   );
 }
 
-export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, skipInitialProjectSelection, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onBackgroundTaskDone, onRunningSessionIdsChange, onSessionsChange, onToggleSidebar, searchRequestId = 0, onOpenArchive }: Props) {
+export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, initialSessionLinked, skipInitialProjectSelection, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onBackgroundTaskDone, onRunningSessionIdsChange, onSessionsChange, onToggleSidebar, searchRequestId = 0, onOpenArchive }: Props) {
   const { t } = useI18n();
   const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
   // Tracked in a ref only: the version is compared against the polled value to
@@ -1313,6 +1357,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         restoredRef.current = true;
         // Session not found — notify parent so it can show the placeholder
         onInitialRestoreDone?.();
+        // fork:upstream-0.12-sidebar-parity —— 链接来的会话不存在：提示一声（#1180）。
+        if (initialSessionLinked) setNoticeToast({ message: t("sidebar.sessionNotFound"), icon: "info" });
       }
       const projects = getRecentProjects(allSessions);
       // fork:chat-workspace — projects win; with none, land on the chat workspace so
@@ -1320,7 +1366,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       const fallback = projects[0]?.root ?? chatWorkspace?.cwd ?? null;
       if (fallback) setSelectedCwd(fallback);
     }
-  }, [allSessions, chatWorkspace, selectedCwd, initialSessionId, skipInitialProjectSelection, onSelectSession, onInitialRestoreDone]);
+  }, [allSessions, chatWorkspace, selectedCwd, initialSessionId, initialSessionLinked, skipInitialProjectSelection, onSelectSession, onInitialRestoreDone, t]);
 
   // Prefer an exact UI selection while a refetch is in flight. Once the
   // response catches up, the server-resolved path handles Windows case and
@@ -1649,6 +1695,19 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     () => getProjectActivity(allSessions, runningSessionIds, unreadSessionIds),
     [allSessions, runningSessionIds, unreadSessionIds],
   );
+
+  // fork:upstream-0.12-sidebar-parity —— 每个项目「删除全部会话… · N」的 N 与运行中保留数（#1182）。
+  const deleteInfoByProject = useMemo(() => {
+    const map = new Map<string, { count: number; running: number }>();
+    for (const project of visibleProjects) {
+      const { ids, running } = familiesToDelete(
+        sessionsForProject(allSessions, project.key),
+        { runningIds: runningSessionIds, unreadIds: unreadSessionIds, awaitingIds: awaitingSessionIds },
+      );
+      map.set(project.key, { count: ids.length, running });
+    }
+    return map;
+  }, [visibleProjects, allSessions, runningSessionIds, unreadSessionIds, awaitingSessionIds]);
   // ponytail: 跟随选中项目自动展开（仅 key 变化时触发，避免每次渲染都把手动折叠覆盖掉）
   useEffect(() => {
     if (selectedProject) {
@@ -1782,6 +1841,61 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     restoreSessions(archiveToast.ids);
     setArchiveToast(null);
   }, [archiveToast]);
+
+  // fork:upstream-0.12-sidebar-parity —— 项目「删除全部会话…」（#1182）：一个项目同时只跑一次。
+  const [noticeToast, setNoticeToast] = useState<{ message: string; icon: string } | null>(null);
+  const deletingProjectsRef = useRef(new Set<string>());
+  useEffect(() => {
+    if (!noticeToast) return;
+    const timer = setTimeout(() => setNoticeToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [noticeToast]);
+  const deleteAllProjectSessions = useCallback(async (projectKey: string) => {
+    if (deletingProjectsRef.current.has(projectKey)) return;
+    const { ids } = familiesToDelete(
+      sessionsForProject(allSessions, projectKey),
+      { runningIds: runningSessionIds, unreadIds: unreadSessionIds, awaitingIds: awaitingSessionIds },
+    );
+    if (ids.length === 0) return;
+    deletingProjectsRef.current.add(projectKey);
+    let deletedRoots = 0;
+    let keptRunning = 0;
+    let error: string | null = null;
+    try {
+      for (let start = 0; start < ids.length; start += PROJECT_DELETE_IDS_PER_REQUEST) {
+        const part = ids.slice(start, start + PROJECT_DELETE_IDS_PER_REQUEST);
+        try {
+          const res = await fetch("/api/sessions/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: part }),
+          });
+          const data = await res.json().catch(() => ({})) as { deleted?: string[]; running?: string[]; error?: string };
+          if (!res.ok || !Array.isArray(data.deleted)) {
+            error = data.error ?? `HTTP ${res.status}`;
+            break;
+          }
+          const deleted = new Set(data.deleted);
+          for (const id of data.deleted) onSessionDeleted?.(id);
+          deletedRoots += part.filter((id) => deleted.has(id)).length;
+          keptRunning += (data.running ?? []).length;
+        } catch (caught) {
+          error = caught instanceof Error ? caught.message : String(caught);
+          break;
+        }
+      }
+    } finally {
+      deletingProjectsRef.current.delete(projectKey);
+    }
+    await loadSessions();
+    if (error !== null) {
+      setNoticeToast({ message: t("sidebar.deleteFailed", { error }), icon: "trash-2" });
+      return;
+    }
+    const parts = [deletedRoots === 1 ? t("sidebar.deletedOneToast") : t("sidebar.deletedManyToast", { count: String(deletedRoots) })];
+    if (keptRunning > 0) parts.push(t("sidebar.keptRunningToast", { count: String(keptRunning) }));
+    setNoticeToast({ message: parts.join(" · "), icon: "trash-2" });
+  }, [allSessions, awaitingSessionIds, loadSessions, onSessionDeleted, runningSessionIds, t, unreadSessionIds]);
 
   /** 「折叠其他项目」：只留点开的这个展开。 */
   const collapseOtherProjects = useCallback((keepKey: string) => {
@@ -2240,6 +2354,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                   }}
                   archivedCount={projectFlags.archived.length}
                   onViewArchived={() => onOpenArchive?.()}
+                  deleteCount={deleteInfoByProject.get(project.key)?.count ?? 0}
+                  deleteRunning={deleteInfoByProject.get(project.key)?.running ?? 0}
+                  onDeleteAll={() => { void deleteAllProjectSessions(project.key); }}
                   selected={isSelectedProject}
                   activity={projectActivity.get(project.key)}
                   onClick={() => {
@@ -2701,6 +2818,16 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             <button type="button" className={isMobile ? "m-btn sm ghost" : "d-btn sm ghost"} onClick={() => onOpenArchive()}>{t("sidebar.viewArchive")}</button>
           )}
           <button type="button" className={isMobile ? "m-iconbtn" : "d-iconbtn"} aria-label={t("sidebar.dismiss")} title={t("sidebar.dismiss")} onClick={() => setArchiveToast(null)}>
+            <i data-ico="x" data-size="13" aria-hidden="true"></i>
+          </button>
+        </div>
+      )}
+      {/* fork:upstream-0.12-sidebar-parity —— 删除全部会话的结果条（#1182）/ 会话不存在（#1180），3s 自收。 */}
+      {noticeToast && (
+        <div className={isMobile ? "m-banner" : "d-banner"} role="status" style={{ position: "sticky", bottom: 0, margin: "var(--nx-sp-1)", zIndex: 5 }}>
+          <i data-ico={noticeToast.icon} data-size="14" aria-hidden="true"></i>
+          <span className={isMobile ? "m-grow" : "d-grow"} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{noticeToast.message}</span>
+          <button type="button" className={isMobile ? "m-iconbtn" : "d-iconbtn"} aria-label={t("sidebar.dismiss")} title={t("sidebar.dismiss")} onClick={() => setNoticeToast(null)}>
             <i data-ico="x" data-size="13" aria-hidden="true"></i>
           </button>
         </div>

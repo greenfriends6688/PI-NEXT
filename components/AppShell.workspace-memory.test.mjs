@@ -96,6 +96,8 @@ test("New restores the draft after session navigation and workspace auto-restore
         activeProjectKeyRef: { current: cwd },
         workspaceRestoreTokenRef: { current: 0 },
         suppressCwdBumpRef: { current: false },
+        // fork:upstream-0.12-sidebar-parity —— 链接的会话不存在时跳过工作区恢复（#1180）。
+        skipWorkspaceRestoreRef: { current: false },
         branchLeafChangeFnRef: { current: null },
         liveFollowFrameRef: { current: null },
         bashRecoveryIdRef: { current: 0 },

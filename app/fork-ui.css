@@ -3568,3 +3568,65 @@ body {
   -webkit-backdrop-filter: blur(var(--wp-blur-panel)) saturate(var(--nx-mat-reg-sat-light));
   backdrop-filter: blur(var(--wp-blur-panel)) saturate(var(--nx-mat-reg-sat-light));
 }
+
+/* fork:upstream-0.12-sidebar-parity —— 项目菜单的「删除全部会话」问题体（#1182）：
+   说清删什么，然后 Delete / Cancel（Cancel 默认聚焦，回车不误删）。 */
+.sidebar-menu-question {
+  padding: 2px 4px 4px;
+}
+
+.sidebar-menu-question .sidebar-menu-header {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.sidebar-menu-question-text {
+  margin: 0;
+  padding: 2px 4px 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.sidebar-menu-question-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.sidebar-menu-question-confirm,
+.sidebar-menu-question-cancel {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sidebar-menu-question-cancel:hover {
+  background: var(--bg-hover);
+}
+
+/* 删除不可撤销：与行删除确认同一枚红。 */
+.sidebar-menu-question-confirm {
+  border-color: #ef4444;
+  background: #ef4444;
+  color: #fff;
+  font-weight: 600;
+}
+
+.sidebar-menu-question-confirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.sidebar-menu-question-confirm:focus-visible,
+.sidebar-menu-question-cancel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
