@@ -11,7 +11,7 @@ const jiti = createJiti(import.meta.url, {
 });
 const React = await jiti.import("react");
 const { renderToStaticMarkup } = await jiti.import("react-dom/server");
-const { ChatInput, ModelErrorBanner, ModelScopeWarningBanner, canClearBuiltinCommandInput, canRestoreUserMessage, canRunBuiltinSlashCommandWhileStreaming, compressImageFile, cycleListIndex, filterModelOptions, getUpwardMenuMaxHeight, getUserMessageText, getUserMessageDraftImages, isExactSlashCommand, modelSupportsImageInput, replaceLinksWithMarkdown, shouldCompressImageFile } = await jiti.import("./ChatInput.tsx");
+const { ChatInput, ModelErrorBanner, ModelScopeWarningBanner, RUN_END_CLICK_GUARD_MS, canClearBuiltinCommandInput, canRestoreUserMessage, canRunBuiltinSlashCommandWhileStreaming, compressImageFile, cycleListIndex, filterModelOptions, getUpwardMenuMaxHeight, getUserMessageText, getUserMessageDraftImages, isExactSlashCommand, isRunEndStrayClick, modelSupportsImageInput, replaceLinksWithMarkdown, shouldCompressImageFile } = await jiti.import("./ChatInput.tsx");
 const { ModelSelector } = await jiti.import("./ModelSelector.tsx");
 const { clearDraft, getDraft, mergeRestoredSubmissionDraft, mergeRestoredSubmissionText, rekeyDraft, setDraft } = await jiti.import("@/lib/draft-store.ts");
 const { I18nProvider } = await jiti.import("@/hooks/useI18n");
@@ -1064,4 +1064,17 @@ test("翻卡与标签交换不泄进窄屏分支（窄屏走 m-* 基件）", () 
   // 标签交换整段挂 `!narrowControls`。这里只钉住「库里没有的 m-flap / m-label-* 没被自造」。
   assert.doesNotMatch(source, /\bm-flap\b/);
   assert.doesNotMatch(source, /\bm-label-(out|in)\b/);
+});
+
+// fork:upstream-0.12-chat-parity —— Stop 与 Compact 换位时的误触窗口（#1131）。
+test("a stray pointer click after a run ends is ignored, a keyboard one is not", () => {
+  assert.equal(RUN_END_CLICK_GUARD_MS, 600);
+  // Pointer click (detail > 0) inside the guard window: ignored.
+  assert.equal(isRunEndStrayClick(1, 0), true);
+  assert.equal(isRunEndStrayClick(2, 599), true);
+  // Outside the window, or at the boundary: kept.
+  assert.equal(isRunEndStrayClick(1, 600), false);
+  assert.equal(isRunEndStrayClick(1, 5_000), false);
+  // Keyboard activation reports detail 0 and is never swallowed.
+  assert.equal(isRunEndStrayClick(0, 0), false);
 });

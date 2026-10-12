@@ -1120,6 +1120,18 @@ function FavoriteModelMenu({
   );
 }
 
+export const RUN_END_CLICK_GUARD_MS = 600;
+
+/**
+ * fork:upstream-0.12-chat-parity —— 一轮结束时，Compact（与工具钮）会占掉 Stop 刚坐的
+ * 位置，于是「双击 Stop 的第二下」或「瞄准 Stop 但运行刚好结束」会落到它们身上，启动
+ * 一次没人确认的压缩（#1131）。这类**指针**点击被忽略；键盘的（Enter/Space，`detail` 0）
+ * 永不忽略。
+ */
+export function isRunEndStrayClick(detail: number, msSinceRunEnd: number): boolean {
+  return detail > 0 && msSinceRunEnd < RUN_END_CLICK_GUARD_MS;
+}
+
 export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({  onSend, onAbort, onFollowUp, isStreaming, model, isAutoModelSelection, modelNames, modelList, modelError, modelScopeWarnings, onModelChange, modelSwitching, pendingModel, onCancelPendingModel,
   onCompact, onAbortCompaction, isCompacting, streamSpeed, compactError, compactResult, toolPreset, onToolPresetChange,
   permissionMode, onPermissionModeChange,
@@ -1197,6 +1209,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const manualHeight = inputHeightResizer.height;
   const manualMode = !compact && !isMobile && manualHeight !== null;
   manualModeRef.current = manualMode;
+
+  // fork:upstream-0.12-chat-parity —— Stop → Compact 的交换发生在一次 commit 里，
+  // 在那之前记下运行结束时刻，之后的指针点击才能被判为误触（#1131）。
+  const runEndedAtRef = useRef(Number.NEGATIVE_INFINITY);
+  useLayoutEffect(() => {
+    if (!isStreaming) return;
+    return () => { runEndedAtRef.current = performance.now(); };
+  }, [isStreaming]);
 
   // fork:ui-composer-pop — 实测卡片宽度驱动控件折叠。compact（引用回答）形态
   // 没有工具条，不参与；ref 未挂载时保持 false，避免首帧闪折叠态。
@@ -3395,7 +3415,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               <div className="d-sep" />
               <button
                 type="button"
-                onClick={isCompacting ? onAbortCompaction : onCompact}
+                onClick={(event) => {
+                  if (!isCompacting && isRunEndStrayClick(event.detail, performance.now() - runEndedAtRef.current)) return;
+                  (isCompacting ? onAbortCompaction : onCompact)?.();
+                }}
                 className="d-menu-row"
                 style={{ width: "100%", color: isCompacting ? "var(--error)" : "var(--accent-text)" }}
               >
@@ -4281,7 +4304,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   <div className="m-sep" />
                   <button
                     type="button"
-                    onClick={isCompacting ? onAbortCompaction : onCompact}
+                    onClick={(event) => {
+                      if (!isCompacting && isRunEndStrayClick(event.detail, performance.now() - runEndedAtRef.current)) return;
+                      (isCompacting ? onAbortCompaction : onCompact)?.();
+                    }}
                     className="m-menu-row"
                     style={{ color: isCompacting ? "var(--nx-danger)" : "var(--nx-accent)" }}
                   >
