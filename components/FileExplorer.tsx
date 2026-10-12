@@ -15,6 +15,7 @@ import {
 import type { GitFileStatus, GitFileStatusKind, GitStatusResponse } from "@/lib/git-types";
 import type { FileIndexEntry } from "@/lib/file-fuzzy";
 import { buildSearchTree, type SearchTreeNode } from "@/lib/search-tree";
+import { createExpandedPathsMemory } from "@/lib/file-tree-expansion";
 // fork:gap08-roots — 多根（会话 cwd + 项目根并存 + 作用域徽标）
 import {
   buildFileBrowserRoots,
@@ -1259,6 +1260,10 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
      每一层的子节点也存下来 —— 那是一份真正的树缓存，超出这次要解决的问题，所以这里
      只还原根层 + 改动列表：换槽回来时看到的是同一棵树与同一份改动，展开态重来。 */
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
+  // fork:upstream-0.12-file-parity —— 按项目记住展开的目录（#3fe257f2）。
+  const expandedMemoryRef = useRef(createExpandedPathsMemory());
+  const expandedPathsRef = useRef(expandedPaths);
+  expandedPathsRef.current = expandedPaths;
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   // fork:fix-tree-watch — 目录变更脉冲。外部（agent/终端/编辑器）改了文件后，
   // 服务端 SSE 推一次，这里自增把已展开目录的重取带动起来。
@@ -1854,12 +1859,15 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   useEffect(() => () => onUploadBusyChange?.(false), [onUploadBusyChange]);
 
   useEffect(() => {
-    const cwdChanged = prevCwdRef.current !== cwd;
+    const previousCwd = prevCwdRef.current;
+    const cwdChanged = previousCwd !== cwd;
     prevCwdRef.current = cwd;
 
     // Reset expanded state only when cwd changes, not on refreshKey bumps
     if (cwdChanged) {
-      setExpandedPaths(new Set());
+      // fork:upstream-0.12-file-parity —— 离开的项目记住它展开的目录，回来的项目恢复（#3fe257f2）。
+      if (previousCwd) expandedMemoryRef.current.save(previousCwd, expandedPathsRef.current);
+      setExpandedPaths(expandedMemoryRef.current.restore(cwd));
       // M-06 —— 手机档的游标也回根，否则换项目后还停在上一个项目的子目录里。
       setMobileDir(cwd);
       setMobileSelected(null);

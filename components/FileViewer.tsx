@@ -9,6 +9,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   DOCX_PREVIEW_MAX_BYTES,
+  HTML_PREVIEW_MAX_BYTES,
   getFileExt,
   isAudioPath,
   isDocumentPreviewPath,
@@ -2127,6 +2128,8 @@ function TextFileViewer({
     void fetchGitDiff(filePath);
   }, [fetchGitDiff, filePath, gitRefreshKey]);
 
+  const [htmlFull, setHtmlFull] = useState<{ text?: string; error?: string } | null>(null);
+
   useEffect(() => {
     // HTML gets the same rendered-first treatment as markdown: a generated page
     // is usually more useful viewed than read as source. Both have a preview
@@ -2138,12 +2141,37 @@ function TextFileViewer({
       defaultPreviewEligibleRef.current
       && data !== null
       && (isDelimitedTextPath(filePath)
-        || (!data.truncated && (data.language === "markdown" || data.language === "html")))
+        || (data.language === "markdown" && !data.truncated)
+        || (data.language === "html" && (!data.truncated || data.size <= HTML_PREVIEW_MAX_BYTES)))
     ) {
       defaultPreviewEligibleRef.current = false;
       updateDisplayMode("preview");
     }
   }, [data, filePath, updateDisplayMode]);
+
+  // fork:upstream-0.12-file-parity —— 大 HTML：源视图按 256KB 分块，但半份文档渲染不了，
+  // 所以预览一次性取整份。新的 `data`（watch 变更 / 重载）重新取；期间保留上一页，
+  // 于是实时变更不会闪一下「加载中」（#1155）。
+  const needsHtmlFull = displayMode === "preview"
+    && data?.language === "html"
+    && data.truncated
+    && data.size <= HTML_PREVIEW_MAX_BYTES;
+  useEffect(() => {
+    if (!needsHtmlFull) {
+      setHtmlFull(null);
+      return;
+    }
+    const controller = new AbortController();
+    fetch(getFileApiUrl(filePath, "download", sourceSessionId), { signal: controller.signal })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        setHtmlFull({ text: await r.text() });
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setHtmlFull({ error: String(e) });
+      });
+    return () => controller.abort();
+  }, [needsHtmlFull, data, filePath, sourceSessionId]);
 
   const hasGitDiff = gitDiff?.supported === true && typeof gitDiff.patch === "string";
   const isDeletedDiff = hasGitDiff && gitDiff.status === "deleted";
@@ -2155,8 +2183,13 @@ function TextFileViewer({
   const isMarkdown = language === "markdown";
   // fork:zc-12 — .csv/.tsv 的表格预览（与 language 无关，语言映射里它们是 text）。
   const isDelimitedText = isDelimitedTextPath(filePath);
-  const hasPreview = !data?.truncated && (isHtml || isMarkdown);
+  // fork:upstream-0.12-file-parity —— 表格显示已加载的前缀；HTML 预览整份取回（#1155）。
+  const hasPreview = isDelimitedText || (isHtml
+    ? !!data && (!data.truncated || data.size <= HTML_PREVIEW_MAX_BYTES)
+    : isMarkdown && !data?.truncated);
   const effectiveDisplayMode = displayMode;
+  // 部分加载的 HTML 整份预览，所以「加载更多」归它的源视图。
+  const showLoadMore = !!data?.truncated && !(isHtml && effectiveDisplayMode === "preview");
   // fork:perf-viewer-keepalive — source / preview / diff are mounted on first visit
   // and then kept, with `hidden` doing the switching. Unmounting them on every toggle
   // threw away Prism's token tree, the markdown parse and the diff DOM, so each return
@@ -2931,7 +2964,7 @@ function TextFileViewer({
       </>
       )}
 
-      {data?.truncated && (
+      {showLoadMore && data?.truncated && (
         isMobile ? (
           <div className="m-banner" style={{ margin: "8px 12px 0" }}>
             <span className="m-t-xs m-t-faint">{formatSize(data.nextOffset)} / {formatSize(data.size)}</span>
@@ -2987,7 +3020,7 @@ function TextFileViewer({
           viewerStateRef.current.scrollTop = event.currentTarget.scrollTop;
           viewerStateRef.current.scrollLeft = event.currentTarget.scrollLeft;
         }}
-        style={{ background: "var(--nx-canvas)", paddingBottom: data?.truncated ? 48 : undefined }}
+        style={{ background: "var(--nx-canvas)", paddingBottom: showLoadMore ? 48 : undefined }}
       >
         {shouldShowUnsupportedCard(filePath) ? (
           // fork:gap-unsupported-preview — 二进制/未知类型不再以文本呈现（那是乱码），
@@ -3065,9 +3098,13 @@ function TextFileViewer({
                 hidden={diffOpen || effectiveDisplayMode !== "preview"}
                 style={isHtml ? { height: "100%", minHeight: 0 } : undefined}
               >
-                {isHtml ? (
+                {isHtml && effectiveDisplayMode === "preview" && data?.truncated && !htmlFull?.text ? (
+                  <div style={{ padding: 24, color: "var(--text-dim)", fontSize: 12 }}>
+                    {htmlFull?.error ?? t("i18n.loading")}
+                  </div>
+                ) : isHtml ? (
                   <iframe
-                    srcDoc={content}
+                    srcDoc={data?.truncated ? htmlFull?.text : content}
                     sandbox="allow-scripts"
                     style={{ width: "100%", height: "100%", border: "none", background: "var(--nx-canvas)" }}
                     title={t("i18n.htmlPreview")}

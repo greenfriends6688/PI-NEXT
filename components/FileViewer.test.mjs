@@ -47,6 +47,9 @@ test("large source fallbacks are built for every stage, not only the visible one
     return (data, displayMode, wrapLines = false) => {
       const SOURCE_HIGHLIGHT_MAX_LINES = 1_000;
       const FILE_LINE_NUMBER_STYLE = {};
+      // fork:upstream-0.12-file-parity —— hasPreview 现在也看 isDelimitedText / HTML 上限（#1155）。
+      const isDelimitedText = false;
+      const HTML_PREVIEW_MAX_BYTES = 10 * 1024 * 1024;
       // The lazy Prism chunk is assumed loaded here: this harness only exercises the
       // source-line calculations, not the loading state.
       const highlighterReady = true;
@@ -184,4 +187,20 @@ test("the selection popover uses the board shell and labelled buttons, not icon 
   assert.match(popover, /data-ico="at-sign"/);
   assert.match(popover, /data-ico="git-fork"/);
   assert.doesNotMatch(popover, /<svg/, "no hand-drawn icons in the popover");
+});
+
+// fork:upstream-0.12-file-parity —— 部分加载的 HTML 也能预览（整份取回，上限 HTML_PREVIEW_MAX_BYTES，#1155）。
+test("partly loaded HTML previews up to the HTML cap; partly loaded markdown does not", () => {
+  const start = source.indexOf("  const hasPreview = ");
+  const statement = source.slice(start, source.indexOf(";\n", start) + 1);
+  const hasPreview = new Function("data", "isHtml", "isMarkdown", "isDelimitedText", "HTML_PREVIEW_MAX_BYTES", `${statement}\nreturn hasPreview;`);
+  const cap = 10 * 1024 * 1024;
+  const partial = { truncated: true, size: 900 * 1024 };
+
+  assert.equal(hasPreview(partial, true, false, false, cap), true);
+  assert.equal(hasPreview({ ...partial, size: cap + 1 }, true, false, false, cap), false);
+  assert.equal(hasPreview({ truncated: false, size: cap + 1 }, true, false, false, cap), true);
+  assert.equal(hasPreview(partial, false, true, false, cap), false);
+  assert.equal(hasPreview({ ...partial, size: cap + 1 }, false, false, true, cap), true);
+  assert.match(source, /srcDoc=\{data\?\.truncated \? htmlFull\?\.text : content\}/);
 });

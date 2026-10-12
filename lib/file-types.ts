@@ -1,6 +1,8 @@
 export const TEXT_PREVIEW_MAX_BYTES = 256 * 1024;
 export const IMAGE_PREVIEW_MAX_BYTES = 10 * 1024 * 1024;
 export const DOCX_PREVIEW_MAX_BYTES = 10 * 1024 * 1024;
+// fork:upstream-0.12-file-parity —— HTML 预览一次性取整份的上限（#1155）。
+export const HTML_PREVIEW_MAX_BYTES = 10 * 1024 * 1024;
 
 // These are source/config formats that are safe to edit as UTF-8 text. Files
 // outside this allow-list keep the existing read-only viewer behavior.
