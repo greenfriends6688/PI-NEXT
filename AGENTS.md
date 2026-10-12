@@ -395,6 +395,23 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 * **`pi-web-preferences.json` 的读写只有一处**（`lib/pi-web-preferences.ts`）：原先内联在
   `lib/thinking-level-memory.ts` 里，现在两个模块共用 —— 同一个文件两个写入者各自读-改-写会互相抹键。
 
+### 侧栏：空间 / 任务（fork:sidebar-spaces-tasks，2026-10-13）
+
+用户 2026-10-13：「他叫空间和任务，你也帮我按照这个走，不要用项目和聊天的左右切换了」。
+
+* **去掉了「项目 / 聊天」左右切换**（`.d-seg` / `.m-seg` 那一段）与它背后的
+  `lib/sidebar-pane.ts`（连同单测，成了死代码）。两段现在**同处一列**：空间在前、任务在后。
+* **文案改值不改键**：`sidebar.projects` 的值变「空间」（en `Spaces`），
+  `sidebar.chatWorkspace` 的值变「任务」（en `Tasks`）—— 键名不动，否则会牵动画板与
+  `SettingsPanel.boardnav` 那一族断言。
+* **虚拟列表的偏移各量各的**：两段同处一列之后，任务段**不能**复用
+  `sessionListOffsetTop`（那是空间段的段顶）—— 共用会让它按「从 0 开始」切片，滚到任务区
+  渲染出的是错位的区间。`chatListRef` + `chatListOffsetTop` 是为此新加的，形状与原来那份
+  一模一样（ResizeObserver 兜任何布局变化）。
+* **数据模型一个字没动**：`projectKey` 就是「空间」，没有 projectKey 的会话就是「任务」。
+  `lib/session-groups.ts` / `project-tree` / `visibleFamilies` 全部复用。
+* **本轮只做「合并成一条树 + 改名」**，没做 XTLaw 的行内 ⋯ 重排与拖拽排序（那是下一轮）。
+
 ### 界面与功能开关（fork:feature-toggles，2026-10-13）
 
 用户 2026-10-13：「右侧边栏和顶部的各种 icon 的显示或功能的启用，我想让你在设置中帮我加个开关」。

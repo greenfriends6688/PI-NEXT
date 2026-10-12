@@ -40,7 +40,6 @@ import { desktopTrafficLightInset } from "@/lib/desktop-shell";
 import { workspaceKeyOf } from "@/lib/workspace-memory";
 import { formatRelativeTime } from "@/lib/i18n/format";
 import { useI18n } from "@/hooks/useI18n";
-import { readStoredSidebarPane, writeStoredSidebarPane, type SidebarPane } from "@/lib/sidebar-pane";
 import { DirectoryPicker } from "./DirectoryPicker";
 // fork:zc-11 + fork:zm-06 — 分组/排序列表渲染（含 FLIP 重排）。
 import { GroupedProjectList, useProjectDrag } from "./fork/GroupedProjectList";
@@ -751,6 +750,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const sessionGroups = useSessionGroups();
   const sessionListRef = useRef<HTMLDivElement>(null);
   const [sessionListOffsetTop, setSessionListOffsetTop] = useState(0);
+  /* fork:sidebar-spaces-tasks（P4）—— 「任务」段与「空间」段现在同处一列，而虚拟窗口
+     的偏移是**相对自己那一段的顶**算的：两段共用同一个偏移会让任务段按「从 0 开始」
+     切片，滚到它时渲染出来的是一段错位的行。所以它另量一个。 */
+  const chatListRef = useRef<HTMLDivElement>(null);
+  const [chatListOffsetTop, setChatListOffsetTop] = useState(0);
   // Worktree switcher state
   const [worktreeState, setWorktreeState] = useState<WorktreeState | null>(null);
   const [wtDropdownOpen, setWtDropdownOpen] = useState(false);
@@ -838,17 +842,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       )}
     </div>
   );
-  const [sidebarPane, setSidebarPane] = useState<SidebarPane>(readStoredSidebarPane);
-  const selectPane = (next: SidebarPane) => {
-    setSidebarPane(next);
-    writeStoredSidebarPane(next);
-    /* 切到「聊天」时顺手把它展开：用户点这一下就是想看会话，结果给一行收起的
-       标题（还要再点一次）等于没切。只在没展开时加，所以再点标题仍能收起。
-       `chatProject` 在上面之后才声明，但闭包在点击时才求值 —— 那时已初始化。 */
-    if (next === "chat" && chatProject) {
-      setExpandedProjects((prev) => (prev.has(chatProject.key) ? prev : new Set(prev).add(chatProject.key)));
-    }
-  };
+  // fork:sidebar-spaces-tasks（P4）—— 原来的「项目 / 聊天」左右切换已按用户裁定去掉：
+  // 两段现在同处一列（空间在前、任务在后）。原来的「哪一段可见」那个状态与
+  // `lib/sidebar-pane.ts` 一并下线（见 P4 的提交）。
   // fix:search-collapsed —— 搜索态 = 「盒子展开」且「有检索词」。列表虚拟化与
   // SessionSearch 都以这个值为准（展开但没输入时仍然显示正常会话列表）。
   const sessionSearchActive = sessionSearchOpen && Boolean(sessionSearchQuery.trim());
@@ -1963,6 +1959,28 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     observer.observe(list);
     observer.observe(section);
     return () => observer.disconnect();
+  }, [sidebarEntries.length, loading]);
+
+  /* fork:sidebar-spaces-tasks（P4）—— 任务段与空间段同处一列，各自量自己的段顶。
+     共用 `sessionListOffsetTop` 会让任务段按「从 0 开始」切片：滚到它时渲染出来的是
+     一整段错位的行（虚拟列表的经典症状 —— 看着像"少了几条"，其实是渲染错了区间）。 */
+  useLayoutEffect(() => {
+    const list = listScrollRef.current;
+    const section = chatListRef.current;
+    if (!list || !section) {
+      setChatListOffsetTop(0);
+      return;
+    }
+    const updateOffset = () => {
+      const listTop = list.getBoundingClientRect().top;
+      const sectionTop = section.getBoundingClientRect().top;
+      setChatListOffsetTop(Math.max(0, sectionTop - listTop + list.scrollTop));
+    };
+    updateOffset();
+    const observer = new ResizeObserver(updateOffset);
+    observer.observe(list);
+    observer.observe(section);
+    return () => observer.disconnect();
   }, [expandedProjects, selectedProject?.key, sessionListEntries.length, visibleProjects.length, sessionGroups.state]);
 
   // fork:session-row-overlap —— v5 的行只有一种高度（运行中 / 等你处理那枚徽标
@@ -2177,29 +2195,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       </div>
       )}
 
-      {/* fork:v5-landing —— 项目 / 聊天 左右切换 = 画板 D-02 的 .d-seg。
-          fork:v5-wave-b —— 画板 M-04 帧 A 的分段也是 `.m-seg`，DOM 逐层相同
-          （两个 button + `.is-on`），只换类名。 */}
-      <div className={isMobile ? "m-seg" : "d-seg"} role="tablist" aria-label={t("sidebar.paneSwitch")}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={sidebarPane === "projects"}
-          className={sidebarPane === "projects" ? "is-on" : undefined}
-          onClick={() => selectPane("projects")}
-        >
-          {t("sidebar.projects")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={sidebarPane === "chat"}
-          className={sidebarPane === "chat" ? "is-on" : undefined}
-          onClick={() => selectPane("chat")}
-        >
-          {t("sidebar.chatWorkspace")}
-        </button>
-      </div>
+      {/* fork:sidebar-spaces-tasks（P4，用户 2026-10-13）—— 这里原本是「项目 / 聊天」
+          的左右切换（`.d-seg`）。用户裁定去掉：「他是叫空间和任务，你也帮我按照这个走
+          吧，不要用项目和聊天的左右切换了」。两段现在同处一列：**空间**在前、**任务**在后。 */}
 
       {/* fork:v5-frame-audit —— 桌面那一格仍然只在 `sessionSearchOpen` 时渲染，并包在
           `.d-side-nav` 盒子里（画板 D-02 帧 D/E）；窄屏那一格已经挪到抽屉头正下方、
@@ -2274,7 +2272,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           )}
           {/* fork:zn-20 — 切到「聊天」但还没建过聊天工作区时，说清楚该怎么建，
               否则整列是空的，看着像坏了。 */}
-          {sidebarPane === "chat" && !chatProject && !loading && !error && (
+          {!chatProject && !loading && !error && (
             <div className={isMobile ? "m-t-sm m-t-faint" : "d-t-sm d-t-faint"} style={{ padding: isMobile ? "12px 14px" : "var(--nx-sp-4) var(--nx-sp-3)", ...(isMobile ? {} : { lineHeight: "var(--nx-lh-body)" }) }}>
               {t("sidebar.noChatWorkspace")}
             </div>
@@ -2283,7 +2281,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           {/* fork:zn-20 — 两段各自只在被选中时渲染：项目段（分区头 + 项目树 + 分组）
               与聊天段（下面那个 IIFE）互斥。不用 hidden 保活：两段加起来可能上百行，
               留一半在 DOM 里只为了切换快 20ms 不值得。 */}
-          {sidebarPane === "projects" && (
+          {
           <>
           {/* fork:v5-landing —— 分区头 = 画板 D-02 的 `.d-group-title`：
               左侧组图标（画板画的就是 chevrons-up-down = 展开 / 折叠全部的记号）；
@@ -2704,12 +2702,12 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           {/* fork:ui-project-actions — 「添加项目」从项目栏标题的 + 按钮搬到这里：
               标题行只留展开/折叠，项目自己的动作（打开文件夹/重命名/移除）挂在每个项目行上。 */}
           </>
-          )}
+          }
 
           {/* fork:chat-workspace / fork:zn-13 — 聊天分区（Zeno 里「对话」分区的位置：
               排在项目分区之后、导轨底部之前）。自带标题行（新建 / 设置目录 / 折叠），
               会话列表沿用项目那套高亮与虚拟窗口逻辑。 */}
-          {sidebarPane === "chat" && chatProject && (() => {
+          {chatProject && (() => {
             const isSelectedChat = chatProject.key === selectedProject?.key;
             const isChatExpanded = expandedProjects.has(chatProject.key);
             const chatFamilies = listSessionFamilies(orderedProjectSessions(chatProject.key));
@@ -2721,7 +2719,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             const chatOffsets = sessionListOffsets(chatSidebarEntries.length, rowHeight);
             const chatVirtualIndices = getSessionListIndices(
               chatSidebarEntries.length,
-              Math.max(0, listScrollTop - sessionListOffsetTop),
+              Math.max(0, listScrollTop - chatListOffsetTop),
               listViewportH,
               chatSidebarEntries.findIndex((entry) => entry.type === "family" && entry.family.root.id === focusedSessionId),
               rowHeight,
@@ -2748,7 +2746,12 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                   「中间空白太多」）。画板 D-02 是 `.d-seg → .d-side-scroll → .d-group-title`
                   **直连**，没有这一截；`.d-side-scroll` 的 `padding: var(--nx-sp-2)` 加上
                   `.d-group-title` 自己的 `padding-top` 就是全部节奏，与项目段同口径。 */}
-              <div>
+              {/* fork:sidebar-spaces-tasks（P4）—— 这一行**就是**「任务」分区的头
+                  （chevon + 名字 + ＋ / folder-cog），所以不再另加一枚 `.d-group-title`：
+                  两行同字同件摞在一起会被读成「多了一个任务」（2026-10-05 那轮已经踩过
+                  一次同样的坑）。`chatListRef` 挂在它外层：任务段的虚拟窗口要量**自己的**
+                  段顶，不能借用空间段那个偏移。 */}
+              <div ref={chatListRef}>
                 <ChatWorkspaceRow
                   label={t("sidebar.chatWorkspace")}
                   title={chatProject.root}

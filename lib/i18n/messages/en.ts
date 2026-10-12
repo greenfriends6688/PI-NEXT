@@ -883,7 +883,7 @@ export const enLocale: LocalePlugin = {
     "sidebar.new": "New",
     "sidebar.newTask": "New task",
     // fork:chat-workspace
-    "sidebar.chatWorkspace": "Chat",
+    "sidebar.chatWorkspace": "Tasks",
     "sidebar.newChat": "New chat",
     "sidebar.setChatWorkspace": "Set chat folder…",
     "sidebar.newTaskChooseProject": "In a project",
@@ -894,7 +894,7 @@ export const enLocale: LocalePlugin = {
     "home.newBlankProject": "New blank project",
     "sidebar.paneSwitch": "Switch between projects and chats",
     "sidebar.noChatWorkspace": "No standalone chat workspace yet. Pick “Not in a project” when starting a task and it shows up here.",
-    "sidebar.projects": "Projects",
+    "sidebar.projects": "Spaces",
     "sidebar.pullToRefresh": "Pull to refresh",
     "sidebar.refreshing": "Refreshing…",
     "sidebar.addProject": "Add project",

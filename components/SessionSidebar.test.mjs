@@ -199,15 +199,19 @@ test("keeps a standalone chat section beside the projects", () => {
   // fork:ui-project-actions — 项目列表再经本地偏好（别名 / 从列表移除）过滤。
   assert.match(source, /filterHiddenProjects\(\s*withoutChatProject\(projectChoices, chatProjectKey\),/);
   assert.match(source, /fetch\("\/api\/chat-workspace"/);
-  // 聊天 与 项目 平级（侧栏 tab 分 pane）：项目分区在前，聊天分区排在项目行之后。
+  // fork:sidebar-spaces-tasks（P4，用户 2026-10-13）—— 「项目 / 聊天」左右切换已下线：
+  // 两段现在同处一列，空间在前、任务在后（原来「分 pane」那句描述已不成立）。
   assert.ok(
     source.indexOf("<ChatWorkspaceRow") > source.indexOf('{t("sidebar.projects")}'),
     "the chat section renders after the projects caption",
   );
   assert.ok(
-    source.indexOf('{sidebarPane === "chat" && chatProject && (() => {') > source.indexOf("{visibleProjects.map((project) => {"),
+    source.indexOf("{chatProject && (() => {") > source.indexOf("{visibleProjects.map((project) => {"),
     "the chat section renders below the project rows",
   );
+  // 切换控件本体也必须真的没了 —— 只删状态、忘了删 `.d-seg` 是最容易漏的一步。
+  assert.doesNotMatch(source, /sidebarPane/);
+  assert.doesNotMatch(source, /sidebar\.paneSwitch/);
   // The default workspace is resolved at click time — never the "" / "/" render value.
   assert.match(source, /const resolveDefaultCwd = useCallback\(async \(\): Promise<string \| null> => \{/);
   assert.match(source, /if \(selectedCwd\) return selectedCwd;/);

@@ -881,7 +881,7 @@ export const zhTWLocale: LocalePlugin = {
     "sidebar.new": "新增",
     "sidebar.newTask": "新增任務",
     // fork:chat-workspace
-    "sidebar.chatWorkspace": "聊天",
+    "sidebar.chatWorkspace": "任務",
     "sidebar.newChat": "新增聊天",
     "sidebar.setChatWorkspace": "設定聊天資料夾…",
     "sidebar.newTaskChooseProject": "在專案中",
@@ -892,7 +892,7 @@ export const zhTWLocale: LocalePlugin = {
     "home.newBlankProject": "新增空白專案",
     "sidebar.paneSwitch": "切換專案與聊天",
     "sidebar.noChatWorkspace": "還沒有獨立聊天工作區。新增任務時選「不在專案中」就會出現在這裡。",
-    "sidebar.projects": "專案",
+    "sidebar.projects": "空間",
     "sidebar.pullToRefresh": "下拉更新",
     "sidebar.refreshing": "更新中…",
     "sidebar.addProject": "新增專案",
