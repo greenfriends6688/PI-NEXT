@@ -1956,6 +1956,13 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
     return () => { cancelled = true; };
   }, [cwd, refreshKey, treeRefreshKey]);
 
+  // fork:upstream-0.12-sidebar-parity —— 在编辑器 / 终端里改的文件，回到前台时刷新（#1144）。
+  useEffect(() => {
+    const refresh = () => setTreeRefreshKey((key) => key + 1);
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
+
   useEffect(() => {
     onChangesCountChange?.(gitFiles.length);
   }, [gitFiles, onChangesCountChange]);

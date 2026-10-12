@@ -1025,7 +1025,10 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         }, SESSION_DETAILS_HYDRATION_DELAY_MS);
       });
     } else {
-      void loadSessions(false, true);
+      // fork:upstream-0.12-sidebar-parity —— 每次 refreshKey 变化都跟在一个服务端
+      // 已经失效过列表的变化之后（运行 agent_end、fork、删除、改名、新会话）。
+      // force 会再扫一遍并顶版本号，于是每个其它标签页都要再重载一次（#1177）。
+      void loadSessions();
     }
 
     return () => {
@@ -1139,8 +1142,10 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     const hasUnlistedRunningSession = newlyRunning.some(
       (id) => !allSessions.some((session) => session.id === id),
     );
+    // fork:upstream-0.12-sidebar-parity —— 不 force：运行的 agent_end 已经让服务端列表
+    // 失效，这里（每个没显示该会话的标签页）再 force 会再顶一次版本，逼其余标签页再重载。
     if (completedInBackground.length > 0 || hasUnlistedRunningSession) {
-      loadSessions(false, true);
+      void loadSessions();
     }
     if (completedWithNotifications.length > 0) {
       onBackgroundTaskDone?.();

@@ -48,13 +48,23 @@ function cache(): Map<string, SessionViewSnapshot> {
 	return globalThis.__piSessionViewCache;
 }
 
+const snapshotSizes = new WeakMap<SessionViewSnapshot, number>();
+
 function snapshotBytes(snapshot: SessionViewSnapshot): number {
+	// fork:upstream-0.12-sidebar-parity —— 快照大小在存储时量一次：它的 messages 之后
+	// 不再原地修改。用存储大小求和取代「每次存储都对每个缓存会话 JSON.stringify」（最多
+	// 32MB），后者在每次运行结束、压缩和切会话时都会跑（#1181）。
+	const known = snapshotSizes.get(snapshot);
+	if (known !== undefined) return known;
+	let bytes: number;
 	try {
-		return JSON.stringify(snapshot).length;
+		bytes = JSON.stringify(snapshot).length;
 	} catch {
 		// Circular or non-serializable payload — treat as oversize.
-		return Number.MAX_SAFE_INTEGER;
+		bytes = Number.MAX_SAFE_INTEGER;
 	}
+	snapshotSizes.set(snapshot, bytes);
+	return bytes;
 }
 
 function evictToFit(): void {

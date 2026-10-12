@@ -11,6 +11,7 @@ import { DEFAULT_PERMISSION_MODE, readPermissionMode } from "./permission-mode";
 import { getThinkingPreview } from "./message-display";
 import { projectIdentityKey } from "./project-identity";
 import { sessionPathKey } from "./session-path";
+import { skillExpansionToCommand } from "./slash-display";
 import { MAX_TOOL_RESULT_IMAGE_BYTES, TOOL_RESULT_IMAGE_MIMES } from "./tool-result-images";
 import { resolveProject, type ProjectInfo } from "./worktree";
 import { readSubagentRun, SUBAGENT_META_TYPE } from "./subagents";
@@ -187,6 +188,14 @@ export function mergeSessionLists(
 
 type ScannedSubagent = NonNullable<ReturnType<typeof readSubagentRun>>;
 
+/**
+ * fork:upstream-0.12-sidebar-parity —— 扫描行对应的 fork / 子代理运行，从文件读一次。
+ * scanner 在文件 size+mtime 不变时会回传同一个行对象、变了才给新的，所以行本身就是
+ * 缓存键：每次重建列表都要同步重读约 140 个子代理文件（约 36ms 事件循环阻塞），
+ * 而实际只有一个刚跑过的会话变了（#1181）。
+ */
+const scannedSubagentRuns = new WeakMap<ScannedSessionInfo, ScannedSubagent | null>();
+
 function resolveScannedSessionRelation(
   scanned: ScannedSessionInfo,
   pathToId: Map<string, string>,
@@ -196,13 +205,31 @@ function resolveScannedSessionRelation(
     : undefined;
   if (!scanned.parentSessionPath) return { originSessionId, subagent: null };
 
+  const cached = scannedSubagentRuns.get(scanned);
+  if (cached !== undefined) return { originSessionId, subagent: cached };
   try {
     const subagent = readSubagentRun(readSessionRelationEntries(scanned.path), scanned.id, scanned.path);
+    scannedSubagentRuns.set(scanned, subagent);
     return { originSessionId, subagent };
   } catch {
-    // Malformed or concurrently removed session.
+    // Malformed or concurrently removed session: read it again next time.
     return { originSessionId, subagent: null };
   }
+}
+
+/**
+ * fork:upstream-0.12-sidebar-parity —— 列表里的首条消息只用于行标题与子代理过滤，
+ * 从不用于整个 prompt：一份粘贴的文档或展开的 skill 能让一行 300KB、整个列表几 MB，
+ * 且每次运行后每个打开的标签页都要再拉一次。skill 展开走它行里显示的 /skill: 命令；
+ * 其余文本截到 CATALOG_FIRST_MESSAGE_MAX 个码元，不切 surrogate pair（#1176）。
+ */
+const CATALOG_FIRST_MESSAGE_MAX = 500;
+
+export function catalogFirstMessage(text: string): string {
+  const display = skillExpansionToCommand(text) ?? text;
+  if (display.length <= CATALOG_FIRST_MESSAGE_MAX) return display;
+  const last = display.charCodeAt(CATALOG_FIRST_MESSAGE_MAX - 1);
+  return display.slice(0, last >= 0xd800 && last <= 0xdbff ? CATALOG_FIRST_MESSAGE_MAX - 1 : CATALOG_FIRST_MESSAGE_MAX);
 }
 
 function mapScannedSession(
@@ -224,7 +251,7 @@ function mapScannedSession(
     // real "(no messages)" session until the details arrive.
     firstMessage: detailsPending && !scanned.firstMessage
       ? ""
-      : scanned.firstMessage || "(no messages)",
+      : catalogFirstMessage(scanned.firstMessage || "(no messages)"),
     parentSessionId: originSessionId,
     ...(subagent
       ? { relation: { kind: "subagent" as const, parentSessionId: subagent.parentSessionId, profile: subagent.profile, description: subagent.description, status: subagent.status } }
