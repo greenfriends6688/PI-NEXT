@@ -1,6 +1,6 @@
 // fork:upstream-port — upstream-port marker
 import { execFile } from "child_process";
-import { existsSync, mkdirSync, realpathSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync } from "fs";
 import { basename, dirname, join, resolve } from "path";
 import { promisify } from "util";
 import { allowFileRoot } from "./allowed-roots";
@@ -74,16 +74,38 @@ function realPathOrSelf(filePath: string): string {
 }
 
 /**
+ * fork:upstream-0.12-worktree-parity —— 一个仓库的工作树归到哪个文件夹，从它的
+ * common git dir 算（#1049）。checkout 的 `.git` 就站在这层，旁边 `.git` 文件指向它的
+ * 裸仓（`project/.bare`）也在这层。其它裸克隆（`parent/repo.git`）自己是根：它的
+ * 父目录可能装着别的仓库，否则那些仓库的工作树会全落到一个项目里。
+ */
+function repoRootFromCommonDir(commonDir: string): string {
+  const parent = dirname(commonDir);
+  if (basename(commonDir) === ".git") return parent;
+  try {
+    const match = /^gitdir:\s*(.+?)\s*$/m.exec(readFileSync(join(parent, ".git"), "utf8"));
+    if (match && samePath(realPathOrSelf(resolve(parent, match[1])), realPathOrSelf(commonDir))) return parent;
+  } catch {
+    // No `.git` file beside it (a `.git` directory belongs to another repo).
+  }
+  return commonDir;
+}
+
+/**
  * addWorktree() places worktrees in `<repoRoot>-worktrees/<dir>`. When such a
  * directory no longer exists (worktree removed), group its sessions back
  * under the main repo instead of letting them dangle as a phantom project.
  * The dir name is the sanitized branch name — close enough for display.
  */
-function inferRemovedWorktree(cwd: string): ProjectInfo | null {
+export function inferRemovedWorktree(cwd: string): ProjectInfo | null {
   const parent = dirname(cwd);
   if (!parent.endsWith("-worktrees")) return null;
   const repoRoot = parent.slice(0, -"-worktrees".length);
-  if (!repoRoot || !existsSync(join(repoRoot, ".git"))) return null;
+  if (!repoRoot) return null;
+  // fork:upstream-0.12-worktree-parity —— 裸克隆没有 `.git`；git 拿 HEAD / objects / refs 当 git dir（#1049）。
+  const isRepo = existsSync(join(repoRoot, ".git"))
+    || ["HEAD", "objects", "refs"].every((name) => existsSync(join(repoRoot, name)));
+  if (!isRepo) return null;
   return { projectRoot: realPathOrSelf(repoRoot), branch: basename(cwd), isWorktree: true, isTopLevel: true };
 }
 
@@ -156,7 +178,7 @@ async function resolveProjectUncached(cwd: string): Promise<ProjectInfo> {
     // are created for existing users.
     const isTopLevel = samePath(toplevel, realCwd);
     const isWorktreeTopLevel = !samePath(gitDir, commonDir) && isTopLevel;
-    const topLevelProjectRoot = isWorktreeTopLevel ? dirname(commonDir) : toplevel;
+    const topLevelProjectRoot = isWorktreeTopLevel ? repoRootFromCommonDir(commonDir) : toplevel;
     info = {
       projectRoot: isTopLevel ? realPathOrSelf(topLevelProjectRoot) : cwd,
       branch: ref && ref !== "HEAD" ? ref : null,
@@ -181,7 +203,7 @@ async function resolveProjectUncached(cwd: string): Promise<ProjectInfo> {
 /** Main repo root (parent of the shared .git dir), or throws for non-git dirs */
 async function getRepoRoot(cwd: string): Promise<string> {
   const commonDir = await git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
-  return realPathOrSelf(dirname(toNativePath(commonDir)));
+  return realPathOrSelf(repoRootFromCommonDir(toNativePath(commonDir)));
 }
 
 export async function listWorktrees(cwd: string): Promise<WorktreeInfo[]> {

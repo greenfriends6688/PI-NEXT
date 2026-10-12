@@ -1,4 +1,5 @@
 import { stat } from "fs/promises";
+import { existsSync } from "fs";
 import { resolve } from "path";
 import { createAgentSessionServices, getAgentDir, type SettingsManager } from "@earendil-works/pi-coding-agent";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
@@ -14,6 +15,7 @@ import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-acces
 import { projectTrustReloadOptions } from "@/lib/project-trust";
 import { getThinkingLevelMemory } from "@/lib/thinking-level-memory";
 import { rememberProviderModels, withDeferredProviderModels } from "@/lib/deferred-provider-models";
+import { inferRemovedWorktree } from "@/lib/worktree";
 
 export const dynamic = "force-dynamic";
 
@@ -124,8 +126,14 @@ const EMPTY_MODELS: ModelsData = {
 };
 
 export async function GET(req: Request) {
-  const requestedCwd = new URL(req.url).searchParams.get("cwd") || process.cwd();
-  const cwd = resolve(requestedCwd);
+  const requestedCwd = resolve(new URL(req.url).searchParams.get("cwd") || process.cwd());
+  // fork:upstream-0.12-worktree-parity —— 隔离在某个工作树里跑完的子代理，工作树随运行
+  // 结束被删，而会话文件仍把该工作树记为 cwd。落到它分叉的仓库回答，让跑完的子代理
+  // 解析出与非隔离子代理相同的模型（#1137）。下面的 roots 检查跑在实际回答的那个目录上，
+  // 所以这个回退够不到任何未被点名允许的项目。
+  const cwd = existsSync(requestedCwd)
+    ? requestedCwd
+    : inferRemovedWorktree(requestedCwd)?.projectRoot ?? requestedCwd;
 
   let cwdStat;
   try {
