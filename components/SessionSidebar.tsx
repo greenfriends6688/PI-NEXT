@@ -2311,10 +2311,10 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
               <div key={project.key}>
                 <ProjectRow
                   projectKey={project.key}
-                  label={projectDisplayName(project.root, projectPrefs)}
+                  label={projectDisplayName(project.key, project.root, projectPrefs)}
                   title={project.root}
                   renaming={renamingProjectKey === project.key}
-                  onRenameCommit={(name) => { setProjectAlias(project.root, name); setRenamingProjectKey(null); }}
+                  onRenameCommit={(name) => { setProjectAlias(project.key, name); setRenamingProjectKey(null); }}
                   onRenameCancel={() => setRenamingProjectKey(null)}
                   onNewSession={() => startSessionIn(project.root)}
                   onRename={() => setRenamingProjectKey(project.key)}

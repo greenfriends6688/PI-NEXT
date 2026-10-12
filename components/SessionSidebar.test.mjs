@@ -195,7 +195,7 @@ test("keeps a standalone chat section beside the projects", () => {
   // 现在挂在每个项目行的「⋯」上，「添加项目」在项目列表底部一行。
   assert.doesNotMatch(source, /<NewTaskPicker/);
   assert.match(source, /filterHiddenProjects\(/);
-  assert.match(source, /projectDisplayName\(project\.root, projectPrefs\)/);
+  assert.match(source, /projectDisplayName\(project\.key, project\.root, projectPrefs\)/);
   // fork:ui-project-actions — 项目列表再经本地偏好（别名 / 从列表移除）过滤。
   assert.match(source, /filterHiddenProjects\(\s*withoutChatProject\(projectChoices, chatProjectKey\),/);
   assert.match(source, /fetch\("\/api\/chat-workspace"/);

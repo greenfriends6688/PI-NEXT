@@ -1,23 +1,30 @@
 /**
  * fork:ui-project-actions — 项目行的本地偏好：**显示名**与**从列表中移除**。
  *
- * 侧栏的项目列表是从会话的 cwd 推出来的（`lib/recent-projects.ts`），所以「项目」本身
- * 没有可写的配置。Zeno 在 `project-prefs.ts` 里用一张 localStorage 表解决同一问题
- * （`loadProjectAliases` / `hidden`），这里照同样的形状做小一号的版本：
- *
- *   { aliases: { [root]: 显示名 }, hidden: [root, ...] }
- *
- * 键用**项目根路径**（不是 key）：key 是服务端按平台归一化过的，而别名/隐藏是纯前端概念，
- * 跟着路径走更直观，也和「打开文件夹」用的路径一致。
+ * fork:upstream-0.12-session-state（PR-3b）—— 拆成两个来源：
+ *   · **显示名**走服务端（上游 `SessionUiState.projectNames`，键是 `projectKey`），
+ *     所以换浏览器也跟着走，与分组菜单里的「重命名…」是同一个入口；
+ *   · **从列表中移除**是本仓 fork 独有的（`hidden`，纯前端概念，跟着路径走），
+ *     仍留 `localStorage`。
  */
 
 import { useCallback, useSyncExternalStore } from "react";
+import {
+  applySessionUiState,
+  ensureSessionUiState,
+  getSessionUiStateSnapshot,
+  subscribeSessionUiState,
+  type SessionUiStateApi,
+} from "./session-ui-state-store";
+import type { SessionUiState } from "./session-ui-state-shared";
 
 export const PROJECT_PREFS_STORAGE_KEY = "pi-project-prefs";
 const CHANGE_EVENT = "pi-project-prefs-change";
 
 export interface ProjectPrefs {
+  /** projectKey → 显示名（服务端）。 */
   aliases: Record<string, string>;
+  /** 从列表中移除过的项目根路径（本机）。 */
   hidden: string[];
 }
 
@@ -31,8 +38,8 @@ export function parseProjectPrefs(raw: string | null): ProjectPrefs {
     const record = parsed as Record<string, unknown>;
     const aliases: Record<string, string> = {};
     if (record.aliases && typeof record.aliases === "object" && !Array.isArray(record.aliases)) {
-      for (const [root, name] of Object.entries(record.aliases as Record<string, unknown>)) {
-        if (root && typeof name === "string" && name.trim()) aliases[root] = name.trim();
+      for (const [key, name] of Object.entries(record.aliases as Record<string, unknown>)) {
+        if (key && typeof name === "string" && name.trim()) aliases[key] = name.trim();
       }
     }
     const hidden = Array.isArray(record.hidden)
@@ -46,21 +53,20 @@ export function parseProjectPrefs(raw: string | null): ProjectPrefs {
 
 /**
  * 路径最后一段。单独拎出来是因为这条规则不止项目行在用
- * （fork:mobile-tb-subtitle 的顶栏副行也要显示 cwd 的目录名）——
- * 两处各写一遍 `split()` 就是两份会各自漂的规则。
+ * （fork:mobile-tb-subtitle 的顶栏副行也要显示 cwd 的目录名）。
  */
 export function pathBasename(root: string): string {
   return root.split(/[/\\]/).filter(Boolean).at(-1) ?? root;
 }
 
-/** 项目行的显示名：有别名用别名，否则用目录名。 */
-export function projectDisplayName(root: string, prefs: ProjectPrefs): string {
-  const alias = prefs.aliases[root];
+/** 项目行的显示名：有别名（服务端 `projectNames`，键 projectKey）用别名，否则用目录名。 */
+export function projectDisplayName(projectKey: string, root: string, prefs: ProjectPrefs): string {
+  const alias = prefs.aliases[projectKey];
   if (alias) return alias;
   return pathBasename(root);
 }
 
-/** 过滤掉「从列表中移除」过的项目（当前选中的那个始终保留，否则会看不见自己在哪）。 */
+/** 过滤掉「从列表中移除」过的项目（当前选中的那个始终保留）。 */
 export function filterHiddenProjects<T extends { root: string }>(
   projects: readonly T[],
   prefs: ProjectPrefs,
@@ -71,43 +77,54 @@ export function filterHiddenProjects<T extends { root: string }>(
   return projects.filter((project) => !hidden.has(project.root) || project.root === keepRoot);
 }
 
-let cache: ProjectPrefs | null = null;
-const listeners = new Set<() => void>();
+// ── 本机那份（只有 hidden）──────────────────────────────────────────────────
+let hiddenCache: { hidden: string[] } | null = null;
 
-function emit(): void {
-  listeners.forEach((cb) => cb());
-}
-
-function read(): ProjectPrefs {
-  if (typeof window === "undefined") return EMPTY;
+function readHidden(): string[] {
+  if (typeof window === "undefined") return [];
   try {
-    return parseProjectPrefs(window.localStorage.getItem(PROJECT_PREFS_STORAGE_KEY));
+    return parseProjectPrefs(window.localStorage.getItem(PROJECT_PREFS_STORAGE_KEY)).hidden;
   } catch {
-    return EMPTY;
+    return [];
   }
 }
 
-function ensure(): ProjectPrefs {
-  if (cache === null) cache = read();
-  return cache;
-}
-
-function write(next: ProjectPrefs): void {
-  cache = next;
+function writeHidden(hidden: string[]): void {
+  hiddenCache = { hidden };
   try {
-    window.localStorage.setItem(PROJECT_PREFS_STORAGE_KEY, JSON.stringify(next));
+    window.localStorage.setItem(PROJECT_PREFS_STORAGE_KEY, JSON.stringify({ hidden }));
   } catch {
     // 存储不可用：本次会话内仍然生效
   }
-  emit();
+  window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
-function subscribe(cb: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
+// ── 派生（服务端名字 + 本机 hidden）────────────────────────────────────────
+let cache: { state: SessionUiState; prefs: ProjectPrefs } | null = null;
+
+function snapshotPrefs(api: SessionUiStateApi): ProjectPrefs {
+  if (cache !== null && cache.state === api.state) return cache.prefs;
+  if (hiddenCache === null) hiddenCache = { hidden: readHidden() };
+  const prefs: ProjectPrefs = {
+    aliases: { ...(api.state.projectNames ?? {}) },
+    hidden: hiddenCache.hidden,
+  };
+  cache = { state: api.state, prefs };
+  return prefs;
+}
+
+export function getProjectPrefs(): ProjectPrefs {
+  return snapshotPrefs(getSessionUiStateSnapshot());
+}
+
+// 本机 hidden 的变更事件。
+const listeners = new Set<() => void>();
+function subscribeLocal(cb: () => void): () => void {
   const onStorage = (event: StorageEvent) => {
     if (event.key !== PROJECT_PREFS_STORAGE_KEY) return;
+    hiddenCache = null;
     cache = null;
-    emit();
+    cb();
   };
   window.addEventListener(CHANGE_EVENT, cb);
   window.addEventListener("storage", onStorage);
@@ -117,28 +134,43 @@ function subscribe(cb: () => void): () => void {
   };
 }
 
-export function useProjectPrefs() {
-  const prefs = useSyncExternalStore(subscribe, ensure, () => EMPTY);
+function subscribe(cb: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  ensureSessionUiState();
+  const offStore = subscribeSessionUiState(() => {
+    cache = null;
+    cb();
+  });
+  const offLocal = subscribeLocal(() => {
+    cache = null;
+    cb();
+  });
+  return () => {
+    offStore();
+    offLocal();
+  };
+}
 
-  const setAlias = useCallback((root: string, name: string) => {
-    const current = ensure();
-    const aliases = { ...current.aliases };
+export function useProjectPrefs() {
+  const prefs = useSyncExternalStore(subscribe, getProjectPrefs, () => EMPTY);
+
+  /** 设置显示名（服务端；空名 = 清掉，回到目录名）。 */
+  const setAlias = useCallback((projectKey: string, name: string) => {
+    ensureSessionUiState();
     const trimmed = name.trim();
-    if (trimmed) aliases[root] = trimmed;
-    else delete aliases[root];
-    write({ ...current, aliases });
+    void applySessionUiState({ action: "rename-project", projectKey, name: trimmed || null });
   }, []);
 
   const hideProject = useCallback((root: string) => {
-    const current = ensure();
-    if (current.hidden.includes(root)) return;
-    write({ ...current, hidden: [...current.hidden, root] });
+    const current = readHidden();
+    if (current.includes(root)) return;
+    writeHidden([...current, root]);
   }, []);
 
   const restoreProject = useCallback((root: string) => {
-    const current = ensure();
-    if (!current.hidden.includes(root)) return;
-    write({ ...current, hidden: current.hidden.filter((item) => item !== root) });
+    const current = readHidden();
+    if (!current.includes(root)) return;
+    writeHidden(current.filter((item) => item !== root));
   }, []);
 
   return { prefs, setAlias, hideProject, restoreProject };
