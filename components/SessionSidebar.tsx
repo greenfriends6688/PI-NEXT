@@ -14,6 +14,7 @@ import { applySessionFlags, archiveSessions, restoreSessions, useSessionFlags } 
 import {
   GROUP_VISIBLE_LIMIT,
   familiesOlderThan,
+  forgetShownMoreOfFolded,
   moreRowState,
   showLessFamilies,
   showMoreFamilies,
@@ -69,7 +70,7 @@ type SidebarEntry =
   | { type: "header"; bucket: string }
   | { type: "family"; family: SessionFamily }
   | { type: "child"; session: SessionInfo }
-  | { type: "more"; key: string; hidden: number; canShowLess: boolean };
+  | { type: "more"; key: string; hidden: number; canShowLess: boolean; nextShown: number };
 
 /** 主会话后面接上它的子代理会话；**默认收起**，只有显式展开过的根会话才摊开
  *  子树（fork:session-tree-collapsed，用户 2026-10-05：「带多个 agent 的对话默认不
@@ -1662,6 +1663,24 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject?.key]);
 
+  // fork:upstream-0.12-sidebar-parity —— 折叠一个分组就丢掉它的「显示更多」窗口，
+  // 再展开时只显示首行（#0066d5f9）。所有折叠路径（整行 / 全部 / 折叠其他）都经过
+  // 这一个 effect，不必在每处 setExpandedProjects 旁边各写一遍。
+  useEffect(() => {
+    setMoreShown((prev) => {
+      const keys = Object.keys(prev);
+      if (keys.length === 0) return prev;
+      const choices: Record<string, boolean> = {};
+      let folded = false;
+      for (const key of keys) {
+        const isExpanded = expandedProjects.has(key);
+        choices[key] = isExpanded;
+        if (!isExpanded) folded = true;
+      }
+      return folded ? forgetShownMoreOfFolded(prev, choices, keys) : prev;
+    });
+  }, [expandedProjects]);
+
   const filteredSessions = selectedProject
     ? sessionsForProject(allSessions, selectedProject.key)
     : allSessions;
@@ -1802,8 +1821,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const sidebarEntries = useMemo<SidebarEntry[]>(() => {
     const list = expandSidebarEntries(sessionListEntries, expandedFamilies);
     if (!selectedMoreRow || !selectedProjectKey) return list;
-    return [...list, { type: "more", key: selectedProjectKey, hidden: selectedMoreRow.hidden, canShowLess: selectedMoreRow.canShowLess }];
-  }, [expandedFamilies, selectedMoreRow, selectedProjectKey, sessionListEntries]);
+    return [...list, { type: "more", key: selectedProjectKey, hidden: selectedMoreRow.hidden, canShowLess: selectedMoreRow.canShowLess, nextShown: selectedFamiliesSplit.nextShown }];
+  }, [expandedFamilies, selectedMoreRow, selectedProjectKey, sessionListEntries, selectedFamiliesSplit.nextShown]);
 
   // fork:session-row-overlap —— 窗口化的行高量自真行（见文件头 SESSION_LIST_ITEM_HEIGHT）。
   // 量的是滚动区里的第一行：`.d-sess`（Web）与 `.m-row`（PWA）都是**内容高 ≥ 拉伸高**
@@ -1865,13 +1884,13 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   };
   /** 子代理会话：缩进一级 + 竖线 + 分支图标（画板 02 的子代理行）。 */
   /** fork:pi-1.1（上游「显示更多」行）—— 一个分组多出来的那些会话。 */
-  const renderMoreRow = (key: string, hidden: number, canShowLess: boolean) => (
+  const renderMoreRow = (key: string, hidden: number, canShowLess: boolean, nextShown: number) => (
     <button
       type="button"
       className={isMobile ? "m-trow" : "d-trow"}
       style={{ width: "100%", justifyContent: "flex-start", gap: "var(--nx-sp-2)", color: "var(--nx-text-3)" }}
       onClick={() => setMoreShown((prev) => (
-        canShowLess && hidden === 0 ? showLessFamilies(prev, key) : showMoreFamilies(prev, key)
+        canShowLess && hidden === 0 ? showLessFamilies(prev, key) : showMoreFamilies(prev, key, nextShown)
       ))}
     >
       <i data-ico={canShowLess && hidden === 0 ? "chevron-up" : "chevron-down"} data-size="13" aria-hidden="true"></i>
@@ -2519,7 +2538,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                                 if (entry.type === "more") {
                                   return (
                                     <div key={`more:${entry.key}`} style={{ position: "absolute", top, left: 0, right: 0, height, display: "flex" }}>
-                                      {renderMoreRow(entry.key, entry.hidden, entry.canShowLess)}
+                                      {renderMoreRow(entry.key, entry.hidden, entry.canShowLess, entry.nextShown)}
                                     </div>
                                   );
                                 }
@@ -2547,7 +2566,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                         })}
                         {projectMoreRow && (
                           <div style={{ display: "flex" }}>
-                            {renderMoreRow(project.key, projectMoreRow.hidden, projectMoreRow.canShowLess)}
+                            {renderMoreRow(project.key, projectMoreRow.hidden, projectMoreRow.canShowLess, familySplit.nextShown)}
                           </div>
                         )}
                       </div>

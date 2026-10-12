@@ -15,7 +15,7 @@ function fakeWrapper(sessionId, isRunning) {
     sessionId,
     isRunning: () => isRunning,
     hasSuppressedCompletionNotifications: () => false,
-    hasPendingUiRequest: () => false,
+    isAwaitingInput: () => false,
     pendingUiRequestKind: () => null,
   };
 }

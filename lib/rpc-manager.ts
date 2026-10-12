@@ -51,6 +51,7 @@ import { persistExplicitStartupPreferences } from "./startup-preferences";
 import { rememberThinkingLevel, thinkingLevelMemoryKey } from "./thinking-level-memory";
 import { notifySessionComplete } from "./web-push";
 import { hasActiveSessionLivenessProvider } from "./session-liveness";
+import { isBlockingExtensionUiRequest } from "./extension-ui-queue";
 import type { SlashCommandInfo } from "@earendil-works/pi-coding-agent";
 import type { AgentSessionLike, ExtensionUiContextLike, ToolInfo } from "./pi-types";
 import type {
@@ -414,14 +415,15 @@ export class AgentSessionWrapper {
   }
 
   /**
-   * fork:design-system — 会话是否卡在「等人」。
-   * 判据：存在未回应的 `extension_ui_request`，且当前**不在跑**（两者互斥）。
-   * 只看本进程里的 wrapper：没有 wrapper 就没有挂起请求可言。
+   * fork:upstream-0.12-sidebar-parity —— 卡在一个没人回答的扩展阻塞对话框上：
+   * select / confirm / input / editor，或一个仍开着的 custom 浮层。这一轮停在一个
+   * 只有用户能解开的 promise 上，所以侧栏该显示「等你处理」而不是转圈（#1145）。
+   * 空闲会话永远不为 true：一个活得比这一轮还久的 custom 浮层不是被停住的运行。
    */
-  hasPendingUiRequest(): boolean {
-    if (!this._alive || this.isRunning()) return false;
+  isAwaitingInput(): boolean {
+    if (!this.isRunning()) return false;
     for (const request of this.pendingUiRequests.values()) {
-      if (isBlockingUiRequest(request)) return true;
+      if (isBlockingExtensionUiRequest(request as unknown as ExtensionUiRequest)) return true;
     }
     return false;
   }
@@ -431,7 +433,7 @@ export class AgentSessionWrapper {
    * 侧栏的 warning 文字标记用它决定写「待授权」还是「待输入」。
    */
   pendingUiRequestKind(): "approval" | "input" | null {
-    if (!this.hasPendingUiRequest()) return null;
+    if (!this.isAwaitingInput()) return null;
     for (const request of this.pendingUiRequests.values()) {
       const method = (request as { method?: unknown }).method;
       if (method === "select" || method === "confirm") return "approval";
@@ -2133,11 +2135,6 @@ declare global {
  * notify / setWidget / setStatus / setTitle / set_editor_text 是一次性通知，
  * 发完就算，不该让侧栏挂上「等你处理」。
  */
-function isBlockingUiRequest(request: AgentEvent): boolean {
-  const method = (request as { method?: unknown }).method;
-  return method === "select" || method === "confirm" || method === "input" || method === "editor" || method === "custom";
-}
-
 function getRegistry(): Map<string, AgentSessionWrapper> {
   if (!globalThis.__piSessions) {
     globalThis.__piSessions = new Map();
@@ -2455,9 +2452,8 @@ export function getCompletionNotificationSuppressedRpcSessionIds(): string[] {
  * fork:design-system — 「等你处理」的会话 id（画板 02 的第三类活动态）。
  *
  * 口径（与画板 02 的三者互斥表一致）：
- *   · **至少有一条挂起的 `extension_ui_request`**（审批 / 追问 / 自定义 UI）
- *   · 且该会话**不在跑** —— 它卡在等人上，不是在算。两者互斥，
- *     所以调用方拿到 running 之后应把它从这份里剔掉（这里已做）。
+ *   · **正在跑**，且**至少有一条挂起的阻塞式 `extension_ui_request`**
+ *     （审批 / 追问 / 自定义 UI）—— 这一轮停在一个只有用户能解开的 promise 上。
  *   · 只管**当前进程里还活着**的 wrapper：没 wrapper 的会话没有挂起请求可言。
  *
  * 与 running 同源、同一次轮询取回，所以侧栏不需要第二个请求。
@@ -2466,8 +2462,7 @@ export function getCompletionNotificationSuppressedRpcSessionIds(): string[] {
 export function getAwaitingRpcSessionIds(): string[] {
   const ids = new Set<string>();
   for (const [sessionId, session] of getRegistry()) {
-    if (session.isRunning()) continue;
-    if (!session.hasPendingUiRequest()) continue;
+    if (!session.isAwaitingInput()) continue;
     ids.add(session.sessionId || sessionId);
   }
   return [...ids];
@@ -2480,7 +2475,6 @@ export function getAwaitingRpcSessionIds(): string[] {
 export function getAwaitingRpcSessionKinds(): Record<string, "approval" | "input"> {
   const kinds: Record<string, "approval" | "input"> = {};
   for (const [sessionId, session] of getRegistry()) {
-    if (session.isRunning()) continue;
     const kind = session.pendingUiRequestKind();
     if (!kind) continue;
     kinds[session.sessionId || sessionId] = kind;

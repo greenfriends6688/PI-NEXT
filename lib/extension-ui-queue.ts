@@ -14,6 +14,30 @@
  * 事件都不该触发一次重渲染（顺带保住自定义面板里已经打进去的字）。
  */
 
+import type { BlockingExtensionUiRequest, ExtensionUiRequest } from "./types";
+
+/**
+ * fork:upstream-0.12-sidebar-parity —— 一个「会 gate 住这一轮」的请求：pi 的
+ * select / confirm / input / editor，或一个尚未关闭的 custom 浮层。其余（notify、
+ * setStatus、setWidget、setTitle …）只是在告诉 UI 一件事。TUI 正好阻塞在这些方法上，
+ * 所以宿主能区分「卡在人身上」与「只是在工作」的会话（#1145）。
+ */
+export function isBlockingExtensionUiRequest(
+  request: ExtensionUiRequest,
+): request is BlockingExtensionUiRequest {
+  switch (request.method) {
+    case "select":
+    case "confirm":
+    case "input":
+    case "editor":
+      return true;
+    case "custom":
+      return request.closed !== true;
+    default:
+      return false;
+  }
+}
+
 /** 入队：同 id 已在等就当没来过（SSE 重连会把每一条待决请求重放一遍）。 */
 export function enqueueExtensionUiRequest<T extends { id: string }>(queue: T[], request: T): T[] {
   if (queue.some((item) => item.id === request.id)) return queue;

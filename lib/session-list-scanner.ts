@@ -371,6 +371,8 @@ export async function listSessionsIncremental(
 
 	const sessionsDir = join(getAgentDir(), "sessions");
 	const files = await enumerateSessionFiles(sessionsDir);
+	// fork:upstream-0.12-sidebar-parity —— 记下本次扫描列出的文件名，供成员检查比对（#1100）。
+	globalThis.__piSessionMembership = { files: new Set(files) };
 
 	const index = getIndex();
 	const present = new Set(files);
@@ -455,4 +457,48 @@ export function resetSessionScanIndexForTests(): void {
 	globalThis.__piWebScanIndex = undefined;
 	globalThis.__piWebScanIndexLoaded = undefined;
 	globalThis.__piWebScanIndexSaveQueued = undefined;
+	globalThis.__piSessionMembership = undefined;
+	globalThis.__piSessionMembershipCheck = undefined;
+}
+
+// ============================================================================
+// fork:upstream-0.12-sidebar-parity —— 文件名成员检查：别的进程创建/删除的会话（#1100）。
+// ============================================================================
+
+declare global {
+	/** 上次扫描列出的会话文件（或上次检查报出的变化）。 */
+	var __piSessionMembership: { files: Set<string> } | undefined;
+	var __piSessionMembershipCheck: { at: number; busy: boolean } | undefined;
+}
+
+export const SESSION_MEMBERSHIP_CHECK_MS = 1_000;
+
+/**
+ * 把磁盘上的会话文件与上次扫描的比对，不同就调一次 `onChange`。只读目录：往会话里
+ * 追加从不改它的名字，所以一个正在跑的会话在这里零开销。每 SESSION_MEMBERSHIP_CHECK_MS
+ * 最多检查一次，永不并发，首次扫描前不检查。返回该检查的 promise，没启动则返回 undefined。
+ */
+export function checkSessionMembership(
+	sessionsDir: string,
+	onChange: () => void,
+	now = Date.now(),
+): Promise<void> | undefined {
+	const known = globalThis.__piSessionMembership;
+	const state = (globalThis.__piSessionMembershipCheck ??= { at: Number.NEGATIVE_INFINITY, busy: false });
+	if (!known || state.busy || now - state.at < SESSION_MEMBERSHIP_CHECK_MS) return undefined;
+	state.busy = true;
+	state.at = now;
+	return enumerateSessionFiles(sessionsDir)
+		.then((files) => {
+			// 本次读取期间又有扫描落了新基线：丢掉本次结果，下次拿扫描自己的清单比。
+			if (globalThis.__piSessionMembership !== known) return;
+			if (known.files.size === files.length && files.every((file) => known.files.has(file))) return;
+			// 记下变化，让它只顶一次版本，而不是一直顶到下次重扫。
+			globalThis.__piSessionMembership = { files: new Set(files) };
+			onChange();
+		})
+		.catch(() => undefined)
+		.finally(() => {
+			state.busy = false;
+		});
 }

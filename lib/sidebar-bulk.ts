@@ -74,9 +74,25 @@ export function shownMoreFor(more: MoreShown, key: string): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
-/** 点一次「显示更多」：该分组多显示 SHOW_MORE_STEP 个。 */
-export function showMoreFamilies(more: MoreShown, key: string): Record<string, number> {
-  return { ...more, [key]: shownMoreFor(more, key) + SHOW_MORE_STEP };
+/** 点一次「显示更多」：该分组多显示 SHOW_MORE_STEP 个（位置窗口，见 visibleFamilies）。 */
+export function showMoreFamilies(more: MoreShown, key: string, nextShown: number): Record<string, number> {
+  return { ...more, [key]: Math.max(shownMoreFor(more, key), Math.floor(nextShown)) };
+}
+
+/**
+ * 一个显式折叠动作关掉的那些分组的窗口：再展开时只显示首行，不回到它原来的窗口。
+ * `keys` 为 null 时覆盖 `choices` 里的每一个。
+ */
+export function forgetShownMoreOfFolded(
+  more: MoreShown,
+  choices: Readonly<Record<string, boolean>>,
+  keys: readonly string[] | null,
+): Record<string, number> {
+  const folded = (keys ?? Object.keys(choices)).filter((key) => choices[key] === false && Object.hasOwn(more, key));
+  if (folded.length === 0) return more as Record<string, number>;
+  const next = { ...more };
+  for (const key of folded) delete next[key];
+  return next;
 }
 
 /** 「收起」：回到基础上限。 */
@@ -88,27 +104,37 @@ export function showLessFamilies(more: MoreShown, key: string): Record<string, n
 }
 
 /**
- * 前 `limit` 个家族，加上**运行中 / 未读 / 选中**的后面的家族，再加上 `extra` 个
- * 其余家族（保持排序）。会自己显示的家族不占 `extra` 名额，所以每次「显示更多」
- * 恰好多出 SHOW_MORE_STEP 行；`revealed` 数出 `extra` 实际显示了几个。
+ * 前 `limit` 个家族，加上「显示更多」打开的 `shown` 个**位置**，再加上窗口之后任何
+ * 运行中 / 未读 / 选中的家族（保持排序）。
+ *
+ * fork:upstream-0.12-sidebar-parity —— 是**位置**不是预算：窗口内某个家族变成选中 /
+ * 未读 / 运行中时保持原位、不腾出名额，所以点开最后一行后再选它不会把下面更旧的一行
+ * 顶上来（#51dda7c5）。`revealed` 只数窗口显示的几行（「收起」要折回的）；
+ * `nextShown` 是「显示更多」点击时打开的位置窗口：再 SHOW_MORE_STEP 个隐藏家族
+ * （本来就会显示的不占名额），或剩余全部。
  */
 export function visibleFamilies<T>(
   families: readonly T[],
   limit: number,
-  extra: number,
+  shown: number,
   isSpecial: (family: T) => boolean,
-): { visible: T[]; revealed: number } {
+): { visible: T[]; revealed: number; nextShown: number } {
+  const flagged = families.map((family, index) => index >= limit && isSpecial(family));
+  const end = limit + shown;
   let revealed = 0;
-  const visible = families.filter((family, index) => {
-    if (index < limit) return true;
-    if (isSpecial(family)) return true;
-    if (revealed < extra) {
+  const visible = families.filter((_family, index) => {
+    if (index < limit || flagged[index]) return true;
+    if (index < end) {
       revealed += 1;
       return true;
     }
     return false;
   });
-  return { visible, revealed };
+  let next = Math.max(limit, Math.min(end, families.length));
+  for (let hidden = 0; next < families.length && hidden < SHOW_MORE_STEP; next += 1) {
+    if (!flagged[next]) hidden += 1;
+  }
+  return { visible, revealed, nextShown: next - limit };
 }
 
 /** 「显示更多 · N」那一行要显示什么；null = 这一组不需要那一行。 */
