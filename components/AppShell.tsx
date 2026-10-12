@@ -53,7 +53,7 @@ import { MobileRightPanels, type MobileRightPanelItem } from "./pwa/RightPanelsM
 // 左缘侧滑返回 `.m-swipe`）与 M-10 帧 C-1 的 `.m-trust` 常驻条。
 // 手势逻辑住在 `components/pwa/**`（PWA 形态组件的家），这里只传它在产品里的真实动作。
 import { PwaPullToRefresh } from "./pwa/MobileGestures";
-import { openFileTab, saveFileViewerState } from "./file-tab-state";
+import { openFileTab, saveFileViewerState, saveParkedFileViewerState, switchFileWorkspace, type ParkedFileWorkspace } from "./file-tab-state";
 // fork:zc-06 — 「最近关闭」快照的纯逻辑与存储。
 import { forgetClosedTab, loadRecentClosedTabs, recordClosedTab, saveRecentClosedTabs, type RestorableTab } from "@/lib/recent-closed-tabs";
 import { loadSessionList } from "@/lib/session-list";
@@ -875,6 +875,11 @@ export function AppShell() {
   // Files unmount when inactive; workspace terminals stay mounted until closed.
   const [fileTabs, setFileTabs] = useState<Tab[]>([]);
   const [activeFileTabId, setActiveFileTabId] = useState<string | null>(null);
+  const fileWorkspaceStatesRef = useRef(new Map<string, ParkedFileWorkspace>());
+  // 每次工作区切换都自增。活跃 viewer 卸载时按它渲染时的 generation 汇报状态，
+  // 于是刚停下的标签的汇报落在它自己的工作区，而不是一个同路径的已恢复标签。
+  const [fileWorkspaceGeneration, setFileWorkspaceGeneration] = useState(0);
+  const fileWorkspaceGenerationRef = useRef(0);
   const [pendingFileLocation, setPendingFileLocation] = useState<FileLocationTarget | null>(null);
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>([]);
   const [terminalsRestored, setTerminalsRestored] = useState(false);
@@ -1105,12 +1110,37 @@ export function AppShell() {
   }, [browserTabs, activeFileTabId, rightPanelOpen, browsersRestored]);
 
   const handleFileViewerStateChange = useCallback((
+    // fork:upstream-0.12-sidebar-parity —— 带上渲染时的 generation，刚停下的标签的汇报
+    // 才会落到它自己的工作区，而不是落到一个同路径的已恢复标签上（#1107）。
+    generation: number,
     tabId: string,
     viewerRevision: number,
     viewerState: FileViewerState,
   ) => {
+    if (generation !== fileWorkspaceGenerationRef.current) {
+      saveParkedFileViewerState(fileWorkspaceStatesRef.current, generation, tabId, viewerRevision, viewerState);
+      return;
+    }
     setFileTabs((prev) => saveFileViewerState(prev, tabId, viewerRevision, viewerState));
   }, []);
+
+  const changeFileWorkspace = useCallback((currentKey: string | null, nextKey: string) => {
+    if (currentKey === nextKey) return;
+    const activeFileId = activeFileTabId?.startsWith("file:") ? activeFileTabId : null;
+    const next = switchFileWorkspace(fileWorkspaceStatesRef.current, currentKey, nextKey, {
+      tabs: fileTabs,
+      activeTabId: activeFileId,
+      open: rightPanelOpen && Boolean(activeFileId),
+    }, fileWorkspaceGenerationRef.current);
+    fileWorkspaceGenerationRef.current += 1;
+    setFileWorkspaceGeneration(fileWorkspaceGenerationRef.current);
+    setFileTabs(next.tabs);
+    // 终端标签跨工作区，活跃时仍握着面板。
+    if (!activeFileTabId || activeFileId) {
+      setActiveFileTabId(next.activeTabId);
+      setRightPanelOpen(next.open);
+    }
+  }, [activeFileTabId, fileTabs, rightPanelOpen]);
 
   const copySessionReference = useCallback(async (detail: SessionRowContextMenuDetail) => {
     const reference: SessionReference = {
@@ -1406,19 +1436,15 @@ export function AppShell() {
     if (currentProject !== newProject) {
       const skipWorkspaceRestore = skipWorkspaceRestoreRef.current;
       skipWorkspaceRestoreRef.current = false;
-      // File tabs are keyed by absolute path, so tabs opened in the previous
-      // project must not linger. Same-project worktree switches keep them.
-      setFileTabs([]);
-      if (!activeFileTabId || activeFileTabId.startsWith("file:")) {
-        setActiveFileTabId(null);
-        if (!workspaceSwapped) setRightPanelOpen(false);
-      }
+      // Keep #281's project isolation, but park each workspace's file tabs
+      // instead of discarding them so they return when the user switches back.
+      changeFileWorkspace(currentProject, newProject);
       // Restore the workspace we switched to: its last open session, or keep
       // the default welcome page when none is remembered.
       if (!skipWorkspaceRestore) restoreWorkspaceContext(newProject, cwd);
     }
     router.replace(typeof window !== "undefined" ? window.location.pathname : "/", { scroll: false });
-  }, [activeCwd, activeFileTabId, invalidateWorkspaceRestore, newSessionCwd, router, selectedSession, restoreWorkspaceContext, workspaceSwapped]);
+  }, [activeCwd, activeFileTabId, changeFileWorkspace, invalidateWorkspaceRestore, newSessionCwd, router, selectedSession, restoreWorkspaceContext, workspaceSwapped]);
 
   const handleSelectSession = useCallback((session: SessionInfo, isRestore = false, entryId?: string, blockIndex?: number) => {
     setSearchTarget(entryId ? { sessionId: session.id, entryId, blockIndex } : null);
@@ -1432,11 +1458,7 @@ export function AppShell() {
     // Adopt an explicitly selected session before the sidebar reports its cwd.
     const projectKey = workspaceKeyOf(session);
     if (activeProjectKeyRef.current !== projectKey) {
-      setFileTabs([]);
-      if (!activeFileTabId || activeFileTabId.startsWith("file:")) {
-        setActiveFileTabId(null);
-        if (!workspaceSwapped) setRightPanelOpen(false);
-      }
+      changeFileWorkspace(activeProjectKeyRef.current, projectKey);
       setActiveTopPanel(null);
     }
     activeProjectKeyRef.current = projectKey;
@@ -1477,7 +1499,7 @@ export function AppShell() {
     if (!isRestore || new URLSearchParams(window.location.search).get("session") !== session.id) {
       router.replace(`?session=${encodeURIComponent(session.id)}`, { scroll: false });
     }
-  }, [activeCwd, activeFileTabId, invalidateWorkspaceRestore, router, isMobile, newSessionCwd, selectedSession, workspaceSwapped]);
+  }, [activeCwd, activeFileTabId, changeFileWorkspace, invalidateWorkspaceRestore, router, isMobile, newSessionCwd, selectedSession, workspaceSwapped]);
 
   const handleNewSession = useCallback((sessionId: string, cwd: string) => {
     invalidateWorkspaceRestore();
@@ -3345,7 +3367,7 @@ export function AppShell() {
       if (resident && !mountedFileTabs.has(fileTab.id)) return null;
       return box(
         <FileViewer
-          key={`${fileTab.id}:${fileTab.viewerRevision ?? 0}`}
+          key={`${fileWorkspaceGeneration}:${fileTab.id}:${fileTab.viewerRevision ?? 0}`}
           filePath={fileTab.filePath}
           cwd={activeCwd ?? undefined}
           sourceSessionId={fileTab.sourceSessionId}
@@ -3360,6 +3382,7 @@ export function AppShell() {
           initialState={fileTab.viewerState}
           watchEnabled={editorVisible && isActive}
           onStateChange={(viewerState) => handleFileViewerStateChange(
+            fileWorkspaceGeneration,
             fileTab.id,
             fileTab.viewerRevision ?? 0,
             viewerState,

@@ -33,9 +33,9 @@ test("every mounted file tab keeps its own FileViewer instance", () => {
 
 test("each viewer restores its own tab state and saves it with a revision", () => {
   const block = fileContentBlock();
-  assert.match(block, /key=\{`\$\{fileTab\.id\}:\$\{fileTab\.viewerRevision \?\? 0\}`\}/);
+  assert.match(block, /key=\{`\$\{fileWorkspaceGeneration\}:\$\{fileTab\.id\}:\$\{fileTab\.viewerRevision \?\? 0\}`\}/);
   assert.match(block, /initialState=\{fileTab\.viewerState\}/);
-  assert.match(block, /handleFileViewerStateChange\(\s*fileTab\.id,\s*fileTab\.viewerRevision \?\? 0,/);
+  assert.match(block, /handleFileViewerStateChange\(\s*fileWorkspaceGeneration,\s*fileTab\.id,\s*fileTab\.viewerRevision \?\? 0,/);
 });
 
 test("the editor stays active when it occupies the main region", () => {

@@ -116,6 +116,8 @@ test("New restores the draft after session navigation and workspace auto-restore
         sessionKey: 0,
       });
       context.invalidateWorkspaceRestore = () => context.workspaceRestoreTokenRef.current++;
+      // fork:upstream-0.12-sidebar-parity —— handleCwdChange 现在调这个（#1107）。
+      context.changeFileWorkspace = () => {};
       // fork:session-list-cache — 恢复流程改走共享缓存。这里必须在 context 建好之后再挂，
       // 否则闭包会捕获 Node 侧的 fetch（而不是 VM 里的桩）。
       context.loadSessionList = () => Promise.resolve(context.fetch("/api/sessions"))

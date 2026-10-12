@@ -2,6 +2,36 @@
 import type { FileViewerState } from "@/lib/file-viewer-state";
 import type { Tab } from "./TabBar";
 
+// fork:upstream-0.12-sidebar-parity —— 每个工作区的文件标签**停下来**而不是丢掉，
+// 回切时再取回（#1107）。
+export interface FileWorkspaceState {
+  tabs: Tab[];
+  activeTabId: string | null;
+  open: boolean;
+}
+
+// 停下的工作区保留它标签存活时的 generation：切换后卸载的 viewer 按它汇报，
+// 于是它的状态落在这些标签上，即使切到的工作区开着同一个文件。
+export interface ParkedFileWorkspace extends FileWorkspaceState {
+  generation: number;
+}
+
+export function switchFileWorkspace(
+  states: Map<string, ParkedFileWorkspace>,
+  currentKey: string | null,
+  nextKey: string,
+  current: FileWorkspaceState,
+  generation: number,
+): FileWorkspaceState {
+  if (currentKey === nextKey) return current;
+  if (currentKey) states.set(currentKey, { ...current, generation });
+  const parked = states.get(nextKey);
+  if (!parked) return { tabs: [], activeTabId: null, open: false };
+  // 活着的标签从不停在 map 里：它只装被离开的工作区。
+  states.delete(nextKey);
+  return { tabs: parked.tabs, activeTabId: parked.activeTabId, open: parked.open };
+}
+
 interface OpenFileTabInput {
   fileName: string;
   filePath: string;
@@ -89,6 +119,20 @@ export function openFileTab(tabs: Tab[], input: OpenFileTabInput): Tab[] {
     if (bumpRevision) next.viewerRevision = (tab.viewerRevision ?? 0) + 1;
     return next;
   });
+}
+
+export function saveParkedFileViewerState(
+  states: Map<string, ParkedFileWorkspace>,
+  generation: number,
+  tabId: string,
+  viewerRevision: number,
+  viewerState: FileViewerState,
+): void {
+  for (const [key, workspace] of states) {
+    if (workspace.generation !== generation) continue;
+    states.set(key, { ...workspace, tabs: saveFileViewerState(workspace.tabs, tabId, viewerRevision, viewerState) });
+    return;
+  }
 }
 
 export function saveFileViewerState(
