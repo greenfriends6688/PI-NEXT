@@ -1033,7 +1033,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
             : {}),
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // fork:upstream-0.12-chat-parity —— 服务端给的原因（项目文件夹已不在、Chat only
+        // 加载不了的扩展模型）胜过一句光秃秃的状态码（#1061/#804）。
+        const body = await res.json().catch(() => null) as { error?: unknown } | null;
+        throw new Error(typeof body?.error === "string" ? body.error : `HTTP ${res.status}`);
+      }
       const result = await res.json() as {
         sessionId: string;
         model?: SelectedModel | null;

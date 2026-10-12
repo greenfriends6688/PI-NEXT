@@ -877,6 +877,12 @@ export class AgentSessionWrapper {
         const imageError = validateAgentImages(command.images);
         if (imageError) throw new Error(imageError);
       }
+      // fork:upstream-0.12-chat-parity —— cwd 在 pi-web 之外被删的会话仍可读，但在那里跑一轮
+      // 只会让模型的工具全失败（write 甚至会重建那个文件夹）。pi CLI 也不会恢复这种会话，
+      // 与 /api/agent/new 一样拒掉（#1061）。
+      if (type === "prompt" && !existsSync(this.cwd)) {
+        throw new Error(`Directory does not exist: ${this.cwd}`);
+      }
 
       switch (type) {
       case "prompt": {
