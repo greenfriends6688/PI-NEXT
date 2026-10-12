@@ -28,9 +28,11 @@
 .m-wordmark { height: 20px; width: auto; display: block; flex: 0 0 auto; }
 .m-top { position: absolute; top: 0; left: 0; right: 0; z-index: var(--nx-z-sticky);
   padding: 6px 14px 10px; display: flex; align-items: center; gap: var(--nx-sp-2);
-  /* fork:v6-glass —— 渐隐顶栏的实色改成壳面色：色场在底下，实色色标会露出一条
-     与底不同的边。半透明壳面色作渐变起点 = 顶栏自己也是玻璃的一段。 */
-  background: linear-gradient(to bottom, var(--nx-glass-shell) 42%, transparent); pointer-events: none; }
+  /* fork:v6-process（2026-10-12 用户实拍 M-01 帧 A「白块」）—— **顶栏自己不带底**，
+     渐隐只由 .m-fade 一层负责。原先 .m-top（42% 实色段）与 .m-fade（30% 实色段）
+     两层叠着，合成 alpha ≈ 0.91：读成一块贴上去的白色 sticker，42% 处的渐变拐点
+     还把「9:41」那行的下缘切出一条硬边。删一层 = 只剩一条平滑渐隐。 */
+  background: none; pointer-events: none; }
 .m-top > * { pointer-events: auto; }
 .m-top-title { font-size: var(--nx-sk-t-headline-size); line-height: var(--nx-sk-t-headline-lh);
   font-weight: var(--nx-sk-t-headline-w); color: var(--nx-vibrant-1); min-width: 0;
@@ -45,8 +47,15 @@
 .m-top-btn:active { transform: scale(.94); }
 
 /* 渐隐尾（列表滚动到顶栏下的柔和过渡） */
-.m-fade { position: absolute; top: 0; left: 0; right: 0; height: 96px; z-index: calc(var(--nx-z-sticky) - 1);
-  background: linear-gradient(to bottom, var(--nx-glass-shell) 30%, transparent); pointer-events: none; }
+/* 唯一的一层顶栏渐隐：从壳面实色平滑收到全透明，**没有实色段**（实色段的末端
+   就是原来那条硬边）。120px 覆盖 statusbar 下缘 + 整条标题行 + 一段留白。 */
+.m-fade { position: absolute; top: 0; left: 0; right: 0; height: 120px; z-index: calc(var(--nx-z-sticky) - 1);
+  background: linear-gradient(to bottom,
+    var(--nx-glass-shell) 0%,
+    color-mix(in srgb, var(--nx-glass-shell) 74%, transparent) 34%,
+    color-mix(in srgb, var(--nx-glass-shell) 30%, transparent) 68%,
+    transparent 100%);
+  pointer-events: none; }
 .m-fade-tail { position: absolute; left: 0; right: 0; bottom: 0; height: 72px; z-index: calc(var(--nx-z-sticky) - 1);
   background: linear-gradient(to top, var(--nx-glass-shell) 36%, transparent); pointer-events: none; }
 
@@ -56,13 +65,12 @@
 /* flex 列里带 overflow / aspect-ratio / min-height 的子项会被压扁（实测 .m-cats 32px → 4px）。
    这几处是「滚动区」「设置流」「商店流」的根容器，它们的直接子项一律不许参与收缩。 */
 .m-scroll > *, .m-settings > *, .m-store-body > *, .m-onboard > *, .m-panel-scroll > * { flex: 0 0 auto; }
+/* 用户气泡（fork:v6-process，与 web 同一次改版）：deepseek 淡蓝底 + 深字，
+   推翻 v5 的 --nx-accent 铺底白字（那是交互色，不是消息色）。色值出处见 --nx-user-bubble。 */
 .m-msg-user {
-  --nx-text: var(--nx-accent-fg);
-  --nx-text-2: color-mix(in srgb, var(--nx-accent-fg) 82%, transparent);
-  --nx-text-3: color-mix(in srgb, var(--nx-accent-fg) 68%, transparent);
-  --nx-code-bg: color-mix(in srgb, #000 18%, transparent);
-  align-self: flex-end; max-width: 82%; background: var(--nx-accent);
-  border-radius: var(--nx-radius-card); border-bottom-right-radius: var(--nx-radius-control); padding: 12px 15px; }
+  align-self: flex-end; max-width: 82%; background: var(--nx-user-bubble);
+  border-radius: var(--nx-radius-card); border-bottom-right-radius: var(--nx-radius-control);
+  padding: 12px 16px; color: var(--nx-text); }
 /* 助手消息：身份行（品牌 logo + PI NEXT + 模型徽章）+ 内容 + 动作行 —— 与 web .d-msg-ai 同义。
    每条助手消息都必须有身份行：转录区里它是「谁在说」的唯一来源。 */
 .m-msg-ai { display: flex; flex-direction: column; gap: var(--nx-sp-3); }

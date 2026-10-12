@@ -33,7 +33,7 @@ import {
 } from "@/lib/session-unread";
 import { filterArchivedProjects, useProjectFlags } from "@/lib/project-flags";
 // fork:zc-11 — 用户自定义项目分组 + 拖拽排序（localStorage 展示层偏好）。
-import { groupProjects, useSessionGroups } from "@/lib/session-groups";
+import { groupProjects, useRecordProjectOrder, useSessionGroups } from "@/lib/session-groups";
 import { filterHiddenProjects, projectDisplayName, useProjectPrefs } from "@/lib/project-prefs";
 import { flatTimeGroupEntries, type TimeGroupEntry } from "@/lib/time-groups";
 import { desktopTrafficLightInset } from "@/lib/desktop-shell";
@@ -1809,6 +1809,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     () => groupProjects(visibleProjects, sessionGroups.state).flatMap((section) => section.projects.map((project) => project.key)),
     [sessionGroups.state, visibleProjects],
   );
+
+  // fork:upstream-0.12-session-state（PR-3b）—— 新项目 key 记一次进服务端 projectOrder。
+  useRecordProjectOrder(projectVisibleKeys);
 
   const familyStatusInput = useMemo(() => ({
     runningIds: runningSessionIds,

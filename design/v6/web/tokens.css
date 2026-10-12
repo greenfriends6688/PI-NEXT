@@ -450,6 +450,11 @@
     radial-gradient(52% 130% at -12% 58%, color-mix(in srgb, #22b8e6 16%, transparent) 0%, transparent 72%),
     radial-gradient(46% 110% at 112% 96%, color-mix(in srgb, #b45cf0 13%, transparent) 0%, transparent 74%),
     linear-gradient(178deg, #eaeff6 0%, #f1eff7 54%, #e9f1f4 100%);
+  /* 用户消息气泡（fork:v6-process，抄 deepseek `--dsw-specific-bubble` 的两个色值）：
+     它 light 是淡蓝 rgb(237 243 254) + 深字，dark 是它自己命名的 neutral-**bluish**-850。
+     抄的是「气泡只负责这是我说的」—— 不再拿 --nx-accent 当底（那是交互色：
+     链接 / 开关 / 选中 / 运行态），饱和蓝铺满整块气泡 = 用户 2026-10-12 说的「太辣」。 */
+  --nx-user-bubble: rgb(237 243 254);
   --nx-glass-shell: rgb(248 249 250 / .70);
   --nx-glass-shell-hi: rgb(248 249 250 / .94);
   /* 抬升两档（deepseek elevation 同形：0.5px 发丝描边当第一层，再叠两层极轻柔影）。
@@ -464,6 +469,9 @@
      `.d-composer` / `.m-top-btn` 一起跟（它们本来读的就是这两个角色）。 */
   --nx-sidebar: var(--nx-glass-shell);
   --nx-glass: var(--nx-glass-shell);
+  /* 转录列宽（fork:v6-process，对齐 deepseek `ConversationRoot` 的 680–920 夹取）：
+     输入卡恒比消息列宽 32px（deepseek `--dsh-composer-card-max-width` 同一关系）。 */
+  --nx-chat-col: 920px;
 }
 
 [data-theme="dark"] {
@@ -473,8 +481,10 @@
     radial-gradient(52% 130% at -12% 58%, color-mix(in srgb, #22b8e6 18%, transparent) 0%, transparent 74%),
     radial-gradient(46% 110% at 112% 96%, color-mix(in srgb, #b45cf0 15%, transparent) 0%, transparent 76%),
     linear-gradient(178deg, #0f1116 0%, #14121b 54%, #0e1416 100%);
+  --nx-user-bubble: rgb(44 44 46);
   --nx-glass-shell: rgb(67 69 74 / .62);
   --nx-glass-shell-hi: rgb(45 46 50 / .94);
   --nx-elev-panel: 0 0 0 0.5px var(--nx-line-hi), 0 3px 8px 0 rgb(0 0 0 / .18), 0 0 16px 0 rgb(0 0 0 / .14);
   --nx-elev-soft: 0 6px 20px 0 rgb(0 0 0 / .24), 0 0 28px 0 rgb(0 0 0 / .16);
+  --nx-chat-col: 920px;
 }

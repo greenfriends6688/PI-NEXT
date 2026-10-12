@@ -280,6 +280,10 @@
     radial-gradient(120% 80% at 0% -8%, color-mix(in srgb, #22b8e6 14%, transparent) 0%, transparent 55%),
     radial-gradient(110% 70% at 100% 0%, color-mix(in srgb, #b45cf0 12%, transparent) 0%, transparent 58%),
     linear-gradient(180deg, #eef1f7 0%, #f2f0f7 58%, #eef3f5 100%);
+  /* 用户消息气泡（fork:v6-process，抄 deepseek `--dsw-specific-bubble` 两个色值）：
+     light 淡蓝 rgb(237 243 254) + 深字，dark 是它的 neutral-bluish-850。
+     不再拿 --nx-accent 铺底 —— 那是交互色，铺满气泡就是用户 2026-10-12 说的「太辣」。 */
+  --nx-user-bubble: rgb(237 243 254);
   --nx-glass-shell: rgb(255 255 255 / .74);
   --nx-glass-shell-hi: rgb(255 255 255 / .95);
   /* 两档的分工同 Web：panel 自带 0.5px 描边（给 border:0 的浮层），
@@ -295,6 +299,7 @@
     radial-gradient(120% 80% at 0% -8%, color-mix(in srgb, #22b8e6 20%, transparent) 0%, transparent 57%),
     radial-gradient(110% 70% at 100% 0%, color-mix(in srgb, #b45cf0 18%, transparent) 0%, transparent 60%),
     linear-gradient(180deg, #0f1116 0%, #14121b 58%, #0e1416 100%);
+  --nx-user-bubble: rgb(44 44 46);
   --nx-glass-shell: rgb(28 28 30 / .72);
   --nx-glass-shell-hi: rgb(44 44 46 / .95);
   --nx-elev-panel: 0 0 0 0.5px var(--nx-line-hi), 0 3px 8px 0 rgb(0 0 0 / .18), 0 0 16px 0 rgb(0 0 0 / .14);

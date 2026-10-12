@@ -195,15 +195,17 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--nx-sp-6) var(--nx-sp-8) var(--nx-sp-10); }
 .d-chat-inner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--nx-sp-6); }
 
+/* 用户气泡（fork:v6-process，2026-10-12 用户「那个蓝色别那么辣」）：
+   抄 deepseek `MessageItem.module.css:20` 的淡蓝底 + 深字（色值出处见 --nx-user-bubble），
+   推翻 v5「整块铺 --nx-accent + 白字」—— 饱和蓝是**交互色**（链接 / 开关 / 选中 /
+   运行态），铺满每一条用户消息就是一排高饱和色砖，且代码块得跟着翻成深底浅字。
+   .warn/.bad 两档语气变体不跟着走（语义色底 + 深字，见文件末尾）。
+   padding 与圆角也照 deepseek 的 10px/16px；右下角仍收一档尾巴（比左下角小一号，
+   这是本仓「谁说的靠形状 + 颜色一起读」的既有规则，deepseek 没有尾角）。 */
 .d-msg-user {
-  --text: var(--nx-accent-fg);
-  --nx-text: var(--nx-accent-fg);
-  --nx-text-2: color-mix(in srgb, var(--nx-accent-fg) 82%, transparent);
-  --nx-text-3: color-mix(in srgb, var(--nx-accent-fg) 68%, transparent);
-  --nx-code-bg: color-mix(in srgb, #000 18%, transparent);
-  align-self: flex-end; max-width: 78%; background: var(--nx-accent);
+  align-self: flex-end; max-width: 78%; background: var(--nx-user-bubble);
   border-radius: var(--nx-radius-card); border-bottom-right-radius: var(--nx-radius-control);
-  padding: 10px 14px; color: var(--nx-accent-fg); }
+  padding: 10px 16px; color: var(--nx-text); }
 .d-msg-ai { display: flex; flex-direction: column; gap: var(--nx-sp-3); }
 .d-msg-ai-head { display: flex; align-items: center; gap: var(--nx-sp-2); }
 .d-ava { width: 22px; height: 22px; border-radius: var(--nx-radius-control); background: var(--nx-accent);

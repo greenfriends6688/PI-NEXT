@@ -294,6 +294,9 @@ const ROLES = [
   "--nx-code-bg", "--nx-code-line", "--nx-code-key", "--nx-code-str", "--nx-code-num", "--nx-code-com",
   // V6 毛玻璃（fork:v6-glass）：色场 / 壳面两档填充 / 抬升两档 —— 两端必须成对定义
   "--nx-canvas-field", "--nx-glass-shell", "--nx-glass-shell-hi", "--nx-elev-panel", "--nx-elev-soft",
+  // V6 过程改版（fork:v6-process）：用户气泡抄 deepseek 色值，两端成对（web-only 的
+  // --nx-chat-col 是列宽数值，不是角色，不进这张表）
+  "--nx-user-bubble",
 ];
 for (const role of ROLES) {
   if (!T_WEB_ONLY.has(role)) errors.push(`web/tokens.css 缺角色令牌 ${role}`);

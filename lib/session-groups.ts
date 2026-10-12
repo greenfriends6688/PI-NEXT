@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import {
+  applySessionUiState,
+  ensureSessionUiState,
+  getSessionUiStateSnapshot,
+  subscribeSessionUiState } from "./session-ui-state-store";
+import type { SessionUiStateRequest } from "./session-ui-state-shared";
 
 /**
  * fork:zc-11 — 侧栏「用户自定义项目分组 + 项目拖拽排序」的持久化 store。
@@ -417,7 +423,19 @@ export interface SessionGroupsStore {
 
 /** React 订阅入口：所有写操作都会让同文档与跨标签页的订阅者同步重渲。 */
 export function useSessionGroups(): SessionGroupsStore {
-  const state = useSyncExternalStore(subscribe, ensure, () => EMPTY);
+  const local = useSyncExternalStore(subscribe, ensure, () => EMPTY);
+  // fork:upstream-0.12-session-state（PR-3b）—— 项目**顺序**的权威在服务端
+  // （`projectOrder`）；分组（groups/assignments）仍是本仓本机概念。
+  const server = useSyncExternalStore(
+    subscribeSessionUiState,
+    getSessionUiStateSnapshot,
+    getSessionUiStateSnapshot,
+  );
+  ensureSessionUiState();
+  const state = useMemo<SessionGroupsState>(() => {
+    const serverOrder = server.state.projectOrder;
+    return serverOrder && serverOrder.length > 0 ? { ...local, order: serverOrder } : local;
+  }, [local, server]);
 
   const create = useCallback((name: string): boolean => {
     const current = ensure();
@@ -447,16 +465,25 @@ export function useSessionGroups(): SessionGroupsStore {
     if (next !== ensure()) write(next);
   }, []);
 
+  // 顺序 → 服务端；分组归属 → 本地。
   const move = useCallback((projectMove: ProjectMove) => {
-    const next = moveProject(ensure(), projectMove);
-    if (next !== ensure()) write(next);
-  }, []);
+    const order = state.order;
+    const request = orderMoveRequest(order, projectMove.projectKey, projectMove.beforeKey ?? null);
+    if (request) void applySessionUiState(request);
+    if (projectMove.groupId !== undefined) {
+      const next = moveProject(ensure(), { projectKey: projectMove.projectKey, groupId: projectMove.groupId });
+      if (next !== ensure()) write(next);
+    }
+  }, [state.order]);
 
   const moveAdjacent = useCallback((projectKey: string, visibleKeys: readonly string[], direction: "up" | "down") => {
-    const current = ensure();
-    const next = moveProjectAdjacent(current, visibleKeys, projectKey, direction);
-    if (next !== current) write(next);
-  }, []);
+    const index = visibleKeys.indexOf(projectKey);
+    if (index < 0) return;
+    const target = direction === "up" ? index - 1 : index + 1;
+    if (target < 0 || target >= visibleKeys.length) return;
+    const request = orderMoveRequest(state.order, projectKey, direction === "up" ? visibleKeys[target] : null, direction === "up" ? "before" : "after");
+    if (request) void applySessionUiState(request);
+  }, [state.order]);
 
   const assign = useCallback((projectKey: string, groupId: string | null) => {
     const next = moveProject(ensure(), { projectKey, groupId });
@@ -464,4 +491,49 @@ export function useSessionGroups(): SessionGroupsStore {
   }, []);
 
   return { state, createGroup: create, renameGroup: rename, deleteGroup: remove, toggleGroupCollapsed: toggle, setGroupCollapsed: setCollapsed, moveProject: move, moveProjectAdjacent: moveAdjacent, assignProject: assign };
+}
+
+/**
+ * `projectKey` 移到一个位置，翻成服务端的 `move-project`。
+ * `beforeKey = null`（本仓拖拽的「追加到末尾」）翻成 `anchor=最后一个, after`。
+ * 没有 anchor（排序表为空）时返回 null：此时没有任何位置可言，不写。
+ */
+function orderMoveRequest(
+  order: readonly string[],
+  projectKey: string,
+  beforeKey: string | null,
+  position?: "before" | "after",
+): SessionUiStateRequest | null {
+  const list = order.filter((key) => key !== projectKey);
+  const anchorKey = beforeKey ?? list.at(-1);
+  if (!anchorKey) return null;
+  const resolvedPosition = beforeKey === null ? "after" : (position ?? "before");
+  return { action: "move-project", projectKey, anchorKey, position: resolvedPosition, add: [] };
+}
+
+/**
+ * fork:upstream-0.12-session-state（PR-3b）—— 把**新项目 key** 记一次进服务端
+ * `projectOrder`（上游 `nextProjectKeysToRecord` + `add-projects`）：新项目因此有一个
+ * 稳定位置，而不是每次渲染都排在后缀。每个 key 每次挂载只发一次；状态水合前不发。
+ */
+export function useRecordProjectOrder(keys: readonly string[]): void {
+  const server = useSyncExternalStore(
+    subscribeSessionUiState,
+    getSessionUiStateSnapshot,
+    getSessionUiStateSnapshot,
+  );
+  // 只为「已同步 + 新 key」发一次，别在每次渲染里重发。
+  const recordedRef = useRef(new Set<string>());
+  const orderLength = server.state.projectOrder?.length ?? 0;
+  const joined = keys.join("\n");
+  useEffect(() => {
+    if (!server.synced) return;
+    const known = new Set(server.state.projectOrder ?? []);
+    const fresh = keys.filter((key) => key && !known.has(key) && !recordedRef.current.has(key));
+    if (fresh.length === 0) return;
+    for (const key of fresh) recordedRef.current.add(key);
+    void applySessionUiState({ action: "add-projects", keys: fresh.slice(0, 500) });
+    // keys 的稳定身份用 joined；其余为发送条件。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [server.synced, orderLength, joined]);
 }
