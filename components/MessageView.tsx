@@ -2708,6 +2708,9 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
   const detailsText = hasDetails ? safeJson(message.details) : "";
   const title = formatCustomType(message.customType);
   const time = formatTime(message.timestamp);
+  // fork:upstream-0.12-chat-parity —— 有正文的自定义消息从**卡头**折叠（#1133）：
+  // 以前只有一条页脚钮，且只在有 details 时才出现，于是没 details 的展示型通知无法折叠。
+  const hasBody = text.trim().length > 0 || images.length > 0;
 
   // fork:upstream-0.12-chat-parity —— display:false 是扩展留给模型自己看的，聊天不显示（#1043）。
   // 仍留在历史里，所以 entry id 保持对齐，只是渲染空。
@@ -2722,11 +2725,28 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
        details JSON 走 `.d-card-body` + `.d-term.plain`。 */
     <div style={{ marginBottom: "var(--s4)" }}>
       <div className={isPwa ? "m-card" : "d-card"}>
-        <div className={isPwa ? "m-card-head" : "d-card-head"}>
+        <div
+          className={isPwa ? "m-card-head" : "d-card-head"}
+          {...(hasBody
+            ? {
+                role: "button",
+                tabIndex: 0,
+                "aria-expanded": contentExpanded,
+                style: { cursor: "pointer" },
+                onClick: () => setContentExpanded((v) => !v),
+                onKeyDown: (event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  setContentExpanded((v) => !v);
+                },
+              }
+            : {})}
+        >
           <span className={isPwa ? "m-mono" : "d-mono"}>{title}</span>
           {isHiddenDisplay && <span className={isPwa ? "m-t-faint" : "d-t-faint"}>{t("i18n.hiddenExtensionMessage")}</span>}
           <span className={isPwa ? "m-grow" : "d-grow"} />
           {time && <span className={isPwa ? "m-t-faint" : "d-t-faint"}>{time}</span>}
+          {hasBody && <i data-ico={contentExpanded ? "chevron-up" : "chevron-down"} data-size="13" aria-hidden="true"></i>}
         </div>
 
         {/* fork:zm-01 — 正文区的常驻 grid；折叠态由下面的预览按钮承担，正文在收起
@@ -2790,18 +2810,13 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
             </button>
           ) : null}
           <span className={isPwa ? "m-grow" : "d-grow"} />
-          {(hasDetails || isHiddenDisplay) && (
+          {hasDetails && !isHiddenDisplay && (
             <button
               type="button"
-              onClick={() => {
-                if (isHiddenDisplay) setContentExpanded((v) => !v);
-                else setDetailsExpanded((v) => !v);
-              }}
+              onClick={() => setDetailsExpanded((v) => !v)}
               className={isPwa ? "m-btn sm" : "d-btn sm"}
             >
-              {isHiddenDisplay
-                 ? (contentExpanded ? t("i18n.collapse") : t("i18n.expand"))
-                 : (detailsExpanded ? t("i18n.hideDetails") : t("i18n.showDetails"))}
+              {detailsExpanded ? t("i18n.hideDetails") : t("i18n.showDetails")}
             </button>
           )}
         </div>
