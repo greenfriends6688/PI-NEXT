@@ -31,8 +31,8 @@ const STATUS_COLORS: Record<SubagentSessionStatus, string> = {
   starting: "var(--text-dim)",
   queued: "var(--text-dim)",
   running: "var(--accent)",
-  completed: "var(--ok, #16a34a)",
-  failed: "#dc2626",
+  completed: "var(--success)",
+  failed: "var(--error)",
   aborted: "var(--text-muted)",
   interrupted: "var(--text-muted)",
 };
@@ -187,12 +187,12 @@ export function SubagentViewer({ sessionId, fallbackLabel, running, onOpenFile }
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 8,
+          gap: "var(--s2)",
           padding: "6px 12px",
           borderBottom: "1px solid var(--border)",
           background: "var(--bg-panel)",
           flexShrink: 0,
-          minHeight: 36,
+          minHeight: "var(--control-lg)",
         }}
       >
         <span style={{ display: "flex", alignItems: "center", color: "var(--accent)", flexShrink: 0 }} aria-hidden="true">
@@ -205,7 +205,7 @@ export function SubagentViewer({ sessionId, fallbackLabel, running, onOpenFile }
           {label}
         </strong>
         <span
-          style={{ display: "flex", alignItems: "center", gap: 5, color: STATUS_COLORS[status], fontSize: TEXT.xs, whiteSpace: "nowrap", flexShrink: 0 }}
+          style={{ display: "flex", alignItems: "center", gap: "var(--s1)", color: STATUS_COLORS[status], fontSize: TEXT.xs, whiteSpace: "nowrap", flexShrink: 0 }}
           title={relation?.description}
         >
           <i data-ico="circle" data-size="8" aria-hidden="true"></i>
@@ -217,8 +217,8 @@ export function SubagentViewer({ sessionId, fallbackLabel, running, onOpenFile }
           title={t("subagent.refresh")}
           aria-label={t("subagent.refresh")}
           style={{
-            display: "grid", placeItems: "center", width: 24, height: 24, flexShrink: 0,
-            background: "none", border: "none", borderRadius: 4, color: "var(--text-dim)", cursor: "pointer", padding: 0,
+            display: "grid", placeItems: "center", width: "var(--control-xs)", height: "var(--control-xs)", flexShrink: 0,
+            background: "none", border: "none", borderRadius: "var(--nx-radius-control)", color: "var(--text-dim)", cursor: "pointer", padding: 0,
           }}
         >
           <i data-ico="refresh-cw" data-size="13" aria-hidden="true"></i>
@@ -236,9 +236,9 @@ export function SubagentViewer({ sessionId, fallbackLabel, running, onOpenFile }
             {running ? t("subagent.viewer.starting") : t("subagent.viewer.error")}
           </div>
         ) : error && messages.length === 0 ? (
-          <div role="alert" style={{ padding: "24px 16px", color: "#dc2626", fontSize: TEXT.sm, textAlign: "center" }}>
+          <div role="alert" style={{ padding: "24px 16px", color: "var(--error)", fontSize: TEXT.sm, textAlign: "center" }}>
             {t("subagent.viewer.error")}
-            <div style={{ marginTop: 6, color: "var(--text-dim)", fontFamily: "var(--font-mono)", overflowWrap: "anywhere" }}>{error}</div>
+            <div style={{ marginTop: "var(--s1)", color: "var(--text-dim)", fontFamily: "var(--font-mono)", overflowWrap: "anywhere" }}>{error}</div>
           </div>
         ) : (
           <>
