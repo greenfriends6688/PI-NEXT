@@ -82,7 +82,7 @@ import {
   readSubagentRun,
   readSubagentSessionResources,
   subagentExtensionLoaderOptions,
-  SUBAGENT_CONTROL_TOOL_NAMES,
+  subagentToolOptions,
 } from "./subagents";
 import { createSubagentController } from "./subagent-runtime";
 // fork:subagent-scope（上游 #1034）—— profile 的 `skills:` 列表预加载。
@@ -2742,8 +2742,10 @@ export async function startRpcSession(
       ...(startupModel ? { model: startupModel } : {}),
       ...(initial?.thinkingLevel ? { thinkingLevel: initial.thinkingLevel } : {}),
       ...(scope.scopedModels.length > 0 ? { scopedModels: [...scope.scopedModels] } : {}),
-      ...(toolsOption !== undefined ? { tools: toolsOption } : {}),
-      ...(subagentResources ? { excludeTools: [...SUBAGENT_CONTROL_TOOL_NAMES] } : {}),
+      ...(subagentResources
+        // fork:upstream-0.12-subagent-parity —— reopen 也走同一套工具选项（#883）。
+        ? subagentToolOptions({ tools: subagentResources.tools, allExtensionTools: subagentResources.allExtensionTools })
+        : toolsOption !== undefined ? { tools: toolsOption } : {}),
     });
 
     const persistedPreferences = await persistExplicitStartupPreferences(

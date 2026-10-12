@@ -75,6 +75,8 @@ export interface SubagentResourceSnapshot {
   tools: string[];
   loadSkills: boolean;
   loadExtensions: boolean;
+  /** fork:upstream-0.12-subagent-parity —— 扩展加载时无 `ext:` 选择器：它注册的每个工具都收（#883）。 */
+  allExtensionTools?: true;
   exactSystemPrompt?: string;
 }
 
@@ -85,6 +87,7 @@ export interface SubagentSessionResources {
   tools: string[];
   loadSkills: boolean;
   loadExtensions: boolean;
+  allExtensionTools?: true;
   exactSystemPrompt?: string;
 }
 
@@ -126,6 +129,43 @@ export interface SubagentRunInfo {
 const DEFAULT_TOOLS = ["read", "bash", "edit", "write", "grep", "find", "ls"];
 const BUILTIN_TOOLS = new Set(DEFAULT_TOOLS);
 const SUBAGENT_CONTROL_TOOLS = new Set<string>(SUBAGENT_CONTROL_TOOL_NAMES);
+
+// fork:upstream-0.12-subagent-parity —— SDK 自带工具名单 + MCP 工具通配（#883）。
+export const SDK_BUILTIN_TOOLS: readonly string[] = ["read", "bash", "powershell", "edit", "write", "grep", "find", "ls"];
+const MCP_TOOL_PATTERNS = ["mcp__*", "list_mcp_resources", "list_mcp_resource_templates", "read_mcp_resource"];
+
+/**
+ * 子代理的工具选项，spawn 与 reopen 共用。`tools` 白名单在会话创建时就定下来了，所以
+ * 只认那时已注册的工具：一个扩展在 `session_start` 或之后注册的工具就永远调不到（#883）。
+ * 因此一个**加载扩展但没有 `ext:` 选择器**的子代理不给白名单：自带工具用 `noTools:
+ * "builtin"` 加成 none，其余排除，扩展开不了它们。带 `ext:` 选择器的保留白名单 ——
+ * SDK 是按名字放工具，不是按来源。
+ */
+export function subagentToolOptions(resources: { tools: readonly string[]; allExtensionTools?: boolean; mcp?: boolean }) {
+  const excludeTools: string[] = [...SUBAGENT_CONTROL_TOOL_NAMES];
+  if (!resources.allExtensionTools && resources.mcp) {
+    const discovery = resources.tools.includes("codemode") ? [] : ["tool_search"];
+    return { tools: [...new Set([...resources.tools, ...discovery, ...MCP_TOOL_PATTERNS])], excludeTools };
+  }
+  if (!resources.allExtensionTools) {
+    const namesMcp = resources.tools.some((name) => name.startsWith("mcp__"));
+    return {
+      tools: [...resources.tools],
+      excludeTools: namesMcp
+        ? excludeTools
+        : [...excludeTools, ...MCP_TOOL_PATTERNS.filter((name) => !resources.tools.includes(name))],
+    };
+  }
+  const builtins = resources.tools.filter((name) => SDK_BUILTIN_TOOLS.includes(name));
+  // Code mode 注册为 inactive（`defaultActive: false`），所以带上它的子代理也要点名它。
+  const added = resources.tools.includes("codemode") ? [...builtins, "codemode"] : builtins;
+  return {
+    noTools: "builtin" as const,
+    // 只给 `+name`：它们加在默认选选之上，而不是组成白名单。
+    ...(added.length > 0 ? { tools: added.map((name) => `+${name}`) } : {}),
+    excludeTools: [...excludeTools, ...SDK_BUILTIN_TOOLS.filter((name) => !builtins.includes(name))],
+  };
+}
 const THINKING_LEVELS = new Set<ThinkingLevel>(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
 /**
@@ -629,6 +669,7 @@ export function readSubagentSessionResources(
       tools: [...new Set(snapshot.tools)],
       loadSkills,
       loadExtensions,
+      ...(snapshot.allExtensionTools === true ? { allExtensionTools: true as const } : {}),
       ...(typeof snapshot.exactSystemPrompt === "string" ? { exactSystemPrompt: snapshot.exactSystemPrompt } : {}),
     };
   }
