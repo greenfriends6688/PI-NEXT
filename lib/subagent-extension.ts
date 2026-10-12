@@ -16,7 +16,6 @@ import { formatMail, subagentMailbox } from "./subagent-mail";
 import { MAX_SUBAGENT_INPUT_FILES } from "./subagent-input";
 // PR-36 · 收敛软提醒 + thinkingLevel 档位来源（与全仓思考档共用同一套定义）
 import { subagentConvergenceReminder } from "./subagent-convergence";
-import { THINKING_LEVELS } from "./subagent-thinking";
 
 export const HOST_SUBAGENT_EXTENSION_NAME = "pi-web-subagents";
 const HOST_SUBAGENT_EXTENSION_PATH = `<inline:${HOST_SUBAGENT_EXTENSION_NAME}>`;
@@ -51,9 +50,6 @@ export interface StartSubagentRequest {
   description: string;
   runInBackground?: boolean;
   model?: string;
-  thinking?: string;
-  maxTurns?: number;
-  inheritContext?: boolean;
   isolation?: "worktree";
   signal?: AbortSignal;
   onUpdate?: (run: SubagentRunInfo) => void;
@@ -98,6 +94,8 @@ function agentTypeDescription(profiles: readonly SubagentProfile[]): string {
   return available.map((profile) => {
     const details = [`Tools: ${profile.tools.length > 0 ? profile.tools.join(", ") : "none"}`];
     if (profile.model) details.push(`Model: ${profile.model}`);
+    // fork:upstream-0.12-subagent-parity —— Agent 说明里列出每个 profile 的思考档（#1189）。
+    if (profile.thinking) details.push(`Thinking: ${profile.thinking}`);
     return `- ${profile.name}: ${profile.description} (${details.join("; ")})`;
   }).join("\n");
 }
@@ -206,14 +204,8 @@ export function createSubagentExtension(
           })),
           description: Type.String({ description: "Short activity label shown in the UI." }),
           run_in_background: Type.Optional(Type.Boolean({ description: "Return immediately and notify this session when complete." })),
-          model: Type.Optional(Type.String({ description: "Optional provider/modelId override." })),
-          thinkingLevel: Type.Optional(Type.Union(
-            THINKING_LEVELS.map((level) => Type.Literal(level)),
-            { description: "Optional thinking level override for the subagent: off | minimal | low | medium | high | xhigh | max. Omit to keep the new session's own default. A level the child model does not support is normalized to its nearest available level instead of failing." },
-          )),
-          max_turns: Type.Optional(Type.Number({ description: "Optional positive agent turn limit." })),
-          inherit_context: Type.Optional(Type.Boolean({ description: "Include the parent session's active conversation context." })),
-          isolation: Type.Optional(Type.String({ description: "Run the subagent in an isolated git worktree." })),
+          model: Type.Optional(Type.String({ description: 'Optional provider/modelId override. Append ":<level>" (off, minimal, low, medium, high, xhigh, max) to also set the thinking level for this run, e.g. "provider/model:high".' })),
+          isolation: Type.Optional(Type.String({ description: 'Set to "worktree" to run the subagent in an isolated git worktree.' })),
         }),
         async execute(toolCallId, params, signal, onUpdate, ctx) {
           try {
@@ -241,9 +233,6 @@ export function createSubagentExtension(
               description: params.description,
               ...(params.run_in_background !== undefined ? { runInBackground: params.run_in_background } : {}),
               ...(params.model ? { model: params.model } : {}),
-              ...(params.thinkingLevel ? { thinking: params.thinkingLevel } : {}),
-              ...(params.max_turns ? { maxTurns: params.max_turns } : {}),
-              ...(params.inherit_context !== undefined ? { inheritContext: params.inherit_context } : {}),
               ...(params.isolation === "worktree" ? { isolation: "worktree" as const } : {}),
               signal,
               onUpdate: (run) => onUpdate?.({

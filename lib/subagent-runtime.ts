@@ -166,21 +166,31 @@ function settleOrphanedRun(run: SubagentRunInfo): SubagentRunInfo {
   return run.status === "running" || run.status === "queued" ? { ...run, status: "interrupted" } : run;
 }
 
+function findSubagentModel(runtime: ModelRuntime, reference: string) {
+  const slash = reference.indexOf("/");
+  if (slash > 0) return runtime.getModel(reference.slice(0, slash), reference.slice(slash + 1));
+  const matches = runtime.getModels().filter((model) => model.id === reference);
+  if (matches.length > 1) throw new Error(`Subagent model is ambiguous; use provider/modelId: ${reference}`);
+  return matches[0];
+}
+
+/**
+ * fork:upstream-0.12-subagent-parity —— 按 pi 的 `--model` 读模型引用：
+ * `provider/modelId` 或裸 id，可选跟一个 `:<thinking level>`（#1189）。先试整个引用，
+ * 所以一个自身带冒号的 id（`qwen3:8b`）仍能命中；不是思考档的后缀永远不会命中。
+ */
 function parseSubagentModel(runtime: ModelRuntime, value: string | undefined) {
   if (!value?.trim()) return undefined;
   const requested = value.trim();
-  const slash = requested.indexOf("/");
-  if (slash > 0) {
-    const provider = requested.slice(0, slash);
-    const modelId = requested.slice(slash + 1);
-    const model = runtime.getModel(provider, modelId);
-    if (!model) throw new Error(`Subagent model not found: ${requested}`);
-    return model;
+  const exact = findSubagentModel(runtime, requested);
+  if (exact) return { model: exact };
+  const colon = requested.lastIndexOf(":");
+  const level = requested.slice(colon + 1) as ThinkingLevel;
+  if (colon > 0 && THINKING_LEVELS.has(level)) {
+    const model = findSubagentModel(runtime, requested.slice(0, colon));
+    if (model) return { model, thinkingLevel: level };
   }
-  const matches = runtime.getModels().filter((model) => model.id === requested);
-  if (matches.length === 1) return matches[0];
-  if (matches.length === 0) throw new Error(`Subagent model not found: ${requested}`);
-  throw new Error(`Subagent model is ambiguous; use provider/modelId: ${requested}`);
+  throw new Error(`Subagent model not found: ${requested}`);
 }
 
 function parentContextText(parent: HostSession): string {
@@ -225,23 +235,24 @@ export function createSubagentController(
         isolatedWorktree = await addWorktree(parent.cwd, `pi-web-agent-${randomUUID()}`);
       }
       const childCwd = isolatedWorktree?.path ?? parent.cwd;
-      const inheritContext = request.inheritContext ?? profile.inheritContext;
-      const maxTurns = request.maxTurns ?? profile.maxTurns;
+      const inheritContext = profile.inheritContext;
+      const maxTurns = profile.maxTurns;
       if (maxTurns !== undefined && (!Number.isFinite(maxTurns) || maxTurns < 0)) {
         throw new Error("max_turns must be a non-negative number");
       }
       const turnLimit = maxTurns && maxTurns > 0 ? Math.floor(maxTurns) : undefined;
       const parentModelRuntime = (parent.inner as unknown as { modelRuntime: ModelRuntime }).modelRuntime;
-      // PR-36 · thinkingLevel 归一化要先知道子代理模型。显式请求（工具参数或 profile）
-      // 才做归一化；两者都没有时保持 undefined，让新会话走自己的默认值，不拿父会话
-      // 的档位去覆盖它。
-      const requestedThinking = request.thinking ?? profile.thinking;
+      // fork:upstream-0.12-subagent-parity —— `:level` 后缀跟着它的模型走。像 pi 的
+      // `--thinking` 压过 `--model x:level` 一样，profile 自己的 thinking 压过 profile
+      // 模型上的后缀；而调用点名了带后缀的模型，就是为这一次同时选了两者（#1189）。
+      const callModel = parseSubagentModel(parentModelRuntime, request.model);
+      const profileModel = callModel ? undefined : parseSubagentModel(parentModelRuntime, profile.model);
+      const requestedThinking = callModel?.thinkingLevel ?? profile.thinking ?? profileModel?.thinkingLevel;
       if (requestedThinking && !THINKING_LEVELS.has(requestedThinking as ThinkingLevel)) {
         throw new Error(`Invalid subagent thinking level: ${requestedThinking}`);
       }
-      const requestedModel = parseSubagentModel(parentModelRuntime, request.model ?? profile.model);
       const parentModel = parent.inner.model as ReturnType<ModelRuntime["getModel"]>;
-      const childModel = requestedModel ?? parentModel;
+      const childModel = (callModel ?? profileModel)?.model ?? parentModel;
       const thinking = requestedThinking && childModel
         ? normalizeSubagentThinkingLevel(
             requestedThinking,
@@ -342,7 +353,7 @@ export function createSubagentController(
       const { session: inner } = await createAgentSessionFromServices({
         services,
         sessionManager,
-        model: requestedModel ?? parentModel,
+        model: (callModel ?? profileModel)?.model ?? parentModel,
         ...(thinking ? { thinkingLevel: thinking as ThinkingLevel } : {}),
         tools: activeTools,
         excludeTools: [...SUBAGENT_CONTROL_TOOL_NAMES],
