@@ -46,6 +46,7 @@ import { loadPiSdkInternals, mcpBuiltinExtensionEntries, mcpDiscoveryExtensionEn
 import { applyMcpServerPatch } from "./mcp-config-file";
 // fork:mcp-read-only-policy —— 只读会话里拦下未标 readOnlyHint 的 MCP 工具（上游 0.10）。
 import { createReadOnlyMcpPolicyExtension } from "./mcp-read-only-policy";
+import { PRESET_READ_ONLY } from "./tool-presets";
 import { getProjectTrustStatus, projectTrustReloadOptions } from "./project-trust";
 import { persistExplicitStartupPreferences } from "./startup-preferences";
 import { rememberThinkingLevel, thinkingLevelMemoryKey } from "./thinking-level-memory";
@@ -2593,6 +2594,23 @@ export async function startRpcSession(
     }) : undefined;
     const subagentExtensionOptions = subagentResources ? subagentExtensionLoaderOptions(subagentResources) : undefined;
     const subagentExtensionScope = subagentExtensionOptions?.extensionsOverride;
+    // fork:upstream-0.12-subagent-parity —— reopen 也把 profile 的 codemode / mcp 接回来（#1097/#1187）。
+    const subagentReadOnly = Boolean(
+      subagentResources && subagentResources.tools.length > 0
+      && subagentResources.tools.every((tool) => PRESET_READ_ONLY.includes(tool)),
+    );
+    const subagentBuiltinFactories = subagentResources?.mcp
+      ? [
+          ...mcpBuiltinExtensionEntries(
+            mcpInternals.ok ? mcpInternals : undefined,
+            (file, name, patch) => applyMcpServerPatch(file, name, patch),
+          ),
+          ...mcpDiscoveryExtensionEntries(),
+          ...(subagentReadOnly ? [createReadOnlyMcpPolicyExtension()] : []),
+        ]
+      : subagentResources?.codemode
+        ? mcpDiscoveryExtensionEntries()
+        : [];
     const services = await createAgentSessionServices({
       cwd: sessionCwd,
       agentDir,
@@ -2600,6 +2618,7 @@ export async function startRpcSession(
       resourceLoaderOptions: subagentResources
         ? {
             ...subagentExtensionOptions,
+            ...(subagentBuiltinFactories.length > 0 ? { extensionFactories: subagentBuiltinFactories } : {}),
             ...skillsBinding!.loaderOptions,
             noPromptTemplates: true,
             noThemes: true,
@@ -2750,7 +2769,7 @@ export async function startRpcSession(
       ...(scope.scopedModels.length > 0 ? { scopedModels: [...scope.scopedModels] } : {}),
       ...(subagentResources
         // fork:upstream-0.12-subagent-parity —— reopen 也走同一套工具选项（#883）。
-        ? subagentToolOptions({ tools: subagentResources.tools, allExtensionTools: subagentResources.allExtensionTools })
+        ? subagentToolOptions({ tools: subagentResources.tools, allExtensionTools: subagentResources.allExtensionTools, mcp: subagentResources.mcp })
         : toolsOption !== undefined ? { tools: toolsOption } : {}),
     });
 

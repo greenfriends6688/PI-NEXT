@@ -21,6 +21,8 @@ export const SUBAGENT_CONTROL_TOOL_NAMES = ["Agent", "get_subagent_result", "ste
 
 export type SubagentStatus = SubagentSessionStatus;
 export type SubagentScope = "builtin" | "global" | "workspace" | "project";
+export type SubagentCodemode = "inherit" | "on" | "off";
+export type SubagentMcp = "on" | "off";
 export type SubagentWritableScope = Extract<SubagentScope, "global" | "project">;
 
 export interface SubagentProfile {
@@ -38,6 +40,10 @@ export interface SubagentProfile {
   extensions?: string[];
   loadSkills: boolean;
   loadExtensions: boolean;
+  /** fork:upstream-0.12-subagent-parity —— 是否给这个 profile 开 Pi Web 的 codemode 工具；省略 = 关（#1097）。 */
+  codemode?: SubagentCodemode;
+  /** 它的子会话是否连 `mcp.json` 里的服务器；省略 = 不连（#1187）。 */
+  mcp?: SubagentMcp;
   model?: string;
   thinking?: ThinkingLevel;
   maxTurns?: number;
@@ -77,6 +83,8 @@ export interface SubagentResourceSnapshot {
   loadExtensions: boolean;
   /** fork:upstream-0.12-subagent-parity —— 扩展加载时无 `ext:` 选择器：它注册的每个工具都收（#883）。 */
   allExtensionTools?: true;
+  codemode?: true;
+  mcp?: true;
   exactSystemPrompt?: string;
 }
 
@@ -88,6 +96,8 @@ export interface SubagentSessionResources {
   loadSkills: boolean;
   loadExtensions: boolean;
   allExtensionTools?: true;
+  codemode?: true;
+  mcp?: true;
   exactSystemPrompt?: string;
 }
 
@@ -181,6 +191,8 @@ const MANAGED_FRONTMATTER_KEYS = new Set([
   "tools",
   "load_skills",
   "load_extensions",
+  "codemode",
+  "mcp",
   "enabled",
   "inherit_context",
   "run_in_background",
@@ -369,6 +381,29 @@ function syncFlagAlias(
     || (typeof storedValue === "string" && OWNED_ALIAS_VALUES.has(storedValue.trim().toLowerCase()));
   if (owned) frontmatter[alias] = flag;
 }
+function parseCodemode(value: unknown): SubagentCodemode {
+  if (value === "on" || value === true) return "on";
+  if (value === "inherit") return "inherit";
+  return "off";
+}
+
+function validateSavedCodemode(value: unknown): SubagentCodemode {
+  if (value === undefined || value === "inherit" || value === "on" || value === "off") {
+    return value === undefined ? "off" : value;
+  }
+  throw new Error("codemode must be one of: inherit, on, off");
+}
+
+function parseMcp(value: unknown): SubagentMcp {
+  return value === "on" || value === true ? "on" : "off";
+}
+
+/** 未传时为 undefined（老客户端）：保存时沿用文件里的值。 */
+function validateSavedMcp(value: unknown): SubagentMcp | undefined {
+  if (value === undefined || value === "on" || value === "off") return value;
+  throw new Error("mcp must be one of: on, off");
+}
+
 function parseProfileFile(filePath: string, scope: SubagentScope): SubagentProfile | null {
   try {
     const source = readFileSync(filePath, "utf8");
@@ -408,6 +443,8 @@ function parseProfileFile(filePath: string, scope: SubagentScope): SubagentProfi
       ...(extensions !== undefined ? { extensions } : {}),
       loadSkills: profileResourceSwitch(data?.load_skills ?? data?.skills, false),
       loadExtensions: profileResourceSwitch(data?.load_extensions ?? data?.extensions, extensionTools.length > 0),
+      codemode: parseCodemode(data?.codemode),
+      mcp: parseMcp(data?.mcp),
       ...(stringValue(data?.model) ? { model: stringValue(data?.model) } : {}),
       ...(thinkingValue && THINKING_LEVELS.has(thinkingValue) ? { thinking: thinkingValue } : {}),
       ...(maxTurnsValue && maxTurnsValue > 0 ? { maxTurns: maxTurnsValue } : {}),
@@ -537,6 +574,8 @@ export function saveSubagentProfile(
   const model = profile.model?.trim() || undefined;
   const loadSkills = profile.loadSkills === true;
   const loadExtensions = profile.loadExtensions === true;
+  const codemode = validateSavedCodemode(profile.codemode);
+  const requestedMcp = validateSavedMcp(profile.mcp);
   const promptMode = profile.promptMode === "replace" ? "replace" : "append";
   const dir = assertWritableProfileDirectory(cwd, scope);
   mkdirSync(dir, { recursive: true });
@@ -545,12 +584,16 @@ export function saveSubagentProfile(
   }
   const filePath = join(dir, `${name}.md`);
   const stored = readStoredFrontmatter(filePath);
+  const mcp = requestedMcp ?? parseMcp(stored.mcp);
   const managed: Record<string, unknown> = {
     description,
     display_name: displayName,
     tools: composeToolsField([...tools, ...extensionTools], stored.tools),
     load_skills: loadSkills,
     load_extensions: loadExtensions,
+    codemode,
+    // 开过一次或文件里点名过就一直写；从没用过 MCP 的 profile 不带这个键。
+    ...(mcp === "on" || stored.mcp !== undefined ? { mcp } : {}),
     enabled: profile.enabled,
     inherit_context: profile.inheritContext,
     run_in_background: profile.runInBackground,
@@ -594,6 +637,8 @@ export function saveSubagentProfile(
     ...(extensionTools.length > 0 ? { extensionTools } : {}),
     loadSkills,
     loadExtensions,
+    codemode,
+    mcp,
     ...(model ? { model } : { model: undefined }),
     ...(maxTurns ? { maxTurns } : { maxTurns: undefined }),
     promptMode,
@@ -670,6 +715,8 @@ export function readSubagentSessionResources(
       loadSkills,
       loadExtensions,
       ...(snapshot.allExtensionTools === true ? { allExtensionTools: true as const } : {}),
+      ...(snapshot.codemode === true ? { codemode: true as const } : {}),
+      ...(snapshot.mcp === true ? { mcp: true as const } : {}),
       ...(typeof snapshot.exactSystemPrompt === "string" ? { exactSystemPrompt: snapshot.exactSystemPrompt } : {}),
     };
   }

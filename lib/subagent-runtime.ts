@@ -33,6 +33,11 @@ import {
   type SubagentRunInfo,
 } from "./subagents";
 import type { SessionEntry } from "./types";
+// fork:upstream-0.12-subagent-parity —— 子代理的 codemode / MCP（#1097/#1187）。
+import { loadPiSdkInternals, mcpBuiltinExtensionEntries, mcpDiscoveryExtensionEntries } from "./pi-sdk-internals";
+import { applyMcpServerPatch } from "./mcp-config-file";
+import { createReadOnlyMcpPolicyExtension } from "./mcp-read-only-policy";
+import { PRESET_READ_ONLY } from "./tool-presets";
 import { buildSubagentPromptPlan } from "./subagent-prompt";
 import { appendSubagentInputFiles, loadSubagentInputFiles } from "./subagent-input";
 // PR-36 · 显式 thinkingLevel 按子代理模型归一化；收敛计数复用同一份活跃状态口径。
@@ -283,6 +288,26 @@ export function createSubagentController(
         exactSystemPrompt: promptPlan.exactSystemPrompt,
       });
       if (!chatOnly) initTheme();
+      // fork:upstream-0.12-subagent-parity —— profile 的 `codemode:` / `mcp: on`（#1097/#1187）。
+      const codemodeEnabled = profile.codemode === "on";
+      const mcpEnabled = profile.mcp === "on";
+      const readOnlyProfile = profile.tools.length > 0 && profile.tools.every((tool) => PRESET_READ_ONLY.includes(tool));
+      const subagentExtensionFactories = mcpEnabled
+        ? await (async () => {
+            const internals = await loadPiSdkInternals();
+            return [
+              ...mcpBuiltinExtensionEntries(
+                internals.ok ? internals : undefined,
+                (file, name, patch) => applyMcpServerPatch(file, name, patch),
+              ),
+              ...mcpDiscoveryExtensionEntries(),
+              // 只读 profile（Explore / Plan）：拦下服务端没标 readOnlyHint 的 MCP 工具。
+              ...(readOnlyProfile ? [createReadOnlyMcpPolicyExtension()] : []),
+            ];
+          })()
+        : codemodeEnabled
+          ? mcpDiscoveryExtensionEntries()
+          : [];
       const services = await createAgentSessionServices({
         cwd: childCwd,
         agentDir,
@@ -290,6 +315,7 @@ export function createSubagentController(
         settingsManager,
         resourceLoaderOptions: {
           ...subagentExtensionLoaderOptions(profile),
+          ...(subagentExtensionFactories.length > 0 ? { extensionFactories: subagentExtensionFactories } : {}),
           ...skillsBinding.loaderOptions,
           noPromptTemplates: true,
           noThemes: true,
@@ -323,6 +349,8 @@ export function createSubagentController(
       // fork:upstream-0.12-subagent-parity —— 加载扩展且没写 `ext:` 选择器：不给白名单，
       // 否则扩展在 `session_start` 注册的工具永远调不到（#883）。
       const allExtensionTools = profile.loadExtensions && profile.extensionTools === undefined;
+      // codemode 注册为 inactive（`defaultActive: false`），所以带上它的子代理要点名它。
+      if (codemodeEnabled && !activeTools.includes("codemode")) activeTools.push("codemode");
 
       const sessionManager = isolatedWorktree
         ? SessionManager.create(childCwd, undefined, { parentSession: parent.sessionFile })
@@ -342,6 +370,8 @@ export function createSubagentController(
           version: 1,
           appendSystemPrompt: [...appendSystemPrompt],
           tools: [...activeTools],
+          ...(codemodeEnabled ? { codemode: true as const } : {}),
+          ...(mcpEnabled ? { mcp: true as const } : {}),
           ...(allExtensionTools ? { allExtensionTools: true as const } : {}),
           loadSkills: profile.loadSkills,
           ...(profile.skills !== undefined ? { skills: [...profile.skills] } : {}),
@@ -359,7 +389,7 @@ export function createSubagentController(
         sessionManager,
         model: (callModel ?? profileModel)?.model ?? parentModel,
         ...(thinking ? { thinkingLevel: thinking as ThinkingLevel } : {}),
-        ...subagentToolOptions({ tools: activeTools, allExtensionTools }),
+        ...subagentToolOptions({ tools: activeTools, allExtensionTools, mcp: mcpEnabled }),
       });
       skillsBinding.setActiveToolsGetter(() => inner.getActiveToolNames());
       dependencies.registerSession(inner, {
