@@ -85,6 +85,8 @@ import { newTerminalTab, restoreTerminalTabs, TERMINAL_TABS_KEY, type TerminalTa
 import { BrowserPanel } from "./BrowserPanel";
 import { browserTabLabel, BROWSER_TABS_KEY, newBrowserTab, restoreBrowserTabs, type BrowserTab } from "./browser-tab-state";
 import { useTheme } from "@/hooks/useTheme";
+// fork:feature-toggles —— 「设置 → 界面与功能」的客户端读数（界面类开关立即生效）。
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { pickDirectory } from "@/lib/pick-directory";
 import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile, useIsCompact, usePlatformTier } from "@/hooks/useIsMobile";
@@ -903,6 +905,10 @@ export function AppShell() {
   // 有新改动但用户没在看改动 tab 时的未读标记（只提示，绝不自动切 tab）。
   const [changesUnseen, setChangesUnseen] = useState(false);
 
+  // fork:feature-toggles —— 「设置 → 界面与功能」的开关。界面类（终端 / Git 图 /
+  // 调用轨迹 /
+  // 小地图）在这里读，**立即生效**：关掉只是不渲染入口与标签页。
+  const features = useFeatureFlags();
   // fork:trace-pane — 单例「调用轨迹」tab（顶栏原「完整历史」钮打开它）。
   const [traceOpen, setTraceOpen] = useState(false);
   // fork:proma-05-explore — 探索分支的右栏只读 tab（可与主线并排看）
@@ -988,28 +994,28 @@ export function AppShell() {
      `traceOpen`：漏掉它时 `setTraceOpen` 不会让这张表重算，于是打开后标签要等别的
      state 变化才出现、关掉后标签还挂着（× 看着「没反应」）。`gitGraphOpen` 一直有，
      当初只漏了这一枚。 */
-  const panelTabs: Tab[] = useMemo(() => applyTabOrder<Tab>([...(gitGraphOpen ? [{
+  const panelTabs: Tab[] = useMemo(() => applyTabOrder<Tab>([...((gitGraphOpen && features.gitGraph) ? [{
     id: GIT_GRAPH_TAB_ID,
     label: translate("git.graph"),
     filePath: "",
     kind: "git-graph" as const,
-  }] : []), ...(traceOpen ? [{
+  }] : []), ...((traceOpen && features.tracePane) ? [{
     id: TRACE_TAB_ID,
     label: translate("trace.title"),
     filePath: "",
     kind: "trace" as const,
-  }] : []), ...fileTabs, ...terminalTabs.map((tab) => ({
+  }] : []), ...fileTabs, ...(features.terminalPane ? terminalTabs.map((tab) => ({
     id: tab.id,
     label: getFileName(tab.cwd) || tab.cwd,
     filePath: tab.cwd,
     kind: "terminal" as const,
     closing: Boolean(tab.closing),
-  })), ...browserTabs.map((tab) => ({
+  })) : []), ...(features.browser ? browserTabs.map((tab) => ({
     id: tab.id,
     label: browserTabLabel(tab.url) || translate("browser.newTab"),
     filePath: tab.url,
     kind: "browser" as const,
-  })), ...branchTabs.map((tab) => ({
+  })) : []), ...branchTabs.map((tab) => ({
     id: tab.id,
     label: tab.label,
     filePath: tab.sessionId,
@@ -1019,7 +1025,7 @@ export function AppShell() {
     label: tab.label,
     filePath: tab.sessionId,
     kind: "session" as const,
-  }))], tabOrder), [agentTabs, branchTabs, browserTabs, changesOpen, changesUnseen, fileTabs, gitGraphOpen, tabOrder, terminalTabs, traceOpen, translate]);
+  }))], tabOrder), [agentTabs, branchTabs, browserTabs, changesOpen, changesUnseen, features, fileTabs, gitGraphOpen, tabOrder, terminalTabs, traceOpen, translate]);
 
   // fork:proma-38-tab-reorder —— 拖拽落点只说「插到谁前面」；第一次拖就把当前默认顺序
   // 整张物化成顺序表（之后只在这张表上搬），所以关掉重开 tab 不会把顺序打回去。
@@ -1744,8 +1750,10 @@ export function AppShell() {
   const handleAutoName = useCallback(async () => {
     const sessionId = selectedSession?.id;
     if (!sessionId || autoNameStatus.kind === "naming") return;
+    // fork:feature-toggles —— 「界面与功能」里关掉「自动命名会话」就不发这一次模型调用。
+    if (!features.sessionAutoName) return;
     await requestAutoName(sessionId);
-  }, [autoNameStatus.kind, requestAutoName, selectedSession?.id]);
+  }, [autoNameStatus.kind, features.sessionAutoName, requestAutoName, selectedSession?.id]);
 
   useEffect(() => {
     if (autoNameTimerRef.current) clearTimeout(autoNameTimerRef.current);
@@ -3156,9 +3164,16 @@ export function AppShell() {
         onSelect: openMobileReview,
         render: () => explorerPanelRef.current,
       },
-    ];
+      // fork:feature-toggles —— 关掉的入口在这一层就不再列出来（手机那六项的底部选单）。
+    ].filter((item) => {
+      if (item.key === TRACE_TAB_ID) return features.tracePane;
+      if (item.key === GIT_GRAPH_TAB_ID) return features.gitGraph;
+      if (item.key === TERMINAL_BLOCK_KEY) return features.terminalPane;
+      if (item.key === BROWSER_BLOCK_KEY) return features.browser;
+      return true;
+    });
   }, [
-    activeCwd, activeFileTabId, browserTabs, fileTabs, gitGraphOpen,
+    activeCwd, activeFileTabId, browserTabs, features, fileTabs, gitGraphOpen,
     handleOpenBrowser, handleOpenTerminal, openMobileGitGraph, openMobileReview,
     openMobileTrace, reviewCount, terminalTabs, traceOpen, translate,
   ]);
@@ -4040,7 +4055,7 @@ export function AppShell() {
                 : translate("split.collapse")}
             />
           </div>
-          {activeCwd && !gitGraphOpen && (
+          {activeCwd && !gitGraphOpen && features.gitGraph && (
             <button
               type="button"
               onClick={openGitGraphTab}
@@ -4067,7 +4082,7 @@ export function AppShell() {
               里，那边是横排动作条，头行放不下也没必要）。
               这两枚与 git 钮同属面板级动作，用画板 30/01 头行那一排的 `.d-iconbtn`；
               git 钮自己那套 24px 内联样式是它的历史，不顺手动。 */}
-          {!isMobile && activeCwd && (
+          {!isMobile && activeCwd && features.terminalPane && (
             <button
               type="button"
               className="d-iconbtn"
@@ -4078,7 +4093,7 @@ export function AppShell() {
               <span><i data-ico="square-terminal" data-size="14"></i></span>
             </button>
           )}
-          {!isMobile && browserTabButton}
+          {!isMobile && features.browser && browserTabButton}
           {/* fork:explorer-column-toggle —— 文件树整列的手动显隐。只在「这列本来会出现」
               的前提下渲染（`explorerColumnAvailable`），否则它是个点了没反应的钮。
               与旁边两枚同为面板级动作，沿用 `.d-iconbtn`；当前可见时挂 `.is-on`。 */}

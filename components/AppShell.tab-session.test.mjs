@@ -56,6 +56,6 @@ test("panelTabs 重算依赖表里有 traceOpen（2026-10-06 用户反馈：调�
   assert.ok(end > start, "找不到 panelTabs 的依赖表");
   const block = source.slice(start, end);
   const deps = source.slice(end, source.indexOf("]);", end));
-  assert.match(block, /traceOpen \? \[\{/, "panelTabs 里仍在读 traceOpen");
+  assert.match(block, /traceOpen[\s\S]{0,80}?\? \[\{/, "panelTabs 里仍在读 traceOpen（fork:feature-toggles 之后它多了一个开关合取）");
   assert.match(deps, /traceOpen/, "依赖表必须含 traceOpen，否则 setTraceOpen 不会重算");
 });

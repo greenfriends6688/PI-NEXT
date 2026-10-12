@@ -23,6 +23,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useI18n } from "@/hooks/useI18n";
+// fork:feature-toggles —— 改完立刻同步给客户端 store：界面类开关（终端 / Git 图 /
+// 调用轨迹 / 小地图）**当场生效**，不必刷新页面。
+import { setFeatureFlags } from "@/hooks/useFeatureFlags";
 import {
   FEATURE_DESCRIPTORS,
   resolveFeatureFlags,
@@ -70,7 +73,10 @@ export function FeaturesConfig() {
       });
       const data = await response.json().catch(() => null) as FeaturesResponse | null;
       if (!response.ok) throw new Error(data?.error ?? `HTTP ${response.status}`);
-      setFlags(resolveFeatureFlags(data?.flags));
+      const next = resolveFeatureFlags(data?.flags);
+      setFlags(next);
+      // 界面类开关当场生效：设置页刚改的，右栏与聊天区不用刷新页面。
+      setFeatureFlags(next);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : String(error));
       await load();

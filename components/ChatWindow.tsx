@@ -25,6 +25,8 @@ import type { FileLocationTarget } from "./FileViewer";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
 import type { StreamingStore } from "@/lib/streaming-message";
 import { selectHasStreamingContent, selectIsStreaming, selectStreamingMessage, useStreamingSelector } from "@/hooks/useStreamingSelector";
+// fork:feature-toggles —— 界面类开关（会话小地图）。
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { NewSessionHome } from "./fork/NewSessionHome";
 import { ProjectChip, type NewSessionTargets } from "./fork/ProjectChip";
 // fork:ui-ctxbar —— 新会话上下文条的分支项：与顶栏同一枚工作区（worktree）下拉。
@@ -2056,7 +2058,9 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // built-in `todo` tool stores each list in its tool result). Memoized: the scan
   // walks the message list and the transcript re-renders on every streamed chunk.
   const todoSummary = useMemo(() => extractTodoState(messages), [messages]);
-  const hasChatMinimap = !isEmptyNew && !isMobile && !pendingScrollRestore;
+  // fork:feature-toggles —— 「设置 → 界面与功能」的界面类开关（小地图）。
+  const features = useFeatureFlags();
+  const hasChatMinimap = features.chatMinimap && !isEmptyNew && !isMobile && !pendingScrollRestore;
   // fork:upstream-0.12-chat-parity（PR-7c）—— 顶层只订阅**低频**量：流式消息本身交给
   // <StreamingReply> 自己订阅，否则每落一个片段 ChatWindow 就整棵重渲染一遍
   // （消息列表元素全重建 + minimap 预览重算）。

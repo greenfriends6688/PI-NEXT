@@ -89,6 +89,9 @@ import { createSubagentController } from "./subagent-runtime";
 // fork:subagent-scope（上游 #1034）—— profile 的 `skills:` 列表预加载。
 import { createSubagentSkillsBinding } from "./subagent-skills";
 import { isBuiltInSubagentsEnabled } from "./subagent-settings";
+// fork:feature-toggles —— 「设置 → 界面与功能」的工具类开关。这里读的是**会话创建时**的那一份：
+// 扩展在会话启动时加载，所以关掉对新会话生效（与内置子代理总开关同一口径）。
+import { isFeatureOn } from "./feature-settings";
 import { resolveShellTools } from "./powershell-settings";
 import { CHAT_ONLY_RESOURCE_LOADER_OPTIONS, contextFilesSystemPrompt } from "./chat-only";
 // fork:submit-idempotency
@@ -2658,7 +2661,9 @@ export async function startRpcSession(
               // （~/.pi/agent/imagegen.json，0600）；默认落 ~/.pi/agent/generated-images/，
               // dest 给了就直落会话 cwd（标书配图）。cwd 在工厂创建时捕获，
               // 与 createPlanModeExtension 同一个理由（tool_call 事件不带 cwd）。
-              createImageGenExtension(sessionCwd),
+              // fork:feature-toggles —— 关掉时**不注册**：模型连 generate_image 这个名字都看不到，
+              // 而不是「注册了但调用时报错」。
+              ...(isFeatureOn("imageGen") ? [createImageGenExtension(sessionCwd)] : []),
               // fork:proma-01-approval — 工具审批。默认档是 bypass，所以这个扩展在默认
               // 配置下等价于不存在（`decideApproval` 直接放行）—— 只有用户显式把会话
               // 设成 ask/plan 才会弹卡。
@@ -2674,10 +2679,12 @@ export async function startRpcSession(
               // fork:proma-42-browser —— 受管浏览器。**只在桌面端能工作**：Web 没有
               // CDP、又不能跨域操作 iframe，靠同源访问驱动 iframe 是明显更大的攻击面。
               // Web 上这些工具会返回「受管浏览器只在桌面端可用」而不是静默失败。
-              createBrowserToolsExtension(),
+              // fork:feature-toggles —— 关掉时不注册（它会开一个真实浏览器窗口、能出网）。
+              ...(isFeatureOn("browser") ? [createBrowserToolsExtension()] : []),
               // fork:websearch —— 免 key 联网搜索：SearXNG / DuckDuckGo / Mojeek / 聚合。
               // 关着时工具自己拒绝（不偷偷出网）；默认需审批（它会出网）。
-              createWebSearchExtension(),
+              // fork:feature-toggles —— 这里是大闸：关掉时连注册都不注册（比「工具自己拒绝」更强）。
+              ...(isFeatureOn("webSearch") ? [createWebSearchExtension()] : []),
               // fork:proma-53-documents —— docx/xlsx/pptx/pdf 的读写。底层格式处理
               // 是自己写的最小实现（OOXML 本质是 zip + XML），没引任何依赖。
               createDocumentToolsExtension(),
