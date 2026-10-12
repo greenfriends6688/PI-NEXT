@@ -1,3 +1,5 @@
+import { normalizeFilePathSlashes } from "./file-paths";
+
 interface LocalFileClickEvent {
   defaultPrevented: boolean;
   button: number;
@@ -38,13 +40,6 @@ function safeDecode(value: string): string {
   } catch {
     return value;
   }
-}
-
-function normalizeFilePathSlashes(filePath: string): string {
-  if (/^[a-zA-Z]:[\\/]/.test(filePath) || filePath.startsWith("\\\\")) {
-    return filePath.replace(/\\/g, "/");
-  }
-  return filePath;
 }
 
 function stripLineSuffix(filePath: string): string {

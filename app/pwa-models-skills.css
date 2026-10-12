@@ -302,14 +302,6 @@
   .fork-pwa-ms-sheet > .pw-modal > .pw-modal-foot .pw-btn {
     height: var(--control-md);
   }
-  /* 安装结果行：名字 / 描述 / repo 换行，右端的徽章与动作钮落到下一行，不再横溢。 */
-  .fork-pwa-ms-sheet .pw-prow {
-    flex-wrap: wrap;
-    row-gap: var(--s2);
-  }
-  .fork-pwa-ms-sheet .pw-prow > .grow {
-    flex: 1 1 100%;
-  }
 }
 
 /* iOS standalone：`env()` 在浏览器标签里恒为 0，只有装成 PWA 才拿得到状态栏/底部

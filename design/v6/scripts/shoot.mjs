@@ -2,7 +2,7 @@
 /* 画板出图：把每张 v6 画板截成 PNG，顺带把「真点一遍」的冒烟做掉。
  *
  * 跑法：
- *   node design/v6/scripts/shoot.mjs                # 全部画板 → .shots/
+ *   node design/v6/scripts/shoot.mjs                # 全部画板 → preview/
  *   node design/v6/scripts/shoot.mjs --only D-21    # 只某张（子串匹配）
  *   node design/v6/scripts/shoot.mjs --dark         # 顺带截一张深色
  *

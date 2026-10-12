@@ -133,39 +133,3 @@ export function messageToProcessContentBlocks(
     };
   });
 }
-
-export function splitAssistantContentBlocks(
-  message: AssistantMessage,
-  options: Omit<ConvertMessageOptions, "phase" | "blocks">,
-): { processBlocks: ProcessContentBlock[]; resultBlocks: ProcessContentBlock[] } {
-  const blocks = displayableAssistantBlocks(message, options.isStreaming ?? false);
-  const lastProcessIndex = blocks.findLastIndex((block) => block.type !== "text" && block.type !== "image");
-  const processBlocks = lastProcessIndex === -1 ? [] : blocks.slice(0, lastProcessIndex + 1);
-  const resultBlocks = lastProcessIndex === -1 ? blocks : blocks.slice(lastProcessIndex + 1);
-  return {
-    processBlocks: messageToProcessContentBlocks(message, {
-      ...options,
-      phase: "process",
-      blocks: processBlocks,
-    }),
-    resultBlocks: messageToProcessContentBlocks(message, {
-      ...options,
-      phase: "result",
-      blocks: resultBlocks,
-    }),
-  };
-}
-
-export function collectProcessContentBlocks(
-  messages: AgentMessage[],
-  entryIds: string[],
-  messageIndices: number[],
-  toolResults?: Map<string, ToolResultMessage>,
-): ProcessContentBlock[] {
-  return messageIndices.flatMap((messageIndex) => messageToProcessContentBlocks(messages[messageIndex], {
-    messageIndex,
-    entryId: entryIds[messageIndex],
-    phase: "process",
-    toolResults,
-  }));
-}

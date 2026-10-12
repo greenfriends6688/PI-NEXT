@@ -18,8 +18,6 @@ import {
   applySessionUiStateRequest,
   emptySessionUiState,
   normalizeSessionUiState,
-  snapshotSessionUiFlags,
-  type SessionUiFlagsSnapshot,
   type SessionUiState,
   type SessionUiStateRequest,
 } from "./session-ui-state-shared";
@@ -199,9 +197,4 @@ export function applySessionUiState(request: SessionUiStateRequest): Promise<boo
   const result = writeChain.then(run, run);
   writeChain = result;
   return result;
-}
-
-/** 撤销用的当前标记快照。 */
-export function snapshotSessionFlagsOf(ids: readonly string[]): SessionUiFlagsSnapshot[] {
-  return snapshotSessionUiFlags(localState, ids);
 }

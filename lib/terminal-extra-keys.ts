@@ -18,15 +18,6 @@ export interface TerminalModifiers {
 
 export const NO_TERMINAL_MODIFIERS: TerminalModifiers = { ctrl: false, alt: false };
 
-export const TERMINAL_EXTRA_KEY_ROWS: readonly (readonly (TerminalExtraKey | TerminalModifier)[])[] = [
-  ["Escape", "/", "-", "Home", "ArrowUp", "End", "PageUp"],
-  ["Tab", "ctrl", "alt", "ArrowLeft", "ArrowDown", "ArrowRight", "PageDown"],
-];
-
-export const TERMINAL_REPEATING_KEYS: ReadonlySet<TerminalExtraKey> = new Set([
-  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown",
-]);
-
 const CURSOR_FINALS: Partial<Record<TerminalExtraKey, string>> = {
   ArrowUp: "A", ArrowDown: "B", ArrowRight: "C", ArrowLeft: "D", Home: "H", End: "F",
 };

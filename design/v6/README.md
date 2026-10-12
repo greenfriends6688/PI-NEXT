@@ -29,7 +29,7 @@ V5 立下的两条做法 V6 原样继承，不能松：
 
 ```
 design/v6/
-  demo/index.html        **整体 Demo**：一个能点的完整应用（桌面 ⇄ 手机形态 ⇄ 设置弹窗），
+  preview/              截图存档（`npm run design:v6:shots`，不入库）
                         41 张画板背后的数据模型就是它 —— 看它等于看整套设计在跑
   assets/brand/         品牌（logo / 字标，由 PI NEXT品牌/ 原图精确裁切）
   index.html            画板集合页（缩略图 + 搜索 + 分域；file:// 双击也能开）
@@ -46,7 +46,7 @@ design/v6/
   scripts/check-v6.mjs  静态门禁（退出码 0 才算过）
   scripts/land-status.mjs 落地清单生成器（「我说一句话就启动改版」的数据源）
   scripts/shoot.mjs   真浏览器出图 + 交互件冒烟
-  .shots/             截图存档（不入库）
+  preview/            截图存档（不入库）
 ```
 
 ## 2 · 三条铁律
@@ -131,7 +131,7 @@ design/v6/
 
 | 想看 | 打开 |
 |---|---|
-| **整体长什么样、能点什么** | `demo/index.html` ← 先看这个，它是一个完整应用 |
+| **整体长什么样、能点什么** | `npm run design:v6:shots` 出图到 `preview/`，再逐张看 |
 | 全部页面（缩略图 + 搜索） | `index.html` |
 | 某一页怎么落地 | `LANDING.md` + 该页画板 |
 | 动效都有哪些 | `web/boards/D-27-motion.html` / `D-28` / `D-29` / `D-30` |
