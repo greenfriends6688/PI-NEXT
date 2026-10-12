@@ -669,7 +669,7 @@ function DiffView({ patch }: { patch: string }) {
                   ? segments.map((segment, index) => (
                       <span
                         key={index}
-                        style={segment.changed ? { background: changedBackground, borderRadius: "var(--nx-r-xs)" } : undefined}
+                        style={segment.changed ? { background: changedBackground, borderRadius: "var(--nx-radius-control)" } : undefined}
                       >
                         {segment.text}
                       </span>
@@ -1740,7 +1740,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
             src={officeSrc}
             sandbox="allow-scripts allow-same-origin allow-downloads allow-modals allow-forms allow-popups"
             title={getFileName(filePath)}
-            style={{ width: "100%", height: "100%", border: "none", background: "var(--n-surface)" }}
+            style={{ width: "100%", height: "100%", border: "none", background: "var(--nx-surface)" }}
           />
         ) : (
           <iframe
@@ -1750,7 +1750,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, onMention
             sandbox={isPdf ? undefined : "allow-same-origin"}
             title={t("i18n.previewFile", { file: getFileName(filePath) })}
             onLoad={isPdf ? undefined : attachFrameSelection}
-            style={{ width: "100%", height: "100%", border: "none", background: isPdf ? "var(--nx-canvas)" : "var(--n-surface)" }}
+            style={{ width: "100%", height: "100%", border: "none", background: isPdf ? "var(--nx-canvas)" : "var(--nx-surface)" }}
           />
         )}
       </div>
@@ -3108,7 +3108,7 @@ function TextFileViewer({
                 </div>
                 {/* M-06 帧 B —— 手机档换 PWA 形态的代码壳（`.m-code` / `.m-code-body`
                     + `.m-code-scroll` 横滚不折行）；桌面仍是 D-06 的 `.d-code`。 */}
-                <div className={isMobile ? "m-code" : "d-code"} style={{ border: 0, borderRadius: 0 }}>
+                <div className={isMobile ? "m-code" : "d-code"} style={{ border: 0, borderRadius: "0" }}>
                   <div
                     className={isMobile ? "m-code-body m-code-scroll" : "d-code-body"}
                     style={isMobile ? { padding: 0 } : { padding: "var(--nx-sp-2) 0" }}

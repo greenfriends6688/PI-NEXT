@@ -89,7 +89,7 @@ export function TunnelBody() {
         {t("tunnel.cardTitle")}
       </div>
       <div className="d-card-body d-col" style={{ gap: "var(--nx-sp-3)" }}>
-        <div className="d-t-xs" style={{ color: running ? "#16a34a" : "#8a8a86" }}>
+        <div className="d-t-xs" style={{ color: running ? "var(--nx-success)" : "var(--nx-text-3)" }}>
           {t("tunnel.status")}：{statusText}
         </div>
         {running && tunnel?.phoneAddress ? (

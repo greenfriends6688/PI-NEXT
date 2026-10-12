@@ -1259,3 +1259,45 @@ top 32（紧贴按钮下沿）、6 行全可见、`parentElement === document.bo
 按扩展发来的 **title key** 识别警示类确认框（`EXTENSION_NOTICE_PRESENTATION`，目前只登记
 `browser.riskGate.title`）：通用 blocks 图标换成 `shield-alert` + `--nx-warning`。让「要你确认
 风险」一眼可辨，而不是一条普通扩展请求。不改协议、不加新字段。
+
+## AH · 控件内核严格化 + 画布返修（fork:kit-strict，2026-10-10）
+
+**背景**：用户 2026-10-10 两次明确「没有严格按两份 sketch 规范设计」。复盘确认：颜色/字体
+早就绑到 kit，但**控件解剖**（按钮有没有底、输入框长什么样、菜单高亮什么色）从没按 kit
+重查过 —— 而 kit 把控件底板放在**共享图层样式**（`Content Area/Light/01 - Bordered/01 - Idle`
+这类），符号导出图里看不到 chrome，此前没人去读它，于是库里一直贴着上一代 macOS 的形状。
+
+**处置（三层）**：
+
+1. **抽**：新增 `scripts/kit-spec.mjs`（控件级规格 → `design/apple/spec/{macos,ios}.json`）；
+   `scripts/sketch-tokens.mjs` 新增 §5，把共享样式族的底板抽成 `--nx-sk-cs-*`（182 条）。
+2. **绑**：`web/tokens.css` 增「控件内核」角色块（按钮五类 / 输入框 / 菜单高亮 / 开关轨与旋钮 /
+   复选 / 浮层表面 / 圆角阶梯 h÷4）。
+3. **改**：`web/system.css` 的 `.d-iconbtn`（圆）/`.d-btn`（灰洗底无边框，五类）/`.d-input`/`.d-select`/
+   `.d-textarea`（白底＋发丝边，聚焦 1px＋3.5px 环）/`.d-searchfield`（药丸）/`.d-menu-row`（#0069f9
+   白字，圆角 8）/`.d-seg`（选中 accent 实底白字）/`.d-switch`（32×20 药丸旋钮）/`.d-checkbox`/
+   `.d-radio`（灰底无描边）/`.d-pop`/`.d-pop-float`（Menus 玻璃色收敛面 + 圆角 20 + kit 阴影）。
+
+**推导项（kit 没有，必须留档）**：
+
+| 项 | 推导 | 理由 |
+|---|---|---|
+| 按钮 hover 12% | kit 无 hover 档（只有 Idle 8% / Clicked 16%） | web 需要 hover 反馈，取两档之间 |
+| `.d-pop-row` hover/is-on 用菜单蓝 | 复用 `.d-menu-row` 同值 | kit 里两行浮层行没有独立样式 |
+| 浮层实面 `#e9e9e9f0` / `#3d3d3df0` | Menus 玻璃（`#e6e6e68c`/`#5a5a5a80`）同色相抬实 | §Z 裁定弹层禁 backdrop-filter，55% 灰会透字（与 §AE 的抬实口径一致） |
+| 图标钮圆 + 保持 28px | kit 工具栏钮 20×20@24 是圆 | 圆是 macOS 27 的形状语言；尺寸不动（全站 28 栅格，改小伤一片） |
+| 分段选中 = accent 实底白字 | 符号 On 态文字为 `#ffffff`、Off 为 `#363636` | 文本色反推选中底色；非活跃窗口档仍是深字（kit `Inactive, On`） |
+
+**不推导项（复核过的真值）**：危险按钮的透明度不是猜的 ——
+`Bordered Destructive/3 Rg` 符号 BG 实测 Idle **0.20** / Clicked **0.28**（与 Tinted 的 22/28 同族）。
+
+**画布返修（同日）**：上午有一版把 `--nx-canvas` 绑回 macOS kit 的白（window-backgrounds），
+用户实拍「背景都变成纯白的了」→ **改回 `#f2f2f7`**。定稿口径：macOS 靠整窗材质分层，
+Web 拿不到整窗材质，页底/卡片分层照 iOS（Grouped 灰 / Primary 白），2026-10-09 已同此裁定。
+
+**验证**：`check-v5` 0 错（暗色块声明顺序门禁抓到 3 条并修复）；产品 CSS 链对位台
+（`.scratch/kit-ref/product-check.html`，挂 layout.tsx 全链）逐件与 kit 导出图对形通过。
+
+**下一波待办**：① PWA（iOS）控件绑定从 `spec/ios.json` 符号层补齐（iOS 底板不走 Content Area 族，
+`--nx-sk-cs-*` 目前只有 3 条）；② 警告框按钮的堆叠形态（228×28、红洗 23%）未落到 `.d-modal-foot`
+的默认组合；③ 输入框/开关的 sm/lg 档圆角阶梯只落到了按钮；④ `.d-kbd`、`.d-slider` 旋钮高清。

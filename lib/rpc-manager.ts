@@ -89,6 +89,11 @@ import { createSubagentSkillsBinding } from "./subagent-skills";
 import { isBuiltInSubagentsEnabled } from "./subagent-settings";
 import { resolveShellTools } from "./powershell-settings";
 import { CHAT_ONLY_RESOURCE_LOADER_OPTIONS, contextFilesSystemPrompt } from "./chat-only";
+// fork:submit-idempotency
+import { SubmitDedup, submissionFingerprint } from "./submit-idempotency";
+// fork:event-seq
+import { AgentEventLog, createClientAgentEvent, type ClientAgentEvent } from "./agent-event-log";
+import { toClientAgentEvent } from "./agent-event-wire";
 import { createExactSystemPromptExtension } from "./exact-system-prompt";
 import {
   appendClearedSessionToolSelection,
@@ -107,6 +112,8 @@ export interface AgentEvent {
 }
 
 type EventListener = (event: AgentEvent) => void;
+// fork:event-seq — 已投影、已编号的客户端事件（SSE 流消费）。
+type ClientEventListener = (event: ClientAgentEvent) => void;
 type AgentRunCompleteListener = (sessionId: string) => void;
 
 type PendingUiResponse = {
@@ -283,6 +290,10 @@ function withExtensionTools(session: AgentSessionLike, toolNames: string[]): str
 
 export class AgentSessionWrapper {
   private listeners: EventListener[] = [];
+  // fork:event-seq
+  private clientListeners: ClientEventListener[] = [];
+  /** fork:event-seq — 会话级事件序号与有界重放缓冲（见 lib/agent-event-log.ts）。 */
+  readonly eventLog = new AgentEventLog();
   private activeToolEvents = new Map<string, AgentEvent>();
   private pendingUiResponses = new Map<string, PendingUiResponse>();
   private pendingUiRequests = new Map<string, AgentEvent>();
@@ -302,6 +313,8 @@ export class AgentSessionWrapper {
   // fork:pi-1.1 —— 上一轮是被停掉的（pi 1.1 的 agent_settled.aborted），不是跑完的。
   private lastRunAborted = false;
   private promptAdmissionTail: Promise<void> = Promise.resolve();
+  /** fork:submit-idempotency — 同 requestId 的重复提交只跑一次。 */
+  private readonly submitDedup = new SubmitDedup();
   private extensionsBound = false;
   private extensionBindingPromise: Promise<void> | null = null;
   private extensionBindingError: unknown = null;
@@ -564,6 +577,22 @@ export class AgentSessionWrapper {
   }
 
   private emit(event: AgentEvent): void {
+    // fork:event-seq — 先把事件投影成客户端形态、给权威事件编号，再分发。
+    // 编号在**这里**发生（而不是在 SSE 流里），所以即使当前没有任何客户端连着，
+    // 断线期间的事件也已经进了缓冲，重连时才能补发。
+    const delivery = createClientAgentEvent(event, this.eventLog);
+    if (delivery) {
+      for (const listener of this.clientListeners) {
+        try {
+          listener(delivery);
+        } catch (error) {
+          console.error(
+            `[pi-web] failed to deliver ${event.type} client event:`,
+            error instanceof Error ? error.message : error,
+          );
+        }
+      }
+    }
     for (const listener of this.listeners) {
       try {
         listener(event);
@@ -764,6 +793,28 @@ export class AgentSessionWrapper {
     };
   }
 
+  /**
+   * fork:event-seq — SSE 流用的订阅：拿到的是**已投影**的事件，权威事件带 `seq`。
+   *
+   * 待决审批与进行中的工具仍然在订阅时重放一次（不带 seq，按原样应用）：那是
+   * 全新连接（没有游标、走快照通路）拿到它们的唯一途径。
+   */
+  onClientEvent(listener: ClientEventListener): () => void {
+    this.clientListeners.push(listener);
+    for (const event of this.pendingUiRequests.values()) {
+      const projected = toClientAgentEvent(event);
+      if (projected) listener({ seq: null, event: projected });
+    }
+    for (const event of this.activeToolEvents.values()) {
+      const projected = toClientAgentEvent(event);
+      if (projected) listener({ seq: null, event: projected });
+    }
+    return () => {
+      const i = this.clientListeners.indexOf(listener);
+      if (i !== -1) this.clientListeners.splice(i, 1);
+    };
+  }
+
   onDestroy(cb: () => void): void {
     this.onDestroyCallback = cb;
   }
@@ -827,6 +878,27 @@ export class AgentSessionWrapper {
 
       switch (type) {
       case "prompt": {
+        // fork:submit-idempotency — 客户端为一次逻辑提交生成 requestId，重试时复用。
+        // 同一个 id 重复到达时：内容一致就 join 第一次的结果（不再起第二轮），内容不同
+        // 就是冲突。去重必须发生在 acquirePromptAdmission **之前**，否则重复提交只会
+        // 排在第一次后面，等它结束再跑一遍。
+        const requestId = typeof command.requestId === "string" && command.requestId.length > 0
+          ? command.requestId
+          : undefined;
+        const ticket = requestId
+          ? this.submitDedup.begin(requestId, submissionFingerprint({
+              message: command.message as string,
+              images: command.images as Array<{ data: string; mimeType?: string }> | undefined,
+              streamingBehavior: command.streamingBehavior as string | undefined,
+            }))
+          : undefined;
+        if (ticket?.kind === "conflict") {
+          throw new Error("Duplicate submission with a different payload (requestId conflict)");
+        }
+        if (ticket?.kind === "join") {
+          await ticket.promise;
+          return null;
+        }
         // Serialize only admission. Once the preceding prompt has either
         // passed or failed preflight, the SDK can atomically decide whether
         // this submission starts a run or joins its streaming queue.
@@ -921,7 +993,12 @@ export class AgentSessionWrapper {
           });
 
           await preflight;
+          if (ticket?.kind === "new") ticket.resolve();
           return null;
+        } catch (error) {
+          // 被拒的提交没有产生 run：条目立刻作废，用户的「再发一次」必须能继续。
+          if (ticket?.kind === "new") ticket.reject(error);
+          throw error;
         } finally {
           releaseAdmission();
         }

@@ -21,10 +21,10 @@
    `.pw-scontent` 与 `.pw-shead` 是兄弟（SettingsPage 返回 Fragment），所以内容区
    只能从页头用 `~` 一般兄弟选择过去。
 
-   **桌面端**：本文件所有规则都在 `@media (max-width: 640px)` 里，≥641px 零命中。
+   **桌面端**：本文件所有规则都在 `@media (max-width: 639px)` 里，≥641px 零命中。
    =========================================================================== */
 
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   /* ---- 1. 弹层容器（.config-panel-root.is-modal）→ 全屏 sheet ------------
      改前：`.config-panel-surface` 是 `min(900px, 100vw - 16px) × min(78vh, 100dvh - 16px)`
      的居中对话框，手机上左右各留 8px、上下各留 8px，两列再塞进 ~340px —— 右列直接被压没。
@@ -40,7 +40,7 @@
     max-width: 100%;
     max-height: 100%;
     border-width: 0;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: var(--nx-radius-card) var(--nx-radius-card) 0 0;
   }
 
   /* 弹层页头：标题可能被长路径挤走，钳成省略；关闭钮从 30 抬到触控档 32。
@@ -265,7 +265,7 @@
     display: flex;
     flex-direction: column;
     border-width: 0;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: var(--nx-radius-card) var(--nx-radius-card) 0 0;
     padding-bottom: var(--safe-bottom);
   }
   /* v5 形态的同一形状：`display:none` 由 `.is-open` 打开，盒子自己吃掉整片。 */
@@ -275,7 +275,7 @@
     height: 100%;
     max-height: 100% !important;
     border-width: 0;
-    border-radius: var(--nx-r-lg) var(--nx-r-lg) 0 0;
+    border-radius: var(--nx-radius-sheet) var(--nx-radius-sheet) 0 0;
     padding-bottom: var(--safe-bottom);
   }
   .fork-pwa-ms-sheet > .d-modal-box > .d-modal-body {
@@ -317,7 +317,7 @@
    **自己的**页内弹层 —— 它们是 `position:fixed; inset:0`，不继承外壳的内缩）。
    必须同时卡 ≤640px：sheet 只在手机档成立，桌面上这块壳仍是居中框，不该被内缩。 */
 @supports (-webkit-touch-callout: none) {
-  @media (display-mode: standalone) and (max-width: 640px) {
+  @media (display-mode: standalone) and (max-width: 639px) {
     .fork-pwa-ms-sheet {
       padding-top: max(59px, var(--safe-top));
       padding-right: max(8px, var(--safe-right));
@@ -341,9 +341,9 @@
  *
  * 改法：让这一行可换行，排成三行（搜索 / 芯片 / 计数+动作）。`:has(> .m-pickbar)`
  * 把范围锁死在「带档位条的那种行」上，其余 `.m-fieldrow` 卡片不受影响。
- * 桌面（>640px）整段不生效。
+ * 桌面（≥640px）整段不生效。
  * ---------------------------------------------------------------------- */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .m-cardgroup.m-fieldrow:has(> .m-pickbar) {
     height: auto;
     flex-wrap: wrap;

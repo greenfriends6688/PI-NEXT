@@ -35,7 +35,7 @@
 .d-logo { width: 17px; height: 17px; flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--nx-fs-xs); font-weight: 600; }
-.d-logo:not(:has(img)) { border-radius: var(--nx-r-sm); background: var(--nx-brand); color: #fff; }
+.d-logo:not(:has(img)) { border-radius: var(--nx-radius-control); background: var(--nx-brand); color: #fff; }
 .d-logo > img { width: 100%; height: 100%; object-fit: contain; display: block; }
 /* 品牌字标：侧栏收起时只留标记，展开时用字标图。
    深色 / 版本号态是文字 span：行高跟盒走，文字在缩小的盒里保持居中。 */
@@ -52,7 +52,7 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-side-foot  { border-top: 1px solid var(--nx-line); padding: var(--nx-sp-2) var(--nx-sp-3); display: flex; align-items: center; gap: var(--nx-sp-2); }
 
 .d-sess { display: block; width: 100%; text-align: left; border: 0; background: none; cursor: pointer;
-  padding: 7px 10px; border-radius: var(--nx-r-md); color: var(--nx-text-2); font: inherit;
+  padding: 7px 10px; border-radius: var(--nx-radius-row); color: var(--nx-text-2); font: inherit;
   transition: background var(--nx-dur-1) var(--nx-ease), color var(--nx-dur-1) var(--nx-ease); }
 .d-sess:hover { background: var(--nx-surface); color: var(--nx-text); }
 .d-sess.is-on { background: var(--nx-selected); color: var(--nx-text); }
@@ -139,41 +139,58 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-tb-spacer { flex: 1 1 auto; }
 
 /* ── 3 · 图标钮 / 按钮 ─────────────────────────────────────────────────────── */
+/* fork:kit-strict（2026-10-10）—— 图标钮是**圆形**：kit 的工具栏钮（Titlebars and
+   Toolbars 页 20×20@24 节距）与窗口右上那颗都是圆；旧值圆角 6 是上一代形状。 */
 .d-iconbtn { width: 28px; height: 28px; flex: 0 0 auto; display: inline-flex; align-items: center;
-  justify-content: center; border: 0; background: none; border-radius: var(--nx-r-sm);
+  justify-content: center; border: 0; background: none; border-radius: var(--nx-radius-pill);
   color: var(--nx-vibrant-2); cursor: pointer;
   transition: background var(--nx-dur-1) var(--nx-ease), color var(--nx-dur-1) var(--nx-ease); }
-.d-iconbtn:hover { background: var(--nx-surface); color: var(--nx-text); }
-.d-iconbtn.is-on { background: var(--nx-accent-soft); color: var(--nx-accent); }
+.d-iconbtn:hover { background: var(--nx-ctl-bg-hover); color: var(--nx-text); }
+.d-iconbtn.is-on { background: var(--nx-ctl-tint-bg); color: var(--nx-accent); }
 
+/* fork:kit-strict —— 按钮照 kit「Content Area」五类重写：
+   · 标准（01 - Bordered）= 灰洗底、**无边框**（8% / hover 12% / 按下 16% / 禁用 4%+25%字），
+     形状 = 高÷4 圆角；
+   · .primary（04 - Prominent）= 实心 #0088ff，按下 #0078f0，禁用 40%；
+   · .danger（03 - Bordered Destructive）= 红洗底 + 红字（权重低于实心主钮）；
+   · .ghost（Borderless）= 纯文字，仅 hover 有底。
+   值出处：tokens.css §控件内核；推导项登记在 DIVERGENCE.md §AH。 */
 .d-btn { height: var(--nx-ctl-md); padding: 0 12px; display: inline-flex; align-items: center; gap: 6px;
-  border-radius: var(--nx-r-md); border: 1px solid var(--nx-line); background: var(--nx-panel);
+  border-radius: var(--nx-radius-control); border: 0; background: var(--nx-ctl-bg);
   color: var(--nx-text); font: inherit; font-size: var(--nx-fs-body); font-weight: 500; cursor: pointer;
-  transition: background var(--nx-dur-1) var(--nx-ease), border-color var(--nx-dur-1) var(--nx-ease),
+  transition: background var(--nx-dur-1) var(--nx-ease), color var(--nx-dur-1) var(--nx-ease),
     box-shadow var(--nx-dur-1) var(--nx-ease); }
-.d-btn:hover { background: var(--nx-surface); border-color: var(--nx-line-hi); }
-.d-btn.primary { background: var(--nx-accent); border-color: var(--nx-accent); color: var(--nx-accent-fg); }
-.d-btn.primary:hover { background: var(--nx-accent); box-shadow: var(--nx-sh-1); filter: brightness(1.06); }
-.d-btn.danger { background: var(--nx-danger); border-color: var(--nx-danger); color: #fff; }
+.d-btn:hover:not(:disabled) { background: var(--nx-ctl-bg-hover); }
+.d-btn:active:not(:disabled) { background: var(--nx-ctl-bg-active); }
+.d-btn.primary { background: var(--nx-ctl-prom-bg); color: var(--nx-accent-fg); }
+.d-btn.primary:hover:not(:disabled) { background: var(--nx-ctl-prom-bg-active); }
+.d-btn.danger { background: var(--nx-ctl-destr-bg); color: var(--nx-ctl-destr); }
 /* 次级危险：红字但不给实心 —— 出现在「还有更安全的选项」的旁边，权重必须低于主按钮 */
-.d-btn.danger.ghost { color: var(--nx-danger); background: none; border-color: transparent; }
-.d-btn.danger.ghost:hover { background: color-mix(in srgb, var(--nx-danger) 8%, transparent); }
-.d-btn.ghost  { border-color: transparent; background: none; color: var(--nx-text-2); }
-.d-btn.ghost:hover { background: var(--nx-surface); color: var(--nx-text); }
-.d-btn.sm { height: var(--nx-ctl-sm); padding: 0 8px; font-size: var(--nx-fs-sm); border-radius: var(--nx-r-sm); }
-.d-btn.lg { height: var(--nx-ctl-lg); padding: 0 16px; }
-.d-btn:disabled { opacity: var(--nx-a-disabled); cursor: not-allowed; }
+.d-btn.danger.ghost { color: var(--nx-ctl-destr); background: none; }
+.d-btn.danger.ghost:hover { background: var(--nx-ctl-destr-bg); }
+.d-btn.ghost  { background: none; color: var(--nx-text-2); }
+.d-btn.ghost:hover { background: var(--nx-ctl-bg-hover); color: var(--nx-text); }
+.d-btn.sm { height: var(--nx-ctl-sm); padding: 0 8px; font-size: var(--nx-fs-sm); border-radius: var(--nx-radius-ctl-sm); }
+.d-btn.lg { height: var(--nx-ctl-lg); padding: 0 16px; border-radius: var(--nx-radius-ctl-lg); }
+.d-btn:disabled { background: var(--nx-ctl-bg-disabled); color: var(--nx-ctl-fg-disabled); cursor: not-allowed; }
+.d-btn.primary:disabled { background: var(--nx-ctl-prom-bg-disabled); color: var(--nx-accent-fg); }
 
 /* ── 4 · 转录区 ───────────────────────────────────────────────────────────── */
 .d-chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--nx-sp-6) var(--nx-sp-8) var(--nx-sp-10); }
 .d-chat-inner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--nx-sp-6); }
 
-.d-msg-user { align-self: flex-end; max-width: 78%; background: var(--nx-accent-soft);
-  border-radius: var(--nx-r-lg); border-bottom-right-radius: var(--nx-r-xs);
-  padding: 10px 14px; color: var(--nx-text); }
+.d-msg-user {
+  --text: var(--nx-accent-fg);
+  --nx-text: var(--nx-accent-fg);
+  --nx-text-2: color-mix(in srgb, var(--nx-accent-fg) 82%, transparent);
+  --nx-text-3: color-mix(in srgb, var(--nx-accent-fg) 68%, transparent);
+  --nx-code-bg: color-mix(in srgb, #000 18%, transparent);
+  align-self: flex-end; max-width: 78%; background: var(--nx-accent);
+  border-radius: var(--nx-radius-card); border-bottom-right-radius: var(--nx-radius-control);
+  padding: 10px 14px; color: var(--nx-accent-fg); }
 .d-msg-ai { display: flex; flex-direction: column; gap: var(--nx-sp-3); }
 .d-msg-ai-head { display: flex; align-items: center; gap: var(--nx-sp-2); }
-.d-ava { width: 22px; height: 22px; border-radius: var(--nx-r-sm); background: var(--nx-accent);
+.d-ava { width: 22px; height: 22px; border-radius: var(--nx-radius-control); background: var(--nx-accent);
   color: var(--nx-accent-fg); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 /* 助手身份位的头像用**主品牌图形**，不是 π 字形：产品里品牌只出现在三个盒子
    （侧栏品牌行 / 空态 mark / 导轨 logo），三处都是中性底 + 渐变 N。所以头像盒
@@ -225,14 +242,14 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 /* 思考块 */
 /* 思考块：**不靠左边线区分**（左侧一条彩色竖线在本系统已整体废止）——
    改用一块更浅的底 + 圆角 + 图标，层级同样读得出来，但不会在长列表里拉出一条竖线。 */
-.d-think { background: var(--nx-surface); border-radius: var(--nx-r-md);
+.d-think { background: var(--nx-surface); border-radius: var(--nx-radius-row);
   padding: var(--nx-sp-2) var(--nx-sp-3); color: var(--nx-text-3); font-size: var(--nx-fs-cap); }
 .d-think summary { cursor: pointer; color: var(--nx-text-2); font-size: var(--nx-fs-sm); list-style: none;
   display: flex; align-items: center; gap: 6px; }
 .d-think summary::-webkit-details-marker { display: none; }
 
 /* 工具卡 */
-.d-tool { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-panel);
+.d-tool { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row); background: var(--nx-panel);
   overflow: hidden; }
 .d-tool-head { display: flex; align-items: center; gap: var(--nx-sp-2); padding: 7px 10px;
   font-size: var(--nx-fs-sm); color: var(--nx-text-2); cursor: pointer; user-select: none; }
@@ -242,7 +259,7 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-tool.running { border-color: var(--nx-accent); }
 
 /* 代码块 */
-.d-code { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-code-bg);
+.d-code { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row); background: var(--nx-code-bg);
   overflow: hidden; }
 .d-code-head { display: flex; align-items: center; gap: var(--nx-sp-2); padding: 6px 10px;
   border-bottom: 1px solid var(--nx-code-line); font-size: var(--nx-fs-xs); color: var(--nx-text-3);
@@ -290,28 +307,28 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-md .d-tasklist { list-style: none; padding-left: var(--nx-sp-1); margin: 0 0 var(--nx-sp-2); }
 .d-md .d-tasklist > li { display: flex; align-items: flex-start; gap: var(--nx-sp-2); }
 .d-md blockquote.d-quote { margin: 0 0 var(--nx-sp-2); padding: var(--nx-sp-2) var(--nx-sp-3);
-  background: var(--nx-surface); border-radius: var(--nx-r-md); color: var(--nx-text-2); }
+  background: var(--nx-surface); border-radius: var(--nx-radius-row); color: var(--nx-text-2); }
 .d-md blockquote.d-quote p:last-child { margin-bottom: 0; }
 /* 行内提及（@文件 / /命令）：不是芯片，是正文里的一个 token */
 .d-mention { display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 6px;
-  border-radius: var(--nx-r-xs); background: var(--nx-accent-soft); color: var(--nx-accent);
+  border-radius: var(--nx-radius-control); background: var(--nx-accent-soft); color: var(--nx-accent);
   font-size: var(--nx-fs-xs); font-family: var(--nx-font-mono); vertical-align: baseline; }
 .d-md table { border-collapse: collapse; width: 100%; font-size: var(--nx-fs-sm); }
 .d-md th, .d-md td { border: 1px solid var(--nx-line); padding: 6px 10px; text-align: left; }
 .d-md th { background: var(--nx-surface); font-weight: 500; }
-.d-tbl-wrap { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); overflow-x: auto;
+.d-tbl-wrap { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row); overflow-x: auto;
   background: var(--nx-panel); }
 .d-math { font-family: var(--nx-font-mono); background: var(--nx-code-bg);
-  border-radius: var(--nx-r-sm); padding: 2px 6px; }
+  border-radius: var(--nx-radius-control); padding: 2px 6px; }
 
 /* 权限请求卡 */
 .d-perm { border: 1px solid var(--nx-warning); background: color-mix(in srgb, var(--nx-warning) 6%, var(--nx-panel));
-  border-radius: var(--nx-r-md); overflow: hidden; }
+  border-radius: var(--nx-radius-row); overflow: hidden; }
 .d-perm-body { padding: var(--nx-sp-3); display: flex; flex-direction: column; gap: var(--nx-sp-2); }
 
 /* 分支切换 */
 .d-branch { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--nx-line);
-  border-radius: var(--nx-r-pill); padding: 2px; background: var(--nx-panel); }
+  border-radius: var(--nx-radius-pill); padding: 2px; background: var(--nx-panel); }
 .d-branch-btn { width: 20px; height: 20px; border: 0; background: none; border-radius: 999px;
   color: var(--nx-text-3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .d-branch-btn:hover { background: var(--nx-surface); color: var(--nx-text); }
@@ -326,17 +343,17 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-cites { display: flex; flex-wrap: wrap; gap: var(--nx-sp-1); }
 .d-cite { display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   height: var(--nx-ctl-xs); line-height: 1; flex: 0 0 auto;
-  padding: 0 8px; border-radius: var(--nx-r-pill); background: var(--nx-surface);
+  padding: 0 8px; border-radius: var(--nx-radius-pill); background: var(--nx-surface);
   border: 1px solid var(--nx-line); font-size: var(--nx-fs-xs); color: var(--nx-text-2); }
 .d-cite.is-on { background: var(--nx-accent-soft); border-color: transparent; color: var(--nx-accent); }
 .d-tags { display: flex; flex-wrap: wrap; gap: var(--nx-sp-1); }
 .d-tag { display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   height: 18px; padding: 0 7px; line-height: 1;
-  border-radius: var(--nx-r-pill); background: var(--nx-surface); font-size: var(--nx-fs-xs);
+  border-radius: var(--nx-radius-pill); background: var(--nx-surface); font-size: var(--nx-fs-xs);
   color: var(--nx-text-2); }
 
 /* 计划卡 */
-.d-plan { border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); background: var(--nx-panel); overflow: hidden; }
+.d-plan { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card); background: var(--nx-panel); overflow: hidden; }
 .d-plan-head { display: flex; align-items: center; gap: var(--nx-sp-2); padding: 10px var(--nx-sp-3);
   border-bottom: 1px solid var(--nx-line); font-weight: 600; font-size: var(--nx-fs-body); }
 .d-plan-body { padding: var(--nx-sp-2) var(--nx-sp-3); }
@@ -372,7 +389,7 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-ctxbar .d-chipbtn { max-width: 280px; }
 .d-ctx-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .d-composer { max-width: 800px; margin: 0 auto; border: 1px solid var(--nx-line-hi);
-  border-radius: var(--nx-r-xl); background: var(--nx-panel); box-shadow: var(--nx-sh-1);
+  border-radius: var(--nx-radius-popover); background: var(--nx-panel); box-shadow: var(--nx-sh-1);
   transition: box-shadow var(--nx-dur-2) var(--nx-ease), border-color var(--nx-dur-2) var(--nx-ease); }
 .d-composer:focus-within { border-color: var(--nx-line-hi);
   box-shadow: var(--nx-sh-2), 0 0 0 3px color-mix(in srgb, var(--nx-accent) 18%, transparent); }
@@ -389,7 +406,7 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
   font: inherit; font-size: var(--nx-fs-body); line-height: var(--nx-lh-ctrl); resize: none; outline: none;
   padding: 6px 4px; max-height: 200px; }
 .d-input::placeholder { color: var(--nx-text-3); }
-.d-send { width: 30px; height: 30px; border-radius: var(--nx-r-md); border: 0; background: var(--nx-accent);
+.d-send { width: 30px; height: 30px; border-radius: var(--nx-radius-row); border: 0; background: var(--nx-accent);
   color: var(--nx-accent-fg); cursor: pointer; display: flex; align-items: center; justify-content: center;
   flex: 0 0 auto; transition: filter var(--nx-dur-1) var(--nx-ease); }
 .d-send:hover { filter: brightness(1.08); }
@@ -401,7 +418,7 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-chips { display: flex; align-items: center; gap: var(--nx-sp-1); flex-wrap: wrap; min-height: var(--nx-ctl-sm); }
 .d-chipbtn { display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   height: var(--nx-ctl-sm); line-height: 1; flex: 0 0 auto;
-  padding: 0 9px; border-radius: var(--nx-r-md); border: 1px solid var(--nx-line);
+  padding: 0 9px; border-radius: var(--nx-radius-row); border: 1px solid var(--nx-line);
   background: var(--nx-panel); color: var(--nx-text-2); font-size: var(--nx-fs-xs); cursor: pointer;
   transition: background var(--nx-dur-1) var(--nx-ease), color var(--nx-dur-1) var(--nx-ease),
     border-color var(--nx-dur-1) var(--nx-ease); }
@@ -409,13 +426,13 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-chipbtn.is-on { background: var(--nx-accent-soft); border-color: transparent; color: var(--nx-accent); }
 
 /* 队列 */
-.d-queue { border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); background: var(--nx-panel);
+.d-queue { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card); background: var(--nx-panel);
   box-shadow: var(--nx-sh-1); overflow: hidden; max-width: 760px; margin: 0 auto var(--nx-sp-2); }
 .d-queue-head { display: flex; align-items: center; gap: var(--nx-sp-2); padding: 8px var(--nx-sp-3);
   border-bottom: 1px solid var(--nx-line); font-size: var(--nx-fs-sm); font-weight: 600; }
 .d-queue-body { padding: var(--nx-sp-1); }
 .d-queue-row { display: flex; align-items: flex-start; gap: var(--nx-sp-2); padding: 8px var(--nx-sp-2);
-  border-radius: var(--nx-r-md); font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
+  border-radius: var(--nx-radius-row); font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
 .d-queue-row:hover { background: var(--nx-surface); }
 .d-queue-row.is-on { background: var(--nx-selected); }
 .d-queue-row .d-grip { margin-top: 2px; }
@@ -437,8 +454,8 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
    取景补丁（一度有 6 张板各写一遍）。**两套机制就是这类坑的根源**，现在只留一套。
    `.is-open` 作为别名保留，给产品侧习惯用类名开关的代码。 */
 .d-pop { position: absolute; z-index: var(--nx-z-pop); min-width: 200px;
-  background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg);
-  box-shadow: var(--nx-sh-2); padding: var(--nx-sp-1); display: none; }
+  background: var(--nx-pop-fill); border: 0; border-radius: var(--nx-radius-popover);
+  box-shadow: var(--nx-pop-shadow); padding: var(--nx-sp-1); display: none; }
 /* 两个开关并存，语义分工明确：
      `.is-open` = 「我要它开」（板面与产品的类名开关）；
      `hidden` 属性 = 「强制关」，且靠 base.css 的全局 `[hidden]{display:none!important}`
@@ -447,35 +464,39 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
      反过来只有 hidden 一套时，`<div class="d-pop">` 会常驻可见。两种都要在。 */
 .d-pop.is-open { display: block; animation: nx-pop-in var(--nx-dur-2) var(--nx-ease-out); }
 .d-pop.up { bottom: calc(100% + 6px); }
-.d-pop-float { position: fixed; z-index: var(--nx-z-pop); background: var(--nx-panel);
-  border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); box-shadow: var(--nx-sh-2);
+.d-pop-float { position: fixed; z-index: var(--nx-z-pop); background: var(--nx-pop-fill);
+  border: 0; border-radius: var(--nx-radius-popover); box-shadow: var(--nx-pop-shadow);
   padding: var(--nx-sp-1); }
 .d-pop-title { padding: 6px 10px 4px; font-size: var(--nx-fs-xs); font-weight: 600; color: var(--nx-text-3); }
 .d-pop-body { padding: var(--nx-sp-2) var(--nx-sp-3); }
 .d-pop-foot { padding: var(--nx-sp-1) var(--nx-sp-3) var(--nx-sp-2); font-size: var(--nx-fs-xs);
   color: var(--nx-text-3); line-height: var(--nx-lh-body); }
-/* fork:apple-sketch —— 菜单行高取 macOS kit 的 Menus 页实测（24，Regular 档） */
+/* fork:kit-strict —— 菜单行高 24（未动），高亮换成 kit 原样：#0069f9 实底 + 全白前景、
+   圆角 8（Menus 页 Items/2 - Hover 实测；此前是 --nx-surface 灰洗底，是唯一来源漂移）。 */
 .d-menu-row { display: flex; align-items: center; gap: var(--nx-sp-2); width: 100%; text-align: left;
   border: 0; background: none; font: inherit; font-size: var(--nx-fs-body); color: var(--nx-text);
-  min-height: var(--nx-sk-c-menus-menus-rg-h); padding: 0 10px; border-radius: var(--nx-r-sm); cursor: pointer;
-  transition: background var(--nx-dur-1) var(--nx-ease); }
-.d-menu-row:hover:not(:disabled) { background: var(--nx-surface); }
-/* 选中 / 键盘高亮态：画板 D-05（视口预设选中行）与 D-30（键盘焦点）都在用，
-   但库里一直没定义 —— 键位导航就没有可见落点。取值与 .d-row.is-on 同一角色。 */
-.d-menu-row.is-on { background: var(--nx-selected); color: var(--nx-text); }
-.d-menu-row:disabled { opacity: var(--nx-a-disabled); cursor: not-allowed; }
-.d-menu-row.danger { color: var(--nx-danger); }
+  min-height: var(--nx-sk-c-menus-menus-rg-h); padding: 0 10px; border-radius: var(--nx-menu-radius); cursor: pointer;
+  transition: background var(--nx-dur-1) var(--nx-ease), color var(--nx-dur-1) var(--nx-ease); }
+.d-menu-row:hover:not(:disabled) { background: var(--nx-menu-hover); color: var(--nx-accent-fg); }
+.d-menu-row:hover:not(:disabled) .d-menu-row-s, .d-menu-row:hover:not(:disabled) * { color: inherit; }
+/* 选中 / 键盘高亮态：与 hover 同底（macOS 菜单只有一种高亮）。 */
+.d-menu-row.is-on { background: var(--nx-menu-hover); color: var(--nx-accent-fg); }
+.d-menu-row:disabled { color: var(--nx-ctl-fg-disabled); cursor: not-allowed; }
+.d-menu-row.danger { color: var(--nx-ctl-destr); }
 /* 浮层里的两行行（产品 pw-prow，min-height 56）：标题 + 副行。
    会话行也能塞进浮层（最近会话、查找结果），但它的选中点与运行态语义是侧栏专用的，
    所以这里单列一个，不复用 .d-sess。 */
 .d-pop-row { display: flex; align-items: flex-start; gap: var(--nx-sp-2); min-height: 56px;
   width: 100%; text-align: left; border: 0; background: none; font: inherit; cursor: pointer;
-  padding: var(--nx-sp-2) var(--nx-sp-3); border-radius: var(--nx-r-sm); color: var(--nx-text); }
-.d-pop-row:hover { background: var(--nx-surface); }
-.d-pop-row.is-on { background: var(--nx-selected); }
+  padding: var(--nx-sp-2) var(--nx-sp-3); border-radius: var(--nx-radius-control); color: var(--nx-text); }
+.d-pop-row:hover { background: var(--nx-menu-hover); color: var(--nx-accent-fg); }
+.d-pop-row:hover * { color: inherit; }
+.d-pop-row.is-on { background: var(--nx-menu-hover); color: var(--nx-accent-fg); }
 .d-pop-row-t { font-size: var(--nx-fs-body); line-height: var(--nx-lh-ctrl); }
 .d-pop-row-s { font-size: var(--nx-fs-xs); color: var(--nx-text-3); margin-top: 2px; }
-.d-menu-row.danger:hover { background: color-mix(in srgb, var(--nx-danger) 8%, transparent); }
+/* fork:kit-strict —— 危险行 hover 与其他行同一种高亮（macOS 菜单只有一种：蓝底白字），
+   红色只留在静止态的字色上。 */
+.d-menu-row.danger:hover:not(:disabled) { background: var(--nx-menu-hover); color: var(--nx-accent-fg); }
 .d-sep { height: 1px; background: var(--nx-line); margin: var(--nx-sp-1) calc(-1 * var(--nx-sp-1)); }
 .d-sep-v { width: 1px; align-self: stretch; background: var(--nx-line); margin: 0 var(--nx-sp-1); }
 
@@ -484,7 +505,7 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
   align-items: flex-start; justify-content: center; padding-top: 12vh;
   background: color-mix(in srgb, var(--nx-text) 24%, transparent); }
 .d-cmd.is-open { display: flex; }
-.d-cmd-input { width: 640px; border: 1px solid var(--nx-line); border-radius: var(--nx-r-xl);
+.d-cmd-input { width: 640px; border: 1px solid var(--nx-line); border-radius: var(--nx-radius-popover);
   background: var(--nx-panel); box-shadow: var(--nx-sh-2); overflow: hidden;
   animation: nx-pop-in var(--nx-dur-2) var(--nx-ease-out); }
 .d-cmd > .d-cmd-input > input { width: 100%; border: 0; outline: none; background: none;
@@ -493,7 +514,7 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-cmd-results { max-height: 380px; overflow-y: auto; border-top: 1px solid var(--nx-line); padding: var(--nx-sp-1); }
 .d-cmd-group { padding: 8px 10px 4px; font-size: var(--nx-fs-xs); color: var(--nx-text-3); }
 .d-cmd-row { display: flex; align-items: center; gap: var(--nx-sp-2); padding: 8px 10px;
-  border-radius: var(--nx-r-sm); font-size: var(--nx-fs-body); color: var(--nx-text-2); cursor: pointer; }
+  border-radius: var(--nx-radius-control); font-size: var(--nx-fs-body); color: var(--nx-text-2); cursor: pointer; }
 .d-cmd-row:hover, .d-cmd-row.is-on { background: var(--nx-selected); color: var(--nx-text); }
 .d-cmd-kind { font-size: var(--nx-fs-xs); color: var(--nx-text-3); margin-left: auto; flex: 0 0 auto; }
 .d-cmd-hit { color: var(--nx-accent); font-weight: 600; }
@@ -511,7 +532,7 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
      那等于把设计约束写成了写作纪律。 */
   max-height: calc(100vh - var(--nx-sp-8)); display: flex; flex-direction: column;
   background: var(--nx-panel);
-  border: 1px solid var(--nx-line); border-radius: var(--nx-r-2xl); box-shadow: var(--nx-sh-2);
+  border: 1px solid var(--nx-line); border-radius: var(--nx-radius-sheet); box-shadow: var(--nx-sh-2);
   animation: nx-pop-in var(--nx-dur-2) var(--nx-ease-out); }
 .d-modal-box.wide { width: 680px; }
 .d-modal-box.narrow { width: 360px; }
@@ -532,10 +553,10 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-toast.bad { border-color: color-mix(in srgb, var(--nx-danger) 40%, transparent); color: var(--nx-danger); }
 .d-toast { position: fixed; bottom: var(--nx-sp-5); left: 50%; transform: translateX(-50%);
   z-index: var(--nx-z-toast); display: flex; align-items: center; gap: var(--nx-sp-2);
-  background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg);
+  background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card);
   box-shadow: var(--nx-sh-2); padding: 10px 14px; font-size: var(--nx-fs-cap); color: var(--nx-text); }
 .d-banner { display: flex; align-items: center; gap: var(--nx-sp-2); padding: 9px var(--nx-sp-3);
-  border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-surface);
+  border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row); background: var(--nx-surface);
   font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
 .d-banner.ok   { border-color: color-mix(in srgb, var(--nx-success) 40%, transparent);
   background: color-mix(in srgb, var(--nx-success) 7%, var(--nx-panel)); color: var(--nx-success); }
@@ -553,7 +574,7 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-set-nav { width: 220px; flex: 0 0 auto; border-right: 1px solid var(--nx-line);
   padding: var(--nx-sp-3) var(--nx-sp-2); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .d-set-navitem { display: flex; align-items: center; gap: var(--nx-sp-2); padding: 7px 10px;
-  border-radius: var(--nx-r-md); border: 0; background: none; font: inherit; font-size: var(--nx-fs-body);
+  border-radius: var(--nx-radius-row); border: 0; background: none; font: inherit; font-size: var(--nx-fs-body);
   color: var(--nx-text-2); cursor: pointer; text-align: left; width: 100%;
   transition: background var(--nx-dur-1) var(--nx-ease), color var(--nx-dur-1) var(--nx-ease); }
 .d-set-navitem:hover { background: var(--nx-surface); color: var(--nx-text); }
@@ -578,7 +599,7 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-set-row-box { flex: 1 1 auto; min-width: 0; }
 .d-set-row > .d-grow-last { margin-left: auto; flex: 0 0 auto; }
 
-.d-setcard { border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); background: var(--nx-panel);
+.d-setcard { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card); background: var(--nx-panel);
   padding: var(--nx-sp-3) var(--nx-sp-4); display: flex; align-items: center; gap: var(--nx-sp-3);
   cursor: pointer; transition: border-color var(--nx-dur-1) var(--nx-ease), box-shadow var(--nx-dur-1) var(--nx-ease);
   text-align: left; width: 100%; font: inherit; }
@@ -592,43 +613,50 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 /* fork:apple-sketch —— 文本框高取 kit 的 Text Fields 实测（24）；原来走 ctl-md（28）。
    组合框那边 `.d-select` 另外引了 Combo Boxes 的 24，两者同值、各自有出处。 */
 .d-input, .d-select { height: var(--nx-c-textfield-h); }
+/* fork:kit-strict —— 弹出钮（组合框）= kit「Bordered」灰洗底、无描边，圆角 6（24÷4）。 */
 .d-select { /* fork:apple-sketch —— 组合框/弹出钮高度取 kit 的 Combo Boxes 实测（24） */
   min-height: var(--nx-sk-c-combo-boxes-content-rg-h);
-  border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-panel);
+  border: 0; border-radius: var(--nx-radius-control); background: var(--nx-ctl-bg);
   color: var(--nx-text); font: inherit; font-size: var(--nx-fs-body); padding: 0 10px;
   display: inline-flex; align-items: center; gap: var(--nx-sp-2); cursor: pointer; min-width: 0; }
-.d-select:hover { border-color: var(--nx-line-hi); }
-.d-input:not(.d-composer .d-input) { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md);
-  background: var(--nx-panel); padding: 0 10px; }
-/* 聚焦不再画 1px 彩边（看着像报错），改成一层软环贴着控件外沿。 */
+.d-select:hover { background: var(--nx-ctl-bg-hover); }
+/* fork:kit-strict —— 文本框 = 白底 + 5% 发丝边（Input Fields/01 - Idle 原值：
+   #ffffff + 1px #0000000d）；聚焦 = 1px accent 实线 + 3.5px 50% 外环（kit Focus Ring），
+   不再画 2px 32% 的软环。 */
+.d-input:not(.d-composer .d-input) { border: 1px solid var(--nx-field-line); border-radius: var(--nx-radius-control);
+  background: var(--nx-field-bg); padding: 0 10px; }
 .d-input:not(.d-composer .d-input):focus, .d-textarea:focus {
-  border-color: var(--nx-line-hi); outline: 2px solid color-mix(in srgb, var(--nx-accent) 32%, transparent);
-  outline-offset: 1px; }
+  border-color: var(--nx-accent); outline: none;
+  box-shadow: 0 0 0 var(--nx-focus-halo) color-mix(in srgb, var(--nx-accent) var(--nx-focus-halo-a), transparent); }
 .d-input:not(.d-composer .d-input)::placeholder { color: var(--nx-text-3); }
-.d-textarea { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-panel);
+.d-textarea { border: 1px solid var(--nx-field-line); border-radius: var(--nx-radius-control); background: var(--nx-field-bg);
   color: var(--nx-text); font: inherit; font-size: var(--nx-fs-body); line-height: var(--nx-lh-body);
   padding: 8px 10px; resize: vertical; min-height: 72px; width: 100%; }
-.d-textarea:focus { border-color: var(--nx-accent); outline: var(--nx-focus-w) solid var(--nx-ring); outline-offset: -1px; }
 .d-textarea::placeholder { color: var(--nx-text-3); }
 /* 只读与禁用态：设置页里有一堆「系统决定、只能看不能改」的字段（模型 ID、配额、路径），
    没有这两条就只能靠旁注解释「这是只读的」，解释得再多也不如控件自己长成那样。 */
-.d-input:disabled, .d-textarea:disabled { background: var(--nx-surface); color: var(--nx-text-3);
-  cursor: not-allowed; border-style: dashed; }
-.d-input[readonly] { background: var(--nx-surface); color: var(--nx-text-2); cursor: default; }
+.d-input:disabled, .d-textarea:disabled { background: var(--nx-field-bg-disabled); color: var(--nx-ctl-fg-disabled);
+  cursor: not-allowed; }
+.d-input[readonly] { background: var(--nx-ctl-bg); color: var(--nx-text-2); cursor: default; }
 
-.d-switch { width: var(--nx-mac-switch-w); height: var(--nx-mac-switch-h); border-radius: 999px; border: 0; flex: 0 0 auto;
-  background: var(--nx-surface-hi); cursor: pointer; position: relative;
+/* fork:kit-strict —— 开关=54×24 轨 + 32×20 白药丸旋钮（内缩 2、行程 18、按下浮起）。
+   旧形状（18 圆球、行程 30、--nx-surface-hi 深底）是上一代 macOS 的。 */
+.d-switch { width: var(--nx-mac-switch-w); height: var(--nx-mac-switch-h); border-radius: var(--nx-radius-pill); border: 0; flex: 0 0 auto;
+  background: var(--nx-track-off); cursor: pointer; position: relative;
   transition: background var(--nx-dur-2) var(--nx-ease); }
-.d-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: var(--nx-mac-switch-knob); height: var(--nx-mac-switch-knob);
-  border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.18);
+.d-switch::after { content: ""; position: absolute; top: var(--nx-mac-switch-inset); left: var(--nx-mac-switch-inset);
+  width: var(--nx-mac-switch-knob-w); height: var(--nx-mac-switch-knob-h);
+  border-radius: var(--nx-radius-pill); background: var(--nx-knob-bg); box-shadow: var(--nx-knob-shadow);
   transition: transform var(--nx-dur-2) var(--nx-ease); }
 .d-switch.on { background: var(--nx-accent); }
 .d-switch.on::after { transform: translateX(var(--nx-mac-switch-travel)); }
 
-.d-radio { width: 15px; height: 15px; border-radius: 999px; border: 1.5px solid var(--nx-line-hi);
-  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; background: var(--nx-panel); }
-.d-radio.on { border-color: var(--nx-accent); }
-.d-radio.on::after { content: ""; width: 7px; height: 7px; border-radius: 999px; background: var(--nx-accent); }
+/* fork:kit-strict —— 单选/复选同一族：未选中 = 灰底无描边（kit Unchecked 的 #0000001a），
+   选中 = accent 实底 + 白记号；半选 = accent 实底 + 白横杠（kit Mixed 原样）。 */
+.d-radio { width: 16px; height: 16px; border-radius: var(--nx-radius-pill); border: 0;
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; background: var(--nx-check-off); }
+.d-radio.on { background: var(--nx-accent); }
+.d-radio.on::after { content: ""; width: 7px; height: 7px; border-radius: var(--nx-radius-pill); background: var(--nx-accent-fg); }
 
 /* 多选框：归档 / 导入 / 快捷键 / 记忆的批量选择都要它。
    半选态（.half）是**必须**的 —— 组里选了一部分时不能显示成「全选」或「全不选」，
@@ -636,17 +664,17 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 /* fork:apple-sketch —— 撤回：曾在这里加 `min-height: 24px`（kit 的 Toggles 行高），
    但 `min-height` 会把 16×16 的指示器**撑成 16×24 的长条**（只有宽度由 width 锁住），
    设置页与归档页一眼就能看到一排灰长条。指示器尺寸就是它的全部，行高交给父行去管。 */
-.d-checkbox { width: 16px; height: 16px; border-radius: var(--nx-r-xs); border: 1.5px solid var(--nx-line-hi);
-  background: var(--nx-panel); flex: 0 0 auto; cursor: pointer; display: inline-flex;
+.d-checkbox { width: 16px; height: 16px; border-radius: var(--nx-radius-ctl-mn); border: 0;
+  background: var(--nx-check-off); flex: 0 0 auto; cursor: pointer; display: inline-flex;
   align-items: center; justify-content: center; color: transparent; }
-.d-checkbox.on { background: var(--nx-accent); border-color: var(--nx-accent); color: var(--nx-accent-fg); }
-.d-checkbox.half { background: var(--nx-panel); border-color: var(--nx-accent); color: var(--nx-accent); }
+.d-checkbox.on { background: var(--nx-accent); color: var(--nx-accent-fg); }
+.d-checkbox.half { background: var(--nx-accent); color: var(--nx-accent-fg); }
 .d-checkbox > i { width: 10px; height: 10px; }
 .d-checkbox.on > i { display: block; }
 .d-checkbox.half > i { display: block; width: 8px; height: 2px; }
 /* 单选行：圆点 + 标题 + 说明。之前设置页只能拿三行 .d-row 手拼，既费劲又对不齐。 */
 .d-radiorow { display: flex; align-items: flex-start; gap: var(--nx-sp-3); padding: var(--nx-sp-2) 0;
-  border-radius: var(--nx-r-sm); cursor: pointer; }
+  border-radius: var(--nx-radius-control); cursor: pointer; }
 /* 行件在画板里就是 <button>（D-07 帧 B 原文）：与 `button.d-row` 同一理由，
    UA 归零必须在库里做一次。漏了它，浏览器给的是 2px outset 灰底 + 居中 Arial ——
    **画板自己就已经是这个错的样子**（2026-10-05 用真浏览器逐板扫出来的唯一一处）。 */
@@ -659,23 +687,23 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 
 /* 色块：皮肤工作室的四色。颜色一律走 token（semantic 四色）——
    写死 hex 会被门禁拦，而且画板不该凭空造出色板之外的颜色。 */
-.d-swatch { width: var(--nx-ctl-md); height: var(--nx-ctl-md); border-radius: var(--nx-r-md);
+.d-swatch { width: var(--nx-ctl-md); height: var(--nx-ctl-md); border-radius: var(--nx-radius-row);
   border: 1px solid var(--nx-line-hi); flex: 0 0 auto; }
 
 .d-seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--nx-surface);
-  border-radius: var(--nx-r-md); }
-.d-seg > button { height: var(--nx-mac-seg-h); padding: 0 10px; border: 0; border-radius: calc(var(--nx-r-md) - 2px);
+  border-radius: var(--nx-radius-row); }
+.d-seg > button { height: var(--nx-mac-seg-h); padding: 0 10px; border: 0; border-radius: calc(var(--nx-radius-row) - 2px);
   background: none; font: inherit; font-size: var(--nx-fs-xs); color: var(--nx-text-2); cursor: pointer;
   transition: background var(--nx-dur-1) var(--nx-ease), color var(--nx-dur-1) var(--nx-ease); }
-.d-seg > button.is-on { background: var(--nx-panel); color: var(--nx-text); box-shadow: var(--nx-sh-1); font-weight: 500; }
+.d-seg > button.is-on { background: var(--nx-accent); color: var(--nx-accent-fg); font-weight: 500; }
 /* 侧栏里那一个不是「小分段」而是**满宽的两半**：产品 `.pw-seg` 是 grid 1fr 1fr +
    上下 4px 内边距。原来的 inline-flex 版本（实测 263×28）在侧栏里读成两枚小标签，
    而它实际是切整个列表内容的开关 —— 点击面积应该跟侧栏一样宽。 */
 .d-side > .d-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 2px;
   margin: var(--nx-sp-1) var(--nx-sp-2) var(--nx-sp-2); padding: 2px;
-  border-radius: var(--nx-r-lg); background: var(--nx-surface); }
+  border-radius: var(--nx-radius-card); background: var(--nx-surface); }
 .d-side > .d-seg > button { height: 28px; padding: 0; justify-content: center; text-align: center;
-  font-size: var(--nx-fs-sm); border-radius: calc(var(--nx-r-lg) - 2px); }
+  font-size: var(--nx-fs-sm); border-radius: calc(var(--nx-radius-card) - 2px); }
 
 /* fork:apple-sketch —— 轨道高 4pt 取自 kit 的 Sliders 页（Track 22 高里轨道本身是 4）；
    整行高度由 --nx-c-slider-h（24）约束，见下面的 min-height。 */
@@ -688,7 +716,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
   border: 1px solid var(--nx-line-hi); cursor: pointer; }
 
 .d-kbd { display: inline-flex; align-items: center; height: 18px; padding: 0 5px;
-  border: 1px solid var(--nx-line); border-bottom-width: 2px; border-radius: var(--nx-r-xs);
+  border: 1px solid var(--nx-line); border-bottom-width: 2px; border-radius: var(--nx-radius-control);
   background: var(--nx-panel); font-family: var(--nx-font-mono); font-size: var(--nx-fs-xs);
   color: var(--nx-text-2); }
 .d-kbd.danger { border-color: var(--nx-danger); color: var(--nx-danger); }
@@ -710,7 +738,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 
 .d-badge { display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   height: 18px; padding: 0 7px; line-height: 1;
-  border-radius: var(--nx-r-pill); font-size: var(--nx-fs-xs); font-weight: 500;
+  border-radius: var(--nx-radius-pill); font-size: var(--nx-fs-xs); font-weight: 500;
   flex: 0 0 auto; white-space: nowrap; }
 .d-badge.ok   { background: color-mix(in srgb, var(--nx-success) 10%, transparent); color: var(--nx-success); }
 .d-badge.warn { background: color-mix(in srgb, var(--nx-warning) 12%, transparent); color: var(--nx-warning); }
@@ -723,7 +751,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-dot.bad { background: var(--nx-danger); }
 .d-dot.run { background: var(--nx-accent); }
 
-.d-card { border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); background: var(--nx-panel); }
+.d-card { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card); background: var(--nx-panel); }
 .d-card-head { padding: var(--nx-sp-3) var(--nx-sp-4); border-bottom: 1px solid var(--nx-line);
   display: flex; align-items: center; gap: var(--nx-sp-2); font-weight: 600; font-size: var(--nx-fs-body); }
 .d-card-body { padding: var(--nx-sp-4); }
@@ -742,7 +770,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
    手机一列堆叠由 @media 收，与产品 `gridTemplateColumns: isMobile ? "1fr"` 一致。 */
 .d-starters { display: grid; grid-template-columns: 1fr 1fr; gap: var(--nx-sp-2); width: 100%; }
 .d-starter { display: grid; gap: var(--nx-sp-1); padding: var(--nx-sp-2) var(--nx-sp-3);
-  border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); background: var(--nx-panel);
+  border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card); background: var(--nx-panel);
   text-align: left; cursor: pointer; font: inherit;
   transition: border-color var(--nx-dur-1) var(--nx-ease), box-shadow var(--nx-dur-1) var(--nx-ease); }
 .d-starter:hover { border-color: var(--nx-line-hi); box-shadow: var(--nx-sh-1); }
@@ -787,7 +815,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 
 .d-tree { display: flex; flex-direction: column; gap: 1px; }
 .d-trow { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px;
-  border-radius: var(--nx-r-sm); font-size: var(--nx-fs-sm); color: var(--nx-text-2);
+  border-radius: var(--nx-radius-control); font-size: var(--nx-fs-sm); color: var(--nx-text-2);
   cursor: pointer; white-space: nowrap; border: 0; background: none; font-family: inherit; width: 100%;
   text-align: left; transition: background var(--nx-dur-1) var(--nx-ease); }
 .d-trow:hover { background: var(--nx-surface); }
@@ -803,7 +831,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-panel-body .d-sep { margin: var(--nx-sp-2) calc(-1 * var(--nx-sp-2)); }
 .d-think-body { padding-top: var(--nx-sp-2); }
 
-.d-term { background: var(--nx-code-bg); border-radius: var(--nx-r-md); padding: var(--nx-sp-3);
+.d-term { background: var(--nx-code-bg); border-radius: var(--nx-radius-row); padding: var(--nx-sp-3);
   font-family: var(--nx-font-mono); font-size: var(--nx-fs-sm); line-height: 1.7; color: var(--nx-text);
   min-height: 120px; }
 .d-term-prompt { color: var(--nx-accent); }
@@ -815,14 +843,14 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
   font-size: var(--nx-fs-xs); color: var(--nx-text-3); display: flex; gap: var(--nx-sp-3); }
 
 .d-git-row { display: flex; align-items: center; gap: var(--nx-sp-2); padding: 7px 8px;
-  border-radius: var(--nx-r-sm); font-size: var(--nx-fs-sm); cursor: pointer; }
+  border-radius: var(--nx-radius-control); font-size: var(--nx-fs-sm); cursor: pointer; }
 .d-git-row:hover { background: var(--nx-surface); }
 .d-git-lane { width: 14px; display: flex; justify-content: center; flex: 0 0 auto; color: var(--nx-accent); }
 
 .d-urlbar { display: flex; align-items: center; gap: var(--nx-sp-1); padding: 6px var(--nx-sp-2);
   border-bottom: 1px solid var(--nx-line); }
 .d-urlbox { flex: 1 1 auto; height: var(--nx-ctl-sm); border: 1px solid var(--nx-line);
-  border-radius: var(--nx-r-pill); background: var(--nx-surface); color: var(--nx-text-2);
+  border-radius: var(--nx-radius-pill); background: var(--nx-surface); color: var(--nx-text-2);
   font-size: var(--nx-fs-xs); display: flex; align-items: center; gap: 6px; padding: 0 10px;
   font-family: var(--nx-font-mono); min-width: 0; }
 .d-urlbox > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -834,41 +862,45 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-viewer-path { font-family: var(--nx-font-mono); font-size: var(--nx-fs-xs); color: var(--nx-text-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .d-viewer-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
-.d-fileimg { width: 100%; border-radius: var(--nx-r-md); border: 1px solid var(--nx-line); }
+.d-fileimg { width: 100%; border-radius: var(--nx-radius-row); border: 1px solid var(--nx-line); }
 
 /* ── 12 · 会话搜索 / 搜索框 ───────────────────────────────────────────────── */
+/* fork:kit-strict —— 搜索框 = **药丸**（kit Search Fields 的 Focus Ring r 为全圆）+ 灰底
+   （Fill/Quinary #0000000d，推导：kit 未给独立底样式）＋ 13px 文本；聚焦为 kit 的
+   1px 实线 + 3.5px 50% 外环。 */
 .d-searchfield { display: flex; align-items: center; gap: 6px;
   /* fork:apple-sketch —— 搜索框高取 kit 的 Search Fields 实测（24，与 ctl-sm 同值，
      但来源是 Search Fields 页而不是控件梯子 —— 两者独立成立，引用前者更准） */
   height: var(--nx-c-searchfield-h);
-  border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-panel);
+  border: 0; border-radius: var(--nx-radius-pill); background: var(--nx-sk-cs-fill-light-default-5);
   padding: 0 8px; color: var(--nx-text-3); }
-.d-searchfield:focus-within { border-color: var(--nx-line-hi);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nx-accent) 22%, transparent); }
+[data-theme="dark"] .d-searchfield { background: var(--nx-sk-cs-fill-dark-default-5); }
+.d-searchfield:focus-within { box-shadow: 0 0 0 var(--nx-focus-halo) color-mix(in srgb, var(--nx-accent) var(--nx-focus-halo-a), transparent),
+  0 0 0 1px var(--nx-accent); }
 .d-searchfield > input { flex: 1 1 auto; min-width: 0; border: 0; outline: none; background: none;
   font: inherit; font-size: var(--nx-fs-sm); color: var(--nx-text); }
 
 /* ── 13 · 商店 / 目录卡片 ─────────────────────────────────────────────────── */
 .d-store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: var(--nx-sp-3); }
-.d-store-card { border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); background: var(--nx-panel);
+.d-store-card { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card); background: var(--nx-panel);
   padding: var(--nx-sp-3); display: flex; flex-direction: column; gap: var(--nx-sp-2); cursor: pointer;
   transition: border-color var(--nx-dur-1) var(--nx-ease), box-shadow var(--nx-dur-1) var(--nx-ease); }
 .d-store-card:hover { border-color: var(--nx-line-hi); box-shadow: var(--nx-sh-1); }
 .d-store-card.is-on { border-color: var(--nx-accent); box-shadow: 0 0 0 1px var(--nx-accent); }
-.d-store-cover { height: 64px; border-radius: var(--nx-r-md); background: var(--nx-surface);
+.d-store-cover { height: 64px; border-radius: var(--nx-radius-row); background: var(--nx-surface);
   display: flex; align-items: center; justify-content: center; color: var(--nx-text-3); }
 .d-store-card-t { font-size: var(--nx-fs-body); font-weight: 600; }
 .d-store-foot { display: flex; align-items: center; gap: var(--nx-sp-2); font-size: var(--nx-fs-xs);
   color: var(--nx-text-3); }
 .d-cats { display: flex; gap: var(--nx-sp-1); flex-wrap: wrap; }
 .d-cat { flex: 0 0 auto; white-space: nowrap; height: var(--nx-ctl-sm); padding: 0 10px; display: inline-flex; align-items: center;
-  border-radius: var(--nx-r-pill); border: 1px solid var(--nx-line); background: var(--nx-panel);
+  border-radius: var(--nx-radius-pill); border: 1px solid var(--nx-line); background: var(--nx-panel);
   font-size: var(--nx-fs-xs); color: var(--nx-text-2); cursor: pointer; }
 .d-cat.is-on { background: var(--nx-accent-soft); border-color: transparent; color: var(--nx-accent); font-weight: 500; }
 
 /* ── 14 · 定时任务 / 历史 / 统计 ──────────────────────────────────────────── */
 .d-cron-row { display: flex; align-items: center; gap: var(--nx-sp-3); padding: var(--nx-sp-3);
-  border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); background: var(--nx-panel); }
+  border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card); background: var(--nx-panel); }
 /* 开关一律在**最右**：一列开关对齐在一处，扫一眼就知道哪些开着。
    之前的写法把开关放在行首，右侧的「下次运行」又各排一列，读起来像两张表。 */
 .d-cron-row > .d-switch { order: 9; margin-left: auto; }
@@ -879,15 +911,15 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-cron-when { display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
   margin-left: auto; flex: 0 0 auto; text-align: right; }
 .d-hist-row { display: flex; align-items: center; gap: var(--nx-sp-2); padding: 7px var(--nx-sp-2);
-  border-radius: var(--nx-r-sm); font-size: var(--nx-fs-xs); color: var(--nx-text-2); }
+  border-radius: var(--nx-radius-control); font-size: var(--nx-fs-xs); color: var(--nx-text-2); }
 .d-hist-row:hover { background: var(--nx-surface); }
 /* 历史行的数字列：等宽 + 定宽，扫一列时才不会参差 */
 .d-hist-row > .d-hist-t { min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .d-hist-row > .d-hist-cost { min-width: 76px; text-align: right; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .d-statgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--nx-sp-3); }
-.d-stat { border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); background: var(--nx-panel);
+.d-stat { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card); background: var(--nx-panel);
   padding: var(--nx-sp-3) var(--nx-sp-4); }
-.d-chart { border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); background: var(--nx-panel); overflow: hidden; }
+.d-chart { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card); background: var(--nx-panel); overflow: hidden; }
 .d-chart-head { padding: var(--nx-sp-3) var(--nx-sp-4); border-bottom: 1px solid var(--nx-line);
   display: flex; align-items: center; gap: var(--nx-sp-2); font-weight: 600; font-size: var(--nx-fs-body); }
 .d-chart-body { padding: var(--nx-sp-4); }
@@ -906,18 +938,18 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-bar > i { display: block; height: 100%; border-radius: 999px; background: var(--nx-accent); }
 
 /* ── 15 · 骨架屏 / 空态 / 系统态 ──────────────────────────────────────────── */
-.d-skel { border-radius: var(--nx-r-sm); background: var(--nx-surface); position: relative; overflow: hidden; }
+.d-skel { border-radius: var(--nx-radius-control); background: var(--nx-surface); position: relative; overflow: hidden; }
 .d-skel::after { content: ""; position: absolute; inset: 0;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--nx-text) 4%, transparent), transparent);
   animation: nx-sweep var(--nx-dur-sweep) linear infinite; }
 .d-skel-40 { height: 40px; }
 .d-skel-70 { height: 70px; }
-.d-skel-block { height: 120px; border-radius: var(--nx-r-md); }
+.d-skel-block { height: 120px; border-radius: var(--nx-radius-row); }
 .d-skel-list { display: flex; flex-direction: column; gap: var(--nx-sp-2); }
 
 .d-empty { display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: var(--nx-sp-3); padding: var(--nx-sp-10) var(--nx-sp-5); text-align: center; }
-.d-empty-ico { width: 44px; height: 44px; border-radius: var(--nx-r-lg); background: var(--nx-surface);
+.d-empty-ico { width: 44px; height: 44px; border-radius: var(--nx-radius-card); background: var(--nx-surface);
   display: flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--nx-text-3); }
 /* 空态里放品牌图时必须靠尺寸约束：logo.png 原图是 1036×1036，
    盒子上只写 44×44 而图片自己没规则的话，img 会按**原图尺寸**铺出去 ——
@@ -927,7 +959,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-empty-s { font-size: var(--nx-fs-cap); color: var(--nx-text-3); max-width: 360px; }
 /* 紧凑空态：塞在卡片里，不能占满一屏 */
 .d-empty.compact { padding: var(--nx-sp-6) var(--nx-sp-4); gap: var(--nx-sp-2); }
-.d-empty.compact .d-empty-ico { width: 32px; height: 32px; border-radius: var(--nx-r-md); }
+.d-empty.compact .d-empty-ico { width: 32px; height: 32px; border-radius: var(--nx-radius-row); }
 .d-empty.compact .d-empty-t { font-size: var(--nx-fs-body); }
 .d-err { color: var(--nx-danger); font-size: var(--nx-fs-cap); }
 
@@ -943,12 +975,12 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
   border-top: 1px solid var(--nx-line); }
 .d-device-presets { display: flex; flex-wrap: wrap; gap: var(--nx-sp-1); }
 .d-device-preset { height: var(--nx-ctl-sm); padding: 0 10px; border: 1px solid var(--nx-line);
-  border-radius: var(--nx-r-md); background: var(--nx-panel); font-size: var(--nx-fs-xs);
+  border-radius: var(--nx-radius-row); background: var(--nx-panel); font-size: var(--nx-fs-xs);
   color: var(--nx-text-2); cursor: pointer; }
 .d-device-preset.is-on { background: var(--nx-accent-soft); border-color: transparent; color: var(--nx-accent); }
 
 /* ── 17 · 扩展插槽（W-11）─────────────────────────────────────────────────── */
-.d-slottable { border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); overflow: hidden;
+.d-slottable { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card); overflow: hidden;
   background: var(--nx-panel); }
 .d-slotrow { display: flex; align-items: center; gap: var(--nx-sp-3); padding: 10px var(--nx-sp-4);
   border-bottom: 1px solid var(--nx-line); font-size: var(--nx-fs-cap); }
@@ -959,13 +991,13 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 /* 插槽表的开关列定宽：不定宽时每行按文字长度排，开关就会左右错开成一条波浪。 */
 .d-slotrow > .d-switch { margin-left: auto; flex: 0 0 auto; }
 .d-slotrow > .d-slotact { width: 40px; display: flex; justify-content: flex-end; flex: 0 0 auto; }
-.d-slotcard { border: 1px dashed var(--nx-line-hi); border-radius: var(--nx-r-md); padding: var(--nx-sp-2)
+.d-slotcard { border: 1px dashed var(--nx-line-hi); border-radius: var(--nx-radius-row); padding: var(--nx-sp-2)
   var(--nx-sp-3); font-size: var(--nx-fs-xs); color: var(--nx-text-3); text-align: center; }
-.d-slotoverlay { outline: 1.5px dashed var(--nx-accent); outline-offset: 2px; border-radius: var(--nx-r-md); }
+.d-slotoverlay { outline: 1.5px dashed var(--nx-accent); outline-offset: 2px; border-radius: var(--nx-radius-row); }
 
 /* ── 18 · 扩展状态胶囊 / 状态行 ───────────────────────────────────────────── */
 .d-extpill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px;
-  border-radius: var(--nx-r-pill); background: var(--nx-surface); border: 1px solid var(--nx-line);
+  border-radius: var(--nx-radius-pill); background: var(--nx-surface); border: 1px solid var(--nx-line);
   font-size: var(--nx-fs-xs); color: var(--nx-text-2); font-family: var(--nx-font-mono); cursor: pointer; }
 .d-extpill:hover { background: var(--nx-surface-hi); }
 .d-extpill-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--nx-success); }
@@ -986,18 +1018,18 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-stream .pending { opacity: .28; }
 
 /* ── 20 · 画板家具（仅画板取景用，永不进产品）────────────────────────────── */
-.d-frame { width: 1440px; height: 900px; margin: 0 auto; border-radius: var(--nx-r-xl);
+.d-frame { width: 1440px; height: 900px; margin: 0 auto; border-radius: var(--nx-radius-popover);
   border: 1px solid var(--nx-line-hi); overflow: hidden; position: relative;
   box-shadow: var(--nx-sh-2); background: var(--nx-canvas); display: flex; flex-direction: column; }
 .d-frame-body { flex: 1 1 auto; min-height: 0; display: flex; }
 .d-frame-label { position: absolute; top: -28px; left: 0; font-size: var(--nx-fs-xs); color: var(--nx-text-3);
   display: flex; gap: var(--nx-sp-2); align-items: baseline; }
 .d-anchor { position: relative; }
-.d-placeholder { border: 1px dashed var(--nx-line-hi); border-radius: var(--nx-r-md);
+.d-placeholder { border: 1px dashed var(--nx-line-hi); border-radius: var(--nx-radius-row);
   color: var(--nx-text-3); font-size: var(--nx-fs-xs); display: flex; align-items: center;
   justify-content: center; padding: var(--nx-sp-3); }
 .d-notes { max-width: 980px; margin: var(--nx-sp-6) auto 0; padding: var(--nx-sp-4);
-  background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg);
+  background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card);
   font-size: var(--nx-fs-cap); color: var(--nx-text-2); line-height: var(--nx-lh-body); }
 .d-notes > b:first-child { display: block; margin-bottom: var(--nx-sp-2); color: var(--nx-text); }
 .d-notes b { color: var(--nx-text); }
@@ -1124,14 +1156,14 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 
 /* 公告条（可关闭、可带行动） */
 .d-announce { display: flex; align-items: center; gap: var(--nx-sp-2); padding: 8px var(--nx-sp-3);
-  border-radius: var(--nx-r-md); background: var(--nx-accent-soft); color: var(--nx-accent);
+  border-radius: var(--nx-radius-row); background: var(--nx-accent-soft); color: var(--nx-accent);
   font-size: var(--nx-fs-sm); }
 .d-announce .d-grow { color: var(--nx-text); }
 
 /* 分页（会话列表 / 商店目录 / 运行历史） */
 .d-pagebar { display: flex; align-items: center; gap: var(--nx-sp-1); }
 .d-page { min-width: var(--nx-ctl-sm); height: var(--nx-ctl-sm); padding: 0 var(--nx-sp-2);
-  border: 1px solid var(--nx-line); border-radius: var(--nx-r-sm); background: var(--nx-panel);
+  border: 1px solid var(--nx-line); border-radius: var(--nx-radius-control); background: var(--nx-panel);
   font: inherit; font-size: var(--nx-fs-xs); color: var(--nx-text-2); cursor: pointer; }
 .d-page.is-on { background: var(--nx-accent-soft); border-color: transparent; color: var(--nx-accent); font-weight: 500; }
 .d-page:disabled { opacity: var(--nx-a-disabled); cursor: not-allowed; }
@@ -1139,13 +1171,13 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 /* 面包屑（文件查看器 / 设置深链） */
 .d-crumb { display: flex; align-items: center; gap: 2px; font-size: var(--nx-fs-xs); color: var(--nx-text-3); }
 .d-crumb > button { border: 0; background: none; font: inherit; font-size: var(--nx-fs-xs);
-  color: var(--nx-text-3); cursor: pointer; padding: 2px 4px; border-radius: var(--nx-r-xs); }
+  color: var(--nx-text-3); cursor: pointer; padding: 2px 4px; border-radius: var(--nx-radius-control); }
 .d-crumb > button:hover { background: var(--nx-surface); color: var(--nx-text); }
 .d-crumb > button.is-on { color: var(--nx-text); font-weight: 500; }
 .d-crumb > i { color: var(--nx-text-3); }
 
 /* 通知中心（右下角集合 / 空态 / 未读分隔） */
-.d-notice { display: flex; gap: var(--nx-sp-2); padding: 10px var(--nx-sp-3); border-radius: var(--nx-r-md); }
+.d-notice { display: flex; gap: var(--nx-sp-2); padding: 10px var(--nx-sp-3); border-radius: var(--nx-radius-row); }
 .d-notice.unread { background: var(--nx-accent-soft); }
 .d-notice-ico { width: 22px; height: 22px; border-radius: 999px; display: flex; align-items: center;
   justify-content: center; background: var(--nx-surface); color: var(--nx-text-2); flex: 0 0 auto; }
@@ -1168,7 +1200,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 
 /* 柱状图：柱高是数据（内联 %），圆角与基线在类上 */
 .d-bars { display: flex; align-items: flex-end; gap: var(--nx-sp-1); }
-.d-bars > i { flex: 1 1 0; min-height: 4px; border-radius: var(--nx-r-xs) var(--nx-r-xs) 0 0;
+.d-bars > i { flex: 1 1 0; min-height: 4px; border-radius: var(--nx-radius-control) var(--nx-radius-control) 0 0;
   background: var(--nx-accent); }
 
 /* 滚动渐隐：长列表上下两条，提示「上面/下面还有」。
@@ -1179,12 +1211,12 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
   background: linear-gradient(to top, var(--nx-panel), transparent); }
 
 /* 缩略图（壁纸 / 封面 / 分支卡）：16:9 小图 */
-.d-thumb { aspect-ratio: 16 / 9; min-width: 128px; width: 24%; border-radius: var(--nx-r-md);
+.d-thumb { aspect-ratio: 16 / 9; min-width: 128px; width: 24%; border-radius: var(--nx-radius-row);
   border: 1px solid var(--nx-line); background: var(--nx-surface); overflow: hidden; flex: 0 0 auto; }
 .d-thumb > img, .d-thumb > i { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* 文件投放区（拖拽上传 / 附件） */
-.d-drop { border: 1.5px dashed var(--nx-line-hi); border-radius: var(--nx-r-md);
+.d-drop { border: 1.5px dashed var(--nx-line-hi); border-radius: var(--nx-radius-row);
   padding: var(--nx-sp-6); display: flex; flex-direction: column; align-items: center; gap: var(--nx-sp-2);
   color: var(--nx-text-3); font-size: var(--nx-fs-cap); background: var(--nx-surface); }
 .d-drop.over { border-color: var(--nx-accent); background: var(--nx-accent-soft); color: var(--nx-accent); }
@@ -1223,7 +1255,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 
 /* 迷你地图：36px 导轨常驻、点开是通高浮层 */
 .d-minimap { position: relative; width: 36px; flex: 0 0 auto; align-self: stretch; height: 100%;
-  border-radius: var(--nx-r-sm); background: var(--nx-surface); overflow: hidden;
+  border-radius: var(--nx-radius-control); background: var(--nx-surface); overflow: hidden;
   /* 横条组**上下居中**：整条导轨与转录区等高，标记落在中线上 ——
      贴顶的话指针在中段时，标记离指针很远，看不出它指的是哪一轮。 */
   display: flex; flex-direction: column; justify-content: center; gap: 2px; }
@@ -1259,7 +1291,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 /* 底部面板 */
 .d-sheet { position: absolute; left: 50%; bottom: var(--nx-sp-6); transform: translateX(-50%) translateY(8px);
   min-width: 420px; max-width: 560px; background: var(--nx-panel); border: 1px solid var(--nx-line);
-  border-radius: var(--nx-r-2xl); box-shadow: var(--nx-sh-2); padding: var(--nx-sp-2);
+  border-radius: var(--nx-radius-sheet); box-shadow: var(--nx-sh-2); padding: var(--nx-sp-2);
   opacity: 0; pointer-events: none; transition: opacity var(--nx-dur-3) var(--nx-ease-out),
     transform var(--nx-dur-3) var(--nx-ease-out); }
 .d-sheet-title { padding: var(--nx-sp-2) var(--nx-sp-3) 4px; font-size: var(--nx-fs-sm); font-weight: 600; }
@@ -1305,7 +1337,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
    fork:imagegen —— 测试真出一张图后回显在这里；等比缩到面板放得下，圆角沿用
    输入类控件的 --nx-r-sm。点开看大图是会话里 ImagePreview 的事，这里只做回显。 */
 .d-test-img { display: block; max-width: min(240px, 100%); max-height: 240px;
-  border: 1px solid var(--nx-line); border-radius: var(--nx-r-sm); }
+  border: 1px solid var(--nx-line); border-radius: var(--nx-radius-control); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * 23 · V6 提案：agent 会话的 beUI 借鉴形态（D-32 / D-33）
@@ -1320,7 +1352,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
    与 .d-plan 的分工：plan 是「agent 先声明再执行」的计划轨道，todo 是**执行中
    逐项翻转**的任务清单 —— 价值在折叠头上的进度计数与行的三态（done / run / 待做）。
    勾选盒复用 .d-checkbox（同一视觉角色，不另起名）；运行行的盒子是 loader 图标。 */
-.d-todo { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md);
+.d-todo { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row);
   background: var(--nx-panel); overflow: hidden; }
 .d-todo-btn { display: flex; align-items: center; gap: var(--nx-sp-2); width: 100%;
   padding: 8px var(--nx-sp-3); border: 0; background: none; font: inherit;
@@ -1331,7 +1363,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-todo-list { border-top: 1px solid var(--nx-line); padding: var(--nx-sp-1) var(--nx-sp-2);
   display: flex; flex-direction: column; }
 .d-todo-row { display: flex; align-items: flex-start; gap: var(--nx-sp-2);
-  padding: 6px var(--nx-sp-1); border-radius: var(--nx-r-sm);
+  padding: 6px var(--nx-sp-1); border-radius: var(--nx-radius-control);
   font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
 .d-todo-row > .d-checkbox { margin-top: 2px; }
 .d-todo-row.run > .d-checkbox { border-color: var(--nx-accent); color: var(--nx-accent); }
@@ -1346,7 +1378,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
    **决策卡**：命令/参数以代码块展示、三个动作钮横排底部、多步审批有步骤计数。
    卡身保持中性（panel 底），危险语义只在命令代码与「拒绝」钮上 —— 整卡描红
    在本系统已废止（失败不整卡描红，同一纪律）。 */
-.d-approve { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md);
+.d-approve { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row);
   background: var(--nx-panel); overflow: hidden; }
 .d-approve-head { display: flex; align-items: center; gap: var(--nx-sp-2);
   padding: var(--nx-sp-2) var(--nx-sp-3) 0;
@@ -1361,7 +1393,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
    核心承诺是「无布局偏移」：排队 / 渐进 / 完成三阶段共用同一个 stage 盒，
    图在占位底上显影（nx-reveal），卡片高度从头到尾不变。stage 定高不走
    aspect-ratio（转录区宽度会把它顶到 480px 高），按会话里的实际观感定。 */
-.d-imgen { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md);
+.d-imgen { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row);
   background: var(--nx-panel); overflow: hidden; }
 .d-imgen-stage { position: relative; height: 160px; background: var(--nx-surface); overflow: hidden; }
 .d-imgen-stage > img { position: absolute; inset: 0; width: 100%; height: 100%;
@@ -1387,7 +1419,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-navtick.mid { width: 10px; }
 .d-navtick.near { width: 14px; }
 .d-navpop { position: absolute; right: 30px; width: 250px;
-  background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-r-md);
+  background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row);
   box-shadow: var(--nx-sh-2); padding: var(--nx-sp-2) var(--nx-sp-3);
   font-size: var(--nx-fs-xs); color: var(--nx-text-2); line-height: var(--nx-lh-ctrl); }
 .d-navpop-t { display: flex; align-items: center; gap: var(--nx-sp-1);
@@ -1427,11 +1459,20 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
    用户气泡的 warn / bad 两档走语义色底）、滚到最新的悬浮钮（beUI message-scroller
    的 follow 恢复动作）。其余件（分组、流式、工具结果、时间线、右栏上下文）
    V5 已有原语，纯 DOM 组织，不另起名。 */
+.d-msg-user.warn,
+.d-msg-user.bad {
+  --text: var(--nx-text);
+  --nx-text: var(--nx-text);
+  --nx-text-2: var(--nx-text-2);
+  --nx-text-3: var(--nx-text-3);
+  --nx-code-bg: var(--nx-code-bg);
+  color: var(--nx-text);
+}
 .d-msg-user.warn { background: color-mix(in srgb, var(--nx-warning) 10%, var(--nx-panel)); }
 .d-msg-user.bad  { background: color-mix(in srgb, var(--nx-danger) 9%, var(--nx-panel)); }
 .d-jump { position: absolute; right: var(--nx-sp-6); bottom: var(--nx-sp-4); z-index: var(--nx-z-raised);
   height: var(--nx-ctl-md); padding: 0 12px; display: inline-flex; align-items: center; gap: 6px;
-  border: 1px solid var(--nx-line-hi); border-radius: var(--nx-r-pill); background: var(--nx-glass);
+  border: 1px solid var(--nx-line-hi); border-radius: var(--nx-radius-pill); background: var(--nx-glass);
   -webkit-backdrop-filter: blur(var(--nx-glass-blur-small)) saturate(var(--nx-glass-saturate-small));
   backdrop-filter: blur(var(--nx-glass-blur-small)) saturate(var(--nx-glass-saturate-small));
   box-shadow: var(--nx-glass-rim), var(--nx-sh-1);

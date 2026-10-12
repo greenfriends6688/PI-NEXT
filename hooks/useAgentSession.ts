@@ -19,6 +19,8 @@ import { isBlockingExtensionUiRequest } from "@/lib/browser-notifications";
 import { normalizeToolCalls } from "@/lib/normalize";
 import { isDuplicateNotice } from "@/lib/notice-dedupe";
 import { isPromptRejectedError, sendAgentCommand } from "@/lib/agent-client";
+// fork:submit-idempotency
+import { createSubmitRequestId, reuseRequestIdAfterAmbiguousFailure, submissionFingerprint } from "@/lib/submit-idempotency";
 import {
   deleteSessionViewSnapshot,
   getSessionViewSnapshot,
@@ -481,6 +483,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const bashRunningRef = useRef(false);
   const bashRecoveryIdRef = useRef(0);
   const handleAgentEventRef = useRef<((event: AgentEvent) => void) | null>(null);
+  // fork:event-seq — 序号跳档（重放缓冲已滚过）时的补偿回调。
+  const sequenceGapRef = useRef<((sid: string) => void) | null>(null);
   const initialScrollDoneRef = useRef(Boolean(opts.deferInitialScroll));
   const lastUserMsgRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollToUserRef = useRef(false);
@@ -506,6 +510,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   // 迟到旧事件在 upsertRetryNotice 里按 runId 被丢弃。
   const promptRunStartedAtRef = useRef(0);
   const optimisticUserMessageKeyRef = useRef<string | null>(null);
+  // fork:submit-idempotency — 上一次提交结果不明确时留存的 requestId，内容一致的重发复用它。
+  const pendingSubmitRef = useRef<{ requestId: string; fingerprint: string } | null>(null);
   const modelSwitchPendingRef = useRef(false);
   // fork:proma-37-deferred-model —— 排队中的模型 + 当前正在看的会话身份。
   const nextTurnModelRef = useRef<PendingModel | null>(null);
@@ -621,7 +627,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   if (!eventConnectionRef.current) {
     eventConnectionRef.current = new AgentEventConnection({
-      createSource: (sid) => new EventSource(`/api/agent/${encodeURIComponent(sid)}/events`),
+      createSource: (sid, lastEventId) => new EventSource(
+        `/api/agent/${encodeURIComponent(sid)}/events${lastEventId === null ? "" : `?lastEventId=${lastEventId}`}`,
+      ),
       onEvent: (event) => handleAgentEventRef.current?.(event as AgentEvent),
       shouldMaintain: (sid) => (
         sessionHookMountedRef.current
@@ -637,6 +645,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       onUnexpectedError: (error) => {
         console.error("Failed to maintain the agent event stream:", error);
       },
+      onSequenceGap: (sid) => sequenceGapRef.current?.(sid),
     });
   }
 
@@ -1952,6 +1961,15 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     }
   }, [addNotice, applyContextUsage, applyRetryEvent, beginExtensionUiReplayWindow, cancelEventStreamGrace, dispatch, handleExtensionUiRequest, loadSession, notifyPromptStage, onAgentEnd, onAgentError, refreshContextUsage, scheduleEventStreamClose, scrollToBottom, settleTurn, syncLiveModel]);
   handleAgentEventRef.current = handleAgentEvent;
+  // fork:event-seq — 序号跳档且当前没在跑时，重读一次转写把缺的补上；跑着的时候
+  // 不重读（文件里还没有在途消息，会抹掉流式气泡），交给这一轮结束时本来就有的
+  // `loadSession`。
+  // 不带 `force`：快照 revision 一定变了，普通 `loadSession` 就会整份替换 —— 别多开
+  // 一处静默探盘（`hooks/useAgentSession.test.mjs` 里那条守卫挡的就是它）。
+  sequenceGapRef.current = (sid) => {
+    if (agentRunningRef.current) return;
+    void loadSession(sid);
+  };
 
   const handleSend = useCallback(async (
     message: string,
@@ -2014,6 +2032,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     setPromptAnchorActive(true);
 
     const piImages = images?.map((img) => ({ type: "image" as const, data: img.data, mimeType: img.mimeType }));
+    // fork:submit-idempotency — 同一次逻辑提交一个 requestId；上一次结果不明确且内容
+    // 未变时复用，避免「服务端已接受 + 用户再点一次」跑出两轮。
+    const submitFingerprint = submissionFingerprint({ message, images: piImages });
+    const submitRequestId = reuseRequestIdAfterAmbiguousFailure(pendingSubmitRef.current, submitFingerprint)
+      ?? createSubmitRequestId();
+    pendingSubmitRef.current = null;
     let sentSessionId: string | null = null;
     let promptRequestStarted = false;
 
@@ -2036,6 +2060,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         await sendAgentCommand(sid, {
           type: "prompt",
           message,
+          requestId: submitRequestId,
           ...(piImages?.length ? { images: piImages } : {}),
         });
         promoteNewSession(1, message);
@@ -2046,6 +2071,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         await sendAgentCommand(session.id, {
           type: "prompt",
           message,
+          requestId: submitRequestId,
           ...(piImages?.length ? { images: piImages } : {}),
         });
       } else {
@@ -2061,6 +2087,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       // have accepted the prompt before the response was lost. Keep SSE alive
       // until server state confirms the run is idle.
       if (!definitivelyRejected && sentSessionId) {
+        // fork:submit-idempotency — 记住这次提交的 requestId：用户重发同样的内容时
+        // 服务端会按它去重，不会跑出第二轮。
+        pendingSubmitRef.current = { requestId: submitRequestId, fingerprint: submitFingerprint };
         void waitForPromptSettlement(sentSessionId, promptRunId);
         return;
       }

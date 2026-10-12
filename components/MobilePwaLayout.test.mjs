@@ -73,7 +73,7 @@ test("keeps exactly one horizontal gutter on the mobile transcript and composer"
 });
 
 test("prevents iOS focus zoom from widening the layout", () => {
-  assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?textarea,[\s\S]*?input,[\s\S]*?select \{\s*font-size: 16px !important;/);
+  assert.match(cssSource, /@media \(max-width: 639px\)[\s\S]*?textarea,[\s\S]*?input,[\s\S]*?select \{\s*font-size: 16px !important;/);
 });
 
 test("keeps modal dialogs clear of the iOS status bar in standalone mode", () => {

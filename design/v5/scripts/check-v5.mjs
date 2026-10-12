@@ -283,7 +283,8 @@ for (const [form, css, allowed] of [
 /* ── 6 · 两套形态必须定义同一批「角色」令牌（防漂移）───────────────────── */
 const ROLES = [
   "--nx-ui",
-  "--nx-r-xs", "--nx-r-sm", "--nx-r-md", "--nx-r-lg", "--nx-r-xl", "--nx-r-2xl", "--nx-r-pill",
+  "--nx-radius-control", "--nx-radius-row", "--nx-radius-card", "--nx-radius-pane",
+  "--nx-radius-popover", "--nx-radius-sheet", "--nx-radius-pill",
   "--nx-ctl-xs", "--nx-ctl-sm", "--nx-ctl-md", "--nx-ctl-lg", "--nx-touch-min",
   "--nx-canvas", "--nx-panel", "--nx-sidebar", "--nx-surface", "--nx-surface-hi", "--nx-selected",
   "--nx-line", "--nx-line-hi", "--nx-text", "--nx-text-2", "--nx-text-3",

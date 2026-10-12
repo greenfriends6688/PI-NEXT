@@ -384,7 +384,7 @@ type ThinkingLevel = typeof THINKING_LEVELS[number];
 // 七档只用设计允许的色相；深浅由 token 自己跟主题走。
 const LEVEL_COLORS: Record<ThinkingLevel, string> = {
   off: "var(--text-dim)",
-  minimal: "var(--n-muted)",
+  minimal: "var(--nx-text-2)",
   low: "var(--accent-text)",
   medium: "var(--accent)",
   high: "var(--accent-hover)",

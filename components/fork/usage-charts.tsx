@@ -414,7 +414,7 @@ export function UsageShareBar({ slices, label }: { slices: readonly UsageShareSl
       role="img"
       aria-label={label}
       className="d-chart-reveal"
-      style={{ display: "flex", gap: 0, width: "100%", height: "var(--nx-sp-2)", marginTop: "var(--nx-sp-2)", borderRadius: "var(--nx-r-xs)", overflow: "hidden", background: "var(--nx-surface-hi)" }}
+      style={{ display: "flex", gap: 0, width: "100%", height: "var(--nx-sp-2)", marginTop: "var(--nx-sp-2)", borderRadius: "var(--nx-radius-control)", overflow: "hidden", background: "var(--nx-surface-hi)" }}
     >
       {visible.map((slice, index) => (
         <span

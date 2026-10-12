@@ -535,6 +535,308 @@
   --nx-sk-c-windows-content-default-h: 400px;   /* 52/60 变体同高 */
 }
 
+/* ── 5 · 控件状态（181 条，来自 kit 的共享图层样式）────
+ * kit 的按钮/输入框/开关把「底板」放在共享样式里（符号只放文字）——这一段就是那些底板：
+ * 五类按钮 × 明暗 × 底材（普通/玻璃）× 三态、输入框两态、开关轨道与旋钮、容器填充梯子。
+ * 角色层（web/pwa tokens.css）负责把 --nx-* 绑到这里，组件不直接引用 --nx-sk-cs-*。
+ */
+
+:root {
+  /* Content Area/Light/02 - Bordered Tinted/01 - Idle */
+  --nx-sk-cs-tinted-light-idle-fill-1: #0088ff;
+  --nx-sk-cs-tinted-light-idle-fill-2: #0000001a;
+  /* Content Area/Light/02 - Bordered Tinted/03 - Clicked */
+  --nx-sk-cs-tinted-light-clicked-fill-1: #0091ff;
+  --nx-sk-cs-tinted-light-clicked-fill-2: #0000001a;
+  /* Content Area/Light/03 - Bordered Destructive/04 - Disabled */
+  --nx-sk-cs-destructive-light-disabled-fill-1: #ff383c;
+  --nx-sk-cs-destructive-light-disabled-fill-2: #0000001a;
+  /* Content Area/Light/01 - Bordered/03 - Clicked */
+  --nx-sk-cs-bordered-light-clicked-fill-1: #00000029;
+  /* Content Area/Light/01 - Bordered/04 - Disabled */
+  --nx-sk-cs-bordered-light-disabled-fill-1: #0000000a;
+  /* Content Area/Light/03 - Bordered Destructive/03 - Clicked */
+  --nx-sk-cs-destructive-light-clicked-fill-1: #ff383c;
+  --nx-sk-cs-destructive-light-clicked-fill-2: #0000001a;
+  /* Content Area/Light/02 - Bordered Tinted/04 - Disabled */
+  --nx-sk-cs-tinted-light-disabled-fill-1: #0088ff;
+  --nx-sk-cs-tinted-light-disabled-fill-2: #0000001a;
+  /* Content Area/Light/01 - Bordered/01 - Idle */
+  --nx-sk-cs-bordered-light-idle-fill-1: #00000014;
+  /* Content Area/Light/04 - Prominent (Default)/01 - Idle */
+  --nx-sk-cs-prominent-light-idle-fill-1: #0088ff;
+  --nx-sk-cs-prominent-light-idle-fill-2: #00000008;
+  /* Content Area/Light/Knobs - Toggle/01 - Idle */
+  --nx-sk-cs-knob-light-idle-fill-1: #ffffff;
+  --nx-sk-cs-knob-light-idle-shadow: 0px 3px 36px 0px #0000000d;
+  /* Content Area/Light/04 - Prominent (Default)/04 - Disabled */
+  --nx-sk-cs-prominent-light-disabled-fill-1: #0078f0;
+  /* Content Area/Light/Input Fields/04 - Disabled */
+  --nx-sk-cs-input-light-disabled-fill-1: #ffffff80;
+  --nx-sk-cs-input-light-disabled-border-1: 1px solid #0000000a;
+  /* Content Area/Light/Knobs - Toggle/04 - Disabled */
+  --nx-sk-cs-knob-light-disabled-fill-1: #ffffffa6;
+  --nx-sk-cs-knob-light-disabled-fill-2: #ffffff73;
+  --nx-sk-cs-knob-light-disabled-fill-3: #ffffff59;
+  --nx-sk-cs-knob-light-disabled-shadow: 0px 0px 44px 0px #0000001a, 0px 0px 4px -0.5px #0000000d, 0px 0px 1px -0.25px #0000000d;
+  --nx-sk-cs-knob-light-disabled-inner: inset 1.75px 2.5px 1px -1.5px #ffffff, inset -1.75px -2.5px 2px -1.5px #ffffff, inset 0px 0px 1px 0px #ffffff1a;
+  /* Content Area/Light/04 - Prominent (Default)/03 - Clicked */
+  --nx-sk-cs-prominent-light-clicked-fill-1: #0078f0;
+  --nx-sk-cs-prominent-light-clicked-fill-2: #0000001a;
+  /* Content Area/Light/Input Fields/01 - Idle */
+  --nx-sk-cs-input-light-idle-fill-1: #ffffff;
+  --nx-sk-cs-input-light-idle-border-1: 1px solid #0000000d;
+  /* Content Area/Light/Knobs - Toggle/03 - Clicked */
+  --nx-sk-cs-knob-light-clicked-fill-1: #ffffff00;
+  --nx-sk-cs-knob-light-clicked-fill-2: #ff0000;
+  --nx-sk-cs-knob-light-clicked-shadow: 0px 0px 44px 0px #0000001a, 0px 0px 4px -0.5px #0000000d, 0px 0px 1px -0.25px #0000000d;
+  --nx-sk-cs-knob-light-clicked-inner: inset 1.75px 2.5px 1px -1.5px #ffffff, inset -1.75px -2.5px 2px -1.5px #ffffff, inset 0px 0px 1px 0px #ffffff1a;
+  /* Content Area/Light/03 - Bordered Destructive/01 - Idle */
+  --nx-sk-cs-destructive-light-idle-fill-1: #ff383c;
+  --nx-sk-cs-destructive-light-idle-fill-2: #0000001a;
+  /* Over-Glass/Light/04 - Prominent (Default)/01 - Idle */
+  --nx-sk-cs-prominent-light-glass-idle-fill-1: #0078f0;
+  /* Over-Glass/Light/01 - Bordered/01 - Idle */
+  --nx-sk-cs-bordered-light-glass-idle-fill-1: #0000001f;
+  --nx-sk-cs-bordered-light-glass-idle-fill-2: #00000012;
+  /* Over-Glass/Light/01 - Bordered/04 - Disabled */
+  --nx-sk-cs-bordered-light-glass-disabled-fill-1: #0000000f;
+  --nx-sk-cs-bordered-light-glass-disabled-fill-2: #00000006;
+  /* Over-Glass/Light/Knobs - Toggle/01 - Idle */
+  --nx-sk-cs-knob-light-glass-idle-fill-1: #ffffffa6;
+  --nx-sk-cs-knob-light-glass-idle-fill-2: #ffffff73;
+  --nx-sk-cs-knob-light-glass-idle-fill-3: #ffffff59;
+  --nx-sk-cs-knob-light-glass-idle-shadow: 0px 0px 44px 0px #0000001a, 0px 0px 4px -0.5px #0000000d, 0px 0px 1px -0.25px #0000000d;
+  --nx-sk-cs-knob-light-glass-idle-inner: inset 1.75px 2.5px 1px -1.5px #ffffff, inset -1.75px -2.5px 2px -1.5px #ffffff, inset 0px 0px 1px 0px #ffffff1a;
+  /* Over-Glass/Light/Knobs - Toggle/04 - Disabled */
+  --nx-sk-cs-knob-light-glass-disabled-fill-1: #ffffffa6;
+  --nx-sk-cs-knob-light-glass-disabled-fill-2: #ffffff73;
+  --nx-sk-cs-knob-light-glass-disabled-fill-3: #ffffff59;
+  --nx-sk-cs-knob-light-glass-disabled-shadow: 0px 0px 44px 0px #0000001a, 0px 0px 4px -0.5px #0000000d, 0px 0px 1px -0.25px #0000000d;
+  --nx-sk-cs-knob-light-glass-disabled-inner: inset 1.75px 2.5px 1px -1.5px #ffffff, inset -1.75px -2.5px 2px -1.5px #ffffff, inset 0px 0px 1px 0px #ffffff1a;
+  /* Over-Glass/Light/04 - Prominent (Default)/04 - Disabled */
+  --nx-sk-cs-prominent-light-glass-disabled-fill-1: #0078f0;
+  /* Over-Glass/Light/01 - Bordered/03 - Clicked */
+  --nx-sk-cs-bordered-light-glass-clicked-fill-1: #0000001f;
+  --nx-sk-cs-bordered-light-glass-clicked-fill-2: #00000021;
+  /* Over-Glass/Light/04 - Prominent (Default)/03 - Clicked */
+  --nx-sk-cs-prominent-light-glass-clicked-fill-1: #0078f0;
+  --nx-sk-cs-prominent-light-glass-clicked-fill-2: #00000026;
+  /* Over-Glass/Light/Knobs - Toggle/03 - Clicked */
+  --nx-sk-cs-knob-light-glass-clicked-fill-1: #ffffff00;
+  --nx-sk-cs-knob-light-glass-clicked-shadow: 0px 0px 44px 0px #0000001a, 0px 0px 4px -0.5px #0000000d, 0px 0px 1px -0.25px #0000000d;
+  --nx-sk-cs-knob-light-glass-clicked-inner: inset 1.75px 2.5px 1px -1.5px #ffffff, inset -1.75px -2.5px 2px -1.5px #ffffff, inset 0px 0px 1px 0px #ffffff1a;
+  /* Content Area/Light/05 - Prominent (Default) Destructive/01 - Idle */
+  --nx-sk-cs-prominent-destructive-light-idle-fill-1: #ff383c;
+  /* Content Area/Light/05 - Prominent (Default) Destructive/03 - Clicked */
+  --nx-sk-cs-prominent-destructive-light-clicked-fill-1: #f52f32;
+  --nx-sk-cs-prominent-destructive-light-clicked-fill-2: #0000001a;
+  /* Content Area/Light/05 - Prominent (Default) Destructive/04 - Disabled */
+  --nx-sk-cs-prominent-destructive-light-disabled-fill-1: #f52f32;
+  /* Over-Glass/Light/05 - Prominent (Default) Destructive/01 - Idle */
+  --nx-sk-cs-prominent-destructive-light-glass-idle-fill-1: #ff4747;
+  /* Over-Glass/Light/05 - Prominent (Default) Destructive/03 - Clicked */
+  --nx-sk-cs-prominent-destructive-light-glass-clicked-fill-1: #f52f32;
+  --nx-sk-cs-prominent-destructive-light-glass-clicked-fill-2: #00000026;
+  /* Over-Glass/Light/05 - Prominent (Default) Destructive/04 - Disabled */
+  --nx-sk-cs-prominent-destructive-light-glass-disabled-fill-1: #f52f32;
+  /* Content Area/Dark/01 - Bordered/01 - Idle */
+  --nx-sk-cs-bordered-dark-idle-fill-1: #ffffff12;
+  /* Content Area/Dark/01 - Bordered/03 - Clicked */
+  --nx-sk-cs-bordered-dark-clicked-fill-1: #ffffff29;
+  /* Content Area/Dark/01 - Bordered/04 - Disabled */
+  --nx-sk-cs-bordered-dark-disabled-fill-1: #ffffff0a;
+  /* Content Area/Dark/02 - Bordered Tinted/01 - Idle */
+  --nx-sk-cs-tinted-dark-idle-fill-1: #0091ff;
+  --nx-sk-cs-tinted-dark-idle-fill-2: #ffffff24;
+  /* Content Area/Dark/02 - Bordered Tinted/03 - Clicked */
+  --nx-sk-cs-tinted-dark-clicked-fill-1: #0091ff;
+  --nx-sk-cs-tinted-dark-clicked-fill-2: #ffffff24;
+  /* Content Area/Dark/02 - Bordered Tinted/04 - Disabled */
+  --nx-sk-cs-tinted-dark-disabled-fill-1: #0091ff;
+  --nx-sk-cs-tinted-dark-disabled-fill-2: #ffffff24;
+  /* Content Area/Dark/03 - Bordered Destructive/01 - Idle */
+  --nx-sk-cs-destructive-dark-idle-fill-1: #ff4245;
+  --nx-sk-cs-destructive-dark-idle-fill-2: #ffffff24;
+  /* Content Area/Dark/03 - Bordered Destructive/03 - Clicked */
+  --nx-sk-cs-destructive-dark-clicked-fill-1: #ff4245;
+  --nx-sk-cs-destructive-dark-clicked-fill-2: #ffffff24;
+  /* Content Area/Dark/03 - Bordered Destructive/04 - Disabled */
+  --nx-sk-cs-destructive-dark-disabled-fill-1: #ff4245;
+  --nx-sk-cs-destructive-dark-disabled-fill-2: #ffffff24;
+  /* Content Area/Dark/04 - Prominent (Default)/01 - Idle */
+  --nx-sk-cs-prominent-dark-idle-fill-1: #0091ff;
+  /* Content Area/Dark/04 - Prominent (Default)/03 - Clicked */
+  --nx-sk-cs-prominent-dark-clicked-fill-1: #0a99ff;
+  --nx-sk-cs-prominent-dark-clicked-fill-2: #ffffff1a;
+  /* Content Area/Dark/04 - Prominent (Default)/04 - Disabled */
+  --nx-sk-cs-prominent-dark-disabled-fill-1: #0a99ff;
+  /* Content Area/Dark/05 - Prominent (Default) Destructive/01 - Idle */
+  --nx-sk-cs-prominent-destructive-dark-idle-fill-1: #ff4245;
+  /* Content Area/Dark/05 - Prominent (Default) Destructive/03 - Clicked */
+  --nx-sk-cs-prominent-destructive-dark-clicked-fill-1: #ff4747;
+  --nx-sk-cs-prominent-destructive-dark-clicked-fill-2: #ffffff1a;
+  /* Content Area/Dark/05 - Prominent (Default) Destructive/04 - Disabled */
+  --nx-sk-cs-prominent-destructive-dark-disabled-fill-1: #ff4747;
+  /* Content Area/Dark/Input Fields/01 - Idle */
+  --nx-sk-cs-input-dark-idle-fill-1: #1e1e1e;
+  --nx-sk-cs-input-dark-idle-border-1: 1px solid #ffffff0a;
+  /* Content Area/Dark/Input Fields/04 - Disabled */
+  --nx-sk-cs-input-dark-disabled-fill-1: #1e1e1e80;
+  --nx-sk-cs-input-dark-disabled-border-1: 1px solid #0000000a;
+  /* Content Area/Dark/Knobs - Toggle/01 - Idle */
+  --nx-sk-cs-knob-dark-idle-fill-1: #ffffffa6;
+  --nx-sk-cs-knob-dark-idle-fill-2: #ffffff73;
+  --nx-sk-cs-knob-dark-idle-fill-3: #ffffff59;
+  --nx-sk-cs-knob-dark-idle-shadow: 0px 0px 44px 0px #0000001a, 0px 0px 4px -0.5px #0000000d, 0px 0px 1px -0.25px #0000000d;
+  --nx-sk-cs-knob-dark-idle-inner: inset 1.75px 2.5px 1px -1.5px #ffffff, inset -1.75px -2.5px 2px -1.5px #ffffff, inset 0px 0px 1px 0px #ffffff1a;
+  /* Content Area/Dark/Knobs - Toggle/03 - Clicked */
+  --nx-sk-cs-knob-dark-clicked-fill-1: #ffffff00;
+  --nx-sk-cs-knob-dark-clicked-shadow: 0px 0px 44px 0px #0000001a, 0px 0px 4px -0.5px #0000000d, 0px 0px 1px -0.25px #0000000d;
+  --nx-sk-cs-knob-dark-clicked-inner: inset 1.75px 2.5px 1px -1.5px #ffffff, inset -1.75px -2.5px 2px -1.5px #ffffff, inset 0px 0px 1px 0px #ffffff1a;
+  /* Content Area/Dark/Knobs - Toggle/04 - Disabled */
+  --nx-sk-cs-knob-dark-disabled-fill-1: #ffffffa6;
+  --nx-sk-cs-knob-dark-disabled-fill-2: #ffffff73;
+  --nx-sk-cs-knob-dark-disabled-fill-3: #ffffff59;
+  --nx-sk-cs-knob-dark-disabled-shadow: 0px 0px 44px 0px #0000001a, 0px 0px 4px -0.5px #0000000d, 0px 0px 1px -0.25px #0000000d;
+  --nx-sk-cs-knob-dark-disabled-inner: inset 1.75px 2.5px 1px -1.5px #ffffff, inset -1.75px -2.5px 2px -1.5px #ffffff, inset 0px 0px 1px 0px #ffffff1a;
+  /* Over-Glass/Dark/01 - Bordered/01 - Idle */
+  --nx-sk-cs-bordered-dark-glass-idle-fill-1: #ffffff1f;
+  --nx-sk-cs-bordered-dark-glass-idle-fill-2: #ffffff0d;
+  /* Over-Glass/Dark/01 - Bordered/03 - Clicked */
+  --nx-sk-cs-bordered-dark-glass-clicked-fill-1: #ffffff1f;
+  --nx-sk-cs-bordered-dark-glass-clicked-fill-2: #ffffff21;
+  /* Over-Glass/Dark/01 - Bordered/04 - Disabled */
+  --nx-sk-cs-bordered-dark-glass-disabled-fill-1: #ffffff0f;
+  --nx-sk-cs-bordered-dark-glass-disabled-fill-2: #ffffff06;
+  /* Over-Glass/Dark/04 - Prominent (Default)/01 - Idle */
+  --nx-sk-cs-prominent-dark-glass-idle-fill-1: #0a99ff;
+  /* Over-Glass/Dark/04 - Prominent (Default)/03 - Clicked */
+  --nx-sk-cs-prominent-dark-glass-clicked-fill-1: #0078f0;
+  --nx-sk-cs-prominent-dark-glass-clicked-fill-2: #ffffff24;
+  /* Over-Glass/Dark/04 - Prominent (Default)/04 - Disabled */
+  --nx-sk-cs-prominent-dark-glass-disabled-fill-1: #0a99ff;
+  /* Over-Glass/Dark/05 - Prominent (Default) Destructive/01 - Idle */
+  --nx-sk-cs-prominent-destructive-dark-glass-idle-fill-1: #f52f32;
+  /* Over-Glass/Dark/05 - Prominent (Default) Destructive/03 - Clicked */
+  --nx-sk-cs-prominent-destructive-dark-glass-clicked-fill-1: #ff4747;
+  --nx-sk-cs-prominent-destructive-dark-glass-clicked-fill-2: #ffffff26;
+  /* Over-Glass/Dark/05 - Prominent (Default) Destructive/04 - Disabled */
+  --nx-sk-cs-prominent-destructive-dark-glass-disabled-fill-1: #ff4747;
+  /* Over-Glass/Dark/Knobs - Toggle/01 - Idle */
+  --nx-sk-cs-knob-dark-glass-idle-fill-1: #ffffffa6;
+  --nx-sk-cs-knob-dark-glass-idle-fill-2: #ffffff73;
+  --nx-sk-cs-knob-dark-glass-idle-fill-3: #ffffff59;
+  --nx-sk-cs-knob-dark-glass-idle-shadow: 0px 0px 44px 0px #0000001a, 0px 0px 4px -0.5px #0000000d, 0px 0px 1px -0.25px #0000000d;
+  --nx-sk-cs-knob-dark-glass-idle-inner: inset 1.75px 2.5px 1px -1.5px #ffffff, inset -1.75px -2.5px 2px -1.5px #ffffff, inset 0px 0px 1px 0px #ffffff1a;
+  /* Over-Glass/Dark/Knobs - Toggle/03 - Clicked */
+  --nx-sk-cs-knob-dark-glass-clicked-fill-1: #ffffff00;
+  --nx-sk-cs-knob-dark-glass-clicked-shadow: 0px 0px 44px 0px #0000001a, 0px 0px 4px -0.5px #0000000d, 0px 0px 1px -0.25px #0000000d;
+  --nx-sk-cs-knob-dark-glass-clicked-inner: inset 1.75px 2.5px 1px -1.5px #ffffff, inset -1.75px -2.5px 2px -1.5px #ffffff, inset 0px 0px 1px 0px #ffffff1a;
+  /* Over-Glass/Dark/Knobs - Toggle/04 - Disabled */
+  --nx-sk-cs-knob-dark-glass-disabled-fill-1: #ffffffa6;
+  --nx-sk-cs-knob-dark-glass-disabled-fill-2: #ffffff73;
+  --nx-sk-cs-knob-dark-glass-disabled-fill-3: #ffffff59;
+  --nx-sk-cs-knob-dark-glass-disabled-shadow: 0px 0px 44px 0px #0000001a, 0px 0px 4px -0.5px #0000000d, 0px 0px 1px -0.25px #0000000d;
+  --nx-sk-cs-knob-dark-glass-disabled-inner: inset 1.75px 2.5px 1px -1.5px #ffffff, inset -1.75px -2.5px 2px -1.5px #ffffff, inset 0px 0px 1px 0px #ffffff1a;
+  /* Over-Glass/Light/Fills/Default, 04 - Quaternary */
+  --nx-sk-cs-fill-light-glass-default-4: #0000001a;   /* Quaternary */
+  /* Over-Glass/Light/Fills/Default, 02 - Secondary */
+  --nx-sk-cs-fill-light-glass-default-2: #00000080;   /* Secondary */
+  /* Over-Glass/Light/Fills/Default, 03 - Tertiary */
+  --nx-sk-cs-fill-light-glass-default-3: #00000040;   /* Tertiary */
+  /* Content Area/Light/Fills/Default, 06 - Seximal */
+  --nx-sk-cs-fill-light-default-6: #00000008;   /* Seximal */
+  /* Content Area/Light/Fills/Selected 06 - Seximal */
+  --nx-sk-cs-fill-light-selected-6: #ffffff06;   /* Seximal */
+  /* Content Area/Light/Fills/Selected 04 - Quaternary */
+  --nx-sk-cs-fill-light-selected-4: #ffffff1a;   /* Quaternary */
+  /* Content Area/Light/Fills/Default, 03 - Tertiary */
+  --nx-sk-cs-fill-light-default-3: #00000040;   /* Tertiary */
+  /* Content Area/Light/Fills/Selected 05 - Quinary */
+  --nx-sk-cs-fill-light-selected-5: #ffffff0d;   /* Quinary */
+  /* Content Area/Light/Fills/Default, 04 - Quaternary */
+  --nx-sk-cs-fill-light-default-4: #0000001a;   /* Quaternary */
+  /* Content Area/Light/Fills/Selected 01 - Primary */
+  --nx-sk-cs-fill-light-selected-1: #ffffff;   /* Primary */
+  /* Content Area/Light/Fills/Selected 03 - Tertiary */
+  --nx-sk-cs-fill-light-selected-3: #ffffff40;   /* Tertiary */
+  /* Content Area/Light/Fills/Default, 05 - Quinary */
+  --nx-sk-cs-fill-light-default-5: #0000000d;   /* Quinary */
+  /* Content Area/Light/Fills/Default, 01 - Primary */
+  --nx-sk-cs-fill-light-default-1: #000000d9;   /* Primary */
+  /* Content Area/Light/Fills/Default, 02 - Secondary */
+  --nx-sk-cs-fill-light-default-2: #00000080;   /* Secondary */
+  /* Content Area/Light/Fills/Selected 02 - Secondary */
+  --nx-sk-cs-fill-light-selected-2: #ffffff8c;   /* Secondary */
+  /* Over-Glass/Light/Fills/Selected 02 - Secondary */
+  --nx-sk-cs-fill-light-glass-selected-2: #ffffff8c;   /* Secondary */
+  /* Over-Glass/Light/Fills/Selected 01 - Primary */
+  --nx-sk-cs-fill-light-glass-selected-1: #ffffff;   /* Primary */
+  /* Over-Glass/Light/Fills/Default, 06 - Seximal */
+  --nx-sk-cs-fill-light-glass-default-6: #00000008;   /* Seximal */
+  /* Over-Glass/Light/Fills/Selected 06 - Seximal */
+  --nx-sk-cs-fill-light-glass-selected-6: #ffffff06;   /* Seximal */
+  /* Over-Glass/Light/Fills/Default, 05 - Quinary */
+  --nx-sk-cs-fill-light-glass-default-5: #0000000d;   /* Quinary */
+  /* Over-Glass/Light/Fills/Selected 05 - Quinary */
+  --nx-sk-cs-fill-light-glass-selected-5: #ffffff0d;   /* Quinary */
+  /* Over-Glass/Light/Fills/Selected 03 - Tertiary */
+  --nx-sk-cs-fill-light-glass-selected-3: #ffffff40;   /* Tertiary */
+  /* Over-Glass/Light/Fills/Selected 04 - Quaternary */
+  --nx-sk-cs-fill-light-glass-selected-4: #ffffff1a;   /* Quaternary */
+  /* Over-Glass/Light/Fills/Default, 01 - Primary */
+  --nx-sk-cs-fill-light-glass-default-1: #000000d9;   /* Primary */
+  /* Content Area/Dark/Fills/Default, 01 - Primary */
+  --nx-sk-cs-fill-dark-default-1: #000000d9;   /* Primary */
+  /* Content Area/Dark/Fills/Default, 02 - Secondary */
+  --nx-sk-cs-fill-dark-default-2: #00000080;   /* Secondary */
+  /* Content Area/Dark/Fills/Default, 03 - Tertiary */
+  --nx-sk-cs-fill-dark-default-3: #00000040;   /* Tertiary */
+  /* Content Area/Dark/Fills/Default, 04 - Quaternary */
+  --nx-sk-cs-fill-dark-default-4: #0000001a;   /* Quaternary */
+  /* Content Area/Dark/Fills/Default, 05 - Quinary */
+  --nx-sk-cs-fill-dark-default-5: #0000000d;   /* Quinary */
+  /* Content Area/Dark/Fills/Default, 06 - Seximal */
+  --nx-sk-cs-fill-dark-default-6: #00000008;   /* Seximal */
+  /* Content Area/Dark/Fills/Selected 01 - Primary */
+  --nx-sk-cs-fill-dark-selected-1: #ffffff;   /* Primary */
+  /* Content Area/Dark/Fills/Selected 02 - Secondary */
+  --nx-sk-cs-fill-dark-selected-2: #ffffff8c;   /* Secondary */
+  /* Content Area/Dark/Fills/Selected 03 - Tertiary */
+  --nx-sk-cs-fill-dark-selected-3: #ffffff40;   /* Tertiary */
+  /* Content Area/Dark/Fills/Selected 04 - Quaternary */
+  --nx-sk-cs-fill-dark-selected-4: #ffffff1a;   /* Quaternary */
+  /* Content Area/Dark/Fills/Selected 05 - Quinary */
+  --nx-sk-cs-fill-dark-selected-5: #ffffff0d;   /* Quinary */
+  /* Content Area/Dark/Fills/Selected 06 - Seximal */
+  --nx-sk-cs-fill-dark-selected-6: #ffffff06;   /* Seximal */
+  /* Over-Glass/Dark/Fills/Default, 01 - Primary */
+  --nx-sk-cs-fill-dark-glass-default-1: #000000d9;   /* Primary */
+  /* Over-Glass/Dark/Fills/Default, 02 - Secondary */
+  --nx-sk-cs-fill-dark-glass-default-2: #00000080;   /* Secondary */
+  /* Over-Glass/Dark/Fills/Default, 03 - Tertiary */
+  --nx-sk-cs-fill-dark-glass-default-3: #00000040;   /* Tertiary */
+  /* Over-Glass/Dark/Fills/Default, 04 - Quaternary */
+  --nx-sk-cs-fill-dark-glass-default-4: #0000001a;   /* Quaternary */
+  /* Over-Glass/Dark/Fills/Default, 05 - Quinary */
+  --nx-sk-cs-fill-dark-glass-default-5: #0000000d;   /* Quinary */
+  /* Over-Glass/Dark/Fills/Default, 06 - Seximal */
+  --nx-sk-cs-fill-dark-glass-default-6: #00000008;   /* Seximal */
+  /* Over-Glass/Dark/Fills/Selected 01 - Primary */
+  --nx-sk-cs-fill-dark-glass-selected-1: #ffffff;   /* Primary */
+  /* Over-Glass/Dark/Fills/Selected 02 - Secondary */
+  --nx-sk-cs-fill-dark-glass-selected-2: #ffffff8c;   /* Secondary */
+  /* Over-Glass/Dark/Fills/Selected 03 - Tertiary */
+  --nx-sk-cs-fill-dark-glass-selected-3: #ffffff40;   /* Tertiary */
+  /* Over-Glass/Dark/Fills/Selected 04 - Quaternary */
+  --nx-sk-cs-fill-dark-glass-selected-4: #ffffff1a;   /* Quaternary */
+  /* Over-Glass/Dark/Fills/Selected 05 - Quinary */
+  --nx-sk-cs-fill-dark-glass-selected-5: #ffffff0d;   /* Quinary */
+  /* Over-Glass/Dark/Fills/Selected 06 - Seximal */
+  --nx-sk-cs-fill-dark-glass-selected-6: #ffffff06;   /* Seximal */
+}
+
 /* 生成统计：色板 110 · 字体样式 67（默认档 11） · 共享样式 285（玻璃 18）· 组件符号 4679
    还有 Loose / Tight Leading 两套行高变体与 Bold / Italic 字重轴没落到变量里 ——
    规格在 design/apple/sketch/macos.json 里，需要时按同样方式补。 */

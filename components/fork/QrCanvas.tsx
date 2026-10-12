@@ -49,7 +49,7 @@ export function QrCanvas({ content, label, scale = 6 }: { content: string; label
         height: "auto",
         imageRendering: "pixelated",
         background: "var(--nx-surface)",
-        borderRadius: "var(--nx-r-md)",
+        borderRadius: "var(--nx-radius-card)",
       }}
     />
   );

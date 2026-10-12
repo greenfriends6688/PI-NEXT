@@ -133,6 +133,7 @@ export function UnsupportedFilePreview({ filePath, cwd, size, sourceSessionId }:
 
   return (
     <div className="d-empty" role="status" style={{ height: "100%" }}>
+      {/* 非主题值：不支持类型的空态卡片宽度。 */}
       <div className="d-card" style={{ width: "100%", maxWidth: 560 }}>
         <div className="d-card-head">
           <i data-ico="file" data-size="14"></i>

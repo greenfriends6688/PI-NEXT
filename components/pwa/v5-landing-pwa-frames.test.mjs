@@ -55,7 +55,7 @@ test("M-03 A：`.m-composer-wrap` 只有一层，且窄屏 fieldset 不再垫第
 
 test("M-05 A：手机设置是整页，不是缩一圈的弹窗；顶栏出口在左、搜设置项在右", () => {
   // 桌面弹窗值（12px 内缩 + 2xl 圆角 + 边 + 投影）不得漏到窄屏。
-  const mobileBlock = settingsCss.match(/@media \(max-width: 640px\) \{[\s\S]*?\n\}/);
+  const mobileBlock = settingsCss.match(/@media \(max-width: 639px\) \{[\s\S]*?\n\}/);
   assert.ok(mobileBlock, "settings.css 缺窄屏块");
   const mobile = mobileBlock[0];
   assert.match(mobile, /\.settings-dialog-surface \{[\s\S]*?width: 100vw;[\s\S]*?height: 100dvh;/);

@@ -1,22 +1,27 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import {
+  PLATFORM_BREAKPOINTS,
+  PLATFORM_MEDIA,
+  type PlatformTier,
+} from "@/lib/platform-breakpoints";
 
-// Mobile breakpoint shared with app/globals.css (max-width: 640px).
-const MOBILE_QUERY = "(max-width: 640px)";
+// Mobile breakpoint shared with app/globals.css (M0 <= 639px).
+const MOBILE_QUERY = PLATFORM_MEDIA.phone;
 // Narrow phones keep secondary toolbar actions behind the More button.
-const NARROW_MOBILE_QUERY = "(max-width: 480px)";
+const NARROW_MOBILE_QUERY = PLATFORM_MEDIA.narrowPhone;
 /**
  * fork:pwa-tablet-tier — tablet / small-window tier, and it deliberately **includes** the
  * phone range (so `compact` is true wherever `mobile` is).
  *
- * The desktop chrome does not fit between 641 and 1024px: the composer's control strip is
+ * The desktop chrome does not fit between 640 and 1023px: the composer's control strip is
  * one non-wrapping row, and at 768px it ran 110px past the right edge of the chat column
  * (108 elements overflowing, measured). Phones already collapsed that strip behind a
  * "more controls" button; the tablet tier never had a breakpoint at all, so it fell
  * through to the desktop layout.
  */
-const COMPACT_QUERY = "(max-width: 1024px)";
+const COMPACT_QUERY = PLATFORM_MEDIA.tabletOrSmaller;
 
 function subscribeToQuery(query: string, cb: () => void): () => void {
   if (typeof window === "undefined" || !window.matchMedia) return () => {};
@@ -37,12 +42,12 @@ const getNarrowMobileSnapshot = () => queryMatches(NARROW_MOBILE_QUERY);
 const subscribeCompact = (cb: () => void) => subscribeToQuery(COMPACT_QUERY, cb);
 const getCompactSnapshot = () => queryMatches(COMPACT_QUERY);
 /**
- * fork:pwa-landscape-composer — landscape phone (width ≤1024 and height ≤500).
+ * fork:pwa-landscape-composer — landscape phone (width <=1023 and height <=500).
  * There is plenty of width but almost no height: the composer's two-row control
  * strip eats ~40% of the viewport, so it falls back to the single desktop row.
  * The max-height half keeps tablets (portrait heights ≥600) on the two-row strip.
  */
-const LANDSCAPE_SHORT_QUERY = "(max-width: 1024px) and (max-height: 500px)";
+const LANDSCAPE_SHORT_QUERY = PLATFORM_MEDIA.landscapePhone;
 const subscribeLandscapeShort = (cb: () => void) => subscribeToQuery(LANDSCAPE_SHORT_QUERY, cb);
 const getLandscapeShortSnapshot = () => queryMatches(LANDSCAPE_SHORT_QUERY);
 
@@ -65,7 +70,7 @@ export function useIsNarrowMobile(): boolean {
 }
 
 /**
- * Returns true at or below the tablet breakpoint (1024px), phones included.
+ * Returns true in M0 + M1 (<= 1023px), phones included.
  *
  * Use it for chrome that is a single non-wrapping row and therefore cannot survive a
  * narrow column: the composer's control strip, and the decision to dock the sidebar.
@@ -78,7 +83,7 @@ export function useIsCompact(): boolean {
 }
 
 /**
- * Returns true on a landscape phone (≤1024 wide **and** ≤500 tall).
+ * Returns true on a landscape phone (<=1023 wide **and** <=500 tall).
  *
  * Use it only to give back vertical space that the compact tier borrows — today
  * that is the composer's two-row control strip. Do not use it for touch
@@ -88,3 +93,12 @@ export function useIsCompact(): boolean {
 export function useIsLandscapeShort(): boolean {
   return useSyncExternalStore(subscribeLandscapeShort, getLandscapeShortSnapshot, getServerSnapshot);
 }
+
+/** The explicit Apple platform tier used by shell-level layout decisions. */
+export function usePlatformTier(): PlatformTier {
+  const phone = useIsMobile();
+  const tablet = useIsCompact();
+  return phone ? "phone" : tablet ? "tablet" : "desktop";
+}
+
+export const PLATFORM_WIDTHS = PLATFORM_BREAKPOINTS;

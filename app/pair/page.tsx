@@ -117,7 +117,7 @@ export default function PairPage() {
     >
       {/* v5 · D-20/B：兑码表单 = `.d-card` + `.d-card-head` + `.d-card-body`。
           非主题宽度：手机表单惯例 360。 */}
-      <form className="d-card" onSubmit={redeem} style={{ width: 360, maxWidth: "100%" }}>
+      <form className="d-card" onSubmit={redeem} style={{ /* 非主题值：手机配对表单的固定宽度。 */ width: 360, maxWidth: "100%" }}>
         <div className="d-card-head">
           <i data-ico="smartphone" data-size="16" aria-hidden="true" />
           <span>PI NEXT</span>

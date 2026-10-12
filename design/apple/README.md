@@ -8,7 +8,13 @@ design/apple/
   README.md          ← 本文件
   sketch/macos.json  ← 来自 `Apple macOS 27 UI Kit.sketch`（→ Web 形态）
   sketch/ios.json    ← 来自 `Apple iOS 27 UI Kit.sketch`（→ PWA 形态）
+  spec/macos.json    ← **控件级**规格：指定符号的完整图层树（几何/圆角/填充/描边/阴影/文字）
+  spec/ios.json      ← 同上（iOS）
+  spec/CONTROLS.md   ← 控件严格规格的人读版（数值 + kit 出处，改控件前先读它）
 ```
+
+重跑：`npm run sketch:build` 刷 `sketch/*.json` + `--nx-sk-*` 数值层；
+`node scripts/kit-spec.mjs` 刷 `spec/*.json`（控件层）。
 
 ## 怎么重跑
 

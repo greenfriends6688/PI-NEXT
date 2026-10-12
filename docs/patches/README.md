@@ -164,6 +164,15 @@
 > 3. `.patch` 全部未产出：这批的引入 commit（`8885206` / `a1d5f75` / `ac4ec72` / `22fa16a` …）都在
 >    换肤大快照里，没有 staged-baseline 快照可反演；重打以各 `.md` 的 `fork:` 标记清单为准。
 
+### 第四批（XTLaw 借鉴，0062– ）
+
+计划与逐项对照见 [`docs/xtlaw-pr-plan-2026-10-10.md`](../xtlaw-pr-plan-2026-10-10.md)。
+
+| 编号 | 名称 | 状态 | 新增文件（T0） | 上游接触面（T1） |
+| --- | --- | --- | --- | --- |
+| 0062 | [提交幂等键（requestId + fingerprint）](./0062-submit-idempotency.md) | 已实现（单测 9 + 全量 3903 通过） | `lib/submit-idempotency.ts` | `lib/rpc-manager.ts`、`hooks/useAgentSession.ts` |
+| 0063 | [事件序号 + 断线续传 + 缺口对账](./0063-event-sequence-and-resume.md) | 已实现（新增单测 25 + 全量 3918 通过） | `lib/agent-event-log.ts` | `lib/agent-event-stream.ts`、`lib/agent-event-connection.ts`、`lib/agent-event-wire.ts`、`lib/rpc-manager.ts`、`hooks/useAgentSession.ts`、`app/api/agent/[id]/events/route.ts` |
+
 ## 工具：没有版本控制时怎么产出 `.patch`
 
 本机的树是从 macOS 拷过来的，**没有 `.git`，也没有 `git` / `diff` / `python`**

@@ -117,7 +117,7 @@ function PwaContextChip({
   onRemove,
 }: Omit<ChipProps, "onHoverStart" | "onHoverEnd" | "onFocusCapture" | "onBlurCapture">) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: "2px", minWidth: 0 }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--nx-sp-1)", minWidth: 0 }}>
       <button
         type="button"
         disabled={disabled}

@@ -889,7 +889,7 @@ function ModelNoticeBanner({ tone, title, body, onClose }: { tone: "error" | "wa
         role="alert"
         className={`m-banner ${tone === "error" ? "err" : "warn"}`}
         style={{
-          // 几何定位（铁律四）：长错误正文自己滚动，不把整张卡顶出屏。
+          // 非主题值：错误正文的滚动上限按内容可读性定，不跟主题尺寸缩放。
           maxHeight: 120,
           marginBottom: "var(--nx-sp-2)",
           overflowY: "auto",
@@ -915,6 +915,7 @@ function ModelNoticeBanner({ tone, title, body, onClose }: { tone: "error" | "wa
       role="alert"
       className={`d-banner${tone === "error" ? " err" : " warn"}`}
       style={{
+        // 非主题值：错误正文的滚动上限按内容可读性定，不跟主题尺寸缩放。
         maxHeight: 120,
         marginBottom: "var(--nx-sp-2)",
         overflowY: "auto",
@@ -1038,7 +1039,7 @@ function FavoriteModelMenu({
           width: "var(--spacing-token-button-composer, 28px)",
           height: "var(--spacing-token-button-composer, 28px)",
           cursor: "pointer",
-          color: currentFavorited ? "var(--accent)" : "var(--n-muted)",
+          color: currentFavorited ? "var(--accent)" : "var(--nx-text-2)",
         }}
       >
         <FavoriteStarIcon filled={currentFavorited} />
@@ -1054,6 +1055,7 @@ function FavoriteModelMenu({
             left: 0,
             zIndex: 300,
             width: "var(--pop-w-sm)",
+            // 非主题值：收藏模型菜单的内容上限，不等同于控件尺寸。
             maxHeight: 320,
             overflowY: "auto",
           }}
@@ -1069,7 +1071,7 @@ function FavoriteModelMenu({
                 title={currentFavorited ? t("models.unfavoriteModel") : t("models.favoriteCurrent")}
                 onClick={() => toggleFavoriteModelKey(currentKey)}
                 className="d-iconbtn sm"
-                style={{ color: currentFavorited ? "var(--accent)" : "var(--n-placeholder)", cursor: "pointer" }}
+                style={{ color: currentFavorited ? "var(--accent)" : "var(--nx-text-3)", cursor: "pointer" }}
               >
                 <FavoriteStarIcon filled={currentFavorited} />
               </button>
@@ -3357,8 +3359,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               `.d-pop-body` 的 padding 由 system.css 给，这里只补盒子与列间距。 */}
           <div className="d-pop-body d-col" style={{ gap: "var(--nx-sp-2)" }}>
           <div className="d-row">
+            {/* 非主题值：与 .d-ring 的 19px 外框对齐的进度环基准尺寸。 */}
             <span className={`d-ring${ringTier ? ` ${ringTier}` : ""}`} style={{ "--p": `${ringPercent}`, width: 18, height: 18 } as React.CSSProperties} />
-            <b style={{ fontWeight: 500, fontSize: "var(--text-secondary)", color: "var(--n-strong)" }}>
+            <b style={{ fontWeight: 500, fontSize: "var(--text-secondary)", color: "var(--nx-text)" }}>
               {t("session.context")} {ringPercent}%
             </b>
             <span className="d-grow" />
@@ -3884,7 +3887,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     <img
                       src={img.previewUrl}
                       alt=""
-                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "var(--nx-r-sm)", display: "block" }}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "var(--nx-radius-control)", display: "block" }}
                     />
                   </ImagePreview>
                   <button
@@ -3908,14 +3911,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   key={chip.path}
                   className="m-tray-chip"
                   data-mention-previewable={chip.kind === "image" ? "true" : undefined}
-                  style={{ paddingRight: 4 }}
+                  style={{ paddingRight: "var(--nx-sp-1)" }}
                 >
                   <AttachmentPreview
                     name={chip.name}
                     kind={chip.kind}
                     src={attachmentPreviewUrl(chip.path)}
                     previewSrc={chip.kind === "docx" ? attachmentPreviewUrl(chip.path, "preview") : undefined}
-                    style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}
+                    style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-1)", minWidth: 0 }}
                   >
                     <i data-ico={attachmentChipIcon(chip.kind)} data-size="14"></i>
                     <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chip.name}</span>
@@ -4670,7 +4673,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   <img
                     src={img.previewUrl}
                     alt=""
-                    style={{ width: 56, height: 56, objectFit: "cover", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", display: "block" }}
+                    /* 非主题值：附件缩略图的固定画布尺寸。 */
+                    style={{ width: 56, height: 56, objectFit: "cover", borderRadius: "var(--nx-radius-control)", border: "1px solid var(--border)", display: "block" }}
                   />
                 </ImagePreview>
                 <button
@@ -4695,7 +4699,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             {referenceAttachments.map((chip) => (
               /* 芯片本身是静态盒（画板 20 的 .d-chipbtn 就是 span）：里面的预览触发器是
                  AttachmentPreview 自己渲染的 button，移除钮是芯片末尾的 .d-iconbtn。 */
-              <span key={chip.path} className="d-chipbtn" data-mention-previewable={chip.kind === "image" ? "true" : undefined} style={{ maxWidth: 220 }}>
+              <span key={chip.path} className="d-chipbtn" data-mention-previewable={chip.kind === "image" ? "true" : undefined} style={{ /* 非主题值：附件芯片的内容宽度上限。 */ maxWidth: 220 }}>
                 <AttachmentPreview
                   name={chip.name}
                   kind={chip.kind}
@@ -4804,10 +4808,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   slash 图标 + 当前查询 + 分隔线）；右侧补计数徽标与 Tab/Enter 提示。 */}
               <div
                 className="d-searchfield"
-                style={{ borderBottom: "1px solid var(--n-border-subtle)", margin: "0 0 var(--s1)", flexShrink: 0 }}
+                style={{ borderBottom: "1px solid var(--nx-line)", margin: "0 0 var(--s1)", flexShrink: 0 }}
               >
                 <i data-ico="slash" data-size="14"></i>
-                <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", color: "var(--n-text)" }}>
+                <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", color: "var(--nx-text)" }}>
                   {slashCommandsLoading ? t("chat.loadingCommands") : `/${slashQuery}`}
                 </span>
                 {!slashCommandsLoading && (
@@ -4875,7 +4879,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                               <i
                                 data-ico={command.source === "skill" ? "box" : command.source === "prompt" ? "square-function" : "slash"}
                                 data-size="14"
-                                style={{ flexShrink: 0, color: dormant ? "var(--n-placeholder)" : undefined }}
+                                style={{ flexShrink: 0, color: dormant ? "var(--nx-text-3)" : undefined }}
                               ></i>
                               <span className="d-grow d-col">
                                 <span style={{ display: "flex", alignItems: "center", gap: "var(--s2)", minWidth: 0 }}>
@@ -4888,7 +4892,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                                       whiteSpace: "nowrap",
                                       overflow: "hidden",
                                       textOverflow: "ellipsis",
-                                      color: dormant ? "var(--n-placeholder)" : undefined,
+                                      color: dormant ? "var(--nx-text-3)" : undefined,
                                     }}
                                   >
                                     /{command.name}
@@ -4977,10 +4981,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     三个键（`chat.tabEnter` / `chat.files` / 计数）都原样复用，文案与数据源不动。 */}
                 <div
                   className="d-searchfield"
-                  style={{ borderBottom: "1px solid var(--n-border-subtle)", margin: "0 0 var(--s1)", flexShrink: 0 }}
+                  style={{ borderBottom: "1px solid var(--nx-line)", margin: "0 0 var(--s1)", flexShrink: 0 }}
                 >
                   <i data-ico="search" data-size="13"></i>
-                  <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", color: "var(--n-text)" }}>
+                  <span className="d-grow" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", color: "var(--nx-text)" }}>
                     @{atQuery.query}
                   </span>
                   <span className="d-kbd" style={{ flexShrink: 0 }}>{t("chat.tabEnter")}</span>
@@ -5235,6 +5239,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 fontSize: "var(--chat-content-font-size, 13px)",
                 lineHeight: 1.6,
                 fontFamily: "inherit",
+                // 非主题值：输入区的可见高度按编辑器内容策略定。
                 minHeight: compact ? 96 : 24,
                 maxHeight: 200,
                 overflow: "auto",
@@ -5546,6 +5551,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       // fork:ui-composer-pop —— 同思考档：左缘锚定，不探出卡片左缘。
                       left: 0,
                       zIndex: 100,
+                      // 非主题值：工具菜单的最小可读宽度。
                       minWidth: 120,
                     }}
                   >

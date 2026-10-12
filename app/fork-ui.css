@@ -43,7 +43,7 @@
  * The 70%/620px cap is inline in components/MessageView.tsx; upstream widens it
  * to 92% below 640px (upstream 0.14.6 globals.css:4795).
  * ------------------------------------------------------------------------- */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   :root {
     --fork-user-bubble-max: 92%;
   }
@@ -74,7 +74,7 @@ html.keyboard-open .extension-status-shelf {
   from { transform: translateY(var(--motion-sheet)); opacity: 0.5; }
   to { transform: none; opacity: 1; }
 }
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .directory-picker-backdrop,
   [data-fork-dialog="trust"] {
     align-items: flex-end !important;
@@ -87,7 +87,7 @@ html.keyboard-open .extension-status-shelf {
     max-width: 100% !important;
     max-height: calc(100dvh - 32px) !important;
     border-width: 1px 0 0 !important;
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0 !important;
+    border-radius: var(--nx-radius-popover) var(--nx-radius-popover) 0 0 !important;
     padding-bottom: var(--safe-bottom);
     animation: fork-sheet-up var(--motion-base) var(--ease-out);
   }
@@ -418,10 +418,10 @@ html.keyboard-open .extension-status-shelf {
      否则红绿灯会压住导轨顶端（收尾清单 7.1）。 */
   padding-top: 40px;
 }
-/* fork:v5-landing —— 紧凑档（641–959）里右栏 / 聊天是**浮层**，宽度由 globals.css
+/* fork:v5-landing —— M1 平板档（640–1023）里右栏 / 聊天是**浮层**，宽度由 globals.css
    的 .secondary-workspace 决定；而 v5 的 .d-panel 自带 width:320px、加载更晚，同 0-1-0
-   会把浮层压成 320。这里用 0-3-0 把浮层宽度收回来（≥960 有 width:100% !important，不受影响）。 */
-@media (min-width: 641px) and (max-width: 959px) {
+   会把浮层压成 320。这里用 0-3-0 把浮层宽度收回来（≥1024 有 width:100% !important，不受影响）。 */
+@media (min-width: 640px) and (max-width: 1023px) {
   .right-panel-container.d-panel.secondary-workspace,
   .chat-slot.d-main.secondary-workspace {
     width: min(560px, calc(100vw - 48px));
@@ -630,7 +630,7 @@ html.keyboard-open .extension-status-shelf {
    （内联值是 4px，4→6 的差很小，但统一后和 process 行的 chip 一致）。
    `!important`：只有聊到内联样式的属性才用（fork-ui.css 的两条纪律之一）。 */
 .pw-msg-acts button {
-  border-radius: var(--radius-sm) !important;
+  border-radius: var(--nx-radius-control) !important;
 }
 .pw-msg-acts button:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -982,7 +982,7 @@ html.keyboard-open .extension-status-shelf {
   margin-block: auto;
   left: 0;
   height: 26px;
-  border-radius: var(--radius-4) var(--radius-4) 0 0;
+  border-radius: var(--nx-radius-control) var(--nx-radius-control) 0 0;
   background: var(--bg-selected);
   pointer-events: none;
 }
@@ -1016,7 +1016,7 @@ html.keyboard-open .extension-status-shelf {
   margin-left: calc(var(--space-tight, 2px) / -2);
   height: 26px;
   width: calc(var(--space-hair) * 2);
-  border-radius: var(--radius-pill);
+  border-radius: var(--nx-radius-pill);
   background: var(--accent);
   /* 压在 tab 之上（否则被激活 tab 的 `.pw-tab.is-on` 底色盖掉），但不吃点击。 */
   z-index: 2;
@@ -1263,8 +1263,8 @@ html[data-rail-translucent="true"] .sidebar-container {
   width: 24px;
   height: 24px;
   padding: 0;
-  border: 1px solid var(--n-border);
-  border-radius: var(--radius-4);
+  border: 1px solid var(--nx-line-hi);
+  border-radius: var(--nx-radius-control);
   background: none;
   cursor: pointer;
 }
@@ -1332,14 +1332,13 @@ html[data-theme-skin="true"] .right-panel-container {
   -webkit-backdrop-filter: blur(var(--skin-blur, 0px)) saturate(130%);
   backdrop-filter: blur(var(--skin-blur, 0px)) saturate(130%);
 }
-/* 4. 卡片 / 作曲器 / 浮层：`--bg-elev` 已经被皮肤写成半透明了，这里补模糊 + 让作曲器
-      的容器（dock）透明 —— 否则卡片是半透明的，它下面那层不透明的 dock 又把壁纸挡回去。 */
+/* 4. 卡片 / 作曲器：`--bg-elev` 已经被皮肤写成半透明了，这里补模糊 + 让作曲器
+      的容器（dock）透明 —— 否则卡片是半透明的，它下面那层不透明的 dock 又把壁纸挡回去。
+      Modal / popover ancestors do **not** get backdrop-filter here: they can contain
+      viewport-fixed descendants, and making them containing blocks clips those
+      overlays. Those surfaces use the elevated fill from the semantic material layer. */
 html[data-theme-skin="true"] .chat-content > div,
-html[data-theme-skin="true"] .chat-input-shell,
-html[data-theme-skin="true"] .context-menu,
-html[data-theme-skin="true"] .config-panel-surface,
-html[data-theme-skin="true"] .settings-dialog-surface,
-html[data-theme-skin="true"] .pw-modal {
+html[data-theme-skin="true"] .chat-input-shell {
   -webkit-backdrop-filter: blur(var(--skin-blur, 0px)) saturate(120%);
   backdrop-filter: blur(var(--skin-blur, 0px)) saturate(120%);
 }
@@ -1471,17 +1470,17 @@ html[data-theme-skin="true"] .main-workspace-header {
    属于「静态元素 → 可交互元素」的适配：底色仍在 board.css 的 `--surface-panel`
    上叠 4% 文字色，不引入新的常量色。 */
 .pw-proc-head:hover {
-  background: color-mix(in srgb, var(--n-text) 4%, var(--surface-panel));
+  background: color-mix(in srgb, var(--nx-text) 4%, var(--surface-panel));
 }
 /* fork:design-system 判据⑦ —— 画板 01/02 的 `.pw-group-title`（「项目」分区头）在画板里是
    静态 div，左侧那枚 chevrons-up-down 就是「展开 / 折叠全部」的记号。产品把整行接成那一个
    动作，这里只补「静态元素 → 可交互元素」的一层：cursor + hover 反馈。底色仍在画板的
    `--surface-panel` 上叠 4% 文字色，与 `.pw-proc-head` 同一条口径，不引入新常量色。 */
 .pw-group-title[role="button"] { cursor: pointer; }
-.pw-group-title[role="button"]:hover { background: color-mix(in srgb, var(--n-text) 4%, var(--surface-panel)); }
+.pw-group-title[role="button"]:hover { background: color-mix(in srgb, var(--nx-text) 4%, var(--surface-panel)); }
 
 /* 画板 .pw-seg 的子项是 span；产品要键盘可切换，所以是 button —— 值照抄那一行。 */
-.pw-seg > button.is-on { background: var(--surface-canvas); color: var(--n-strong); font-weight: 500; }
+.pw-seg > button.is-on { background: var(--surface-canvas); color: var(--nx-text); font-weight: 500; }
 
 /* ---------------------------------------------------------------------------
  * fix:search-grouping —— 搜索结果区（画板 02 帧 C）的产品侧语义。
@@ -1505,13 +1504,13 @@ html[data-theme-skin="true"] .main-workspace-header {
 }
 
 .pw-search-group > .pw-row { height: 26px; }
-.pw-search-group > .pw-row .pw-ico { color: var(--n-placeholder); }
+.pw-search-group > .pw-row .pw-ico { color: var(--nx-text-3); }
 .pw-search-result {
   display: block;
   width: 100%;
   padding: 5px var(--s2) 5px 26px;
   border: 0;
-  border-radius: var(--radius-4);
+  border-radius: var(--nx-radius-control);
   background: transparent;
   font: inherit;
   text-align: left;
@@ -1524,16 +1523,16 @@ html[data-theme-skin="true"] .main-workspace-header {
   flex: 1;
   min-width: 0;
   font-size: var(--text-secondary);
-  color: var(--n-text);
+  color: var(--nx-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.pw-search-result.is-on .pw-search-result-head .pw-t { color: var(--n-strong); font-weight: 500; }
+.pw-search-result.is-on .pw-search-result-head .pw-t { color: var(--nx-text); font-weight: 500; }
 .pw-search-result-head .pw-dim {
   flex: none;
   font-size: var(--text-meta);
-  color: var(--n-placeholder);
+  color: var(--nx-text-3);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1616,7 +1615,7 @@ html[data-theme-skin="true"] .main-workspace-header {
   color: var(--nx-accent);
 }
 .fork-proj-running > i {
-  animation: nx-spin 1400ms linear infinite;
+  animation: nx-spin var(--nx-dur-sweep) linear infinite;
 }
 
 .fork-session-meta {
@@ -1767,12 +1766,12 @@ button.pw-switch:disabled {
   gap: 5px;
   height: var(--control-xs);
   padding: 0 8px;
-  border: 1px solid var(--n-border-subtle);
-  border-radius: var(--radius-4);
+  border: 1px solid var(--nx-line);
+  border-radius: var(--nx-radius-control);
   background: transparent;
   font: inherit;
   font-size: var(--text-meta);
-  color: var(--n-muted);
+  color: var(--nx-text-2);
   cursor: pointer;
 }
 .pw-radio > button.is-on {
@@ -1834,7 +1833,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 /* 画板 40 是 1440px 的「标签左 / 控件右」两栏行；390px 里同一行塞不下（标签会被
    挤成一字一行）。手机上让标签独占一行、控件换到下一行右对齐 —— 行的规格
    （行高 / 发丝线 / 控件尺寸）一个不改，只改排列方向。 */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .pw-field { flex-wrap: wrap; row-gap: var(--s2); padding: var(--s2) 0; }
   .pw-field .pw-label { flex: 1 1 100%; }
   .pw-field .pw-ctl,
@@ -1908,9 +1907,9 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  * 断点取 **≤1024px** 而不是 640：iPad 的 standalone 同样没有浏览器地址栏，刘海与
  * home indicator 一样压在内容上（平板档 641–1024 原先只覆盖了弹层底部，见
  * `app/settings.css` 的 `@supports (display-mode:standalone)` 段）。
- * 桌面（>1024）浏览器自带窗口边框，不适用。
+ * 桌面（≥1024）浏览器自带窗口边框，不适用。
  * ------------------------------------------------------------------------- */
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   .sidebar-container {
     padding-top: var(--safe-top);
   }
@@ -1935,7 +1934,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 .fork-actpanel {
   width: min(320px, calc(100vw - var(--s3)));
 }
-@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+@media (max-width: 639px), (pointer: coarse) and (max-width: 1023px) {
   .fork-actpanel .pw-actcell {
     min-height: calc(var(--control-touch) + var(--s2));
   }
@@ -1955,7 +1954,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  * 22px → 34px、27px → 39px，两枚都不再互相抢命中。
  * 只在 ≤640px 生效；`pointer: coarse` 再叠一层，覆盖平板触控（宽但用手指）。
  * ------------------------------------------------------------------------- */
-@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+@media (max-width: 639px), (pointer: coarse) and (max-width: 1023px) {
   .chat-input-toolbar .d-select,
   .chat-input-toolbar .d-iconbtn,
   .chat-input-toolbar .d-send,
@@ -1994,7 +1993,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  * 宿主盒子的 `getBoundingClientRect()`，量测看不到外扩后的真实命中区。那张清单
  * 是**读数**不是门禁：要修的是「按不准」，不是把数字改到 28 以上。
  * ------------------------------------------------------------------------- */
-@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+@media (max-width: 639px), (pointer: coarse) and (max-width: 1023px) {
   /* tab 关闭钮：11 → 21。横向**只往右**扩 8（正好是 `.pw-tab` 自己的右内边距
      `0 8px`），往左只拿 2（标签与 × 之间的 gap 5 的一半）—— 往左多拿就是
      「点标签却把 tab 关了」，那比按不准更糟。高已经满行 36。 */
@@ -2108,7 +2107,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  *    盖住的只是标题里的计数文字 —— 它不可点）。
  *    窄屏 + 粗指针两档，与上面 `fork:pwa-hit-slop` 同一个媒体查询口径。
  * ------------------------------------------------------------------------- */
-@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+@media (max-width: 639px), (pointer: coarse) and (max-width: 1023px) {
   .pw-group-title .pw-switch {
     position: relative;
   }
@@ -2166,7 +2165,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  *    `.pw-banner` 在流里（把消息列表整体推下去，不覆盖内容），手机上补侧向外距
  *    与正文可读字号，并保证关闭钮的命中区。
  * ======================================================================== */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   /* ---- ① 控件条两行（grid 由 ChatInput 内联给出，这里只补收尾约束）---- */
   /* 模型芯片在窄屏允许收缩 + 省略号：`.pw-composer-bar .model-selector
      { flex: 0 0 auto }` 是桌面「按内容定宽、不省略」的约定，窄列里长模型名
@@ -2203,7 +2202,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 /* ② 触摸靶：≥40px 见方。`--control-touch`（36）+ `--s1`（4）= 40，
    竖向那 4px 由 `::after` 补（正好是行二与行一之间的间隙），横向不外扩。 */
-@media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) {
+@media (max-width: 639px), (pointer: coarse) and (max-width: 1023px) {
   /* 窄列里 `button.pw-select { width: 100% }`（fork-ui.css 的 `@layer fork-reset`
      行式拉满清单）会生效：容器宽度确定时它按容器算 flex base，于是「全自动」
      独占 365px（实测 768）、在 390 上又把 chips 行顶爆。写回按内容定宽。 */
@@ -2262,9 +2261,9 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
      实测溢出 110px 的同一条约束，见上面 fork:pwa-tablet-tier 的注释）；
    · `max-height: 500px` 把平板（竖屏高度 ≥600）关在外面，两行照旧。
 
-   触摸靶不降档：② 段的 `(pointer: coarse) and (max-width: 1024px)` 在横屏
+   触摸靶不降档：② 段的 `(pointer: coarse) and (max-width: 1023px)` 在横屏
    照样命中，单行仍是 40px 靶 —— 省的是**行数**，不是手指的命中区。 */
-@media (max-width: 1024px) and (max-height: 500px) {
+@media (max-width: 1023px) and (max-height: 500px) {
   .chat-input-toolbar .model-selector {
     flex: 0 1 auto;
     min-width: 0;
@@ -2284,7 +2283,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 
 /* ③ 转录：长串换行 + 等宽块横滚 + 行内代码的断点 ------------------ */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   /* `.pw-md` 已有 `overflow-wrap: anywhere`（本文件上一段）。这里补的是
      **等宽**内容：行内代码 / 代码块里的路径与长标识符，`anywhere` 会把
      `board50-trust/` 断成 `board50-` + `trust/` 这种半截形态。
@@ -2394,7 +2393,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   }
 }
 /* ④ 顶部页头 ------------------------------------------------------------ */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .main-workspace-header .pw-tb-title {
     min-width: 0;
     flex: 1 1 auto;
@@ -2441,7 +2440,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   }
 }
 /* ⑤ 安装提示横幅 -------------------------------------------------------- */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .pw-banner {
     /* 画板 60 的横幅是贴边的提示条；手机上让它与消息列同一列宽（消息列左右各
        16px），否则它比正文宽一截，看起来像另一层界面浮在消息上方。 */
@@ -2501,10 +2500,10 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  *
  * 分档：手机档（≤640px）全开；平板档（641–1024 且 `pointer: coarse`）只开
  * 「隐形命中区」那一小段（见段末的 fork:pwa-sb-tablet）。≥1025px 桌面一个像素
- * 不变 —— 两段都带 `max-width: 1024px` 上限，且不带 `hasTouch` 的桌面浏览器
+ * 不变 —— 两段都带 `max-width: 1023px` 上限，且不带 `hasTouch` 的桌面浏览器
  * 在这一档 `pointer` 是 fine，整段不成立。
  * ======================================================================== */
-@media (max-width: 640px), (pointer: coarse) and (min-width: 641px) and (max-width: 1024px) {
+@media (max-width: 639px), (pointer: coarse) and (min-width: 640px) and (max-width: 1023px) {
   /* ---- 这一档用到的四个量（都从已有 token 算，不写字面量）------------- */
   :root {
     /* 触控靶边长 40px：--control-touch(36) + --s1(4)。 */
@@ -2519,7 +2518,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   }
 }
 /* 手机档的每一行几何。分档原因见上一段的文件头。 */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   /* ---- ① 抽屉底部：设置入口 ------------------------------------------
      量测：`button.pw-side-foot` 是 271×36 —— 高度被 board.css 的
      `height: var(--topbar-height)` 锁死，DSN-04 的 `min-height:
@@ -2758,7 +2757,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  * 上限 1024 + `pointer: coarse` 是硬边界：≥1025 的桌面浏览器 `pointer` 是 fine，
  * 整段不成立，桌面一个像素不变（同 `fork:pwa-hit-slop` 的那条断点）。
  * ------------------------------------------------------------------------- */
-@media (pointer: coarse) and (min-width: 641px) and (max-width: 1024px) {
+@media (pointer: coarse) and (min-width: 640px) and (max-width: 1023px) {
   
   /* 侧栏三段固定块：头行（品牌 + 搜索 + 折叠）/ 页签切换 / 底栏设置。
      量测（768，改动前）：头行 36 高、里面两枚 24×24；`.pw-seg` 两枚页签
@@ -2867,7 +2866,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   gap: var(--space-kbd);
 }
 .fork-shortcut-guide-or {
-  color: var(--n-placeholder);
+  color: var(--nx-text-3);
   font-size: var(--text-meta);
   margin-inline-end: var(--space-kbd);
 }
@@ -2880,7 +2879,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   color: var(--error);
 }
 .fork-shortcut-guide-group .pw-label .fork-shortcut-guide-flag.custom {
-  color: var(--n-placeholder);
+  color: var(--nx-text-3);
 }
 .fork-shortcut-guide-foot {
   margin-inline-end: var(--s2);
@@ -3025,7 +3024,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   min-height: 0;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .fork-bot-dialog-body { grid-template-columns: 1fr; }
 }
 
@@ -3131,7 +3130,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   margin: 0;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: var(--radius-3);
+  border-radius: var(--nx-radius-control);
   background: transparent;
   cursor: crosshair;
   appearance: none;
@@ -3153,7 +3152,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 0 4px;
-  border-radius: var(--radius-3);
+  border-radius: var(--nx-radius-control);
   background: var(--accent);
   color: var(--accent-on);
   font-size: var(--text-meta);
@@ -3177,7 +3176,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 .fork-cmd-palette-list .pw-prow { width: 100%; text-align: left; border: none; background: transparent; }
 .fork-cmd-palette-list .pw-prow[data-active="true"] {
   background: var(--overlay-selected);
-  color: var(--n-text);
+  color: var(--nx-text);
 }
 
 /* ===========================================================================
@@ -3255,7 +3254,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   height: 14px;
   flex: none;
   object-fit: contain;
-  border-radius: var(--radius-3);
+  border-radius: var(--nx-radius-control);
 }
 .fork-browser-title {
   min-width: 0;
@@ -3275,10 +3274,10 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   width: 8px;
   height: 8px;
   flex: none;
-  border-radius: var(--radius-pill);
-  background: var(--n-text-muted);
+  border-radius: var(--nx-radius-pill);
+  background: var(--nx-text-2);
 }
-.fork-group-dot--slate { background: var(--n-text-dim); }
+.fork-group-dot--slate { background: var(--nx-text-3); }
 .fork-group-dot--red { background: var(--error); }
 .fork-group-dot--amber { background: var(--warning); }
 .fork-group-dot--green { background: var(--success); }
@@ -3318,7 +3317,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
 .fork-brand-lockup .d-wordmark { height: 20px; line-height: 20px; }
 
 .fork-home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .fork-home-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -3409,7 +3408,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   overflow-wrap: anywhere;
   pointer-events: none;       /* 提示绝不吃指针，否则悬停会断 */
   opacity: 0;
-  transition: opacity 90ms var(--nx-ease);   /* 淡入，不是延迟：出场即到 */
+  transition: opacity var(--nx-dur-1) var(--nx-ease);   /* 淡入，不是延迟：出场即到 */
 }
 [data-tip-layer][data-on] { opacity: 1; }
 
@@ -3457,7 +3456,7 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
   backdrop-filter: blur(var(--nx-mat-blur)) saturate(var(--nx-mat-reg-sat-light));
 }
 
-/* 弹层**不给 backdrop-filter**。
+/* 弹层使用**不透明 elevated surface**，不给 backdrop-filter。
  *
  * fork:apple-sketch 回撤（2026-10-08，用户实拍 Agents 浮窗「看不见了」）：
  * `backdrop-filter` 会让元素成为 `position: fixed` 后代的**包含块** ——
@@ -3466,13 +3465,15 @@ button.pw-skin:disabled { opacity: 0.45; cursor: not-allowed; }
  * `.config-panel-surface` / `.settings-dialog-surface` 这一组上之后，
  * 这些弹层里的浮窗（Agents 选人、模型选择、分支导航…）全部改以弹层为定位祖先，
  * 于是被裁、被推到视口外 —— 表现就是「看不见了」。
- * 弹层要材质感就只给半透明底，模糊留给不会做祖先的**面**（侧栏 / 面板 / 输入区）。 */
+ * 弹层要材质感就只给半透明底，模糊留给不会做祖先的**面**（侧栏 / 面板 / 输入区）。
+ * 但设置、MCP、模型详情这些内容面即使没有 fixed 后代也必须清晰：Thick 材质在
+ * 没有模糊时会被正文穿透（实测 MCP 页读到背后会话），所以这里统一用 panel 实底。 */
 .context-menu,
 .config-panel-surface,
 .settings-dialog-surface,
 .d-modal-box,
 .d-pop-float {
-  background: var(--nx-mat-thick-bg-light);
+  background: var(--nx-panel);
 }
 
 /* 输入区（composer）—— 与顶栏同级的功能层。
@@ -3497,7 +3498,7 @@ html[data-theme="dark"] .config-panel-surface,
 html[data-theme="dark"] .settings-dialog-surface,
 html[data-theme="dark"] .d-modal-box,
 html[data-theme="dark"] .d-pop-float {
-  background: var(--nx-mat-thick-bg-dark);
+  background: var(--nx-panel);
 }
 
 
@@ -3545,12 +3546,12 @@ body {
   background: var(--nx-canvas);
 }
 /* 壳与聊天列让位，露出的就是那一层画布。
-   聊天列只在 ≥960px 透明：窄屏它会变成固定浮层，透过去会看到下面的编辑器
+   聊天列只在 ≥1024px 透明：窄屏它会变成固定浮层，透过去会看到下面的编辑器
    （wallpaper.css 同一条口径）。 */
 .app-shell-layout {
   background: transparent !important;
 }
-@media (min-width: 960px) {
+@media (min-width: 1024px) {
   .chat-slot {
     background: transparent !important;
   }

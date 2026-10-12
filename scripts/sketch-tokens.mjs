@@ -319,7 +319,91 @@ function generate({ id, form, kitLabel }) {
     L.push('}');
   }
 
-  // ── 4 · 统计脚注 ──
+  // ── 5 · 控件状态（按钮 / 输入框 / 开关 / 填充梯子）───────────────────────────
+  /*
+   * 为什么要有这一段：kit 里「按钮长什么样」不是靠符号的图层写的，而是靠**共享图层样式**
+   * （`Content Area/Light/01 - Bordered/01 - Idle` 这种名字）。符号只放文字，底板由样式携带。
+   * 这里把样式表按「控件 × 主题 × 底材 × 状态」抽成 `--nx-sk-cs-*`，控件层才有真值可用。
+   *
+   * 命名：`--nx-sk-cs-<控件>-<light|dark>[-glass]-<状态>-<fill|border>-<n>`
+   *   · glass 后缀 = Over-Glass（在玻璃材质上用的那一支）
+   *   · 按钮五类：bordered / tinted / destructive / prominent / prominent-destructive
+   */
+  const csGroup = (name) => {
+    if (/\/01 - Bordered\//.test(name)) return 'bordered';
+    if (/\/02 - Bordered Tinted\//.test(name)) return 'tinted';
+    if (/\/03 - Bordered Destructive\//.test(name)) return 'destructive';
+    if (/\/04 - Prominent \(Default\)\//.test(name)) return 'prominent';
+    if (/\/05 - Prominent \(Default\) Destructive\//.test(name)) return 'prominent-destructive';
+    if (/\/Input Fields\//.test(name)) return 'input';
+    if (/\/Tracks\/Active, Filled\//.test(name)) return 'track-on';
+    if (/\/Tracks\/Inactive, Filled\//.test(name)) return 'track-off';
+    if (/\/Knobs - Toggle\//.test(name)) return 'knob';
+    return null;
+  };
+  const csState = (name) => {
+    const m = name.match(/[,/]\s*(\d\d - (?:Idle|Clicked|Disabled|Hover))$/);
+    return m ? m[1].replace(/^\d\d - /, '').toLowerCase() : null;
+  };
+  const csTheme = (name) => (/\/Light\//.test(name) ? 'light' : 'dark');
+  const csGlass = (name) => (/^Over-Glass\//.test(name) ? 'glass' : null);
+
+  const csLines = [];
+  const csSeen = new Set();
+  for (const s of kit.layerStyles) {
+    const g = csGroup(s.name);
+    const st = csState(s.name);
+    if (!g || !st) continue;
+    const theme = csTheme(s.name);
+    const glass = csGlass(s.name);
+    const head = `cs-${g}-${theme}${glass ? '-glass' : ''}-${st}`;
+    const props = [];
+    (s.fills ?? []).forEach((f, i) => {
+      /* 只认真色值。注意：**不能**用 `f.gradient` 做排除 —— 抽取层给实体填充也带了
+         色板的 gradient 元数据（`gradient` 存在但 fillType 是纯色），排除它会把
+         按钮的五类底板全部过滤掉（实测 cs- 段只剩 knob/input/fill）。 */
+      if (f.hex) props.push(`fill-${i + 1}: ${f.hex}`);
+    });
+    (s.borders ?? []).forEach((b, i) => props.push(`border-${i + 1}: ${b.thickness}px solid ${b.color}`));
+    if (s.shadows?.length) props.push(`shadow: ${s.shadows.map((x) => `${x.x}px ${x.y}px ${x.blur ?? 0}px ${x.spread}px ${x.color}`).join(', ')}`);
+    if (s.innerShadows?.length) props.push(`inner: ${s.innerShadows.map((x) => `inset ${x.x}px ${x.y}px ${x.blur ?? 0}px ${x.spread}px ${x.color}`).join(', ')}`);
+    if (!props.length) continue;
+    if (csSeen.has(head)) continue;           // kit 有同名两条时取先者（与样式表顺序一致）
+    csSeen.add(head);
+    csLines.push(`  /* ${s.name} */`);
+    for (const p of props) {
+      const [k, v] = p.split(': ');
+      csLines.push(`  --nx-sk-${head}-${k}: ${v};`);
+    }
+  }
+
+  // 填充梯子（Default/Selected 六档 × 主题 × 底材）—— 容器面（行 hover / 选中底）的真值
+  for (const s of kit.layerStyles) {
+    const m = s.name.match(/^(Content Area|Over-Glass)\/(Light|Dark)\/Fills\/(Default|Selected)[ ,]+\s*0?(\d) - (\w+)$/);
+    if (!m) continue;
+    const [, area, theme, kind, n, label] = m;
+    const glass = area === 'Over-Glass' ? '-glass' : '';
+    const head = `cs-fill-${theme.toLowerCase()}${glass}-${kind.toLowerCase()}-${n}`;
+    if (csSeen.has(head)) continue;
+    const f = s.fills?.[0];
+    if (!f?.hex) continue;
+    csSeen.add(head);
+    csLines.push(`  /* ${s.name} */`);
+    csLines.push(`  --nx-sk-${head}: ${f.hex};   /* ${label} */`);
+  }
+
+  if (csLines.length) {
+    L.push(`\n/* ── 5 · 控件状态（${csLines.filter((l) => l.includes(':')).length} 条，来自 kit 的共享图层样式）────\n`
+      + ' * kit 的按钮/输入框/开关把「底板」放在共享样式里（符号只放文字）——这一段就是那些底板：\n'
+      + ' * 五类按钮 × 明暗 × 底材（普通/玻璃）× 三态、输入框两态、开关轨道与旋钮、容器填充梯子。\n'
+      + ' * 角色层（web/pwa tokens.css）负责把 --nx-* 绑到这里，组件不直接引用 --nx-sk-cs-*。\n'
+      + ` */\n`);
+    L.push(':root {');
+    L.push(csLines.join('\n'));
+    L.push('}');
+  }
+
+  // ── 6 · 统计脚注 ──
   L.push(`\n/* 生成统计：色板 ${kit.swatches.length} · 字体样式 ${kit.textStyles.length}（默认档 ${ts.length}）`
     + ` · 共享样式 ${kit.layerStyles.length}（玻璃 ${glass.length}）· 组件符号 ${kit.pages.reduce((n, p) => n + p.symbols.length, 0)}\n`
     + '   还有 Loose / Tight Leading 两套行高变体与 Bold / Italic 字重轴没落到变量里 ——\n'

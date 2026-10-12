@@ -10,7 +10,7 @@ const { shouldKeepNativeTitle, PWA_QUERY } = await jiti.import("./useTooltipPoli
 test("PWA 形态一个都不留", () => {
   assert.equal(shouldKeepNativeTitle({ text: "", hasIcon: true, isPwa: true }), false);
   assert.equal(shouldKeepNativeTitle({ text: "保存", hasIcon: true, isPwa: true }), false);
-  assert.equal(PWA_QUERY, "(max-width: 640px)", "断点必须与 app/globals.css 同值");
+  assert.equal(PWA_QUERY, "(max-width: 639px)", "断点必须与 app/globals.css 同值");
 });
 
 test("只留纯图标：没有图标就不留", () => {

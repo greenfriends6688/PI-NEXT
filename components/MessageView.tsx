@@ -2161,7 +2161,7 @@ function SplitDiffCellView({ cell, intraline }: {
         ? segments.map((segment, index) => (
             <span
               key={index}
-              style={segment.changed ? { background: changedBackground, borderRadius: "var(--radius-3)" } : undefined}
+              style={segment.changed ? { background: changedBackground, borderRadius: "var(--nx-radius-control)" } : undefined}
             >
               {segment.text}
             </span>

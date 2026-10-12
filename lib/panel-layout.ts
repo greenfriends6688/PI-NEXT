@@ -1,5 +1,7 @@
-export const MOBILE_MAX_WIDTH = 640;
-export const SPLIT_PANEL_MIN_WIDTH = 960;
+import { PLATFORM_BREAKPOINTS } from "./platform-breakpoints";
+
+export const MOBILE_MAX_WIDTH = PLATFORM_BREAKPOINTS.phoneMax;
+export const SPLIT_PANEL_MIN_WIDTH = PLATFORM_BREAKPOINTS.desktopMin;
 
 // fork:apple-sketch（2026-10-08）—— 默认宽 280 → **256**：macOS kit 的侧栏实测值
 // （Windows 页：600×300 窗口 = 左 256 + 右 344）。此前 280 是 fork:design-system PR-06

@@ -100,9 +100,9 @@ function AgentRow({
           data-ico={main ? "user" : "bot"}
           data-size="14"
           aria-hidden="true"
-          style={{ flexShrink: 0, marginTop: 2, color: main ? "var(--nx-text-3)" : "var(--nx-accent)" }}
+          style={{ flexShrink: 0, marginTop: "var(--nx-sp-1)", color: main ? "var(--nx-text-3)" : "var(--nx-accent)" }}
         ></i>
-        <span className="d-col d-grow" style={{ gap: 2, minWidth: 0 }}>
+        <span className="d-col d-grow" style={{ gap: "var(--nx-sp-1)", minWidth: 0 }}>
           <span
             className={selected ? "d-t-b" : undefined}
             style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
@@ -119,7 +119,7 @@ function AgentRow({
           </span>
         </span>
       </span>
-      <span className="d-pop-row-s d-row" style={{ flexShrink: 0, gap: "var(--nx-sp-1)", whiteSpace: "nowrap", marginTop: 2 }}>
+      <span className="d-pop-row-s d-row" style={{ flexShrink: 0, gap: "var(--nx-sp-1)", whiteSpace: "nowrap", marginTop: "var(--nx-sp-1)" }}>
         {main && !running ? (
           selected ? <span className="d-badge mute">{t("agentSwitcher.current")}</span> : null
         ) : (

@@ -7,6 +7,9 @@
  * 手感各长各的。深色同 Web：html[data-theme="dark"] 变量覆盖。
  * =========================================================================== */
 
+/* fork:apple-sketch 返修（2026-10-10）—— 同 web/tokens.css：角色层指向 `--nx-sk-*`，
+   数值层必须在这里导入，否则画板整页背景解析成透明。 */
+@import "../sketch-ios.css";
 @import "../base.css";
 
 :root {
@@ -14,13 +17,14 @@
   --nx-brand: linear-gradient(135deg, #22b8e6 0%, #4f6df5 45%, #b45cf0 100%);
   --nx-ui: 17px;
 
-  --nx-r-xs:  8px;
-  --nx-r-sm:  12px;
-  --nx-r-md:  16px;
-  --nx-r-lg:  20px;
-  --nx-r-xl:  24px;
-  --nx-r-2xl: 28px;
-  --nx-r-pill: 999px;
+  /* Apple semantic roles for iOS PWA. */
+  --nx-radius-control: 12px;
+  --nx-radius-row: 12px;
+  --nx-radius-card: 20px;
+  --nx-radius-pane: 24px;
+  --nx-radius-popover: 24px;
+  --nx-radius-sheet: 28px;
+  --nx-radius-pill: 999px;
 
   --nx-ctl-xs: var(--nx-sk-c-buttons-content-sm-h);
   --nx-ctl-sm: 36px;
@@ -56,10 +60,11 @@
   --nx-diff-del: #cf3f43;
 
   /* 立体：触屏 = 模糊光晕（接触阴影）为主，投影为辅 */
-  --nx-sh-1: 0 1px 2px rgba(16, 17, 22, .04), 0 4px 14px rgba(16, 17, 22, .06);
-  --nx-sh-2: 0 8px 24px rgba(16, 17, 22, .10), 0 20px 48px rgba(16, 17, 22, .12);
-  --nx-halo: 0 4px 14px rgba(16, 17, 22, .10);
-  --nx-glass: rgba(255, 255, 255, .78);
+  /* Apple iOS 27 kit material/shadow values. */
+  --nx-sh-1: var(--nx-sk-glass-light-regular-small-shadow);
+  --nx-sh-2: var(--nx-sk-glass-light-regular-medium-shadow);
+  --nx-halo: var(--nx-sk-glass-light-regular-small-shadow);
+  --nx-glass: var(--nx-sk-glass-light-regular-medium-fill-1);
 
   --nx-code-bg:    #f7f7f9;
   --nx-code-line:  rgba(18, 18, 24, .06);
@@ -94,10 +99,10 @@
   --nx-diff-add: #4cb782;
   --nx-diff-del: #e5484d;
 
-  --nx-sh-1: 0 0 0 1px rgba(255, 255, 255, .06), 0 4px 16px rgba(0, 0, 0, .4);
-  --nx-sh-2: 0 0 0 1px rgba(255, 255, 255, .08), 0 16px 48px rgba(0, 0, 0, .55);
-  --nx-halo: 0 6px 20px rgba(0, 0, 0, .45);
-  --nx-glass: rgba(16, 16, 20, .72);
+  --nx-sh-1: var(--nx-sk-glass-dark-regular-small-shadow);
+  --nx-sh-2: var(--nx-sk-glass-dark-regular-medium-shadow);
+  --nx-halo: var(--nx-sk-glass-dark-regular-small-shadow);
+  --nx-glass: var(--nx-sk-glass-dark-regular-medium-fill-1);
 
   --nx-code-bg:    #121218;
   --nx-code-line:  rgba(255, 255, 255, .06);

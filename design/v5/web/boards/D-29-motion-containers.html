@@ -301,13 +301,13 @@
 
 /* ③ 底部面板：translateY 而不是 hidden，动画才生效 */
 .d-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: var(--nx-z-modal);
-  background: var(--nx-panel); border-radius: var(--nx-r-xl) var(--nx-r-xl) 0 0;
+  background: var(--nx-panel); border-radius: var(--nx-radius-popover) var(--nx-radius-popover) 0 0;
   box-shadow: var(--nx-sh-2); transform: translateY(100%); }
 .d-sheet.is-open { animation: nx-sheet-up var(--nx-dur-3) var(--nx-ease-out); }
 
 /* ④ 页签下划线：一条线在位移，不是每页签各有一条 */
 .d-tabbar { position: relative; }
-.d-tabink { position: absolute; bottom: -1px; left: 0; height: 2px; border-radius: var(--nx-r-pill);
+.d-tabink { position: absolute; bottom: -1px; left: 0; height: 2px; border-radius: var(--nx-radius-pill);
   background: var(--nx-accent); transition: transform var(--nx-dur-3) var(--nx-ease),
     width var(--nx-dur-3) var(--nx-ease); }
 

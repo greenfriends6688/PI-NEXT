@@ -158,7 +158,7 @@ export function ModelSelector({
         padding: "0 9px",
         overflow: "hidden",
         border: "1px solid var(--border)",
-        borderRadius: "var(--radius-xs)",
+        borderRadius: "var(--nx-radius-control)",
         background: locked ? "var(--bg-panel)" : "var(--bg)",
         color: locked ? "var(--text-dim)" : "var(--text)",
         cursor: locked ? "default" : "pointer",

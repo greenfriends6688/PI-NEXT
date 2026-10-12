@@ -4,6 +4,14 @@ import { getRpcSession, startRpcSession } from "@/lib/rpc-manager";
 
 export const dynamic = "force-dynamic";
 
+/** fork:event-seq — 客户端重连时带回的 SSE 游标；无效/缺失一律当作没有游标。 */
+function parseLastEventId(req: Request): number | null {
+  const raw = new URL(req.url).searchParams.get("lastEventId");
+  if (raw === null) return null;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
 // GET /api/agent/[id]/events - SSE stream of agent events
 export async function GET(
   req: Request,
@@ -26,7 +34,7 @@ export async function GET(
     sessionPromise = startRpcSession(id, filePath, undefined).then((result) => result.session);
   }
 
-  const stream = createAgentEventStream(req, id, sessionPromise);
+  const stream = createAgentEventStream(req, id, sessionPromise, parseLastEventId(req));
 
   return new Response(stream, {
     headers: {

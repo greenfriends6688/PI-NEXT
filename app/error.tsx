@@ -35,6 +35,7 @@ export default function AppError({ error, retry }: { error: Error & { digest?: s
         hint={t("error.boundaryHint")}
         digest={error.digest}
         digestLabel={t("error.boundaryDigest")}
+        /* 非主题值：系统错误页的内容宽度与最小高度。 */
         style={{ margin: "0 auto", maxWidth: 560, minHeight: "60vh" }}
         actions={[
           { key: "retry", label: t("error.boundaryRetry"), icon: "rotate-cw", variant: "primary", onClick: () => retry() },
@@ -48,15 +49,16 @@ export default function AppError({ error, retry }: { error: Error & { digest?: s
     <div
       role="alert"
       className="d-empty"
-      style={{ margin: "0 auto", maxWidth: 560, minHeight: "60vh", color: "var(--nx-text, CanvasText)" }}
+      /* 非主题值：系统错误页的内容宽度与最小高度。 */
+      style={{ margin: "0 auto", maxWidth: 560, minHeight: "60vh", color: "var(--nx-text)" }}
     >
-      <div className="d-empty-ico" style={{ color: "var(--nx-danger, #d64545)" }}>
+      <div className="d-empty-ico" style={{ color: "var(--nx-danger)" }}>
         <i data-ico="triangle-alert" data-size="20" aria-hidden="true" />
       </div>
       <div className="d-empty-t">{t("error.boundaryTitle")}</div>
       <div className="d-empty-s">{t("error.boundaryHint")}</div>
       {error.digest && (
-        <div className="d-code" style={{ alignSelf: "stretch", maxWidth: 420 }}>
+        <div className="d-code" style={{ /* 非主题值：错误码片段的阅读宽度。 */ alignSelf: "stretch", maxWidth: 420 }}>
           <div className="d-code-head">
             <span className="d-grow">{t("error.boundaryDigest")}</span>
           </div>

@@ -1,11 +1,11 @@
 /* fork:v5-landing —— 形态收口（design/v5 两套形态的唯一切换点）
  *
  * 铁律（LANDING 铁律四）：产品运行时只加载 `base.css` + **一套**形态。
- * Web 形态 ≥641px（d-*）；PWA 形态 ≤640px（m-*）由浏览器判定，resize 自动换套。
+ * Web 形态 >=640px（d-*）；PWA 形态 <=639px（m-*）由浏览器判定，resize 自动换套。
  *
- * Wave B（PWA 形态）**过渡口径**：Web 一套先常驻，PWA 一套在 ≤640px 覆盖。
+ * Wave B（PWA 形态）**过渡口径**：Web 一套先常驻，PWA 一套在 <=639px 覆盖。
  * 原因：m-* DOM 是一批 agent 分批落的，落完一个页面之前，其余页面仍是 d-* DOM；
- * 若那时 ≤640px 只挂 pwa 一套，窄屏会把**所有还没换的组件**变成无样式（类名
+ * 若那时 <=639px 只挂 pwa 一套，窄屏会把**所有还没换的组件**变成无样式（类名
  * 存在但没有任何规则命中 = 白板）。覆盖口径下两套的形状类互不冲突（d- 与 m- 不同名），
  * 冲突只发生在同名角色令牌上，而 PWA 令牌在后加载 → 窄屏取 PWA 值，正是设计意图。
  * 等 m-* 覆盖全部页面后，这里回到「pwa 一套只挂窄屏」的严格口径（一行改动）。
@@ -22,9 +22,9 @@
 @import "../../design/v5/sketch-macos.css";
 @import "../../design/v5/web/tokens.css";
 @import "../../design/v5/web/system.css";
-@import "../../design/v5/sketch-ios.css" screen and (max-width: 640px);
-@import "../../design/v5/pwa/tokens.css" screen and (max-width: 640px);
-@import "../../design/v5/pwa/system.css" screen and (max-width: 640px);
+@import "../../design/v5/sketch-ios.css" screen and (max-width: 639px);
+@import "../../design/v5/pwa/tokens.css" screen and (max-width: 639px);
+@import "../../design/v5/pwa/system.css" screen and (max-width: 639px);
 
 /* ── 接线层：产品挑定的那一支 ───────────────────────────────────────────────
  * 库要同时服务画板与产品，所以它只能写「两个都合法」的规则；产品在两个都合法的
@@ -90,7 +90,7 @@ button.d-tool-head > i { margin-top: calc((var(--nx-lh-body) * var(--nx-fs-xs) -
   /* 节点是 `position:absolute; left:0; right:0` 的内联几何（产品按 topRatio
      定位，不可改），所以居中用 `margin:auto` 而不是 left/transform。 */
   margin: 0 auto;
-  border-radius: var(--nx-r-pill);
+  border-radius: var(--nx-radius-pill);
   background: var(--nx-line-hi);
 }
 .fork-minimap-rail .d-mm-node.now { width: 8px; height: 8px; }
@@ -211,7 +211,7 @@ button.m-sheet-grab {
  *   ① 把两块**本该是 pane 正文**的手机页面从「整层浮起」的类上换下来
  *      （与 TraceFrame 的 `fork-trace-pane` / FileExplorer 的 `fork-pane-bar`
  *      同一路，见 `design/v5/DIVERGENCE.md` O 节）；
- *   ② 把 `app/globals.css` 的 DSN-04（≤640px 给每个 `button` 补
+ *   ② 把 `app/globals.css` 的 DSN-04（<=639px 给每个 `button` 补
  *      `min-height: var(--control-touch)`）从画板**写死 height** 的小件上撤掉。
  * ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -278,7 +278,7 @@ button.m-sheet-grab {
 
 /* ② · DSN-04 的 `button { min-height: 36px }` 与画板写死的 `height` 打架
  *
- * `app/globals.css:1972`（DSN-04，≤640px）给每个 `button / select /
+ * `app/globals.css:1972`（DSN-04，<=639px）给每个 `button / select /
  * [role=tab] / [role=option]` 补 `min-height: var(--control-touch)`（36px）。
  * `min-height` 只压高、不碰宽，所以画板里**用 `height` 写死尺寸**的小件一律被顶成
  * 36px —— M-07 / M-08 这两屏实测两处：
@@ -307,7 +307,7 @@ button.m-sheet-grab {
  *    压在文字上），在这一格里读起来像没做完的标签页；改成一行的图标 + 文字，
  *    并与另两件共一条中线。
  * ═══════════════════════════════════════════════════════════════════════════ */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   /* ① 安全区只让一次，让在最顶上的品牌行 */
   .m-drawer > .nx-row {
     padding-top: env(safe-area-inset-top, 0px);
@@ -347,7 +347,7 @@ button.m-sheet-grab {
  *    markdown 正文的 `overflow-wrap: anywhere` 管不到 `code` / `a` 里那一串，
  *    它们继承了 `white-space` 却拿不到断行规则。用户原话「很多字都看不到」。
  * ═══════════════════════════════════════════════════════════════════════════ */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   /* ① 行尾动作钮的命中区外扩到 44（盒子不动） */
   .m-drawer .m-row .d-iconbtn,
   .m-drawer .m-row .m-iconbtn {
@@ -387,7 +387,7 @@ button.m-sheet-grab {
  *     会让一个长不可断串把整列撑开，这是这类「右侧被切」最常见的机制。
  * 外层仍不承担横滚（那是内容自己容器的事），所以只在真的溢出时才会出现横滚条。
  * ═══════════════════════════════════════════════════════════════════════════ */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .m-scroll.d-chat {
     overflow-x: auto;
   }
@@ -442,7 +442,7 @@ button.m-sheet-grab {
  * （`.m-btn.sm.ghost` / `.m-badge` / `.m-switch`）。行尾件一律不许折行；
  * 真的放不下时由说明文字先让位（它有 `min-width: 0` 与多行能力）。
  * ═══════════════════════════════════════════════════════════════════════════ */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .m-settings .m-setrow > button,
   .m-settings .m-setrow > .m-btn,
   .m-settings .m-setrow > .m-badge,

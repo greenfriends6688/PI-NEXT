@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
+import { PLATFORM_MEDIA } from "@/lib/platform-breakpoints";
 
 /**
  * fork:tooltip-policy —— 原生 `title` 提示的统一闸门（用户 2026-10-06 裁定）。
  *
  * 三条规则：
- *  1. **PWA（≤640px）一个都不留** —— 那一形态上没有 hover，窄窗口里弹出来的
+ *  1. **PWA（≤639px）一个都不留** —— 那一形态上没有 hover，窄窗口里弹出来的
  *     系统气泡只会盖住内容；
  *  2. **只留纯图标**（内部有 `[data-ico]` / `svg` / `img`）；
  *  3. 元素自己**不能有可见文字**（中文 / 英文 / 数字）—— 已经写着「保存」的按钮
@@ -23,7 +24,7 @@ import { useEffect } from "react";
  */
 
 /** 窄屏形态的断点，与 `app/globals.css` / `hooks/useIsMobile.ts` 同一个值。 */
-export const PWA_QUERY = "(max-width: 640px)";
+export const PWA_QUERY = PLATFORM_MEDIA.phone;
 /** 存原值的属性名；`pointerout` 靠它找到「被我们摘过的」元素。 */
 export const TITLE_STASH_ATTR = "data-fork-title-stash";
 /** 可见文字：任何语言的字母或数字（标点、空格、图标字形不算）。 */

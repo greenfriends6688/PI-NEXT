@@ -238,8 +238,8 @@ test("charts only use the board's three colours (画板 45：accent 主 / n-bord
   // 另外两色：主序列 / 热柱走 accent，空档与轨道走 n-surface-hi。
   assert.match(chartsSource, /var\(--nx-accent\)/);
   assert.match(chartsSource, /var\(--nx-surface-hi\)/);
-  // 进度条圆角是 v5 的三档之一。
-  assert.match(chartsSource, /borderRadius: "var\(--nx-r-xs\)"/);
+  // 进度条圆角走语义角色，不再直接引用尺寸档。
+  assert.match(chartsSource, /borderRadius: "var\(--nx-radius-control\)"/);
   assert.doesNotMatch(chartsSource, /var\(--radius-/);
 });
 

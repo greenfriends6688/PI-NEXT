@@ -23,14 +23,14 @@ import "./wallpaper.css";
    组件挂上 pw-* 类后，board.css 的规则对同元素取得优先权（画板覆盖实现）。 */
 import "../design/pi-web-design/assets/board.css";
 /* fork:v5-landing —— V5 设计体系的形态收口（design/v5）：
- * 同一时刻只有一套形态在作用（@import 媒体条件，≥641 web / ≤640 pwa），
+ * 同一时刻只有一套形态在作用（@import 媒体条件，>=640 web / <=639 pwa），
  * 这就是 LANDING 铁律四「只加载 base.css + 一套形态」的物理实现。
  * 契约见 design/v5/LANDING.md，执行编排见 docs/v5-landing-plan-2026-10-04.md。
  * 迁移期与旧皮肤并存：d-* 与 pw-* 类名不重叠、--nx-* 与 --n-* / --ds-* 令牌不重叠，
  * 没有覆盖冲突；旧件在收尾波统一删除。 */
 import "./design/v5-forms.css";
 import "../design/pi-web-design/assets/icons.js";
-/* fork:pwa-* —— 手机档（≤640px）分区补丁，按区域各占一个文件，owner 互不重叠。
+/* fork:pwa-* —— 手机档（≤639px）分区补丁，按区域各占一个文件，owner 互不重叠。
    放在 board.css 之后：画板是 1440px 静态稿，产品窄屏要在它的基础上收成单列。 */
 import "./pwa-settings.css";
 import "./pwa-models-skills.css";
@@ -70,8 +70,8 @@ const DEV_SERVICE_WORKER_CLEANUP_SCRIPT = `
 })();
 `;
 
-// fork:design-system PR-03 — 设计 §1.5：UI 字体 Geist，等宽 Geist Mono。
-// 两者都不含中文，中文由 body 字体栈里的 PingFang SC / 微软雅黑兜底。
+// Geist remains available as a cross-platform fallback. The platform semantic
+// layer puts San Francisco / PingFang first for Apple targets.
 const geistSans = Geist({
   subsets: ["latin"],
   variable: "--font-geist",

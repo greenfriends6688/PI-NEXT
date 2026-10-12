@@ -182,7 +182,7 @@ html[data-wallpaper="on"] .app-shell-layout {
   background: transparent !important;
 }
 
-@media (min-width: 960px) {
+@media (min-width: 1024px) {
   html[data-wallpaper="on"] .chat-slot {
     background: transparent !important;
   }

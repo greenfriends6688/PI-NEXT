@@ -438,7 +438,7 @@ function CreateEntryInput({
         paddingLeft: 8 + depth * 14,
         paddingRight: "var(--s2)",
         height: "var(--control-xs)",
-        borderRadius: "var(--radius-sm)",
+        borderRadius: "var(--nx-radius-control)",
         userSelect: "none",
       }}
     >
@@ -466,7 +466,7 @@ function CreateEntryInput({
           height: 20,
           padding: "0 4px",
           border: "1px solid var(--accent)",
-          borderRadius: "var(--radius-xs)",
+          borderRadius: "var(--nx-radius-control)",
           outline: "none",
           background: "var(--bg)",
           color: "var(--text)",
@@ -754,7 +754,7 @@ export function TreeNode({
               height: 20,
               padding: "0 4px",
               border: "1px solid var(--accent)",
-              borderRadius: "var(--radius-xs)",
+              borderRadius: "var(--nx-radius-control)",
               outline: "none",
               background: "var(--bg)",
               color: "var(--text)",
@@ -838,7 +838,7 @@ export function TreeNode({
               height: 20,
               background: "var(--bg-panel)",
               border: "1px solid var(--border)",
-              borderRadius: "var(--radius-xs)",
+              borderRadius: "var(--nx-radius-control)",
               color: "var(--accent)",
               cursor: "pointer",
               fontSize: TEXT.xs,
@@ -869,7 +869,7 @@ export function TreeNode({
               height: 20,
               background: "var(--bg-panel)",
               border: "1px solid var(--border)",
-              borderRadius: "var(--radius-xs)",
+              borderRadius: "var(--nx-radius-control)",
               color: "var(--text-muted)",
               cursor: "pointer",
               fontSize: TEXT.xs,
@@ -1208,7 +1208,7 @@ function ChangeRow({
             height: 20,
             background: "var(--bg-panel)",
             border: "1px solid var(--border)",
-            borderRadius: "var(--radius-xs)",
+            borderRadius: "var(--nx-radius-control)",
             color: "var(--accent)",
             cursor: "pointer",
             fontSize: TEXT.xs,
@@ -2027,7 +2027,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                 flex: "0 1 auto",
                 height: "var(--control-xs)",
                 border: 0,
-                borderRadius: "var(--radius-xs)",
+                borderRadius: "var(--nx-radius-control)",
                 outline: "none",
                 background: "var(--bg)",
                 color: "var(--text)",
@@ -2259,7 +2259,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                   flex: "0 1 auto",
                   height: "var(--control-xs)",
                   border: 0,
-                  borderRadius: "var(--radius-xs)",
+                  borderRadius: "var(--nx-radius-control)",
                   outline: "none",
                   background: "var(--bg)",
                   color: "var(--text)",
@@ -2505,7 +2505,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               {uploadPhase === "uploading" && <span className="d-mono d-t-faint">{uploadProgress}%</span>}
             </div>
             {uploadPhase === "uploading" && (
-              <div style={{ height: 3, marginTop: "var(--s1)", overflow: "hidden", borderRadius: "var(--radius-xs)", background: "var(--border)" }}>
+              <div style={{ height: 3, marginTop: "var(--s1)", overflow: "hidden", borderRadius: "var(--nx-radius-control)", background: "var(--border)" }}>
                 <div style={{ width: "100%", height: "100%", background: "var(--text-muted)", transform: `scaleX(${Math.max(0, Math.min(100, uploadProgress)) / 100})`, transformOrigin: "left", transition: "transform 120ms ease" }} />
               </div>
             )}
@@ -2573,7 +2573,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                   onClick={addUploadedFilesToChat}
                   title={uploadSummary.uploaded.length === 1 ? t("files.addUploadedFile") : t("files.addAllUploadedFiles")}
                   aria-label={uploadSummary.uploaded.length === 1 ? t("files.addUploadedFile") : t("files.addAllUploadedFiles")}
-                  style={{ height: "var(--control-2xs)", padding: "0 7px", display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--s1)", flexShrink: 0, border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", background: "var(--bg-panel)", color: "var(--accent)", cursor: "pointer", fontSize: TEXT.xs, fontWeight: 600, whiteSpace: "nowrap" }}
+                  style={{ height: "var(--control-2xs)", padding: "0 7px", display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--s1)", flexShrink: 0, border: "1px solid var(--border)", borderRadius: "var(--nx-radius-control)", background: "var(--bg-panel)", color: "var(--accent)", cursor: "pointer", fontSize: TEXT.xs, fontWeight: 600, whiteSpace: "nowrap" }}
                 >
                   <MentionIcon />
                   {t("files.mention")}

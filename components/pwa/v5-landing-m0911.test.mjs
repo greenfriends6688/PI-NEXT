@@ -75,7 +75,7 @@ test("M-11 帧 C：`.m-switch` 的盒子回板面 29px，命中区仍达 44", ()
      这枚开关只出现在设置里的两个分节（定时任务 / 手机与推送）。 */
   assert.match(
     pwaSettings,
-    /@media \(max-width: 640px\) \{[\s\S]*?button\.m-switch,[\s\S]*?span\.d-switch \{[\s\S]*?min-height: 0;/,
+    /@media \(max-width: 639px\) \{[\s\S]*?button\.m-switch,[\s\S]*?span\.d-switch \{[\s\S]*?min-height: 0;/,
     "≤640px 必须撤掉 DSN-04 补在 `button.m-switch` 上的 min-height（否则盒子是 36 不是板面的 29）",
   );
 

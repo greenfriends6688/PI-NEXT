@@ -84,7 +84,8 @@ test("editor-specific behavior remains active when the editor is the main region
 });
 
 test("compact and phone layouts keep role semantics", () => {
-  assert.match(css, /@media \(min-width: 641px\) and \(max-width: 959px\)[\s\S]*?\.secondary-workspace/);
+  assert.match(css, /@media \(min-width: 640px\) and \(max-width: 1023px\)[\s\S]*?\.secondary-workspace/);
+  assert.doesNotMatch(css, /min-width: 960px|max-width: 959px/);
   assert.match(css, /\.main-panels\.workspace-swapped \.right-panel-container\.main-workspace/);
   assert.match(source, /if \(isMobile\) \{[\s\S]*?setWorkspaceSwapped\(false\);/);
 });

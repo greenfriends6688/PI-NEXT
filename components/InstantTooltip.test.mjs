@@ -17,7 +17,7 @@ test("steals title on enter and gives it back on leave", () => {
 test("no delay on the layer — opacity only, and it never eats the pointer", () => {
   assert.doesNotMatch(forkUi, /transition-delay/);
   assert.match(forkUi, /\[data-tip-layer\] \{[^}]*pointer-events: none;/);
-  assert.match(forkUi, /transition: opacity 90ms var\(--nx-ease\);/);
+  assert.match(forkUi, /transition: opacity var\(--nx-dur-1\) var\(--nx-ease\);/);
 });
 
 test("the layer reuses the board floating panel and the existing tooltip contract", () => {

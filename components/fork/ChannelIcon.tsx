@@ -35,7 +35,7 @@ export function ChannelIcon({ id, icon, size = 20 }: { id: ChatChannelId; icon: 
       alt=""
       width={size}
       height={size}
-      style={{ flex: "none", borderRadius: "var(--nx-r-sm)" }}
+      style={{ flex: "none", borderRadius: "var(--nx-radius-control)" }}
     />
   );
 }

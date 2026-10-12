@@ -6,7 +6,9 @@ const agentEventsSource = await readFile(new URL("./[id]/events/route.ts", impor
 const agentEventStreamSource = await readFile(new URL("../../../lib/agent-event-stream.ts", import.meta.url), "utf8");
 
 test("agent SSE starts sessions asynchronously and disables response buffering", () => {
-  assert.match(agentEventsSource, /createAgentEventStream\(req, id, sessionPromise\)/);
+  assert.match(agentEventsSource, /createAgentEventStream\(req, id, sessionPromise, parseLastEventId\(req\)\)/);
+  // fork:event-seq — 游标只接受安全非负整数，坏值一律当没有游标。
+  assert.match(agentEventsSource, /Number\.isSafeInteger\(value\) && value >= 0/);
   assert.match(agentEventsSource, /sessionPromise = startRpcSession\([\s\S]*?\.then\(\(result\) => result\.session\)/);
   assert.doesNotMatch(agentEventsSource, /await startRpcSession\(/);
   assert.match(agentEventsSource, /if \(req\.signal\.aborted\) return new Response\(null, \{ status: 204 \}\)/);

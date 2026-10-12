@@ -2,12 +2,12 @@
  *
  * owner：PluginsConfig · AgentsConfig · ThemeSkinStudio · WallpaperSettings。
  * 引入顺序在 board.css 之后、fork-ui.css 之前（见 app/layout.tsx）。fork-ui.css 里
- * 已有同族的一条 `@media (max-width:640px)`（`.pw-field` 换行 / `.pw-ctl` 换行 /
+ * 已有同族的一条 `@media (max-width: 639px)`（`.pw-field` 换行 / `.pw-ctl` 换行 /
  * `.pw-skin-actions` 换行 / `.pw-skin-strip` 横向滚），本文件要压它时**一律靠多一层
  * 作用域**（`.fork-pwa-*`、`.config-panel-surface:has()`、`.fork-skin-scrim > X`），
  * 不靠引入顺序。
  *
- * **只写手机档**：行为上的改动全部包在 `@media (max-width: 640px)` 里，≥641px 不变。
+ * **只写手机档**：行为上的改动全部包在 `@media (max-width: 639px)` 里，≥641px 不变。
  * 唯一的例外是第 4 / 8 节里两段**桌面基线**（`.fork-pwa-skin-*` / `.fork-pwa-import*`），
  * 它们把组件里本来就有的 inline 几何逐条搬进类，值与顺序照搬，只是让手机档压得过
  * 它们（inline 样式 CSS 盖不动）；搬进来的那段本身在 ≥641px 上与搬走前逐条相等。
@@ -27,7 +27,7 @@
    留白（面板自己的底色），滚到最后一项也不会顶在 home indicator 下面。
    高度交给 `align-items: stretch`，不写死像素。
    ========================================================================== */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .config-panel-root.is-modal {
     align-items: stretch;
     padding: 0;
@@ -39,7 +39,7 @@
     height: auto;
     max-height: 100%;
     border-width: 1px 0 0;
-    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    border-radius: var(--nx-radius-sheet) var(--nx-radius-sheet) 0 0;
     padding-bottom: var(--safe-bottom);
   }
 }
@@ -77,7 +77,7 @@
    `.fork-pwa-detail` 是插件 / 子代理两页详情栈上的钩子（见两个组件里的
    `ConfigDetailStack className`），用来把这条限定在本 owner 的面板里。
    ========================================================================== */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .config-panel-surface:has(.fork-pwa-detail) > .pw-scontent.is-fixed > .pw-cols > * {
     height: auto;
   }
@@ -91,7 +91,7 @@
    MCP 详情是「测试 / 编辑 / 移动 / 删除 / 开关」，390px 宽里必然出界或把中文按钮
    挤成两行。改后：标题那半占满一行，钮组换行且自身不压缩，开关靠右收尾。
    ========================================================================== */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .fork-pwa-head {
     flex-wrap: wrap;
     row-gap: var(--s2);
@@ -150,7 +150,7 @@
 /* 属性表：`.pw-kv` 的 140px 定宽键列已由画板手机档改成上下两行（board.css
    `.pw-kv{grid-template-columns:minmax(0,1fr)}`），这里只补**值那一行**：
    插件详情里 dd 是包名 / 安装路径 / cwd 的等宽长串，不给 anywhere 就地断行。 */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .fork-pwa-detail .pw-kv dd {
     overflow-wrap: anywhere;
   }
@@ -197,7 +197,7 @@
 
 .fork-pwa-skin-col.fork-pwa-skin-preview {
   order: 1;
-  border-right: 1px solid var(--n-border-subtle);
+  border-right: 1px solid var(--nx-line);
   padding-right: var(--s3);
 }
 
@@ -208,7 +208,7 @@
   grid-template-rows: auto 1fr;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .fork-skin-scrim {
     padding: 0;
     place-items: stretch center;
@@ -220,7 +220,7 @@
     height: auto;
     max-height: 100dvh;
     border-width: 1px 0 0;
-    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    border-radius: var(--nx-radius-sheet) var(--nx-radius-sheet) 0 0;
     padding-bottom: var(--safe-bottom);
   }
   /* 内容行：两格叠成一列，整块一起滚（原来的「每格各自滚」在单列里等于把设置
@@ -264,7 +264,7 @@
    改后：加 `scroll-snap`（每张卡起手对齐）与 `scroll-padding`，条下沿留够
    横向滚动条的高度。卡的几何（108×…）不动。
    ========================================================================== */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   /* 选择器带一层 `.pw-block`：fork-ui.css 里那条同族规则（0-1-0，
      `padding-bottom: 2px`）在本文件之后引入，不加这一层压不过它。 */
   .pw-block > .pw-skin-strip {
@@ -285,7 +285,7 @@
    「当前壁纸」行的缩略图 + 更换 / 移除三件套在窄列里顶到边。
    改后：缩略格改成自适应等分网格（比例仍是画板那张 16:9），三件套允许换行。
    ========================================================================== */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .pw-field > [role="group"] {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(0, 1fr));
@@ -313,7 +313,7 @@
    `.pw-iconbtn.sm` 是 22×22（画板 00 的最小方钮），在手指上是个 22px 的点。
    加 `fork-pwa-hit` 的按钮（皮肤工作室的关闭钮）只放大命中区，**不动视觉**。
    ========================================================================== */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .fork-pwa-hit {
     min-width: var(--control-sm);
     min-height: var(--control-sm);
@@ -342,7 +342,7 @@
   max-width: calc(100vw - var(--s6));
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .fork-pwa-import-scrim {
     place-items: stretch center;
   }
@@ -352,7 +352,7 @@
     height: auto;
     max-height: 100%;
     border-width: 1px 0 0;
-    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    border-radius: var(--nx-radius-sheet) var(--nx-radius-sheet) 0 0;
     padding-bottom: var(--safe-bottom);
   }
   .fork-pwa-import-scrim .pw-modal-foot {

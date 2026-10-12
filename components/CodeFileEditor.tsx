@@ -474,7 +474,7 @@ export default function CodeFileEditor({
         </div>
       )}
 
-      <div className={codeClass} style={{ flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", border: 0, borderRadius: 0 }}>
+      <div className={codeClass} style={{ flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", border: 0, borderRadius: "0" }}>
         <div
           ref={host}
           className={`${codeBodyClass} ${isMobile ? "m-grow" : "d-grow"}`}

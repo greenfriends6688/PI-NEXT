@@ -1744,7 +1744,7 @@ i[data-ico] > svg { display: block; }
  * 不该套手机上那套全屏 sheet / 单列阅读流。≥1025 与 ≤640 的行为都不受影响，
  * 画板本体 1440×900 更是不命中（这一段只服务产品页）。
  * =========================================================================== */
-@media (min-width: 641px) and (max-width: 1024px) {
+@media (min-width: 640px) and (max-width: 1023px) {
   .pw-grid2,
   .pw-grid3,
   .pw-grid4 {
@@ -1782,7 +1782,7 @@ i[data-ico] > svg { display: block; }
  * 颜色、字阶、行高、圆角与动效 —— 行的规格一个不动，只改排列方向与可用宽度。
  *
  * 为什么画板对位（verify:boards）不受影响：
- *   1. 画板本体与对位脚本 board-diff 的视口是 1440×900，`max-width: 640px` 永不命中，
+ *   1. 画板本体与对位脚本 board-diff 的视口是 1440×900，`max-width: 639px` 永不命中，
  *      本区块对 1440 下的像素是**零影响**（29 份 spec 里 28 份是这个视口）；
  *   2. 唯一一份 390 视口的 spec（60-mobile-pwa）量的是 `.pw-touch` / `.pw-drawer`
  *      两个手机壳件，本区块刻意不碰它们；即使碰了，画板页与产品页加载的是**同一份**
@@ -1792,7 +1792,7 @@ i[data-ico] > svg { display: block; }
  * 值一律取 token（间距 --s1..--s6 / --space-*，控件 --control-*，圆角 --radius-*）。
  * 本档不新增任何动画；文件里所有动效仍走 --motion-* + --ease。
  * ======================================================================== */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   /* ---- 画板外壳（只影响直接打开 design/*.html 的人）--------------------
      body 的 24px 外边距 + 画框圆角在 390px 下把画板内容推出视口。 */
   body.pw { padding: var(--s3); }

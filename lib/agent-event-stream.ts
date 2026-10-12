@@ -1,8 +1,6 @@
-import {
-  isEventIncludedInSnapshot,
-  toClientAgentEvent,
-  type AgentEventLike,
-} from "./agent-event-wire";
+import { isDroppableEvent } from "./agent-event-wire";
+// fork:event-seq
+import type { AgentEventLog, ClientAgentEvent } from "./agent-event-log";
 import { acquireSessionLivenessLease } from "./session-liveness";
 
 export interface AgentEventStreamSession {
@@ -10,7 +8,10 @@ export interface AgentEventStreamSession {
   /** fork:upstream-compaction-status — #1008：自动压缩期间客户端必须知道正在压缩。 */
   readonly isCompacting: boolean;
   readonly streamingMessage: unknown;
-  onEvent(listener: (event: AgentEventLike) => void): () => void;
+  /** fork:event-seq — 会话级序号与重放窗口。 */
+  readonly eventLog: AgentEventLog;
+  /** fork:event-seq — 已投影、权威事件带 `seq` 的订阅。 */
+  onClientEvent(listener: (event: ClientAgentEvent) => void): () => void;
 }
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -36,23 +37,9 @@ const BACKPRESSURE_LOG_INTERVAL_MS = 60_000;
 let lastBackpressureLogAt = 0;
 
 /**
- * 这个事件被丢掉时，后面还有没有事件能修好它。`*_delta` 只是延长一个块，而它的
- * `*_end` 会用权威内容替换整个块；`tool_execution_update` 带的是整个部分结果，
- * 会被下一次 update 或 `tool_execution_end` 取代。`*_start` / `*_end` 永不丢：
- * 客户端的流式 reducer 就是靠它们创建和收尾块的。
- *
- * fork:upstream-sse-backlog — #997 移植（6b0c6a5）
+ * 这个事件被丢掉时，后面还有没有事件能修好它 —— 见 `agent-event-wire.ts`
+ * 的 `isDroppableEvent`（fork:event-seq 后与“给不给序号”共用同一判据）。
  */
-function isDroppableEvent(event: AgentEventLike): boolean {
-  if (event.type === "tool_execution_update") return true;
-  if (event.type !== "message_update") return false;
-  const update = event.assistantMessageEvent;
-  return typeof update === "object"
-    && update !== null
-    && typeof (update as { type?: unknown }).type === "string"
-    && (update as { type: string }).type.endsWith("_delta");
-}
-
 function resolveBacklogLimitBytes(): number {
   const raw = Number(process.env.PI_WEB_SSE_BACKLOG_LIMIT_BYTES);
   return Number.isFinite(raw) && raw >= 64 * 1024 ? raw : DEFAULT_BACKLOG_LIMIT_BYTES;
@@ -118,6 +105,7 @@ export function createAgentEventStream(
   req: Request,
   sessionId: string,
   sessionPromise: Promise<AgentEventStreamSession>,
+  lastEventId: number | null = null,
 ): ReadableStream<Uint8Array> {
   let cancelStream: (closeController: boolean | "error") => void = () => {};
   let releaseLease: () => void = () => {};
@@ -190,12 +178,9 @@ export function createAgentEventStream(
       const encode = (data: unknown, options?: { droppable?: boolean }) => {
         enqueueText(`data: ${JSON.stringify(data)}\n\n`, options);
       };
-      const forwardEvent = (event: AgentEventLike, snapshot: unknown) => {
-        if (isEventIncludedInSnapshot(event, snapshot)) return;
-        const clientEvent = toClientAgentEvent(event);
-        if (clientEvent) {
-          encode(clientEvent, { droppable: isDroppableEvent(clientEvent) });
-        }
+      // fork:event-seq — 权威事件带 `id:`（SSE 游标），可重建增量不带。
+      const encodeSequenced = (entry: { seq: number; text: string }) => {
+        enqueueText(`id: ${entry.seq}\ndata: ${entry.text}\n\n`);
       };
 
       const publishSession = async () => {
@@ -203,24 +188,50 @@ export function createAgentEventStream(
           const session = await sessionPromise;
           if (closed) return;
 
-          const bufferedEvents: AgentEventLike[] = [];
-          let snapshotPublished = false;
-          const handleEvent = (event: AgentEventLike) => {
-            if (!snapshotPublished) {
-              bufferedEvents.push(event);
+          const snapshot = session.streamingMessage;
+          const buffered: ClientAgentEvent[] = [];
+          let live = false;
+          // 已经交付给这个客户端的最大序号。重连时初值是它上次的游标。
+          let deliveredSeq = 0;
+          let replayed = false;
+
+          const deliver = (event: ClientAgentEvent) => {
+            // 快照通路：这条就是马上要单独发的快照，不要重复渲染一次。
+            if (
+              !replayed
+              && event.messageRef !== undefined
+              && event.messageRef === snapshot
+              && (event.event.type === "message_start" || event.event.type === "message_update")
+            ) {
+              if (event.seq !== null) deliveredSeq = event.seq;
               return;
             }
-            forwardEvent(event, snapshot);
+            if (event.seq === null) {
+              // 可重建增量 / 重放的待决请求：按原样发，不参与序号与缺口判定。
+              // 增量仍走背压丢弃（它们的 `*_end` 会带权威内容补回来）。
+              encode(event.event, { droppable: isDroppableEvent(event.event) });
+              return;
+            }
+            if (event.seq <= deliveredSeq) return;
+            encodeSequenced(event);
+            deliveredSeq = event.seq;
           };
 
-          const stopListening = session.onEvent(handleEvent);
+          const handleEvent = (event: ClientAgentEvent) => {
+            if (!live) {
+              buffered.push(event);
+              return;
+            }
+            deliver(event);
+          };
+
+          const stopListening = session.onClientEvent(handleEvent);
           if (closed) {
             stopListening();
             return;
           }
           unsubscribe = stopListening;
 
-          const snapshot = session.streamingMessage;
           // fork:upstream-compaction-status — #1008 移植（2e66e40）· 事件侧：
           // 自动压缩会把一个 turn 吊住好一阵子，而 `compaction_start` 只有一个 SSE
           // 客户端能收到。重连（息屏、后台标签页）之后 `connected` 只说「在跑」，
@@ -232,11 +243,30 @@ export function createAgentEventStream(
             isStreaming: session.isStreaming,
             isCompacting: Boolean(session.isCompacting),
           });
-          for (const event of bufferedEvents) forwardEvent(event, snapshot);
-          if (snapshot !== undefined && snapshot !== null) {
+
+          // fork:event-seq — 带游标回来就补发断线期间漏掉的**权威事件**。
+          // 补不齐（缓冲已滚过）就不装：退回快照通路，让客户端自己重读转写。
+          if (lastEventId !== null) {
+            const replay = session.eventLog.replayAfter(lastEventId);
+            if (replay.complete) {
+              replayed = true;
+              deliveredSeq = lastEventId;
+              for (const entry of replay.events) {
+                encodeSequenced(entry);
+                deliveredSeq = entry.seq;
+              }
+            }
+          }
+
+          // 先冲掉订阅窗口内缓下的实时事件，再补快照 —— 与 fork:event-seq 之前一致
+          // 的顺序（实时事件在前、快照在后，快照只用来把流式消息拉回当前）。
+          // 重放通路不需要快照：补上的事件里已经有它的 message_start/update。
+          for (const event of buffered) deliver(event);
+          if (!replayed && snapshot !== undefined && snapshot !== null) {
             encode({ type: "message_start", message: snapshot });
           }
-          snapshotPublished = true;
+
+          live = true;
         } catch (error) {
           if (closed) return;
           encode({

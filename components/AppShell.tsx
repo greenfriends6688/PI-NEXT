@@ -86,7 +86,7 @@ import { browserTabLabel, BROWSER_TABS_KEY, newBrowserTab, restoreBrowserTabs, t
 import { useTheme } from "@/hooks/useTheme";
 import { pickDirectory } from "@/lib/pick-directory";
 import { useI18n } from "@/hooks/useI18n";
-import { useIsMobile, useIsCompact } from "@/hooks/useIsMobile";
+import { useIsMobile, useIsCompact, usePlatformTier } from "@/hooks/useIsMobile";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
 import { useNativeBack } from "@/hooks/useNativeBack";
@@ -217,6 +217,7 @@ export function AppShell() {
   const { locale, t: translate } = useI18n();
   const isMobile = useIsMobile();
   const isCompact = useIsCompact();
+  const platformTier = usePlatformTier();
   useViewportHeight();
   // fork:tooltip-policy —— 挂一次，管住全应用的原生 `title` 提示。
   useTooltipPolicy();
@@ -579,7 +580,7 @@ export function AppShell() {
       setWorkspaceSwapped(false);
       return;
     }
-    // fork:pwa-tablet-tier — between 641 and 1024px a docked 288px sidebar is ~38% of the
+    // fork:pwa-tablet-tier — between 640 and 1023px a docked 288px sidebar is ~38% of the
     // viewport, which left the chat column too narrow for the composer's control row
     // (measured at 768px: that row ran 110px past the column). It starts as a drawer here
     // too; the user can still pin it open, and the desktop role swap still applies.
@@ -3147,7 +3148,7 @@ export function AppShell() {
           zIndex: 260,
           marginLeft: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
-          width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0, borderRadius: "var(--radius-md)",
+          width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0, borderRadius: "var(--nx-radius-row)",
           // Keep the boundary control on the same light surface as the
           // header. The open state is conveyed by the accent color instead
           // of a heavy selected background.
@@ -3415,7 +3416,7 @@ export function AppShell() {
     <LinkOpenProvider onOpenLink={handleOpenBrowser}>
     <>
     <style>{`
-      @media (max-width: 640px) {
+      @media (max-width: 639px) {
         .sidebar-overlay-backdrop.sidebar-mobile-pending {
           opacity: 0 !important;
           pointer-events: none !important;
@@ -3430,7 +3431,7 @@ export function AppShell() {
         is open, and as a right-hand column beside the active viewer. One node
         keeps the two spots from drifting apart. */}
     {(() => {})()}
-    <div ref={appShellRef} className="app-shell-layout d-shell" style={{
+    <div ref={appShellRef} className="app-shell-layout d-shell" data-platform-tier={platformTier} style={{
       position: "relative",
       display: "flex",
       width: "100%",
@@ -3448,8 +3449,8 @@ export function AppShell() {
       <WallpaperLayer />
       {/* Mobile overlay backdrop */}
       {/* fork:v5-wave-b —— 遮罩用画板 M-04 的 `.m-scrim`（≤640 生效），≥641 仍是
-          `.d-scrim`。两套类名在**不同媒体条件**里（d-* 只在 min-width:641px、m-* 只在
-          max-width:640px），所以同一个节点挂两个类不冲突，也不会互相覆盖 —— 这是
+          `.d-scrim`。两套类名在**不同媒体条件**里（d-* 只在 min-width: 640px、m-* 只在
+          max-width: 639px），所以同一个节点挂两个类不冲突，也不会互相覆盖 —— 这是
           Wave B 过渡口径下唯一允许的“双类”（故在此注释说明为什么）。 */}
       <div
         className={`sidebar-overlay-backdrop d-scrim${isMobile ? ` m-scrim${sidebarOpen ? " is-open" : ""}` : ""}${mobileSidebarReady ? "" : " sidebar-mobile-pending"}`}
@@ -3913,7 +3914,7 @@ export function AppShell() {
         aria-hidden={!workspaceSwapped && !rightPanelOpen ? true : undefined}
         inert={!workspaceSwapped && !rightPanelOpen ? true : undefined}
         /* fork:v5-landing —— 右栏宿主 = 画板 D-05 的 `.d-panel`。
-           ⚠ 冲突（待收尾波裁定）：`.d-panel` 自带 `width:320px`，在 641–959 的紧凑
+           ⚠ 冲突（待收尾波裁定）：`.d-panel` 自带 `width:320px`，在 640–1023 的平板
            浮层里会压掉 `.secondary-workspace { width: min(560px, calc(100vw - 48px)) }`
            （两者同为 0-1-0，system.css 在后）。宽屏网格有 `width:100% !important`、
            移动态有 `.secondary-workspace-open { width:auto }`（0-2-0），均不受影响。
@@ -3976,7 +3977,7 @@ export function AppShell() {
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: "var(--control-xs)", height: "var(--control-xs)", padding: 0,
-                borderRadius: "var(--radius-md)", background: "none", border: "none",
+                borderRadius: "var(--nx-radius-row)", background: "none", border: "none",
                 color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, transition: "color 0.12s",
               }}
               onMouseEnter={(event) => { event.currentTarget.style.color = "var(--accent)"; }}
@@ -4038,7 +4039,7 @@ export function AppShell() {
               className="fork-panel-head-act"
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
-                width: "var(--control-xs)", height: "var(--control-xs)", padding: 0, borderRadius: "var(--radius-md)",
+                width: "var(--control-xs)", height: "var(--control-xs)", padding: 0, borderRadius: "var(--nx-radius-row)",
                 background: "var(--bg-selected)", border: "none", borderLeft: "1px solid var(--border)",
                 color: "var(--text)", cursor: "pointer", flexShrink: 0, transition: "color 0.12s",
               }}

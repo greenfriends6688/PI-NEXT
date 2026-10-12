@@ -117,3 +117,23 @@ export function isEventIncludedInSnapshot(
     && (event.type === "message_start" || event.type === "message_update")
     && event.message === snapshot;
 }
+
+/**
+ * 这个事件被丢掉时，后面还有没有事件能修好它。`*_delta` 只是延长一个块，而它的
+ * `*_end` 会用权威内容替换整个块；`tool_execution_update` 带的是整个部分结果，
+ * 会被下一次 update 或 `tool_execution_end` 取代。`*_start` / `*_end` 永不丢：
+ * 客户端的流式 reducer 就是靠它们创建和收尾块的。
+ *
+ * fork:upstream-sse-backlog — #997 移植（6b0c6a5）。
+ * fork:event-seq —— 同一判据现在也用来决定**给不给序号**：可重建的增量不编号，
+ * 否则背压下丢一条就制造一个假缺口。
+ */
+export function isDroppableEvent(event: AgentEventLike): boolean {
+  if (event.type === "tool_execution_update") return true;
+  if (event.type !== "message_update") return false;
+  const update = event.assistantMessageEvent;
+  return typeof update === "object"
+    && update !== null
+    && typeof (update as { type?: unknown }).type === "string"
+    && (update as { type: string }).type.endsWith("_delta");
+}

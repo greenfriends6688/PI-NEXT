@@ -234,7 +234,7 @@
   --readable-content-max-width: 900px;
   --composer-max-width: 800px;
   /* 12px: Zeno's panel radius, which is what its composer card uses. */
-  --radius-composer: var(--radius-2xl);
+  --radius-composer: var(--nx-radius-sheet);
   --height-toolbar: 36px;
   --height-toolbar-pane: 40px;
   /* 设计 02 / 60 号画板：顶栏图标按钮桌面 28、粗指针（移动端）36。
@@ -242,7 +242,7 @@
   --topbar-icon-size: 28px;
 
   /* 设计 60 号画板断点表：≤1024 顶栏抬到 48、图标按钮 28→36（触控目标）。 */
-  @media (max-width: 1024px) {
+  @media (max-width: 1023px) {
     --height-toolbar: 48px;
     --topbar-icon-size: 36px;
   }
@@ -468,9 +468,8 @@ html, body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  /* 优先级：用户选的界面字体（--font-ui-base，内联）> 设计默认（--font-ui，Geist）
-     > next/font 注入的 --font-geist > 平台栈。 */
-  font-family: var(--font-ui-base, var(--font-ui, var(--font-geist))), -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  /* User choice first, then the Apple-first platform semantic stack. */
+  font-family: var(--font-ui-base, var(--nx-font-ui));
   font-feature-settings: "tnum" 1;
   /* fork:zn-15 — 「UI 字号」的旋钮（Zeno `--ui-font-size`）。默认等于 body 原本的
      `--text-lg`，所以不设这项时行为与之前完全一致。 */
@@ -601,7 +600,7 @@ body {
   max-width: 100%;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .extension-status-trailing {
     flex: 1 0 100%;
     padding: 2px 10px;
@@ -808,12 +807,10 @@ button.extension-widget-trigger:focus-visible {
 }
 
 :root {
-  /* fork:design-system PR-03 — 设计 §1.5 的字体栈：UI 用 Geist、等宽用 Geist Mono
-     （两者由 next/font 注入 --font-geist / --font-geist-mono），中文回退到
-     PingFang SC / 微软雅黑。--font-ui 是设计里的名字，产品里此前只有 body 上
-     直接写的栈，现在提成变量，画板与运行时同源。 */
-  --font-ui: var(--font-geist), "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  --font-mono: "Geist Mono", var(--font-geist-mono), ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", 'PingFang SC', 'Microsoft YaHei', monospace;
+  /* Legacy aliases point at the platform semantic layer. Geist remains loaded by
+     next/font only as a cross-platform fallback, never as the Apple-first family. */
+  --font-ui: var(--nx-font-ui);
+  --font-mono: var(--nx-font-mono);
 }
 
 pre, code {
@@ -882,7 +879,7 @@ pre, code {
   max-width: 100%;
   height: auto;
   margin: 8px 0;
-  border-radius: var(--radius-lg);
+  border-radius: var(--nx-radius-card);
 }
 .markdown-body .contains-task-list {
   padding-left: 0;
@@ -904,7 +901,7 @@ pre, code {
   height: 14px;
   margin: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
+  border-radius: var(--nx-radius-control);
   background: var(--bg);
   display: inline-grid;
   place-content: center;
@@ -927,7 +924,7 @@ pre, code {
 }
 .markdown-body blockquote {
   border-left: 2px solid var(--border-strong);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  border-radius: 0 var(--nx-radius-row) var(--nx-radius-row) 0;
   margin: 6px 0;
   padding: 7px 12px;
   background: var(--bg-subtle);
@@ -939,7 +936,7 @@ pre, code {
   overflow-x: auto;
   overflow-y: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--nx-radius-card);
 }
 .markdown-body table {
   border-collapse: separate;
@@ -1093,7 +1090,7 @@ pre, code {
 .mermaid-zoom-canvas {
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-6);
+  border-radius: var(--nx-radius-card);
   background: var(--bg-elev);
   margin: 0 auto;
   /* DSN-05 评估结论：保留 width 过渡。缩放宽度由 JS 按档位写内联 width，
@@ -1152,7 +1149,7 @@ pre, code {
   height: 26px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--nx-radius-row);
 }
 
 .file-viewer-mode-button {
@@ -1180,7 +1177,7 @@ pre, code {
    所以自带完整边框（`.file-viewer-mode-button` 只画左侧分隔线）。 */
 .file-viewer-diff-toggle {
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--nx-radius-row);
   background: transparent;
   color: var(--text-muted);
 }
@@ -1224,7 +1221,7 @@ pre, code {
   box-sizing: border-box;
   border: 1px solid var(--border);
   /* 设计 §1.3：不出现胶囊按钮（pill 只给开关轨道与全圆徽章）；按钮容器圆角 4。 */
-  border-radius: var(--radius-sm);
+  border-radius: var(--nx-radius-control);
   background: var(--bg-panel);
   color: var(--text-muted);
   cursor: pointer;
@@ -1281,7 +1278,7 @@ pre, code {
   box-sizing: border-box;
   flex: 0 0 26px;
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--nx-radius-row);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -1368,7 +1365,7 @@ html:not([data-focus-modality="pointer"]) .directory-picker-path:focus-visible {
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .file-viewer-meta {
     display: none;
   }
@@ -1406,7 +1403,7 @@ html:not([data-focus-modality="pointer"]) .directory-picker-path:focus-visible {
 .markdown-file-preview pre {
   background: var(--bg-elev);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--nx-radius-card);
   padding: 12px 16px;
   overflow-x: auto;
   font-family: var(--font-mono);
@@ -1451,7 +1448,7 @@ html:not([data-focus-modality="pointer"]) .directory-picker-path:focus-visible {
   margin-bottom: 20px;
   padding: 14px 16px 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--nx-radius-popover);
   background: var(--bg-elev);
 }
 /* fork:v5-old-layer（2026-10-04）—— 删 `.markdown-frontmatter-title` /
@@ -1508,7 +1505,7 @@ span.token.table {
 :focus-visible {
   outline: 1.5px solid var(--accent);
   outline-offset: 1px;
-  border-radius: var(--radius-xs);
+  border-radius: var(--nx-radius-control);
 }
 
 /* DSN-09：选区与输入光标主题化（此前全仓零命中）。
@@ -1666,7 +1663,7 @@ textarea,
 }
 
 /* Desktop sidebar: animate width */
-@media (min-width: 641px) {
+@media (min-width: 640px) {
   .sidebar-overlay-backdrop {
     display: none !important;
   }
@@ -1782,9 +1779,9 @@ textarea,
   background: var(--bg);
 }
 
-/* Wide desktop: keep the column order and separator fixed; only grid areas
+/* M2 desktop: keep the column order and separator fixed; only grid areas
    change when the user swaps chat and editor roles. */
-@media (min-width: 960px) {
+@media (min-width: 1024px) {
   .main-panels {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 0 minmax(0, 0px);
@@ -1846,7 +1843,7 @@ textarea,
 /* The sidebar toggle lives above the physical boundary.  Keep the first
    control in whichever surface is currently the main workspace outside that
    fixed hit target.  The secondary workspace must not receive this inset. */
-@media (min-width: 641px) {
+@media (min-width: 640px) {
   .main-panels > .main-workspace .main-workspace-header {
     padding-inline-start: var(--main-workspace-header-leading-inset, 36px);
   }
@@ -1855,9 +1852,9 @@ textarea,
   }
 }
 
-/* Compact desktop: the current secondary workspace overlays the main region.
+/* M1 tablet: the current secondary workspace overlays the main region.
    It can therefore contain either the editor (normal) or the chat (swapped). */
-@media (min-width: 641px) and (max-width: 959px) {
+@media (min-width: 640px) and (max-width: 1023px) {
   .desktop-secondary-workspace-toggle {
     right: min(560px, calc(100vw - 48px)) !important;
   }
@@ -1920,7 +1917,7 @@ textarea,
 }
 
 /* Mobile sidebar: slide in/out as overlay */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .sidebar-container {
     position: fixed !important;
     top: 0;
@@ -1989,12 +1986,12 @@ textarea,
 }
 
 /* DSN-04：移动端触控目标。--control-touch: 44px 定义已久但全仓零引用，
-   这里让它落地。整块包在 max-width: 640px 内，桌面端零视觉变化。
+   这里让它落地。整块包在 max-width: 639px 内，桌面端零视觉变化。
    两类手段：① 文字型控件直接 min-height 到 44px；② 视觉必须保持小尺寸的
    图标按钮不改盒子，用 ::after 外扩命中区（同 .panel-resize-handle 手法：
    伪元素是按钮的子节点，超出盒子的部分仍算按钮命中区；有意不设
    pointer-events: none，否则外扩部分收不到事件）。 */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   button,
   select,
   [role="button"],
@@ -2057,17 +2054,17 @@ textarea,
   to   { opacity: 1; }
 }
 .anim-popover {
-  border-radius: var(--radius-lg) !important;
+  border-radius: var(--nx-radius-card) !important;
   box-shadow: var(--shadow-md) !important;
   animation: fork-pop-up var(--motion-base) var(--ease-out);
 }
 .anim-popover-down {
-  border-radius: var(--radius-lg) !important;
+  border-radius: var(--nx-radius-card) !important;
   box-shadow: var(--shadow-md) !important;
   animation: fork-pop-down var(--motion-base) var(--ease-out);
 }
 .anim-dialog {
-  border-radius: var(--radius-lg) !important;
+  border-radius: var(--nx-radius-card) !important;
   box-shadow: var(--shadow-lg) !important;
   animation: fork-fade-in var(--motion-base) var(--ease-out);
 }
@@ -2173,7 +2170,7 @@ html[data-focus-modality="pointer"] :is(:focus, :focus-visible) {
 .desktop-secondary-workspace-toggle,
 .desktop-workspace-role-toggle {
   border: none !important;
-  border-radius: var(--radius-md) !important;
+  border-radius: var(--nx-radius-row) !important;
 }
 
 @media (hover: hover) {
@@ -2341,7 +2338,7 @@ html[data-focus-modality="pointer"] :is(:focus, :focus-visible) {
   gap: var(--s2);
   width: 100%;
   border: 0;
-  border-radius: var(--radius-4);
+  border-radius: var(--nx-radius-control);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -2374,7 +2371,7 @@ html[data-focus-modality="pointer"] :is(:focus, :focus-visible) {
   height: 19px;
   padding: 0 6px;
   border: 1px solid var(--border-faint);
-  border-radius: var(--radius-xs);
+  border-radius: var(--nx-radius-control);
   background: var(--bg-subtle);
   color: var(--text-muted);
   font-family: var(--font-mono);
@@ -2795,9 +2792,9 @@ button.process-file-chip:hover {
  * 完全同一套：盒子回到画板几何（一个像素都不动），命中区改用 `::after` 外扩
  * —— 30×17 → 46×33，短边越过 `--control-md`(32)，与既有那几条 `::after` 规则同值同口径
  * （它们只加命中区、没撤 min-height，所以在手机档反被压变形；本段补上撤除那一半）。
- * 桌面（>640px）整段不生效。`board.css:833` 已给 `.pw-switch{position:relative}`。
+ * 桌面（≥640px）整段不生效。`board.css:833` 已给 `.pw-switch{position:relative}`。
  * ========================================================================= */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   button.pw-switch {
     /* 只撤 DSN-04 补的那一档；`height` 仍由 board.css 的 `.pw-switch` 给出。 */
     min-height: 0;

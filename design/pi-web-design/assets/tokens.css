@@ -113,8 +113,11 @@
   --space-loose: 10px;  /* 撑满宽的横幅内：图标 ↔ 字 */
 
   /* ---- 9. 字阶（5 档）· 字重 400 / 500 ---------------------------------- */
-  --font-ui: "Geist", "Noto Sans SC", system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+             "Helvetica Neue", "PingFang SC", "Microsoft YaHei",
+             "Noto Sans CJK SC", var(--font-geist, sans-serif);
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+               "PingFang SC", "Microsoft YaHei", var(--font-geist-mono, monospace);
 
   --text-display: 20px;   /* 空态大字 */
   --text-title:   15px;   /* 标题 */

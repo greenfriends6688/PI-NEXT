@@ -495,7 +495,7 @@ function NewSessionUpdateLink({
         minWidth: 0,
         padding: "0 4px",
         background: "transparent",
-        borderRadius: "var(--radius-xs)",
+        borderRadius: "var(--nx-radius-control)",
         color: "var(--accent)",
         fontSize: TEXT.sm,
         fontWeight: 600,
@@ -3178,7 +3178,7 @@ function renderDialogTitle(title: string): ReactNode {
           style={{
             margin: "var(--space-row) 0",
             padding: "8px 10px",
-            borderRadius: "var(--radius-sm)",
+            borderRadius: "var(--nx-radius-control)",
             background: "color-mix(in srgb, var(--danger) 10%, transparent)",
             border: "1px solid color-mix(in srgb, var(--danger) 35%, transparent)",
             borderLeft: "3px solid var(--danger)",
@@ -3274,7 +3274,7 @@ function ExtensionCountdownBar({ expiresAt }: { expiresAt: number }) {
   }, [expiresAt, motion]);
 
   return (
-    <div className="d-bar" aria-hidden="true" style={{ borderRadius: 0, flexShrink: 0 }}>
+    <div className="d-bar" aria-hidden="true" style={{ borderRadius: "0", flexShrink: 0 }}>
       <i
         ref={ref}
         data-fork-countdown-bar
@@ -3886,7 +3886,7 @@ function ExtensionCustomPanel({
             minHeight: 0,
             overflow: "auto",
             whiteSpace: "pre",
-            borderRadius: 0,
+            borderRadius: "0",
           }}
         >
           <AnsiText text={displayLines.join("\n")} />

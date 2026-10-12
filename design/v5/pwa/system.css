@@ -33,7 +33,7 @@
 .m-top-title { font-size: var(--nx-sk-t-headline-size); line-height: var(--nx-sk-t-headline-lh);
   font-weight: var(--nx-sk-t-headline-w); color: var(--nx-vibrant-1); min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.m-top-btn { width: var(--nx-ctl-md); height: var(--nx-ctl-md); flex: 0 0 auto; border: 0;
+.m-top-btn { width: var(--nx-touch-min); height: var(--nx-touch-min); flex: 0 0 auto; border: 0;
   border-radius: 999px; background: var(--nx-glass);
   -webkit-backdrop-filter: blur(var(--nx-glass-blur-small)) saturate(var(--nx-glass-saturate-small));
   backdrop-filter: blur(var(--nx-glass-blur-small)) saturate(var(--nx-glass-saturate-small));
@@ -54,13 +54,18 @@
 /* flex 列里带 overflow / aspect-ratio / min-height 的子项会被压扁（实测 .m-cats 32px → 4px）。
    这几处是「滚动区」「设置流」「商店流」的根容器，它们的直接子项一律不许参与收缩。 */
 .m-scroll > *, .m-settings > *, .m-store-body > *, .m-onboard > *, .m-panel-scroll > * { flex: 0 0 auto; }
-.m-msg-user { align-self: flex-end; max-width: 82%; background: var(--nx-accent-soft);
-  border-radius: var(--nx-r-lg); border-bottom-right-radius: var(--nx-r-xs); padding: 12px 15px; }
+.m-msg-user {
+  --nx-text: var(--nx-accent-fg);
+  --nx-text-2: color-mix(in srgb, var(--nx-accent-fg) 82%, transparent);
+  --nx-text-3: color-mix(in srgb, var(--nx-accent-fg) 68%, transparent);
+  --nx-code-bg: color-mix(in srgb, #000 18%, transparent);
+  align-self: flex-end; max-width: 82%; background: var(--nx-accent);
+  border-radius: var(--nx-radius-card); border-bottom-right-radius: var(--nx-radius-control); padding: 12px 15px; }
 /* 助手消息：身份行（品牌 logo + PI NEXT + 模型徽章）+ 内容 + 动作行 —— 与 web .d-msg-ai 同义。
    每条助手消息都必须有身份行：转录区里它是「谁在说」的唯一来源。 */
 .m-msg-ai { display: flex; flex-direction: column; gap: var(--nx-sp-3); }
 .m-msg-ai-head { display: flex; align-items: center; gap: var(--nx-sp-2); }
-.m-ava { width: 22px; height: 22px; border-radius: var(--nx-r-sm); background: var(--nx-accent);
+.m-ava { width: 22px; height: 22px; border-radius: var(--nx-radius-control); background: var(--nx-accent);
   color: var(--nx-accent-fg); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 /* 头像盒用中性底：渐变品牌图叠在强调色上会变浑（与 web 同因）。
    fork:ava-no-frame（用户 2026-10-05）—— 与 `.d-ava.brand` 同一次裁定：边框去掉。 */
@@ -89,18 +94,18 @@
    `.m-md` 里的引用 + 四项任务清单 + 一处 `@`/`#` 提及），所以这四件现在有板可依。
    几何全部令牌化，值取自 PWA 形态。 */
 .m-quote { margin: 0 0 var(--nx-sp-3); padding: var(--nx-sp-3) var(--nx-sp-4);
-  border-radius: var(--nx-r-md); background: var(--nx-surface); color: var(--nx-text-2); }
+  border-radius: var(--nx-radius-row); background: var(--nx-surface); color: var(--nx-text-2); }
 .m-tasklist { list-style: none; margin: 0 0 var(--nx-sp-3); padding-left: var(--nx-sp-1);
   display: flex; flex-direction: column; gap: var(--nx-sp-2); }
 .m-tasklist > li { display: flex; align-items: flex-start; gap: var(--nx-sp-2); }
 .m-tasklist > li::marker { content: none; }
 .m-checkbox { width: calc(var(--nx-ctl-xs) - var(--nx-sp-2)); height: calc(var(--nx-ctl-xs) - var(--nx-sp-2));
-  flex: 0 0 auto; margin-top: 2px; border: 1.5px solid var(--nx-line-hi); border-radius: var(--nx-r-xs);
+  flex: 0 0 auto; margin-top: 2px; border: 1.5px solid var(--nx-line-hi); border-radius: var(--nx-radius-control);
   display: inline-flex; align-items: center; justify-content: center; color: transparent; }
 .m-checkbox.on { background: var(--nx-accent); border-color: var(--nx-accent); color: var(--nx-accent-fg); }
 .m-checkbox.half { border-color: var(--nx-accent); }
 .m-checkbox.half::after { content: ""; width: var(--nx-sp-2); height: 1.5px; background: var(--nx-accent); }
-.m-mention { padding: 0 var(--nx-sp-1); border-radius: var(--nx-r-xs); background: var(--nx-accent-soft);
+.m-mention { padding: 0 var(--nx-sp-1); border-radius: var(--nx-radius-control); background: var(--nx-accent-soft);
   color: var(--nx-accent); font-size: var(--nx-fs-xs); line-height: var(--nx-lh-tight); }
 /* 引用与列表：与 Web 的 `.m-md` 同口径（间距取令牌，不写字面量）。 */
 .m-md ul, .m-md ol { margin: 0 0 var(--nx-sp-3); padding-left: var(--nx-sp-6); }
@@ -111,12 +116,12 @@
 /* 公式容器：M-01 / M-02 / M-11 已在上用。上下内边距取 --nx-sp-1 的一半（= 原来那 2px），
    几何一字不变，只是把字面量换成能算出来的值。 */
 .m-math { font-family: var(--nx-font-mono); font-size: var(--nx-fs-cap); background: var(--nx-code-bg);
-  border-radius: var(--nx-r-xs); padding: calc(var(--nx-sp-1) / 2) var(--nx-sp-2); }
+  border-radius: var(--nx-radius-control); padding: calc(var(--nx-sp-1) / 2) var(--nx-sp-2); }
 
 /* 过程时间轴（默认折叠） */
 .m-steps { display: flex; flex-direction: column; gap: 2px; }
 .m-step-row { display: flex; align-items: center; gap: 10px; min-height: var(--nx-ctl-sm);
-  border-radius: var(--nx-r-sm); padding: 0 10px; font-size: var(--nx-fs-cap); color: var(--nx-text-2);
+  border-radius: var(--nx-radius-control); padding: 0 10px; font-size: var(--nx-fs-cap); color: var(--nx-text-2);
   border: 0; background: none; font-family: inherit; width: 100%; text-align: left; cursor: pointer; }
 .m-step-row:active { background: var(--nx-surface); }
 .m-step-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--nx-line-hi); flex: 0 0 auto; }
@@ -131,16 +136,16 @@
    （托盘里的按钮），cite 是**文件名**（只读，指“这个文件被碰过”）。 */
 .m-cites { display: flex; flex-wrap: wrap; gap: var(--nx-sp-1); margin-top: var(--nx-sp-2); }
 .m-cite { display: inline-flex; align-items: center; gap: var(--nx-sp-1);
-  min-height: var(--nx-ctl-xs); padding: 0 var(--nx-sp-2); border-radius: var(--nx-r-xs);
+  min-height: var(--nx-ctl-xs); padding: 0 var(--nx-sp-2); border-radius: var(--nx-radius-control);
   background: var(--nx-surface); color: var(--nx-text-2); font-size: var(--nx-fs-xs);
   font-family: var(--nx-font-mono); }
 .m-cite.is-on { background: var(--nx-accent-soft); color: var(--nx-accent); }
 
 /* 工具/代码/表格 */
-.m-tool { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-panel); overflow: hidden; }
+.m-tool { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row); background: var(--nx-panel); overflow: hidden; }
 .m-tool-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px;
   font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
-.m-code { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-code-bg); overflow: hidden; }
+.m-code { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row); background: var(--nx-code-bg); overflow: hidden; }
 .m-code-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px;
   border-bottom: 1px solid var(--nx-code-line); font-size: var(--nx-fs-xs); color: var(--nx-text-3);
   font-family: var(--nx-font-mono); }
@@ -153,25 +158,25 @@
   color: var(--nx-diff-add); }
 .m-code-del { background: color-mix(in srgb, var(--nx-diff-del) 10%, transparent);
   color: var(--nx-diff-del); }
-.m-tbl-scroll { overflow-x: auto; border: 1px solid var(--nx-line); border-radius: var(--nx-r-md);
+.m-tbl-scroll { overflow-x: auto; border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row);
   background: var(--nx-panel); }
 .m-tbl { border-collapse: collapse; font-size: var(--nx-fs-cap); min-width: 100%; }
 .m-tbl th, .m-tbl td { border: 1px solid var(--nx-line); padding: 8px 12px; text-align: left; white-space: nowrap; }
 .m-tbl th { background: var(--nx-surface); font-weight: 500; }
 .m-err { color: var(--nx-danger); font-size: var(--nx-fs-cap); }
-.m-collapse { border: 1px solid var(--nx-line); border-radius: var(--nx-r-md); background: var(--nx-panel); overflow: hidden; }
+.m-collapse { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-row); background: var(--nx-panel); overflow: hidden; }
 .m-collapse-head { display: flex; align-items: center; gap: 8px; padding: 11px 13px;
   font-size: var(--nx-fs-cap); color: var(--nx-text-2); cursor: pointer; }
 
 /* 附件格子（末格添加） */
 .m-attach-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.m-attach { aspect-ratio: 1; border-radius: var(--nx-r-sm); background: var(--nx-surface);
+.m-attach { aspect-ratio: 1; border-radius: var(--nx-radius-control); background: var(--nx-surface);
   display: flex; align-items: center; justify-content: center; color: var(--nx-text-3);
   font-size: var(--nx-fs-xs); flex-direction: column; gap: 4px; border: 0; cursor: pointer;
   overflow: hidden; }
 .m-attach.add { border: 1.5px dashed var(--nx-line-hi); background: none; }
 .m-attachbar { display: flex; gap: 8px; overflow-x: auto; padding: 2px; }
-.m-attachbtn { width: 44px; height: 44px; border-radius: var(--nx-r-sm); background: var(--nx-surface);
+.m-attachbtn { width: 44px; height: 44px; border-radius: var(--nx-radius-control); background: var(--nx-surface);
   display: flex; align-items: center; justify-content: center; color: var(--nx-text-2); flex: 0 0 auto; }
 
 /* 分支 */
@@ -186,7 +191,7 @@
 /* 能力入口：输入卡里**一枚**钮（模型 / 思考 / 权限 / 工具四项都收在它后面的浮层里）。
    原来是四枚 chip 平铺一行，手机上那行会把输入卡顶成两行。 */
 /* 能力入口是一枚**纯图标**钮（与左侧的 + 同尺寸），四项设置都在它后面的浮层里。 */
-.m-cap-btn { width: 34px; height: 34px; border-radius: 999px; border: 0; padding: 0; flex: 0 0 auto;
+.m-cap-btn { width: var(--nx-touch-min); height: var(--nx-touch-min); border-radius: 999px; border: 0; padding: 0; flex: 0 0 auto;
   background: var(--nx-surface); color: var(--nx-text-2); cursor: pointer;
   display: flex; align-items: center; justify-content: center; }
 .m-cap-btn:active { transform: scale(.92); }
@@ -224,7 +229,7 @@
   background: var(--nx-glass);
   -webkit-backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
   backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
-  border-radius: var(--nx-r-xl); box-shadow: var(--nx-sh-2), var(--nx-halo);
+  border-radius: var(--nx-radius-popover); box-shadow: var(--nx-sh-2), var(--nx-halo);
   padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--nx-line); }
 .m-composer-row { display: flex; align-items: center; gap: 8px; }
 /* height 必须是 auto：.m-input 给的是 height 44px（单行控件），
@@ -255,7 +260,7 @@
    现在整行就是 + · 输入 · 能力 · 声音 · 发送，一行结束。 */
 /* 图7：发送钮原先又大又带光晕，在 390 宽的屏上像一枚大按钮。
    收到 40px（仍在 44 命中区里：外面补 padding），阴影只留一层很轻的。 */
-.m-send { width: 40px; height: 40px; border-radius: 999px; border: 0; padding: 0;
+.m-send { width: var(--nx-touch-min); height: var(--nx-touch-min); border-radius: 999px; border: 0; padding: 0;
   background: var(--nx-accent); color: var(--nx-accent-fg); cursor: pointer; flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--nx-text) 16%, transparent); }
@@ -308,14 +313,14 @@
 /* 模型 pill（顶栏中置，Aether 语义） */
 
 /* 队列 */
-.m-queue { border-radius: var(--nx-r-lg); background: var(--nx-panel); box-shadow: var(--nx-sh-2);
+.m-queue { border-radius: var(--nx-radius-card); background: var(--nx-panel); box-shadow: var(--nx-sh-2);
   padding: 6px; display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--nx-line); }
 .m-queue-row { display: flex; align-items: flex-start; gap: 8px; padding: 9px 10px;
-  border-radius: var(--nx-r-sm); font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
+  border-radius: var(--nx-radius-control); font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
 
 /* ── 4 · 浮层 / 底部面板 / 抽屉 ───────────────────────────────────────────── */
 .m-pop-float { position: absolute; z-index: var(--nx-z-pop); left: var(--nx-sp-3); right: var(--nx-sp-3);
-  background: var(--nx-panel); border-radius: var(--nx-r-lg); box-shadow: var(--nx-sh-2);
+  background: var(--nx-panel); border-radius: var(--nx-radius-card); box-shadow: var(--nx-sh-2);
   border: 1px solid var(--nx-line); padding: 6px; display: none; }
 /* 同 .d-pop：.is-open 开、hidden 强制关（全局 [hidden] 兜底压得住它）。 */
 .m-pop-float.is-open { display: block; animation: nx-pop-in var(--nx-dur-2) var(--nx-ease-out); }
@@ -332,15 +337,15 @@
    （fork-ui.css 的 `.context-menu` 只封到 `100dvh - 16px`），超出靠它自己的
    overflow-y 滚 —— 选择器带 `.m-pop-float`，只改窄屏形态那一支。 */
 .m-menu-row { display: flex; align-items: center; gap: 10px; width: 100%;
-  /* fork:apple-sketch —— 菜单行高取 iOS kit 的 Menus 实测（42） */
-  min-height: var(--nx-c-menu-h);
+  /* Apple touch contract: menu rows keep the 44px minimum hit target. */
+  min-height: var(--nx-touch-min);
   border: 0; background: none; font: inherit; font-size: var(--nx-fs-cap); color: var(--nx-text);
-  padding: 0 12px; border-radius: var(--nx-r-sm); cursor: pointer; text-align: left; }
+  padding: 0 12px; border-radius: var(--nx-radius-control); cursor: pointer; text-align: left; }
 .m-pop-float.context-menu { max-height: min(66dvh, 560px); }
 .m-menu-row:active { background: var(--nx-surface); }
 .m-menu-row.danger { color: var(--nx-danger); }
 .m-menu-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: var(--nx-z-modal);
-  background: var(--nx-panel); border-radius: var(--nx-r-xl) var(--nx-r-xl) 0 0;
+  background: var(--nx-panel); border-radius: var(--nx-radius-popover) var(--nx-radius-popover) 0 0;
   box-shadow: var(--nx-sh-2); padding: 8px 10px calc(14px + env(safe-area-inset-bottom, 0px));
   display: none; }
 .m-menu-sheet.is-open { display: block; animation: nx-sheet-up var(--nx-dur-3) var(--nx-ease-out); }
@@ -358,7 +363,7 @@
 /* 画到文档流里（系统态清单里的静态示例）时用这个修饰 */
 .m-modal.inline { position: relative; inset: auto; display: block; padding: 0; background: none; }
 .m-modal-box { width: 100%; background: var(--nx-panel); border: 1px solid var(--nx-line);
-  border-radius: var(--nx-r-lg); box-shadow: var(--nx-sh-2); overflow: hidden; }
+  border-radius: var(--nx-radius-card); box-shadow: var(--nx-sh-2); overflow: hidden; }
 .m-modal-head { padding: var(--nx-sp-4) var(--nx-sp-4) 0; font-size: var(--nx-fs-lg); font-weight: 600; }
 .m-modal-body { padding: var(--nx-sp-2) var(--nx-sp-4); display: flex; flex-direction: column;
   gap: var(--nx-sp-2); font-size: var(--nx-fs-cap); color: var(--nx-text-2); line-height: var(--nx-lh-body); }
@@ -371,7 +376,7 @@
 .m-scrim.is-open { opacity: 1; pointer-events: auto; }
 
 .m-drawer { position: absolute; top: 0; bottom: 0; left: 0; width: min(84%, 320px); z-index: var(--nx-z-drawer);
-  background: var(--nx-panel); border-radius: 0 var(--nx-r-xl) var(--nx-r-xl) 0;
+  background: var(--nx-panel); border-radius: 0 var(--nx-radius-popover) var(--nx-radius-popover) 0;
   box-shadow: var(--nx-sh-2); transform: translateX(-104%);
   transition: transform var(--nx-dur-4) var(--nx-ease); display: flex; flex-direction: column; }
 .m-drawer.is-open { transform: translateX(0); }
@@ -383,7 +388,7 @@
 
 /* 底部面板（sheet）—— translateY 而非 hidden，动画才生效 */
 .m-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: var(--nx-z-modal);
-  max-height: 78%; background: var(--nx-panel); border-radius: var(--nx-r-xl) var(--nx-r-xl) 0 0;
+  max-height: 78%; background: var(--nx-panel); border-radius: var(--nx-radius-popover) var(--nx-radius-popover) 0 0;
   box-shadow: var(--nx-sh-2); transform: translateY(104%);
   transition: transform var(--nx-dur-4) var(--nx-ease); display: flex; flex-direction: column; }
 .m-sheet.is-open { transform: translateY(0); }
@@ -396,7 +401,7 @@
 .m-sheet-row { display: flex; align-items: center; gap: 10px; width: 100%;
   /* fork:apple-sketch —— 行高取 iOS kit 的 Lists 实测 Tall 档 68（此前后一行用的是 ctl-md） */
   min-height: var(--nx-sk-c-lists-content-lg-h);
-  padding: 4px 8px; border: 0; background: none; border-radius: var(--nx-r-sm);
+  padding: 4px 8px; border: 0; background: none; border-radius: var(--nx-radius-control);
   font: inherit; font-size: var(--nx-fs-body); color: var(--nx-text); cursor: pointer; text-align: left; }
 .m-sheet-row:active { background: var(--nx-surface); }
 .m-sheet-row-desc { font-size: var(--nx-fs-xs); color: var(--nx-text-3); margin-top: 1px; }
@@ -421,7 +426,7 @@
 .m-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 8px 12px;
   display: flex; flex-direction: column; gap: 2px; }
 .m-row { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; border: 0;
-  background: none; font-family: inherit; padding: 10px 12px; border-radius: var(--nx-r-sm);
+  background: none; font-family: inherit; padding: 10px 12px; border-radius: var(--nx-radius-control);
   cursor: pointer; min-width: 0; }
 .m-row:active { background: var(--nx-surface); }
 .m-row.is-on { background: var(--nx-selected); }
@@ -441,17 +446,17 @@
    —— 商店卡、定时卡、统计卡、思考指示器规格卡都属于后者。之前只有 .m-tool（工具卡），
    而 .m-tool 的语义绑死在「工具调用输出」，拿来装正文是借用，借久了就成了第二个来源。 */
 .m-card { background: var(--nx-panel); border: 1px solid var(--nx-line);
-  border-radius: var(--nx-r-lg); overflow: hidden; }
+  border-radius: var(--nx-radius-card); overflow: hidden; }
 .m-card-head { display: flex; align-items: center; gap: var(--nx-sp-2);
   padding: var(--nx-sp-3) var(--nx-sp-4); border-bottom: 1px solid var(--nx-line);
   font-size: var(--nx-fs-body); font-weight: 600; }
 .m-card-body { padding: var(--nx-sp-4); }
 .m-settings { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 108px 14px 32px;
   display: flex; flex-direction: column; gap: 14px; }
-.m-cardgroup { background: var(--nx-panel); border-radius: var(--nx-r-lg); overflow: hidden;
+.m-cardgroup { background: var(--nx-panel); border-radius: var(--nx-radius-card); overflow: hidden;
   border: 1px solid var(--nx-line); }
 .m-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--nx-sp-2); }
-.m-setrow { display: flex; align-items: center; gap: 12px; width: 100%; min-height: var(--nx-ctl-md);
+.m-setrow { display: flex; align-items: center; gap: 12px; width: 100%; min-height: var(--nx-touch-min);
   padding: 10px 14px; border: 0; background: none; font: inherit; font-size: var(--nx-fs-body);
   color: var(--nx-text); cursor: pointer; text-align: left; border-bottom: 1px solid var(--nx-line); }
 .m-setrow:last-child { border-bottom: 0; }
@@ -475,7 +480,7 @@
 .m-fieldrow-s { font-size: var(--nx-fs-xs); color: var(--nx-text-3); margin-top: 2px; }
 
 /* 表单 */
-.m-input { border: 1px solid var(--nx-line); border-radius: var(--nx-r-sm); background: var(--nx-panel);
+.m-input { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-control); background: var(--nx-panel);
   font: inherit; font-size: var(--nx-fs-body); color: var(--nx-text); padding: 0 12px;
   height: var(--nx-ctl-md); min-width: 0; }
 .m-input:focus { border-color: var(--nx-accent); outline: none; }
@@ -493,7 +498,7 @@
   border-radius: 999px; background: #fff; box-shadow: var(--nx-sh-1); cursor: pointer; }
 .m-select { display: flex; align-items: center; justify-content: space-between; gap: 8px;
   min-height: var(--nx-ctl-md); padding: 0 14px; border: 1px solid var(--nx-line);
-  border-radius: var(--nx-r-sm); background: var(--nx-panel); font: inherit;
+  border-radius: var(--nx-radius-control); background: var(--nx-panel); font: inherit;
   font-size: var(--nx-fs-body); color: var(--nx-text); cursor: pointer; width: 100%; }
 /* 原生 select 的皮肤（结构：壳 .m-pickselect + 壳内一个裸 <select> + 右侧 chevron）。
    **为什么不能自绘**：手机上自绘下拉 = 改行为。滚轮惯性、无障碍朗读、系统级「选取」面板、
@@ -503,7 +508,7 @@
    设置里的「从若干值里选一个」一律用 .m-pickselect。 */
 .m-pickselect { position: relative; display: flex; align-items: center;
   min-height: var(--nx-ctl-md); padding: 0 var(--nx-sp-4); border: 1px solid var(--nx-line);
-  border-radius: var(--nx-r-sm); background: var(--nx-panel); color: var(--nx-text);
+  border-radius: var(--nx-radius-control); background: var(--nx-panel); color: var(--nx-text);
   font-size: var(--nx-fs-body); cursor: pointer; }
 .m-pickselect > select { flex: 1 1 auto; min-width: 0; width: 100%; height: 100%;
   border: 0; background: none; font: inherit; font-size: inherit; color: inherit;
@@ -521,7 +526,7 @@
 .m-badge.mute { background: var(--nx-surface); color: var(--nx-text-3); }
 .m-pickbar { display: flex; gap: 8px; padding: 8px 14px; }
 .m-picktag { flex: 1 1 0; height: var(--nx-ctl-md); border: 1.5px solid var(--nx-line);
-  border-radius: var(--nx-r-sm); background: var(--nx-panel); font: inherit; font-size: var(--nx-fs-cap);
+  border-radius: var(--nx-radius-control); background: var(--nx-panel); font: inherit; font-size: var(--nx-fs-cap);
   color: var(--nx-text-2); cursor: pointer; }
 /* 危险档：删除这类不可逆动作在**底部确定条**上也要能读出来（M-04 的删除确认
    用 .m-picktag 两钮并排，没有 danger 变体时只能给主按钮色）。 */
@@ -531,8 +536,8 @@
   background: var(--nx-accent-soft); font-weight: 500; }
 
 /* ── 7 · 文件 / 终端 / 浏览器 ─────────────────────────────────────────────── */
-.m-trow { display: flex; align-items: center; gap: 10px; min-height: var(--nx-ctl-md); padding: 0 12px;
-  border-radius: var(--nx-r-sm); font-size: var(--nx-fs-cap); color: var(--nx-text-2);
+.m-trow { display: flex; align-items: center; gap: 10px; min-height: var(--nx-touch-min); padding: 0 12px;
+  border-radius: var(--nx-radius-control); font-size: var(--nx-fs-cap); color: var(--nx-text-2);
   border: 0; background: none; font-family: inherit; width: 100%; text-align: left; cursor: pointer; }
 .m-trow.is-on { background: var(--nx-selected); color: var(--nx-text); }
 .m-viewer { position: absolute; inset: 0; z-index: var(--nx-z-panel); background: var(--nx-panel);
@@ -549,10 +554,10 @@
    .m-viewer-bar 让开状态栏，再借 108px 就是白扔一屏）。 */
 .m-panel-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--nx-sp-3);
   display: flex; flex-direction: column; gap: var(--nx-sp-3); }
-.m-viewbox { border: 1px solid var(--nx-line); border-radius: var(--nx-r-sm); overflow: hidden; }
+.m-viewbox { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-control); overflow: hidden; }
 .m-keybar { display: flex; gap: 6px; padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--nx-line); background: var(--nx-surface); overflow-x: auto; }
-.m-key { height: var(--nx-ctl-sm); min-width: var(--nx-touch-min); min-height: var(--nx-touch-min); padding: 0 10px; border-radius: var(--nx-r-xs);
+.m-key { height: var(--nx-ctl-sm); min-width: var(--nx-touch-min); min-height: var(--nx-touch-min); padding: 0 10px; border-radius: var(--nx-radius-control);
   border: 1px solid var(--nx-line-hi); background: var(--nx-panel); font-family: var(--nx-font-mono);
   font-size: var(--nx-fs-xs); color: var(--nx-text-2); cursor: pointer; flex: 0 0 auto; }
 .m-key:active { background: var(--nx-surface-hi); }
@@ -577,7 +582,7 @@
   color: var(--nx-text-2); cursor: pointer; }
 .m-vp.is-on { background: var(--nx-accent-soft); border-color: transparent; color: var(--nx-accent); }
 .m-viewportbar { display: flex; gap: 6px; align-items: center; padding: 8px 14px; flex-wrap: wrap; }
-.m-sizebox { border: 1px solid var(--nx-line); border-radius: var(--nx-r-sm); padding: 8px 12px;
+.m-sizebox { border: 1px solid var(--nx-line); border-radius: var(--nx-radius-control); padding: 8px 12px;
   font-size: var(--nx-fs-xs); color: var(--nx-text-2); display: flex; flex-direction: column; gap: 2px; }
 .m-zoombar { display: flex; align-items: center; gap: 10px; padding: 0 14px 8px; }
 .m-viewbox-sel { outline: 2px solid var(--nx-accent); outline-offset: 1px; position: relative; }
@@ -585,9 +590,9 @@
 /* ── 8 · 商店 / 定时 / 用量 ───────────────────────────────────────────────── */
 .m-store-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 108px 14px 28px;
   display: flex; flex-direction: column; gap: 12px; }
-.m-storecard { background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg);
+.m-storecard { background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card);
   padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-.m-store-cover { height: 72px; border-radius: var(--nx-r-sm); background: var(--nx-surface);
+.m-store-cover { height: 72px; border-radius: var(--nx-radius-control); background: var(--nx-surface);
   display: flex; align-items: center; justify-content: center; color: var(--nx-text-3); }
 .m-cats { display: flex; gap: 6px; overflow-x: auto; padding: 2px; }
 .m-cat { flex: 0 0 auto; white-space: nowrap; height: var(--nx-ctl-xs); padding: 0 13px; display: inline-flex;
@@ -601,7 +606,7 @@
 /* 紧凑档 + **触控下限**：切换条是六块面板的主导航，命中区不够就会点错。
    手机上按项目约定取 36（与 .m-touch 同档），不是桌面的 28。 */
 .m-cats.compact .m-cat { padding: 0 9px; height: var(--nx-touch-min); min-width: var(--nx-touch-min); }
-.m-croncard { background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg);
+.m-croncard { background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card);
   overflow: hidden; }
 .m-croncard-head { display: flex; align-items: center; gap: 10px; padding: 13px 14px; }
 .m-cronhist { padding: 0 14px 12px; display: flex; flex-direction: column; gap: 4px;
@@ -620,11 +625,11 @@
    卡内只放「标签 + 一个大数 + 一行口径」，长解释放 .m-card-body。 */
 .m-statgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--nx-sp-3); }
 .m-stat { background: var(--nx-panel); border: 1px solid var(--nx-line);
-  border-radius: var(--nx-r-lg); padding: var(--nx-sp-3) var(--nx-sp-4); min-width: 0; }
+  border-radius: var(--nx-radius-card); padding: var(--nx-sp-3) var(--nx-sp-4); min-width: 0; }
 /* 用量进度条：占满行宽，高走一格间距（8px）—— 手机上太细的条在远处看不见。 */
-.m-bar { height: var(--nx-sp-2); border-radius: var(--nx-r-pill);
+.m-bar { height: var(--nx-sp-2); border-radius: var(--nx-radius-pill);
   background: var(--nx-surface-hi); overflow: hidden; }
-.m-bar > i { display: block; height: 100%; border-radius: var(--nx-r-pill);
+.m-bar > i { display: block; height: 100%; border-radius: var(--nx-radius-pill);
   background: var(--nx-accent); }
 
 .m-bars { display: flex; align-items: flex-end; gap: 5px; height: 90px; padding: 0 2px; }
@@ -635,7 +640,7 @@
   display: flex; flex-direction: column; gap: 12px; }
 .m-onboard-t { font-size: var(--nx-fs-title); font-weight: 600; line-height: var(--nx-lh-tight); }
 .m-onboard-s { font-size: var(--nx-fs-cap); color: var(--nx-text-2); line-height: var(--nx-lh-body); }
-.m-step-card { background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg);
+.m-step-card { background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card);
   padding: 14px; display: flex; gap: 12px; align-items: flex-start; }
 .m-step-dot-lg { width: 26px; height: 26px; border-radius: 999px; background: var(--nx-accent-soft);
   color: var(--nx-accent); display: flex; align-items: center; justify-content: center;
@@ -643,7 +648,7 @@
 .m-step-row-2 { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .m-update { position: absolute; left: 12px; right: 12px; bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   z-index: var(--nx-z-panel); background: var(--nx-panel); border: 1px solid var(--nx-line);
-  border-radius: var(--nx-r-lg); box-shadow: var(--nx-sh-2); padding: 12px 14px;
+  border-radius: var(--nx-radius-card); box-shadow: var(--nx-sh-2); padding: 12px 14px;
   display: flex; align-items: center; gap: 10px; font-size: var(--nx-fs-cap); }
 .m-offline { position: absolute; top: 0; left: 0; right: 0; z-index: var(--nx-z-sticky);
   background: var(--nx-warning); color: #fff; text-align: center; font-size: var(--nx-fs-xs);
@@ -676,12 +681,12 @@
   display: flex; align-items: center; justify-content: center; color: var(--nx-text-3); }
 .m-empty-t { font-size: var(--nx-fs-lg); font-weight: 600; }
 .m-empty-s { font-size: var(--nx-fs-cap); color: var(--nx-text-3); line-height: var(--nx-lh-body); }
-.m-skel { border-radius: var(--nx-r-sm); background: var(--nx-surface); position: relative; overflow: hidden; }
+.m-skel { border-radius: var(--nx-radius-control); background: var(--nx-surface); position: relative; overflow: hidden; }
 .m-skel::after { content: ""; position: absolute; inset: 0;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--nx-text) 5%, transparent), transparent);
   animation: nx-sweep var(--nx-dur-sweep) linear infinite; }
 .m-skel-50 { height: 50px; }
-.m-skel-block { height: 110px; border-radius: var(--nx-r-md); }
+.m-skel-block { height: 110px; border-radius: var(--nx-radius-row); }
 .m-skel-list { display: flex; flex-direction: column; gap: 10px; }
 /* 两个都是「贴底」的东西：更新条在 bottom 96、toast 在 108 —— 只差 12px，
    同屏出现必然叠在一起（2026-10-04 在 M-10 帧 C 实测到）。
@@ -733,9 +738,9 @@
 .m-text-live::after { content: "▍"; color: var(--nx-accent); animation: nx-caret 1s steps(1) infinite; }
 .m-perm { border: 1px solid color-mix(in srgb, var(--nx-warning) 40%, transparent);
   background: color-mix(in srgb, var(--nx-warning) 7%, var(--nx-panel));
-  border-radius: var(--nx-r-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  border-radius: var(--nx-radius-row); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 .m-banner { display: flex; align-items: center; gap: 8px; padding: 10px 13px;
-  border-radius: var(--nx-r-md); background: var(--nx-surface); font-size: var(--nx-fs-cap);
+  border-radius: var(--nx-radius-row); background: var(--nx-surface); font-size: var(--nx-fs-cap);
   color: var(--nx-text-2); }
 .m-banner.warn { background: color-mix(in srgb, var(--nx-warning) 10%, var(--nx-panel));
   color: var(--nx-warning); }
@@ -754,7 +759,7 @@
 .m-num { animation: nx-num var(--nx-dur-2) var(--nx-ease-out); }
 .m-rowlabel { font-size: var(--nx-fs-xs); color: var(--nx-text-3); padding: 0 6px; }
 .m-kbd { display: inline-flex; align-items: center; height: 22px; padding: 0 7px;
-  border: 1px solid var(--nx-line); border-radius: var(--nx-r-xs); background: var(--nx-panel);
+  border: 1px solid var(--nx-line); border-radius: var(--nx-radius-control); background: var(--nx-panel);
   font-family: var(--nx-font-mono); font-size: var(--nx-fs-xs); color: var(--nx-text-2); }
 .m-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--nx-text-3); flex: 0 0 auto; }
 .m-dot.ok { background: var(--nx-success); }
@@ -776,7 +781,7 @@
   display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; background: var(--nx-panel); }
 .m-radio.on { border-color: var(--nx-accent); }
 .m-radio.on::after { content: ""; width: 9px; height: 9px; border-radius: 999px; background: var(--nx-accent); }
-.m-doc-frame { background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg); overflow: hidden; }
+.m-doc-frame { background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card); overflow: hidden; }
 .m-doc-head { padding: 12px 14px; border-bottom: 1px solid var(--nx-line); display: flex;
   align-items: center; gap: 8px; font-weight: 600; }
 .m-doc-body { padding: 12px 14px; }
@@ -788,7 +793,7 @@
   vertical-align: -0.15em; animation: nx-caret 1s steps(1) infinite; }
 .m-stream .pending { opacity: .28; }
 .m-anchor { position: relative; }
-.m-placeholder { border: 1.5px dashed var(--nx-line-hi); border-radius: var(--nx-r-sm);
+.m-placeholder { border: 1.5px dashed var(--nx-line-hi); border-radius: var(--nx-radius-control);
   color: var(--nx-text-3); font-size: var(--nx-fs-xs); display: flex; align-items: center;
   justify-content: center; padding: 12px; }
 .m-theme-toggle { position: fixed; top: 14px; right: 14px; z-index: var(--nx-z-toast); }
@@ -802,7 +807,7 @@
 /* 画板家具 */
 .m-frame-label { font-size: var(--nx-fs-xs); color: var(--nx-text-3); text-align: center; margin-bottom: 6px; }
 .m-notes { max-width: 860px; margin: var(--nx-sp-4) auto 0; padding: var(--nx-sp-4);
-  background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-r-lg);
+  background: var(--nx-panel); border: 1px solid var(--nx-line); border-radius: var(--nx-radius-card);
   font-size: var(--nx-fs-cap); color: var(--nx-text-2); line-height: var(--nx-lh-body); }
 .m-notes > b:first-child { display: block; margin-bottom: var(--nx-sp-2); color: var(--nx-text); }
 .m-notes b { color: var(--nx-text); }
@@ -811,7 +816,7 @@
    触控下限走 --nx-ctl-md（44px），sm 档 36px 也仍高于 44px 命中区的下限约束
    （44 是命中区，不是视觉高度；小按钮靠四周 padding 补命中）。 */
 .m-btn { min-height: var(--nx-ctl-md); padding: 0 var(--nx-sp-4); display: inline-flex;
-  align-items: center; justify-content: center; gap: 6px; border-radius: var(--nx-r-pill);
+  align-items: center; justify-content: center; gap: 6px; border-radius: var(--nx-radius-pill);
   border: 1px solid var(--nx-line); background: var(--nx-panel); color: var(--nx-text);
   font: inherit; font-size: var(--nx-fs-cap); font-weight: 500; cursor: pointer;
   transition: background var(--nx-dur-1) var(--nx-ease), border-color var(--nx-dur-1) var(--nx-ease); }

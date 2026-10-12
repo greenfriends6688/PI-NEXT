@@ -34,12 +34,15 @@ type Connection = {
 };
 
 export interface AgentEventConnectionOptions {
-  createSource(sessionId: string): AgentEventSourceLike;
+  /** fork:event-seq — `lastEventId` 是上一次从这个会话收到的最大序号（没有则 null）。 */
+  createSource(sessionId: string, lastEventId: number | null): AgentEventSourceLike;
   onEvent(event: AgentEventLike): void;
   shouldMaintain(sessionId: string): boolean;
   readinessTimeoutMs: number;
   reconnectDelayMs: number;
   onUnexpectedError?(error: unknown): void;
+  /** fork:event-seq — 收到的事件序号跳过了一段，说明有权威事件没拿到。 */
+  onSequenceGap?(sessionId: string, from: number, to: number): void;
 }
 
 const EVENT_SOURCE_OPEN = 1;
@@ -49,6 +52,8 @@ export class AgentEventConnection {
   private current: Connection | null = null;
   private retry: { sessionId: string; timer: ReturnType<typeof setTimeout> } | null = null;
   private retryGeneration = 0;
+  /** fork:event-seq — 每个会话各自的 SSE 游标，跨重连保留（换会话自然失效）。 */
+  private cursor: { sessionId: string; seq: number } | null = null;
 
   constructor(private readonly options: AgentEventConnectionOptions) {}
 
@@ -99,8 +104,9 @@ export class AgentEventConnection {
     if (this.current) this.discard(this.current, new AgentEventConnectionError("closed"));
 
     let source: AgentEventSourceLike;
+    const lastEventId = this.cursor?.sessionId === sessionId ? this.cursor.seq : null;
     try {
-      source = this.options.createSource(sessionId);
+      source = this.options.createSource(sessionId, lastEventId);
     } catch (error) {
       throw new AgentEventConnectionError(
         "closed",
@@ -155,6 +161,7 @@ export class AgentEventConnection {
         this.fail(connection, new AgentEventConnectionError("startup_error", message));
         return;
       }
+      this.trackSequence(sessionId, event);
       this.options.onEvent(event);
     };
     source.onerror = () => {
@@ -162,6 +169,24 @@ export class AgentEventConnection {
     };
 
     return connection;
+  }
+
+  /**
+   * fork:event-seq — 只有**带 `seq` 的事件**（权威事件）参与游标与缺口判定。
+   * 可重建增量不带 seq，被背压丢掉不会误报缺口。
+   */
+  private trackSequence(sessionId: string, event: AgentEventLike): void {
+    const raw = event.seq;
+    if (typeof raw !== "number" || !Number.isSafeInteger(raw) || raw <= 0) return;
+    const known = this.cursor?.sessionId === sessionId ? this.cursor.seq : null;
+    if (known !== null && raw > known + 1) {
+      try {
+        this.options.onSequenceGap?.(sessionId, known, raw);
+      } catch (error) {
+        this.options.onUnexpectedError?.(error);
+      }
+    }
+    if (known === null || raw > known) this.cursor = { sessionId, seq: raw };
   }
 
   private fail(connection: Connection, error: AgentEventConnectionError): void {

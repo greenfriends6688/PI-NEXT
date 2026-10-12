@@ -3688,7 +3688,9 @@ export function PluginsConfig({
                       <>
                         {groupedMcp.map((group) => (
                           <Fragment key={group.scope}>
-                            <ConfigSidebarGroupLabel>{group.scope}</ConfigSidebarGroupLabel>
+                            <ConfigSidebarGroupLabel>
+                              {group.scope === "project" ? t("mcp.scope.project") : t("mcp.scope.global")}
+                            </ConfigSidebarGroupLabel>
                             {group.servers.map((server) => {
                               const isMcpSelected =
                                 view === "mcp" && !mcpAddMode && mcpSelected === server.name;
@@ -3712,7 +3714,9 @@ export function PluginsConfig({
                                   />
                                   <span className="grow">
                                     <ConfigSidebarText className={server.disabled ? "d-t-faint" : undefined}>
-                                      {server.name}
+                                      {isMobile
+                                        ? `${server.name} · ${MCP_TRANSPORT_LABEL[server.kind]} · ${server.disabled ? t("mcp.disabledBadge") : t("mcp.enabledBadge")}`
+                                        : server.name}
                                     </ConfigSidebarText>
                                   </span>
                                 </ConfigSidebarItem>

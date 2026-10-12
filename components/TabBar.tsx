@@ -634,7 +634,7 @@ export function TabBar({
               className={isPhone ? "m-iconbtn" : "x"}
               style={isPhone ? undefined : {
                 cursor: "pointer",
-                color: hoveredClose === tab.id || focusedClose === tab.id ? "var(--n-muted)" : undefined,
+                color: hoveredClose === tab.id || focusedClose === tab.id ? "var(--nx-text-2)" : undefined,
               }}
                title={t(tab.kind === "terminal" ? "terminal.close" : "i18n.close")}
                aria-label={`${t(tab.kind === "terminal" ? "terminal.close" : "i18n.close")} ${tab.label}`}
@@ -663,7 +663,7 @@ export function TabBar({
             display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--space-icon)",
             height: "var(--control-sm)", width: TAB_OVERFLOW_BUTTON_WIDTH, flexShrink: 0,
             background: overflowOpen ? "var(--bg-selected)" : "transparent",
-            border: "none", borderRadius: "var(--radius-md)",
+            border: "none", borderRadius: "var(--nx-radius-row)",
             color: "var(--text-muted)", cursor: "pointer", fontSize: TEXT.xs,
           }}
         >

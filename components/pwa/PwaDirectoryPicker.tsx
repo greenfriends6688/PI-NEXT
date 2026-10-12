@@ -141,6 +141,7 @@ export function PwaDirectoryPicker(props: PwaDirectoryPickerProps) {
             <label
               htmlFor="directory-path"
               style={{
+                // 非主题值：标准 sr-only 1px 隐藏几何。
                 position: "absolute",
                 width: 1,
                 height: 1,

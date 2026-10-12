@@ -142,7 +142,7 @@ test("keeps General free of divider rows", () => {
   assert.doesNotMatch(panelSource, /className="pw-row pw-snav-close"/);
   assert.doesNotMatch(panelSource, /t\("settings\.backToWorkspace"\)/);
   assert.match(cssSource, /\.settings-dialog-header\.pw-modal-head \{[\s\S]*?display: none/);
-  const narrowHead = cssSource.match(/@media \(max-width: 640px\)[\s\S]*?\.settings-dialog-header\.pw-modal-head \{[\s\S]*?\}/)?.[0] ?? "";
+  const narrowHead = cssSource.match(/@media \(max-width: 639px\)[\s\S]*?\.settings-dialog-header\.pw-modal-head \{[\s\S]*?\}/)?.[0] ?? "";
   assert.match(narrowHead, /display: flex/);
   assert.match(cssSource, /\.settings-dialog-surface\.pw-modal \{[\s\S]*?width: 100%[\s\S]*?height: 100%/);
   assert.doesNotMatch(panelSource, /sections\.find\(\(item\) => item\.id === section\)/);
@@ -183,8 +183,8 @@ test("uses a left section column on desktop and one compact picker on mobile", (
   // fork:design-system —— 焦点环由 globals.css 的 `:where(button…):focus-visible`
   // 统一提供（1.5px 强调色 + 1px offset），画板 40 的导航行只内缩 offset。
   assert.match(globalCssSource, /:where\(button[\s\S]*?:focus-visible \{[\s\S]*?outline: 1\.5px solid var\(--accent\) !important/);
-  assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-section-tabs \{[\s\S]*?display: none/);
-  assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-mobile-section-picker \{[\s\S]*?display: block/);
+  assert.match(cssSource, /@media \(max-width: 639px\)[\s\S]*?\.settings-section-tabs \{[\s\S]*?display: none/);
+  assert.match(cssSource, /@media \(max-width: 639px\)[\s\S]*?\.settings-mobile-section-picker \{[\s\S]*?display: block/);
   assert.doesNotMatch(panelSource, /width: isMobile \? "100%" : 188/);
   // fork:v5-landing-frame —— `main.settings-dialog-main` 这一层已撤掉（它不在板面上，
   // 又与里层 `.d-set-main` 重复承担滚动与内距）；内容列就是 `.d-set` 的第二个子元素
@@ -335,8 +335,8 @@ test("窄屏设置是唯一滚动容器：宿主高度链 + 工具栏换行（�
   const fieldrow = pwaSystemCssSource.match(/\.m-fieldrow \{[^}]*\}/)?.[0] ?? "";
   assert.match(fieldrow, /flex-wrap: wrap/);
   // 全部关在 ≤640px 这一档里 —— ≥641px 一条都不命中，桌面像素逐字不变。
-  const mediaOpen = pwaSettingsCssSource.indexOf("@media (max-width: 640px) {");
-  assert.ok(mediaOpen > -1, "pwa-settings.css 必须有 @media (max-width: 640px) 档");
+  const mediaOpen = pwaSettingsCssSource.indexOf("@media (max-width: 639px) {");
+  assert.ok(mediaOpen > -1, "pwa-settings.css 必须有 @media (max-width: 639px) 档");
   for (const rule of [":not([hidden])", "config-panel-root.is-embedded", ".m-settings .d-set-inner"]) {
     const idx = pwaSettingsCssSource.indexOf(rule, mediaOpen);
     assert.ok(idx > -1, `窄屏档里必须有 ${rule}`);

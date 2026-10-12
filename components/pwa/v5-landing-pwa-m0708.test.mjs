@@ -116,7 +116,7 @@ test("M-07 / M-08：`.m-vp` / `.m-seg > button` 的板面高度不許被 DSN-04 
      `.m-seg > button` 28→36（两块都实测过）。同一块托盘里的 `.m-tray-chip`
      因为自己声明了 `min-height: var(--nx-ctl-xs)` 反而幸免 ——
      「前缀 chip 28 / 分段钮 36」两种高度并排，就是同一个原因的两副面孔。 */
-  assert.match(globalsCss, /@media \(max-width: 640px\)[\s\S]*?button,[\s\S]*?min-height: var\(--control-touch\);/);
+  assert.match(globalsCss, /@media \(max-width: 639px\)[\s\S]*?button,[\s\S]*?min-height: var\(--control-touch\);/);
   assert.match(pwaSystemCss, /\.m-vp \{[^}]*height: var\(--nx-ctl-xs\);/);
   /* fork:apple-sketch（2026-10-08）—— `.m-seg > button` 的高度改由 iOS kit 的分段控件档位
      给定（`--nx-ios-seg-h` = 32，按钮 = 32 − 容器 padding 8 = 24），不再直接写 `--nx-ctl-xs`。

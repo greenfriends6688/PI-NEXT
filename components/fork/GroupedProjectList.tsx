@@ -227,7 +227,7 @@ export function GroupedProjectList<T extends { key: string }>({
         overProject(project.key);
       }}
       onDrop={(event) => dropOnProject(event, project.key)}
-      style={{ borderRadius: "var(--nx-r-md)" }}
+      style={{ borderRadius: "var(--nx-radius-row)" }}
     >
       {renderProject(project)}
     </div>

@@ -78,22 +78,21 @@
   --nx-lh-reading: 1.75;
   --nx-ls-reading: 0.025em;   /* ZCode 的 tracking-wide */
 
-  --nx-font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
-                "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --nx-font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+                "Helvetica Neue", "PingFang SC", "Microsoft YaHei",
+                "Noto Sans CJK SC", var(--font-geist, sans-serif);
   --nx-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
-                  "PingFang SC", "Noto Sans CJK SC", monospace;
+                  "PingFang SC", "Noto Sans CJK SC", var(--font-geist-mono, monospace);
 
-  /* ── 3 · 圆角「角色」：xs 徽章 / sm 控件小件 / md 控件与行 / lg 卡片与面板 /
-     xl 浮层与模态 / 2xl 主行动 / pill。
-     角色（语义）是真值，**值是形态** —— 两套 tokens 各写一份。这里给中性默认，
-     保证「只加载 base 也能渲染」。 */
-  --nx-r-xs:  4px;
-  --nx-r-sm:  6px;
-  --nx-r-md:  8px;
-  --nx-r-lg: 12px;
-  --nx-r-xl: 16px;
-  --nx-r-2xl: 20px;
-  --nx-r-pill: 999px;
+  /* ── 3 · 圆角「角色」：角色名是组件唯一可读的接口，平台 token 给值。
+     这里给中性默认，保证「只加载 base 也能渲染」。 */
+  --nx-radius-control: 8px;
+  --nx-radius-row: 6px;
+  --nx-radius-card: 12px;
+  --nx-radius-pane: 16px;
+  --nx-radius-popover: 16px;
+  --nx-radius-sheet: 20px;
+  --nx-radius-pill: 999px;
 
   /* ── 4 · 控件高度「角色」：xs 徽章 / sm 行内钮 / md 默认 / lg 主行动 ────── */
   --nx-ctl-xs: 20px;
@@ -251,8 +250,12 @@
   --nx-mac-seg-h: 28px;
   --nx-mac-switch-w: 54px;
   --nx-mac-switch-h: 24px;
-  --nx-mac-switch-knob: 18px;
-  --nx-mac-switch-travel: 30px;
+  /* fork:kit-strict —— 旋钮是**宽药丸**不是圆球：kit 的 Knob 32×20、内缩 2，行程 54−32−2×2=18。
+     旧值 18 圆球 + 行程 30 是上一代 macOS 的形状。 */
+  --nx-mac-switch-knob-w: 32px;
+  --nx-mac-switch-knob-h: 20px;
+  --nx-mac-switch-inset: 2px;
+  --nx-mac-switch-travel: 18px;
   --nx-mac-alert-w: 300px;
   --nx-mac-alert-btn-h: 28px;
   --nx-mac-alert-btn-w: 228px;
@@ -468,4 +471,3 @@ i[data-ico] > svg { display: block; }
 @keyframes nx-orb { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 @keyframes nx-orb-ring { from { transform: scale(.72); opacity: .8; } to { transform: scale(1.9); opacity: 0; } }
 @keyframes nx-reveal { from { opacity: .12; filter: blur(18px) saturate(.55); } to { opacity: 1; filter: blur(0) saturate(1); } }
-
