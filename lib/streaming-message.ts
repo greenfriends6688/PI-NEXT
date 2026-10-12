@@ -150,3 +150,35 @@ export function streamReducer(
       return state;
   }
 }
+
+/**
+ * fork:upstream-0.12-chat-parity（PR-7c）—— 流式状态搬到 React 之外：一个片段只重渲染
+ * 订阅了它显示的那部分的组件，而不是回复周围的整棵树。监听器在 `dispatch` 里同步跑，
+ * 所以它们的状态更新与同一个事件做出的更新一起批处理（`message_end` 在一次渲染里
+ * 既追加回复又结束流）。
+ */
+export interface StreamingStore {
+  getState(): StreamingState;
+  dispatch(action: StreamAction): void;
+  subscribe(listener: () => void): () => void;
+}
+
+export function createStreamingStore(): StreamingStore {
+  let state = INITIAL_STREAMING_STATE;
+  const listeners = new Set<() => void>();
+  return {
+    getState: () => state,
+    dispatch(action) {
+      const next = streamReducer(state, action);
+      if (next === state) return;
+      state = next;
+      for (const listener of listeners) listener();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
