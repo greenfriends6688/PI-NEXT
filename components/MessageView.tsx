@@ -2709,6 +2709,10 @@ function CustomMessageView({ message, cwd, onOpenFile }: { message: CustomMessag
   const title = formatCustomType(message.customType);
   const time = formatTime(message.timestamp);
 
+  // fork:upstream-0.12-chat-parity —— display:false 是扩展留给模型自己看的，聊天不显示（#1043）。
+  // 仍留在历史里，所以 entry id 保持对齐，只是渲染空。
+  if (message.display === false) return null;
+
   const copyContent = () => copy(text || detailsText);
 
   return (

@@ -8,7 +8,7 @@ test("expands process details when a completed turn has no final answer", () => 
   assert.match(source, /const \[expanded, setExpanded\] = useState\(defaultExpanded\)/);
   assert.match(
     source,
-    /<ProcessDetailsGroup[\s\S]*?defaultExpanded=\{!finalAnswerMessage\}/,
+    /<ProcessDetailsGroup[\s\S]*?defaultExpanded=\{!collapsesProcessDetails\(finalAnswerMessage\)\}/,
   );
 });
 

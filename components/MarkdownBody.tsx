@@ -4,7 +4,7 @@ import { Children, createContext, memo, useContext, useMemo, useRef, type Compon
 import ReactMarkdown, { type Components, type ExtraProps } from "react-markdown";
 import { parsePdfPageFragment, resolveLocalFileHref, shouldOpenLinkInApp, shouldOpenLocalFileInApp } from "@/lib/file-links";
 import { encodeFilePathForApi } from "@/lib/file-paths";
-import { markdownRehypePluginsFor, markdownRemarkPlugins, markdownUrlTransform, markdownUserRemarkPlugins, normalizeDisplayMath } from "@/lib/markdown";
+import { markdownAppUrlTransform, markdownRehypePluginsFor, markdownRemarkPlugins, markdownUrlTransform, markdownUserRemarkPlugins, normalizeDisplayMath } from "@/lib/markdown";
 import { mentionRehypePlugin, mentionRemarkPlugin, type MentionValidators } from "@/lib/mention-tokens";
 import { splitStableParts } from "@/lib/markdown-incremental";
 import { useThrottledText } from "@/hooks/useThrottledText";
@@ -337,6 +337,13 @@ function buildMarkdownComponents(
     img(props) {
       return <MarkdownImage cwd={cwd} {...props} />;
     },
+    // fork:upstream-0.12-chat-parity —— 比列表左内边距宽的外置序号会被 .markdown-body 的
+    // overflow-x 裁掉，所以内边距跟着最大序号位数走（#8347ea5c）。
+    ol({ node, start, style, ...props }) {
+      const items = node?.children.filter((child) => child.type === "element" && child.tagName === "li").length ?? 0;
+      const digits = String(Math.abs((start ?? 1) + Math.max(items, 1) - 1)).length;
+      return <ol start={start} style={{ ...style, ["--ol-marker-digits" as string]: Math.max(digits, 2) }} {...props} />;
+    },
     table({ children }) {
       if (isPwa) {
         // fork:v5-wave-b —— 窄屏抄 M-02 帧 B 的横滚表格：`.m-tbl-scroll` 横滚，
@@ -394,7 +401,7 @@ const MarkdownPart = memo(function MarkdownPart({
     <ReactMarkdown
       remarkPlugins={remarkPlugins}
       rehypePlugins={rehypePlugins}
-      urlTransform={onOpenFile ? markdownUrlTransform : undefined}
+      urlTransform={onOpenFile ? markdownUrlTransform : markdownAppUrlTransform}
       components={components}
     >
       {text}
@@ -482,7 +489,7 @@ export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile
         <ReactMarkdown
           remarkPlugins={remarkPlugins}
           rehypePlugins={rehypePlugins}
-          urlTransform={onOpenFile ? markdownUrlTransform : undefined}
+          urlTransform={onOpenFile ? markdownUrlTransform : markdownAppUrlTransform}
           components={components}
         >
           {normalizedMarkdown}

@@ -856,6 +856,8 @@ pre, code {
   margin: 5px 0 8px;
   list-style-position: outside;
 }
+/* fork:upstream-0.12-chat-parity —— 给最宽的外置「N.」序号留位；MarkdownBody 写位数（#8347ea5c）。 */
+.markdown-body ol { padding-left: calc(0.8em + var(--ol-marker-digits, 2) * 0.62em); }
 .markdown-body li { margin: 3px 0; padding-left: 2px; }
 .markdown-body ul > li { list-style-type: disc; }
 .markdown-body ol > li { list-style-type: decimal; }

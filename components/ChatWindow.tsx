@@ -6,7 +6,8 @@ import type { AgentMessage, AssistantContentBlock, AssistantMessage, BashExecuti
 import { normalizeCustomPanelLines } from "@/lib/ansi";
 import { splitDialogTitle, splitDialogTitleCode } from "@/lib/dialog-title";
 import { asBracketedPaste, toTerminalKeyData } from "@/lib/terminal-input";
-import { countToolCallBlocks, getAssistantErrorMessage, getDisplayableAssistantBlocks, isAssistantTruncated, isMessageGroupAnchor, splitFinalAssistantBlocks } from "@/lib/message-display";
+import { countToolCallBlocks, collapsesProcessDetails, getAssistantErrorMessage, getDisplayableAssistantBlocks, isAssistantTruncated, isMessageGroupAnchor, splitFinalAssistantBlocks } from "@/lib/message-display";
+import { splitNoticeText } from "@/lib/notice-text";
 // fork:pi-1.1（上游 981e270f1 / #1032）—— 扩展对话框按内容加宽。
 import { EXTENSION_DIALOG_BASE_WIDTH, fitExtensionDialogWidth } from "@/lib/extension-dialog-fit";
 import { extractTurnWrittenFiles, type WrittenFile } from "@/lib/turn-written-files";
@@ -2643,7 +2644,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                       <ProcessDetailsGroup
                         messageCount={Math.max(1, processToolCount)}
                         toolCallCount={processToolCount}
-                        defaultExpanded={!finalAnswerMessage}
+                        defaultExpanded={!collapsesProcessDetails(finalAnswerMessage)}
                         reveal={revealProcess}
                         summaryText={groupedSummary}
                         summaryParts={summarizeProcessParts(groupedProcessBlocks, (key, params) => t(key, params), (key) => t(key))}
@@ -3122,7 +3123,25 @@ function NoticeShelf({ notices, floating = false, onPauseChange }: { notices: No
               tabIndex={0}
               style={{ minWidth: 0, maxWidth: "100%", maxHeight: NOTICE_TEXT_MAX_HEIGHT_PX, overflowY: "auto", scrollbarWidth: "thin", whiteSpace: "pre-line", wordBreak: "break-word" }}
             >
-              {notice.message}
+              {splitNoticeText(notice.message).map((part, partIndex) => part.kind === "art" ? (
+                // fork:upstream-0.12-chat-parity —— 终端二维码 / 进度条（#755）：每个空格都留、
+                // 行贴行，字体栈首个字体也有方块（打包的 Noto 子集没有，空格与方块会来自不同宽度的字体）。
+                <span
+                  key={partIndex}
+                  style={{
+                    display: "inline-block",
+                    verticalAlign: "top",
+                    maxWidth: "100%",
+                    overflowX: "auto",
+                    whiteSpace: "pre",
+                    fontFamily: "Menlo, Consolas, 'DejaVu Sans Mono', monospace",
+                    lineHeight: 1,
+                    color: "var(--text)",
+                  }}
+                >
+                  {part.text}
+                </span>
+              ) : part.text)}
             </span>
           </div>
         );

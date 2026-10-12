@@ -13,6 +13,16 @@ import remarkMath from "remark-math";
 import type { Extension } from "micromark-util-types";
 import type { Plugin } from "unified";
 
+// fork:upstream-0.12-chat-parity —— 打开笔记 / 文件 / 会议的桌面应用链接方案（#1108）。
+// 固定名单，不是「除 javascript: 之外任意 scheme」：文本来自模型与仓库文件，而
+// ms-msdt: / search-ms: 这类 OS 处理器被点击链接利用过。
+const appLinkSchemes = [
+  "obsidian", "logseq", "notion",
+  "vscode", "vscode-insiders", "cursor", "zed", "jetbrains",
+  "zoommtg", "zoomus", "msteams", "slack",
+];
+const appLinkPattern = new RegExp(`^(?:${appLinkSchemes.join("|")}):`, "i");
+
 const markdownSanitizeSchema = {
   ...defaultSchema,
   attributes: {
@@ -21,13 +31,24 @@ const markdownSanitizeSchema = {
   },
   protocols: {
     ...defaultSchema.protocols,
-    href: [...(defaultSchema.protocols?.href ?? []), "file"],
+    href: [...(defaultSchema.protocols?.href ?? []), "file", ...appLinkSchemes],
   },
   strip: [...(defaultSchema.strip || []), "iframe", "object", "style", "form"],
 };
 
+/** react-markdown 的 URL 过滤，外加上面那些应用的链接。 */
+export function markdownAppUrlTransform(value: string): string {
+  return appLinkPattern.test(value) ? value : defaultUrlTransform(value);
+}
+
+/** 保留 `file:` 链接，给在应用里打开本地文件的渲染器。 */
 export function markdownUrlTransform(value: string): string {
-  return /^file:/i.test(value) ? value : defaultUrlTransform(value);
+  return /^file:/i.test(value) ? value : markdownAppUrlTransform(value);
+}
+
+/** 一个离开页面的链接：它点名了一个 scheme 或另一个 host。 */
+export function isExternalMarkdownHref(href: string | undefined): boolean {
+  return Boolean(href && /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href));
 }
 
 /**
