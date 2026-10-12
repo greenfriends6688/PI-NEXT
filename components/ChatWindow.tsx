@@ -6,7 +6,8 @@ import type { AgentMessage, AssistantContentBlock, AssistantMessage, BashExecuti
 import { normalizeCustomPanelLines } from "@/lib/ansi";
 import { splitDialogTitle, splitDialogTitleCode } from "@/lib/dialog-title";
 import { asBracketedPaste, toTerminalKeyData } from "@/lib/terminal-input";
-import { countToolCallBlocks, collapsesProcessDetails, getAssistantErrorMessage, getDisplayableAssistantBlocks, isAssistantTruncated, isMessageGroupAnchor, splitFinalAssistantBlocks } from "@/lib/message-display";
+import { collapsesProcessDetails, countToolCallBlocks, getAssistantErrorMessage, getDisplayableAssistantBlocks, isAssistantTruncated, isMessageGroupAnchor, splitFinalAssistantBlocks } from "@/lib/message-display";
+import { getFinalAnswerViews, type FinalAnswerViews } from "@/lib/turn-views";
 import { splitNoticeText } from "@/lib/notice-text";
 // fork:pi-1.1（上游 981e270f1 / #1032）—— 扩展对话框按内容加宽。
 import { EXTENSION_DIALOG_BASE_WIDTH, fitExtensionDialogWidth } from "@/lib/extension-dialog-fit";
@@ -547,15 +548,9 @@ function getUserInputText(message: AgentMessage): string | null {
   return text.length > 0 ? text : null;
 }
 
-function withAssistantBlocks(
-  message: AssistantMessage,
-  content: AssistantContentBlock[],
-  options: { omitUsage?: boolean } = {},
-): AssistantMessage {
-  const next = { ...message, content };
-  if (options.omitUsage) next.usage = undefined;
-  return next;
-}
+// fork:upstream-0.12-chat-parity —— 一轮的 answer/process 视图按存储的 message 缓存
+// （message 一旦入列就不再变），避免每个可见回答在无关重渲染时重跑 markdown（#1005）。
+const finalAnswerViewsCache = new WeakMap<AssistantMessage, FinalAnswerViews>();
 
 /** 一组过程的时间跨度（秒）：第一条落盘 → 最后一条落盘。
  *  画板 M-02 帧 A 的摘要行第三格就是它（`11.2s`）。`timestamp` 是毫秒
@@ -2584,14 +2579,11 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 if (!virtualAnchor) rendered.push(renderMessage(userIdx));
 
                 const finalAssistant = messages[finalAssistantIdx] as AssistantMessage;
-                const finalSplit = splitFinalAssistantBlocks(finalAssistant);
-                const finalAnswerMessage = finalSplit.answerBlocks.length > 0 || getAssistantErrorMessage(finalAssistant) || isAssistantTruncated(finalAssistant)
-                  ? withAssistantBlocks(finalAssistant, finalSplit.answerBlocks)
-                  : null;
-
-                const finalProcessEnd = finalAssistant.content.indexOf(finalSplit.answerBlocks[0]);
-                // Keep the original prefix so deferred thinking retains its stored block indices.
-                const finalProcessBlocks = finalAssistant.content.slice(0, finalProcessEnd < 0 ? undefined : finalProcessEnd);
+                // fork:upstream-0.12-chat-parity —— answer/process 副本按存储的 message 缓存，
+                // 否则每次任何变化都重建一份新副本，MessageView 的 memo 失效、每个可见回答
+                // 都重跑一遍 markdown（#1005）。
+                const finalViews = getFinalAnswerViews(finalAnswerViewsCache, finalAssistant);
+                const finalAnswerMessage = finalViews.answer;
 
                 const groupedProcessBlocks: ProcessContentBlock[] = [];
                 let processToolCount = 0;
@@ -2625,7 +2617,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                   }
                   if (processMessage.role !== "assistant") continue;
                   const message = processIdx === finalAssistantIdx
-                    ? withAssistantBlocks(processMessage, finalProcessBlocks, { omitUsage: Boolean(finalAnswerMessage) })
+                    ? finalViews.process
                     : processMessage;
                   const blocks = getDisplayableAssistantBlocks(message);
                   if (blocks.length === 0) continue;

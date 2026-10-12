@@ -12,12 +12,21 @@
  * =========================================================================== */
 
 /* ── 0 · 应用壳：三栏 ─────────────────────────────────────────────────────── */
-.d-shell { display: flex; height: 100vh; background: var(--nx-canvas); color: var(--nx-text);
+/* fork:v6-glass（2026-10-12）—— 壳底从实色 `--nx-canvas` 换成**色场** `--nx-canvas-field`，
+   玻璃面才有东西可透；`.d-side` / `.d-rail` / `.d-topbar` / `.d-composer` 四处壳面
+   在其上半透明 + frost（40px / 1.5，配方在 base.css §14）。**转录、卡片、右栏面板
+   一律不吃这条**：它们是内容面，保持近实底（`--nx-panel`），否则长正文的对比度跟着底图走。 */
+.d-shell { display: flex; height: 100vh; background: var(--nx-canvas-field); color: var(--nx-text);
   font-family: var(--nx-font-ui); font-size: var(--nx-fs-body); line-height: var(--nx-lh-body); }
 .d-shell.two .d-main { margin-right: 0; }
 .d-side  { /* fork:apple-sketch —— macOS kit 的侧栏宽 = 256pt（Windows 页实测） */
   width: 256px; flex: 0 0 auto; display: flex; flex-direction: column;
-  background: var(--nx-sidebar); border-right: 1px solid var(--nx-line); min-width: 0; }
+  background: var(--nx-sidebar); border-right: 1px solid var(--nx-line); min-width: 0;
+  /* fork:v6-glass —— 侧栏是长文本面，fill 走 `--nx-glass-shell`（70%），不是浮层的 94%。
+     这里挂 backdrop-filter 是安全的：板内所有 `.d-pop` 都在 `<aside>` **外面**
+     （D-01/D-02 逐张核对过），浮层的锚点不是侧栏，包含块换不掉它们的位置。 */
+  -webkit-backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
+  backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat)); }
 .d-main  { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; position: relative; }
 .d-panel { width: 320px; flex: 0 0 auto; display: flex; flex-direction: column;
   background: var(--nx-panel); border-left: 1px solid var(--nx-line); min-width: 0; }
@@ -102,7 +111,10 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 /* 折叠导轨 */
 .d-rail { width: 48px; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
   gap: var(--nx-sp-1); padding: var(--nx-sp-3) 0; background: var(--nx-sidebar);
-  border-right: 1px solid var(--nx-line); }
+  border-right: 1px solid var(--nx-line);
+  /* fork:v6-glass —— 与侧栏同材质（同一份 `--nx-sidebar`），几何不变 */
+  -webkit-backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
+  backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat)); }
 .d-rail .d-iconbtn { width: 32px; height: 32px; }
 
 /* ── 2 · 顶栏（毛玻璃）────────────────────────────────────────────────────── */

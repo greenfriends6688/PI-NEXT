@@ -432,3 +432,41 @@
   --nx-pop-fill:   #3d3d3df0;                                            /* Menus 暗色档的实面收敛 */
   --nx-pop-shadow: var(--nx-sk-glass-dark-menus-shadow);
 }
+
+/* ══ V6 毛玻璃（fork:v6-glass · 2026-10-12 借 deepseek-harness）═════════════════
+   页面底从实色换成**色场**：玻璃要透的东西。三层叠加 —— 最底是冷中性渐变，
+   上面两层是品牌渐变两端（#22b8e6 / #b45cf0）的低透明色晕，色相预算不变
+   （中性 + 品牌两端；语义 4 色照旧）。`--nx-canvas` **保持原样**：它是实底兜底
+   （不支持多层背景的场合、PWA 渐隐层的取色），与色场最底那一档同调，所以两边不打架。
+
+   壳面填充取 deepseek 的菜单口径再往上收一点：
+     他们 light `rgba(248,249,250,0.58)` / dark `rgba(67,69,74,0.45)`；
+     侧栏是**长文本面**（不像菜单是一次性扫过），70% 让正文对比度稳；
+     浮层走 94%（deepseek macOS `--dsw-specific-menu` 的不透明度）—— 见 base.css §Z。 */
+:root {
+  --nx-canvas-field:
+    radial-gradient(130% 95% at 4% -14%, color-mix(in srgb, #22b8e6 18%, transparent) 0%, transparent 56%),
+    radial-gradient(100% 80% at 106% -8%, color-mix(in srgb, #b45cf0 15%, transparent) 0%, transparent 60%),
+    linear-gradient(178deg, #eef1f7 0%, #f2f0f7 54%, #edf3f5 100%);
+  --nx-glass-shell: rgb(248 249 250 / .70);
+  --nx-glass-shell-hi: rgb(248 249 250 / .94);
+  /* 抬升面：0.5px 发丝描边当第一层 + 两层极轻柔影（deepseek elevation 同形）。
+     颜色不是写死的黑，是 `var(--nx-line-hi)` —— 明暗两套描边色由那个角色自己带。 */
+  --nx-elev-panel: 0 0 0 0.5px var(--nx-line-hi), 0 3px 8px 0 rgb(0 0 0 / .03), 0 0 16px 0 rgb(0 0 0 / .02);
+  --nx-elev-soft: 0 0 0 0.5px var(--nx-line-hi), 0 6px 20px 0 rgb(0 0 0 / .04), 0 0 28px 0 rgb(0 0 0 / .03);
+  /* 侧栏与玻璃钮共用同一份壳面填充：改一处，`.d-side` / `.d-topbar` /
+     `.d-composer` / `.m-top-btn` 一起跟（它们本来读的就是这两个角色）。 */
+  --nx-sidebar: var(--nx-glass-shell);
+  --nx-glass: var(--nx-glass-shell);
+}
+
+[data-theme="dark"] {
+  --nx-canvas-field:
+    radial-gradient(130% 95% at 4% -14%, color-mix(in srgb, #22b8e6 22%, transparent) 0%, transparent 58%),
+    radial-gradient(100% 80% at 106% -8%, color-mix(in srgb, #b45cf0 20%, transparent) 0%, transparent 62%),
+    linear-gradient(178deg, #0f1116 0%, #14121b 54%, #0e1416 100%);
+  --nx-glass-shell: rgb(67 69 74 / .62);
+  --nx-glass-shell-hi: rgb(45 46 50 / .94);
+  --nx-elev-panel: 0 0 0 0.5px var(--nx-line-hi), 0 3px 8px 0 rgb(0 0 0 / .18), 0 0 16px 0 rgb(0 0 0 / .14);
+  --nx-elev-soft: 0 0 0 0.5px var(--nx-line-hi), 0 6px 20px 0 rgb(0 0 0 / .24), 0 0 28px 0 rgb(0 0 0 / .16);
+}

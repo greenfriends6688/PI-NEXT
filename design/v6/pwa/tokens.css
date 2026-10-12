@@ -270,3 +270,31 @@
   --nx-c-picker-h:      var(--nx-sk-c-date-and-time-pickers-content-default-h); /* 36 */
   --nx-c-pagecontrol-h: var(--nx-sk-c-page-controls-content-default-h); /* 44 */
 }
+
+/* ══ V6 毛玻璃（fork:v6-glass · 与 web 同一口径，数值按手机调）═════════════════
+   同一配方（base.css §14 的 `--nx-frost-blur` / `--nx-frost-sat`），差别只在填充：
+   手机屏幕窄、文字直接压在底上，填充比 Web 更实一档；色场也更收敛（品牌色晕压低），
+   否则小屏上整屏都是色。`--nx-canvas` 同样保持原样（PWA 渐隐层拿它取色）。 */
+:root {
+  --nx-canvas-field:
+    radial-gradient(120% 80% at 0% -8%, color-mix(in srgb, #22b8e6 14%, transparent) 0%, transparent 55%),
+    radial-gradient(110% 70% at 100% 0%, color-mix(in srgb, #b45cf0 12%, transparent) 0%, transparent 58%),
+    linear-gradient(180deg, #eef1f7 0%, #f2f0f7 58%, #eef3f5 100%);
+  --nx-glass-shell: rgb(255 255 255 / .74);
+  --nx-glass-shell-hi: rgb(255 255 255 / .95);
+  --nx-elev-panel: 0 0 0 0.5px var(--nx-line-hi), 0 3px 8px 0 rgb(0 0 0 / .03), 0 0 16px 0 rgb(0 0 0 / .02);
+  --nx-elev-soft: 0 0 0 0.5px var(--nx-line-hi), 0 6px 20px 0 rgb(0 0 0 / .05), 0 0 28px 0 rgb(0 0 0 / .03);
+  --nx-sidebar: var(--nx-glass-shell);
+  --nx-glass: var(--nx-glass-shell);
+}
+
+[data-theme="dark"] {
+  --nx-canvas-field:
+    radial-gradient(120% 80% at 0% -8%, color-mix(in srgb, #22b8e6 20%, transparent) 0%, transparent 57%),
+    radial-gradient(110% 70% at 100% 0%, color-mix(in srgb, #b45cf0 18%, transparent) 0%, transparent 60%),
+    linear-gradient(180deg, #0f1116 0%, #14121b 58%, #0e1416 100%);
+  --nx-glass-shell: rgb(28 28 30 / .72);
+  --nx-glass-shell-hi: rgb(44 44 46 / .95);
+  --nx-elev-panel: 0 0 0 0.5px var(--nx-line-hi), 0 3px 8px 0 rgb(0 0 0 / .18), 0 0 16px 0 rgb(0 0 0 / .14);
+  --nx-elev-soft: 0 0 0 0.5px var(--nx-line-hi), 0 6px 20px 0 rgb(0 0 0 / .24), 0 0 28px 0 rgb(0 0 0 / .16);
+}
