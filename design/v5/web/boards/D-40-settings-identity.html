@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-40 · AI 身份 · PI NEXT v5</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-40 · AI 身份</h1>
+  <p>
+    聊天里显示成谁：一个名字、一张头像。用户 2026-10-13：「AI 身份我觉得可以随时换 logo 和名称」。
+    三态照参考项目：<code>{ name, avatar, syncWithUserProfile }</code> —— 名字为空回退默认名，
+    头像为空回退品牌图，开了同步就用本机用户名的首字母 + 固定配色画一个。
+    存在 <code>~/.pi/agent/pi-web-preferences.json</code> 的 <code>identity</code> 段。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">页面：设置 / AI 身份</span>
+    <span class="d-tag">组件：IdentitySettingsPanel · /api/identity · lib/identity.ts</span>
+    <span class="d-tag">头像是 dataURL，上限 512 KB（同一个偏好文件还装着别的开关）</span>
+    <span class="d-tag">状态：默认（品牌名 + 品牌图）/ 自定义 / 同步用户资料</span>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 默认态<span class="d-grow"></span>名字与头像都留空 = 品牌回退</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">PI NEXT</span>
+          <span class="d-badge mute">AI 身份</span>
+        </div>
+        <div class="d-md"><p>这一页只回答一件事：助手在聊天里叫什么、长什么样。它<b>不影响</b> agent 在系统提示词里的自我描述 —— 那是 <code>AGENTS.md</code> 的职责，两件事互不干涉。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住「显示成谁」</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · AI 身份">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · AI 身份</span>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <button class="d-set-navitem"><i data-ico="image" data-size="14"></i>生图模型</button>
+              <button class="d-set-navitem is-on"><i data-ico="circle-user" data-size="14"></i>AI 身份</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="brain" data-size="14"></i>记忆</button>
+              <button class="d-set-navitem"><i data-ico="globe" data-size="14"></i>联网搜索</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <button class="d-set-navitem"><i data-ico="panels-top-left" data-size="14"></i>界面与功能</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+
+                <div class="d-set-sec">
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div style="display:flex;align-items:center;gap:var(--nx-sp-3)">
+                        <span class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></span>
+                        <div style="display:flex;flex-direction:column;gap:var(--nx-sp-2)">
+                          <button class="d-btn sm ghost"><i data-ico="upload" data-size="14"></i>更换头像</button>
+                          <button class="d-btn sm ghost">恢复默认头像</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">名字</div>
+                      <input class="d-input" placeholder="例如：PI NEXT" aria-label="名字">
+                      <div class="d-set-row-s">显示在聊天窗口 AI 回复上方，留空则使用默认名称。</div>
+                    </div>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">同步用户头像与名称</div>
+                      <div class="d-set-row-s">打开时跟随本机用户名「yingjing」，用首字母与固定配色画一个头像；此时上面的名字与头像都不参与显示。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-switch" role="switch" aria-checked="false" aria-label="同步用户头像与名称"></button></span>
+                  </div>
+
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-s">只影响聊天里显示成谁 —— agent 在系统提示词里的自我描述由 AGENTS.md 决定，两件事互不影响。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-btn sm primary" disabled>保存</button></span>
+                  </div>
+                </div>
+
+                <div class="d-set-sec">
+                  <span class="d-t-xs d-t-faint">存在 ~/.pi/agent/pi-web-preferences.json 的 identity 段。头像是 dataURL，上限 512 KB（那个文件还装着别的开关，塞大图会连累它们的读写）。</span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+          </div>
+          </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 同步用户资料<span class="d-grow"></span>此时 name / avatar 都不参与渲染</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell two">
+        <main class="d-main">
+  <div class="d-chat">
+    <div class="d-chat-inner">
+      <div class="d-msg-ai">
+        <div class="d-msg-ai-head">
+          <div class="d-ava brand"><img src="../../assets/brand/logo.png" alt=""></div>
+          <span class="d-t-sm d-t-b">yingjing</span>
+          <span class="d-badge mute">同步中</span>
+        </div>
+        <div class="d-md"><p>开着同步时，名字与头像都来自本机用户名 —— 用户填的名字还在文件里，但不参与显示。所以页面把那两行<b>照旧画出来</b>并写明「不参与显示」，而不是把它们藏起来让人以为填的丢了。</p></div>
+      </div>
+    </div>
+  </div>
+          <header class="d-topbar">
+  <div class="d-tb-stack">
+    <span class="d-tb-title">定住「显示成谁」</span>
+    <span class="d-tb-sub">~/Desktop/PI NEXT · fork/v5-boards</span>
+  </div>
+  <div class="d-tb-spacer"></div>
+  <button class="d-btn sm ghost"><i data-ico="git-branch" data-size="14"></i>fork/v5-boards<i data-ico="chevron-down" data-size="11"></i></button>
+</header>
+
+          <div class="d-modal is-open" style="position:absolute;inset:0" aria-label="设置 · AI 身份（同步用户资料）">
+  <div class="d-modal-box wide" style="width:78%">
+    <div class="d-modal-head">
+      <span class="d-grow">设置 · AI 身份</span>
+    </div>
+    <div class="d-modal-body">
+      <div class="d-set">
+            <nav class="d-set-nav">
+              <div class="d-set-navsep">基础</div>
+              <button class="d-set-navitem"><i data-ico="sliders-horizontal" data-size="14"></i>通用</button>
+              <button class="d-set-navitem"><i data-ico="cpu" data-size="14"></i>模型</button>
+              <button class="d-set-navitem"><i data-ico="image" data-size="14"></i>生图模型</button>
+              <button class="d-set-navitem is-on"><i data-ico="circle-user" data-size="14"></i>AI 身份</button>
+              <div class="d-set-navsep">能力</div>
+              <button class="d-set-navitem"><i data-ico="box" data-size="14"></i>技能</button>
+              <button class="d-set-navitem"><i data-ico="bot" data-size="14"></i>子代理</button>
+              <button class="d-set-navitem"><i data-ico="blocks" data-size="14"></i>插件</button>
+              <button class="d-set-navitem"><i data-ico="brain" data-size="14"></i>记忆</button>
+              <button class="d-set-navitem"><i data-ico="globe" data-size="14"></i>联网搜索</button>
+              <button class="d-set-navitem"><i data-ico="server" data-size="14"></i>MCP</button>
+              <button class="d-set-navitem"><i data-ico="panels-top-left" data-size="14"></i>界面与功能</button>
+              <div class="d-set-navsep">运行</div>
+              <button class="d-set-navitem"><i data-ico="calendar-clock" data-size="14"></i>定时任务</button>
+              <button class="d-set-navitem"><i data-ico="chart-column" data-size="14"></i>用量</button>
+              <div class="d-set-navsep">数据与连接</div>
+              <button class="d-set-navitem"><i data-ico="archive" data-size="14"></i>归档</button>
+              <button class="d-set-navitem"><i data-ico="import" data-size="14"></i>导入</button>
+              <button class="d-set-navitem"><i data-ico="smartphone" data-size="14"></i>手机与推送</button>
+</nav>
+
+            <div class="d-set-main">
+              <div class="d-set-inner">
+                <div class="d-set-sec">
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div style="display:flex;align-items:center;gap:var(--nx-sp-3)">
+                        <span class="d-ava">YI</span>
+                        <div style="display:flex;flex-direction:column;gap:var(--nx-sp-2)">
+                          <button class="d-btn sm ghost"><i data-ico="upload" data-size="14"></i>更换头像</button>
+                          <button class="d-btn sm ghost">恢复默认头像</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="d-set-row">
+                    <div class="d-set-row-box">
+                      <div class="d-set-row-t">同步用户头像与名称</div>
+                      <div class="d-set-row-s">打开时跟随本机用户名「yingjing」，用首字母与固定配色画一个头像；此时上面的名字与头像都不参与显示。</div>
+                    </div>
+                    <span class="d-grow-last"><button class="d-switch on" role="switch" aria-checked="true" aria-label="同步用户头像与名称"></button></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+          </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+  <b>这一张在定什么：</b>
+  <ul>
+    <li><b>三态回退链</b>：名字空 → 默认名；头像空 → 品牌图；开同步 → 本机用户名的首字母 +
+        确定性配色（同名字永远同色，9 个色相里挑）。三条都写在一处纯函数
+        <code>resolveIdentityView</code> 里，聊天渲染与设置页预览读的是同一份 ——
+        预览与实际不一致是本类页面最常见的谎。</li>
+    <li><b>头像限长 512 KB 且只收图片 dataURL</b>：它落在
+        <code>pi-web-preferences.json</code>，那是本应用的偏好文件，还装着记忆开关、联网搜索、
+        界面与功能这些键。塞一张几 MB 的原图会连累它们的读写。超了就在页面上说清是
+        「太大」还是「不是图片」，不静默按小的存。</li>
+    <li><b>同步打开时不藏那两行</b>：名字还在文件里，只是不参与显示。藏起来会让人以为
+        自己填的名字丢了。</li>
+    <li><b>只影响「显示成谁」，不动系统提示词</b>：agent 在系统提示词里的自我描述由
+        <code>AGENTS.md</code> 决定 —— 改了它会影响每个会话的自我描述，那是另一个决策，
+        不藏在一次外观改动里（同一节里写明了这条）。</li>
+    <li><b>保存后立刻生效</b>：<code>setIdentity()</code> 当场同步给客户端 store，
+        聊天里的身份行不必等下一次 fetch。</li>
+  </ul>
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

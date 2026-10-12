@@ -395,6 +395,27 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 * **`pi-web-preferences.json` 的读写只有一处**（`lib/pi-web-preferences.ts`）：原先内联在
   `lib/thinking-level-memory.ts` 里，现在两个模块共用 —— 同一个文件两个写入者各自读-改-写会互相抹键。
 
+### AI 身份（fork:ai-identity，2026-10-13）
+
+用户 2026-10-13：「AI 身份我觉得可以随时换 logo 和名称」。设置新增分节「AI 身份」
+（左导航 `identity`，画板 `D-40-settings-identity.html`）。
+
+* **三态**照参考项目：`{ name, avatar, syncWithUserProfile }`。名字空 → 默认名；头像空 →
+  品牌图；开同步 → 本机用户名（`os.userInfo()`）的首字母 + 确定性配色。三态收敛在
+  `lib/identity.ts` 的 `resolveIdentityView()` 一个纯函数里，**聊天渲染与设置页预览读同一份**
+  —— 预览与实际不一致是这类页面最常见的谎。
+* **头像是 dataURL 且限长 512 KB**：它写在 `~/.pi/agent/pi-web-preferences.json`，那个文件
+  还装着记忆开关 / 联网搜索 / 界面与功能。超了在页面上说清是「太大」还是「不是图片」，
+  不静默按小的存。只收图片 dataURL，不收外链（不留一个「头像靠网络加载」的失败面）。
+* **不进 prompt**：agent 在系统提示词里的自我描述由 `AGENTS.md` 那一段决定，改它会影响
+  每个会话 —— 那是另一个决策，不藏在一次外观改动里。这一节是纯展示数据。
+* **客户端 store**（`hooks/useIdentity.ts`）与 `useFeatureFlags` 同一条纪律：
+  `getSnapshot` 必须返回**同一引用**（React #185，见 `lib/session-ui-state-store.ts`）。
+* 渲染点是 `components/MessageView.tsx` 的 `TurnIdentityHead`（原先写死 logo + 「PI NEXT」）。
+* 新增分节照 `fork:feature-toggles` 那一套同步：18+1 张画板左导航、`boardnav` 计数 15→16、
+  `SettingsPanel.test.mjs` 的 hub 计数、`SECTION_ICON_BY_ID`（`circle-user`，`image-up`
+  不在图标表里，改用 `upload`）、hub 的 `SECTION_HINTS`、三语 16 键、`design/v5/README.md`。
+
 ### 侧栏：空间 / 任务（fork:sidebar-spaces-tasks，2026-10-13）
 
 用户 2026-10-13：「他叫空间和任务，你也帮我按照这个走，不要用项目和聊天的左右切换了」。

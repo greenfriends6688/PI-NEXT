@@ -109,6 +109,7 @@ design/v5/
 | `D-36-settings-memory.html` | D-36 · 记忆 | 设置 / 记忆 | D-36-settings-memory.html |
 | `D-37-settings-websearch.html` | D-37 · 联网搜索 | 设置 / 联网搜索 | D-37-settings-websearch.html |
 | `D-39-settings-features.html` | D-39 · 界面与功能 | 设置 / 界面与功能 | D-39-settings-features.html |
+| `D-40-settings-identity.html` | D-40 · AI 身份 | 设置 / AI 身份 | D-40-settings-identity.html |
 | `M-01-conversation-drawer.html` | M-01 · 会话页与抽屉 | 会话流 / 会话抽屉 / 模型选择 | M-01-conversation-drawer.html |
 | `M-02-transcript.html` | M-02 · 手机转录 | 会话转录 | M-02-transcript.html |
 | `M-03-composer-sheet.html` | M-03 · 手机输入卡与面板 | 输入卡 / 能力浮层 / 补全面板 / 队列面板 | M-03-composer-sheet.html |

@@ -10,6 +10,14 @@ import { copyText } from "@/lib/clipboard";
 import { ImagePreview } from "./ImagePreview";
 import { ThinkingIcon } from "./ThinkingIcon";
 import { useI18n } from "@/hooks/useI18n";
+// fork:ai-identity —— 身份行（头像 + 名字）读「设置 → AI 身份」。
+import { getIdentityUserName, useAgentIdentity } from "@/hooks/useIdentity";
+import {
+  DEFAULT_AGENT_AVATAR_URL,
+  DEFAULT_AGENT_NAME,
+  identityInitialsStyle,
+  resolveIdentityView,
+} from "@/lib/identity";
 import { parseCompactionSummary } from "@/lib/compaction-summary";
 import { getAssistantErrorMessage, getThinkingPreview, isEmptyThinkingBlock } from "@/lib/message-display";
 import { parseUnifiedPatch, type SplitDiffCell, type SplitDiffFile } from "@/lib/patch";
@@ -308,6 +316,28 @@ export function TurnIdentityHead({ message, modelNames, isPwa, trailing }: {
   isPwa: boolean;
   trailing?: ReactNode;
 }) {
+  /* fork:ai-identity —— 身份行读「设置 → AI 身份」：名字、头像、以及「同步用户资料」
+     那一态。原来这里是写死的 logo + 「PI NEXT」。三态回退（名字空→默认名、头像空→
+     品牌图、开同步→本机用户名首字母）全在 `resolveIdentityView` 一个纯函数里，
+     设置页的预览读的是同一份 —— 预览与实际不一致是这类页面最常见的谎。 */
+  const identity = useAgentIdentity();
+  const identityView = resolveIdentityView(identity, getIdentityUserName());
+  const initialsStyle = identityInitialsStyle(getIdentityUserName() || identity.name || DEFAULT_AGENT_NAME);
+  const avatarNode = identityView.initialsOnly ? (
+    <span
+      className={isPwa ? "m-ava" : "d-ava"}
+      aria-hidden="true"
+      style={{ ...initialsStyle, display: "grid", placeItems: "center", fontWeight: 600 }}
+    >
+      {identityView.initials}
+    </span>
+  ) : (
+    <span className={isPwa ? "m-ava brand" : "d-ava brand"}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={identityView.imageUrl ?? DEFAULT_AGENT_AVATAR_URL} alt="" draggable={false} />
+    </span>
+  );
+
   const badge = message.provider && message.model ? (
     <span className={isPwa ? "m-badge mute" : "d-badge mute"}>
       {getModelDisplayName(message.provider, message.model, modelNames)}
@@ -315,20 +345,14 @@ export function TurnIdentityHead({ message, modelNames, isPwa, trailing }: {
   ) : null;
   return isPwa ? (
     <div className="m-msg-ai-head">
-      <span className="m-ava brand">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/pi-next-logo.png" alt="" draggable={false} />
-      </span>
-      <span className="m-t-b">PI NEXT</span>
+      {avatarNode}
+      <span className="m-t-b">{identityView.label}</span>
       {badge}
     </div>
   ) : (
     <div className="d-msg-ai-head">
-      <div className="d-ava brand">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/pi-next-logo.png" alt="" draggable={false} />
-      </div>
-      <span className="d-t-b">PI NEXT</span>
+      {avatarNode}
+      <span className="d-t-b">{identityView.label}</span>
       {badge}
       {trailing}
     </div>

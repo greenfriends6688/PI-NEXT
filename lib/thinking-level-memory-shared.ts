@@ -20,6 +20,12 @@ export interface PiWebPreferences {
    * 只存与默认值不同的项，所以默认值以后可以改而不需要迁移旧文件。
    */
   features?: unknown;
+  /**
+   * fork:ai-identity —— 「设置 → AI 身份」：聊天里显示成谁（`{ name, avatar, syncWithUserProfile }`，
+   * 形状由 `lib/identity.ts` 归一化）。**纯展示数据，不进 prompt** —— agent 在系统提示词里的
+   * 自我描述由 `AGENTS.md` 决定，两件事互不影响。
+   */
+  identity?: unknown;
 }
 
 /** per-model 记忆的 key 约定：`provider/modelId`（斜杠形式）。 */

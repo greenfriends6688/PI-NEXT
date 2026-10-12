@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-12T08:55",
+  "generatedAt": "2026-10-12T09:42",
   "boards": [
     {
       "id": "D-01",
@@ -602,6 +602,20 @@
         "组件：FeaturesConfig · /api/features · lib/feature-toggles.ts",
         "单一真值：FEATURE_DESCRIPTORS（这一页不硬编码任何开关名）",
         "状态：全开（默认）/ 关掉若干个"
+      ]
+    },
+    {
+      "id": "D-40",
+      "file": "D-40-settings-identity.html",
+      "form": "web",
+      "group": "core",
+      "title": "D-40 · AI 身份",
+      "desc": "聊天里显示成谁：一个名字、一张头像。用户 2026-10-13：「AI 身份我觉得可以随时换 logo 和名称」。 三态照参考项目：{ name, avatar, syncWithUserProfile } —— 名字为空回退默认名， 头像为空回退品牌图，开了同步就用本机用户名的首字母 + 固定配色画一个。 存在 ~/.pi/agent/",
+      "tags": [
+        "页面：设置 / AI 身份",
+        "组件：IdentitySettingsPanel · /api/identity · lib/identity.ts",
+        "头像是 dataURL，上限 512 KB（同一个偏好文件还装着别的开关）",
+        "状态：默认（品牌名 + 品牌图）/ 自定义 / 同步用户资料"
       ]
     },
     {

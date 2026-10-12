@@ -39,6 +39,7 @@ import { PhoneAndPushPanel } from "./fork/PhoneAndPushPanel";
 import { ImageGenSettingsPanel } from "./fork/ImageGenSettingsPanel";
 // fork:memory —— 设置 → 记忆（画板 D-36）。
 import { MemorySettingsPanel } from "./fork/MemorySettingsPanel";
+import { IdentitySettingsPanel } from "./fork/IdentitySettingsPanel";
 import { FeaturesConfig } from "./fork/FeaturesConfig";
 // fork:websearch —— 设置 → 联网搜索（画板 D-37）。
 import { WebSearchSettingsPanel } from "./fork/WebSearchSettingsPanel";
@@ -142,6 +143,8 @@ const SECTION_ICON_BY_ID: Record<string, string> = {
   models: "cpu",
   // fork:imagegen —— 生图模型档案（画板 D-31 左导航的 `image`）。
   imagegen: "image",
+  // fork:ai-identity —— 「AI 身份」（画板 D-40 左导航的 `circle-user`）。
+  identity: "circle-user",
   // fork:memory —— 记忆扩展（画板 D-36 左导航的 `brain`）。
   memory: "brain",
   // fork:websearch —— 免 key 联网搜索（画板 D-37 左导航的 `globe`）。
@@ -1368,6 +1371,8 @@ export function SettingsPanel({ cwd, sessionId, initialSection, focusSkillSlug, 
         {/* fork:imagegen —— 生图模型档案。全局页：generate_image 工具、标书配图都读它，
             与项目无关（对齐画板 D-31 的分节定位：跟「模型」同段）。 */}
         {sectionHost("imagegen", <ImageGenSettingsPanel />)}
+        {/* fork:ai-identity —— 聊天里显示成谁（头像 + 名字）。纯展示数据，不进 prompt。 */}
+        {sectionHost("identity", <IdentitySettingsPanel />)}
         {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} focusSlug={focusSkillSlug ?? null} />)}
         {cwd && sectionHost("agents", <AgentsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
         {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}

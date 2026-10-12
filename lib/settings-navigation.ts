@@ -3,6 +3,8 @@ export const SETTINGS_SECTION_VALUES = [
   "models",
   // fork:imagegen —— 生图模型档案（全局，与项目无关）。对话模型管推理，这一节管出图。
   "imagegen",
+  // fork:ai-identity —— 「AI 身份」：聊天里显示成谁（头像 + 名字，全局）。
+  "identity",
   "skills",
   "agents",
   "plugins",
@@ -61,6 +63,9 @@ export const SETTINGS_SECTIONS: ReadonlyArray<{
   { id: "models", labelKey: "common.models", requiresProject: false },
   // fork:imagegen —— 生图模型档案。全局节：generate_image 工具与标书配图都读它。
   { id: "imagegen", labelKey: "settings.imagegen", requiresProject: false },
+  // fork:ai-identity —— 「AI 身份」：纯展示数据（不进 prompt），所以是全局节。
+  // 位置跟画板 D-40 左导航（基础段、「生图模型」之后）。
+  { id: "identity", labelKey: "settings.identity", requiresProject: false },
   { id: "skills", labelKey: "common.skills", requiresProject: true },
   { id: "agents", labelKey: "common.agents", requiresProject: true },
   { id: "plugins", labelKey: "common.plugins", requiresProject: true },

@@ -20,7 +20,7 @@ export const SETTINGS_HUB_GROUPS: ReadonlyArray<{
   sections: readonly SettingsSection[];
 }> = [
   // fork:imagegen —— 生图模型档案跟「模型」同段（基础）：都是模型配置面。
-  { id: "base", sections: ["general", "models", "imagegen"] },
+  { id: "base", sections: ["general", "models", "imagegen", "identity"] },
   // fork:memory —— 记忆扩展跟「插件」同段（能力）：它就是一个包。
   { id: "capability", sections: ["skills", "agents", "plugins", "memory", "websearch", "mcp", "features"] },
   { id: "runtime", sections: ["automation", "usage"] },
@@ -84,6 +84,12 @@ const SECTION_HINTS: Record<string, HubCopy> = {
     en: "Image generation profile · provider & model · size · connection test",
     "zh-CN": "生图档案 · 服务商与模型 · 尺寸 · 连接测试",
     "zh-TW": "生圖檔案 · 服務商與模型 · 尺寸 · 連線測試",
+  },
+  // fork:ai-identity —— 「AI 身份」的一句副行。
+  identity: {
+    en: "Name and avatar above every assistant reply",
+    "zh-CN": "助手回复上方的名字与头像",
+    "zh-TW": "助手回覆上方的名字與頭像",
   },
   // fork:memory —— 记忆扩展的一句副行。
   memory: {
