@@ -17,6 +17,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import { useI18n } from "@/hooks/useI18n";
+// fork:model-capabilities —— 四种输入模态（图片 / PDF / 音频 / 视频）的单一真值。
+import {
+  MODEL_INPUT_MODALITIES,
+  modelSupportsModality,
+  toggleInputModality,
+  type ModelInputModality,
+} from "@/lib/model-capabilities";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 // fork:input-limits —— pi-ai 原生的 `inputLimits` / `promptCache` 类型（见 ModelEntry）。
 import type { ModelInputLimits, ModelPromptCache } from "@earendil-works/pi-ai";
@@ -339,6 +346,20 @@ function readRememberedView(): View {
 // ── 行内徽标 ──────────────────────────────────────────────────────────────────
 
 /** `1M` / `262.1K`：模型行上那枚上下文窗口徽标。 */
+/** 四种模态的文案键（长 / 短两套：编辑器用长，列表行徽标用短）。 */
+const MODALITY_LABEL_KEY: Record<ModelInputModality, string> = {
+  image: "models.imageInput",
+  pdf: "models.pdfInput",
+  audio: "models.audioInput",
+  video: "models.videoInput",
+};
+const MODALITY_SHORT_KEY: Record<ModelInputModality, string> = {
+  image: "models.inputShortImage",
+  pdf: "models.inputShortPdf",
+  audio: "models.inputShortAudio",
+  video: "models.inputShortVideo",
+};
+
 function formatContextWindowBadge(contextWindow?: number): string | null {
   if (!contextWindow || !Number.isFinite(contextWindow) || contextWindow <= 0) return null;
   if (contextWindow >= 1_000_000) {
@@ -1322,17 +1343,28 @@ function ModelDetail({ providerName, provider, model, onChange, onDelete, cwd }:
             />
           </span>
         </div>
+        {/* fork:model-capabilities —— 四种输入模态（原来只有「支持图片」一枚）。
+            这是**能力声明**，不是闸门：本仓没有一处拿 `models.json` 的 `input` 去拦附件，
+            能不能带图/PDF 发给模型由 pi 在组装请求时按 provider 决定。界面上照实说清楚
+            它记的是什么（见那一行注解），不假装勾掉就发不出去了。 */}
+        {MODEL_INPUT_MODALITIES.map((modality) => (
+          <div className="d-set-row" key={modality}>
+            <div className="d-set-row-box">
+              <div className="d-set-row-t">{t(MODALITY_LABEL_KEY[modality])}</div>
+            </div>
+            <span className="d-grow-last">
+              <ConfigSwitch
+                checked={modelSupportsModality(model.input, modality)}
+                label={t(MODALITY_LABEL_KEY[modality])}
+                onChange={(value) => set("input", toggleInputModality(model.input, modality, value))}
+              />
+            </span>
+          </div>
+        ))}
         <div className="d-set-row">
           <div className="d-set-row-box">
-            <div className="d-set-row-t">{t("models.imageInput")}</div>
+            <div className="d-set-row-s">{t("models.inputCapabilityNote")}</div>
           </div>
-          <span className="d-grow-last">
-            <ConfigSwitch
-              checked={model.input?.includes("image") ?? false}
-              label={t("models.imageInput")}
-              onChange={(value) => set("input", value ? ["text", "image"] : undefined)}
-            />
-          </span>
         </div>
       </div>
 
@@ -2694,12 +2726,21 @@ export function ModelsConfig({ onClose, embedded = false, cwd = null }: {
           {entry.name !== entry.id && <ConfigSidebarSub>{entry.id}</ConfigSidebarSub>}
         </span>
       );
+      // fork:model-capabilities —— 勾过的输入模态在行上露一枚短徽标，
+      // 这样「这个模型能收什么」不用点进去才看得到（参考项目那一列的做法）。
+      const definitionIndex = entry.index;
+      const modalities = definitionIndex === null
+        ? []
+        : MODEL_INPUT_MODALITIES.filter((modality) => modelSupportsModality(definitions[definitionIndex]?.input, modality));
       const tags = (
         <>
           {windowBadge && <ConfigBadge tone="mute">{windowBadge}</ConfigBadge>}
           {!entry.usable && <ConfigBadge tone="warn">{t("models.notUsable")}</ConfigBadge>}
           {entry.view?.thinkingPin && (
             <ConfigBadge tone="mute">{t("models.thinkingPin", { level: entry.view.thinkingPin })}</ConfigBadge>
+          )}
+          {modalities.length > 0 && (
+            <ConfigBadge tone="mute">{modalities.map((modality) => t(MODALITY_SHORT_KEY[modality])).join(" · ")}</ConfigBadge>
           )}
         </>
       );

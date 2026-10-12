@@ -135,10 +135,12 @@ function pickLimit(source: Record<string, unknown>, keys: readonly string[]): nu
   return undefined;
 }
 
+import { isModelInputModality } from "./model-capabilities";
+
 function readModalities(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const modalities = [...new Set(value.filter((entry): entry is string => (
-    typeof entry === "string" && (entry === "text" || entry === "image")
+    typeof entry === "string" && (entry === "text" || isModelInputModality(entry))
   )))];
   return modalities.length ? modalities : undefined;
 }
