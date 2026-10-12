@@ -1319,6 +1319,16 @@ Web 拿不到整窗材质，页底/卡片分层照 iOS（Grouped 灰 / Primary �
 | **玻璃面比普通面更不透明一档**（`--dsw-specific-menu` ≈94%） | 浮层要压在内容上，比壳面更实 | `--nx-glass-shell-hi`：light `.94` / dark `.95`（`.d-cmd-input` / `.d-modal-box` / PWA `.m-sheet` `.m-pop-float`） |
 | **页面底先有一层色场再谈玻璃** | 它的 gradient-shadow-text 背后是多层渐变 | `--nx-canvas-field`（light：#22b8e6 品牌青 + #b45cf0 品牌紫 + 冷中性渐变；dark 对应压暗），`.d-shell` / `.d-frame` / `.d-board` / PWA `.m-phone` `.m-workspace` 取它 |
 
+### AI1b · 加固（2026-10-13 · fork:v6-glass-hardening）
+
+| # | 做了什么 | 为什么 |
+|---|---|---|
+| 1 | **壳面 blur 挪到 `::before` 绝对层**（`.d-side` / `.d-rail` / `.d-topbar`，本体不挂 `backdrop-filter`） | 原来靠「板内 `.d-pop` 都在 `<aside>` 外面」推断安全 —— 那是对**画板**成立的推理，对**产品**不成立：`backdrop-filter` 会让元素成为 `position: fixed` 后代的包含块，产品里右栏浮层 / toast / 抽屉都可能从壳内挂出去，包含块一换、`overflow` 一裁浮层就没了。deepseek 的 `MenuSurface.module.css` 正是这么绕的。`isolation: isolate` 是必须的：没有它，`z-index:-1` 的伪元素会跑到最近层叠上下文（`.d-shell` 的色场）**后面**。 |
+| 2 | **补两级降级**：`prefers-reduced-transparency: reduce` + `@supports not (backdrop-filter)` | harness 只有前者。V6 是**常开**的 40px ×4 层 blur，不跟系统无障碍开关走，等于对「因为看不清才开降低透明度」的用户装聋；`@supports` 兜 Safari 16.2 地板与老显卡（没有 blur 时半透明面会直接透出色场，正文对比度跟着底图漂）。两级都是**变实底**。 |
+| 3 | **`--nx-chat-col: clamp(680px, 64vw, 920px)`**（原来写死 920） | deepseek 那侧本来就是 clamp；写死在窄窗口 / 分屏时会让转录列比可用宽度还宽。 |
+| 4 | **小控件统一到 frost 配方**（`.d-jump` / `.m-top-btn` 原来用 `--nx-glass-blur-small` = 1.2px），并删掉 `--nx-glass-blur-medium` / `--nx-glass-saturate-dark` 两个零引用令牌 | 小控件可以减半径，但不该另立**第二套材质**。 |
+| 5 | **修一个真事故**：`base.css` 的 `--nx-frost-blur` / `--nx-frost-sat` 两行**裸在规则块外面**（漏了 `:root { }`）→ 顶层声明不是合法 CSS，浏览器整条丢弃 → 每一处 `blur(var(--nx-frost-blur))` 都解析成非法值：**V6 的毛玻璃从 2026-10-12 做出来那天起就没真正糊过**（壳面只剩半透明，没有 frost）。 | 当时的静态门禁全绿 —— 它校验令牌的**定义**与**引用**，不校验声明在不在规则里。已补 `check-v6.mjs` 的顶层声明门禁（按大括号深度扫，深度 0 出现 `--name:` 或 `属性: 值;` 即报错），并注入验证过它真的抓得住。 |
+
 ### AI2 · 拒绝 / 不抄
 
 | 它的做法 | 为什么不抄 |

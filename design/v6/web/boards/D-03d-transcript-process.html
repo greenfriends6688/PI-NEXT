@@ -16,9 +16,9 @@
 <header class="d-board-head">
   <h1>D-03d · 转录 · 过程与工具全集</h1>
   <p>
-    一轮里「做了什么事」的全部形态：思考折叠块、过程时间轴、工具卡的四个状态、diff 的三种视图、
+    一轮里「做了什么事」的全部形态：思考折叠块、过程折叠行、工具卡的四个状态、diff 的三种视图、
     嵌入式终端、子代理、codemode。四条纪律：
-    ① <b>过程只有一条时间轴</b>，工具调用不逐条平铺 —— 平铺之后，五分钟的跑动会变成四十行，回答被淹没；
+    ① <b>过程只有一行折叠摘要</b>，展开是 24px 的行式步骤（无竖线），工具调用不逐条平铺 —— 平铺之后，五分钟的跑动会变成四十行，回答被淹没；
     ② <b>失败不整卡描红</b>，只换状态图标与输出底色，边框永远是发丝线；
     ③ <b>diff 只读</b>，本应用没有 Keep / Reject 审阅条，改动由 agent 自己落盘；
     ④ <b>子代理的嵌套工具行是行不是卡</b>，缩进一级，复用同一套步骤语法。
@@ -30,7 +30,7 @@
   </div>
 </header>
 
-<!-- ── 帧 A · 思考块 + 过程时间轴 ──────────────────────────────────────── -->
+<!-- ── 帧 A · 思考块 + 过程折叠行 ──────────────────────────────────────── -->
 <section class="d-scene">
   <div class="d-frame-label"><b>帧 A</b> · 思考折叠块四态 · 过程时间轴三态<span class="d-grow"></span>时间轴是唯一的过程形态，页签切三态</div>
   <div class="d-frame sheet">
@@ -91,7 +91,7 @@
                 <button class="d-btn sm ghost" data-demo-motion="#d-run-time"><i data-ico="rotate-cw" data-size="12"></i>重播计时数字</button>
               </div>
 
-              <!-- 过程时间轴三态 -->
+              <!-- 过程折叠行三态 -->
               <div class="d-tabbar" data-demo-tabs style="align-self:flex-start">
                 <button class="d-tab is-on" data-demo-tab="p-run"><i data-ico="loader-circle" data-size="13"></i>进行中</button>
                 <button class="d-tab" data-demo-tab="p-fail"><i data-ico="triangle-alert" data-size="13"></i>含 1 次失败</button>
@@ -617,7 +617,7 @@ D-03e 出现 m-* 类（两套形态不许混用）</div>
 <div class="d-notes">
   <b>这一张在定什么：</b>
   <ul>
-    <li><b>过程只有一条时间轴</b>。一轮内的工具调用收成一条竖线串起的步骤流，汇总行给「N 个文件 · M 条命令 · K 次工具调用 · J 次失败 · L 段思考」。竖线在首行从图标中心起画、末行到中心收笔 —— 中间连、两头断，这是竖线唯一合理的收法。</li>
+    <li><b>过程只有一行摘要</b>（fork:v6-process，2026-10-12 参考 deepseek 改版，推翻 v5 竖线时间轴，登记见 DIVERGENCE §AJ）。摘要行 33px + 一条结构线，给「N 个文件 · M 条命令 · K 次工具调用 · J 次失败 · L 段思考」；<b>已完成默认收起</b>，进行中展开最新一步。展开后是行式步骤：24px 一行、16px 图标 + 13px 文案、整行 tertiary、hover 才升 secondary —— 没有容器、没有竖线，靠 [图标][文案][右贴时长] 三段读。</li>
     <li><b>失败就地标红，不另开卡</b>：图标与动词进 error、右侧挂一枚「失败」徽标，语义动词与目标文件全部保留（否则整行读作「bash 39s 失败」，既不知道跑了什么也不知道动了哪个文件）。要看详情才展开成工具卡。</li>
     <li><b>失败不整卡着色</b>：只换两处 —— 状态图标转 error、输出底色转 error 底。边框永远是发丝线，不加左侧彩条。整卡描红会让「哪一步失败」淹没在一片红里。</li>
     <li><b>diff 三视图只有排布不同</b>：行内、分栏、对比上一次提交共用同一份词级高亮。全部只读 —— 本应用没有 Keep / Reject 审阅条，改动由 agent 自己落盘，所以任何「保留这一段」的按钮都是假的。</li>

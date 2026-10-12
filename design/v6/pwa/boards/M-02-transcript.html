@@ -18,12 +18,12 @@
   <p>
     转录是这个产品真正的界面。手机上比桌面更依赖三件事：
     ① <b>用户说的话永远在右边</b>，形状与颜色和助手消息彻底不同，扫一眼就知道谁说的；
-    ② <b>过程是时间轴不是日志</b>，而且<b>默认折叠成一行摘要</b> —— 竖屏没有横向空间同时展示过程与结论；
+    ② <b>过程默认折叠成一行摘要</b>，展开是行式步骤（24px 一行，不是日志、也没有竖线）—— 竖屏没有横向空间同时展示过程与结论；
     ③ <b>能展开的默认收起，标题行永远可见</b>：代码、表格、附件都自带滚动，不许把整屏撑开。
   </p>
   <div class="m-doc-tags" data-board-tags>
     <span class="m-doc-tag">页面：会话转录</span>
-    <span class="m-doc-tag">组件：m-msg-user · m-steps · m-tool · m-code · m-tbl · m-attach · m-perm · m-branch</span>
+    <span class="m-doc-tag">组件：m-msg-user · m-turnproc · m-steps · m-tool · m-code · m-tbl · m-attach · m-perm · m-branch</span>
     <span class="m-doc-tag">状态：折叠 / 展开 / 流式 / 失败重试 / 分支切换</span>
   </div>
 </header>
@@ -59,15 +59,20 @@
           <span class="m-badge mute">claude-opus-4-6</span>
         </div>
 
-        <!-- 折叠态：过程只剩一行摘要 -->
-        <div class="m-tool nx-shrink-0">
-          <div class="m-tool-head">
+        <!-- 折叠态：过程只剩一行摘要（fork:v6-process：白卡 → 33px 折叠行） -->
+        <details class="m-turnproc-wrap">
+          <summary class="m-turnproc">
             <i data-ico="list-checks" data-size="14"></i>
-            <span class="m-grow">过程 · 4 步</span>
-            <span class="m-t-xs m-t-faint">11.2s</span>
-            <i data-ico="chevron-down" data-size="14"></i>
+            <span class="m-grow">过程 · 4 步 · 11.2s</span>
+            <i class="m-chev" data-ico="chevron-down" data-size="14"></i>
+          </summary>
+          <div class="m-steps">
+            <div class="m-step-row done"><span class="m-step-dot"></span><span class="m-grow">read(base.css)</span><span class="m-step-n">1.2k</span></div>
+            <div class="m-step-row done"><span class="m-step-dot"></span><span class="m-grow">grep(--nx-r- · 14 处)</span><span class="m-step-n">0.4s</span></div>
+            <div class="m-step-row fail"><span class="m-step-dot"></span><span class="m-grow">node --test lib/mcp-transport.test.mjs</span><span class="m-step-n">1.9s</span></div>
+            <div class="m-step-row"><span class="m-step-dot"></span><span class="m-grow m-t-faint">write(base.css) —— 等你决定</span><span class="m-step-n">—</span></div>
           </div>
-        </div>
+        </details>
 
         <div class="m-md">
           <h2>根因：同一个名字既是比例又是长度</h2>
@@ -116,7 +121,7 @@
              类名是硬编码的 d-quote / d-tasklist），补上这一帧让 m-quote / m-tasklist /
              m-checkbox / m-mention 四件有画板依据（铁律二：一个类必须被一张画板用上）。 -->
         <div class="m-md">
-          <blockquote class="m-quote">长列表里抽一行说清楚：<b>过程只有一条时间轴</b>，工具调用不逐条平铺——平铺之后，五分钟的跑动会变成四十行，回答被淹没。</blockquote>
+          <blockquote class="m-quote">长列表里抽一行说清楚：<b>过程只有一行摘要</b>，工具调用不逐条平铺——平铺之后，五分钟的跑动会变成四十行，回答被淹没。</blockquote>
           <ul class="m-tasklist">
             <li><span class="m-checkbox on"><i data-ico="check" data-size="12"></i></span>把门禁写成命令</li>
             <li><span class="m-checkbox on"><i data-ico="check" data-size="12"></i></span>两处令牌改名</li>
@@ -472,7 +477,7 @@ not ok 31 - 引用 PI_WEB_PASSWORD 的条目必须被拒
 <div class="m-notes">
   <b>这一张在定什么：</b>
   <ul>
-    <li><b>折叠是默认态，不是降级态</b>：过程默认收成一行 <span class="m-mono">.m-tool</span> 摘要（几步 · 多少秒 · 箭头）；展开后是一列 <span class="m-mono">.m-step-row</span>，每行末尾一个等宽数字（token 或耗时），用户扫一眼就知道贵在哪。</li>
+    <li><b>折叠是默认态，不是降级态</b>：过程默认收成一行 <span class="m-mono">.m-turnproc</span> 摘要（几步 · 多少秒 · 箭头，fork:v6-process 推翻了原来的 <span class="m-mono">.m-tool</span> 白卡）；展开后是一列 <span class="m-mono">.m-step-row</span>，每行末尾一个等宽数字（token 或耗时），用户扫一眼就知道贵在哪。</li>
     <li><b>失败只染那一步</b>：<span class="m-mono">.done / .run / .fail</span> 只换圆点颜色，整屏不变红 —— 手机上「一屏红」等于「这条不能用」，会把还能用的上下文一起否掉。</li>
     <li><b>长内容一律自带滚动</b>：代码走 <span class="m-mono">.m-code-scroll &gt; .m-code-body</span>，表格走 <span class="m-mono">.m-tbl-scroll &gt; .m-tbl</span>，都是横滚；竖屏绝不允许把正文挤成一列窄字。</li>
     <li><b>附件末格永远是「加」</b>：<span class="m-mono">.m-attach.add</span> 用虚线占位，占位本身就是一个动作，不另放一个加号钮。</li>

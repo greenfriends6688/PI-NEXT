@@ -25,6 +25,33 @@ const ROOT = join(V6, "..", "..");
 const ICONS = join(ROOT, "design", "pi-web-design", "assets", "icons.js"); // 图标只有一份真值，不复制
 
 const errors = [];
+
+/*
+ * fork:v6-glass-hardening（2026-10-13）—— **声明不许裸在规则块外面**。
+ *
+ * 这一条是补一个真实事故：`base.css` 里 `--nx-frost-blur: 40px;` / `--nx-frost-sat: 1.5;`
+ * 两行漏了 `:root { }`，直接写在样式表顶层。顶层声明不是合法 CSS，浏览器整条丢弃 ——
+ * 于是每一处 `blur(var(--nx-frost-blur))` 都解析成非法值，**V6 的毛玻璃从做出来那天起
+ * 就没真正糊过**，而当时的静态门禁全绿（它校验令牌的**定义**与**引用**，不校验声明在不在
+ * 规则里）。
+ *
+ * 判据：按大括号深度扫一遍，深度为 0 时出现 `--name:` 或 `属性: 值;` 形状的行 → 报错。
+ * 不写完整的 CSS 解析器：这一条只要拦住「忘了包块」这一种，宁可漏报也不要误报。
+ */
+function findTopLevelDeclarations(source) {
+  const out = [];
+  let depth = 0;
+  source.split("\n").forEach((raw, index) => {
+    const line = raw.trim();
+    if (!line || line.startsWith("/*") || line.startsWith("*") || line.startsWith("//")) return;
+    if (depth === 0 && /^(--[a-z0-9-]+|[a-z-]+)\s*:[^;]*;$/i.test(line)) out.push(index + 1);
+    for (const char of raw) {
+      if (char === "{") depth += 1;
+      else if (char === "}") depth = Math.max(0, depth - 1);
+    }
+  });
+  return out;
+}
 const warns = [];
 const read = (p) => (existsSync(p) ? readFileSync(p, "utf8") : "");
 
@@ -404,6 +431,14 @@ if (warns.length) {
   console.log(`\n警告 ${warns.length} 条：`);
   warns.forEach((w) => console.log("  ! " + w));
 }
+for (const file of ["base.css", "web/tokens.css", "pwa/tokens.css"]) {
+  const source = read(`${V6}/${file}`);
+  if (!source) continue;
+  for (const line of findTopLevelDeclarations(source)) {
+    errors.push(`${file}:${line} 声明裸在规则块外面 —— 浏览器会整条丢弃（V6 的毛玻璃就栽在这一条上）`);
+  }
+}
+
 if (errors.length) {
   console.log(`\n错误 ${errors.length} 条：`);
   for (const e of errors.slice(0, 80)) console.log("  × " + e);

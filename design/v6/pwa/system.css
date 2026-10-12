@@ -39,8 +39,9 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .m-top-btn { width: var(--nx-touch-min); height: var(--nx-touch-min); flex: 0 0 auto; border: 0;
   border-radius: 999px; background: var(--nx-glass);
-  -webkit-backdrop-filter: blur(var(--nx-glass-blur-small)) saturate(var(--nx-glass-saturate-small));
-  backdrop-filter: blur(var(--nx-glass-blur-small)) saturate(var(--nx-glass-saturate-small));
+  /* fork:v6-glass-hardening —— 与 web 侧同一条：小控件减半径但不另立一套材质。 */
+  -webkit-backdrop-filter: blur(calc(var(--nx-frost-blur) / 3)) saturate(var(--nx-frost-sat));
+  backdrop-filter: blur(calc(var(--nx-frost-blur) / 3)) saturate(var(--nx-frost-sat));
   box-shadow: var(--nx-glass-rim); color: var(--nx-text); cursor: pointer;
   display: flex; align-items: center; justify-content: center; box-shadow: var(--nx-halo);
   transition: transform var(--nx-dur-1) var(--nx-ease); }

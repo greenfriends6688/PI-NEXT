@@ -468,7 +468,7 @@
 <div class="m-notes">
   <b>这一张在定什么：</b>
   <ul>
-    <li><b>顶栏永远压在内容上</b>：<span class="m-mono">.m-top</span> 是绝对定位 + 渐隐底，消息从下方穿过；<span class="m-mono">.m-fade</span> / <span class="m-mono">.m-fade-tail</span> 给上下两端各一段 96px / 72px 的软过渡，滚动到顶也不出现硬边。</li>
+    <li><b>顶栏永远压在内容上，但底只有一层</b>（fork:v6-process，2026-10-12 实拍白块后改）：<span class="m-mono">.m-top</span> 是绝对定位、<b>自己不带底</b>；渐隐全交给 <span class="m-mono">.m-fade</span> 一层（120px、三段全透明收尾，没有实色段就没有拐点）。原先两层叠加合成 alpha ≈ 0.91 的近实白，42% 处的拐点还把「9:41」下缘切出硬边。<span class="m-mono">.m-fade-tail</span> 仍是底部 72px 软过渡。</li>
     <li><b>顶栏不挂模型</b>：手机顶栏只有「抽屉钮 + 标题 + ⋯」，模型只从输入卡的「能力」钮进（同一件事一个出口）。</li>
     <li><b>抽屉与面板同一套推拉</b>：<span class="m-mono">data-demo-drawer</span> + <span class="m-mono">data-demo-drawer-target</span> + <span class="m-mono">data-demo-scrim</span>。抽屉走 <span class="m-mono">translateX</span>、面板走 <span class="m-mono">translateY</span>，时长都取 <span class="m-mono">--nx-dur-4</span>；遮罩点一下即收，收起时走 <span class="m-mono">--nx-ease</span>（退出类动效不要用 enter 曲线）。</li>
     <li><b>抽屉只做「找得到」</b>：搜索 + 分段（项目 / 聊天）+ 项目分组 + 会话行；项目组头写项目名，会话行之前先给一行 worktree 子行。设置、模型、权限一律不上抽屉 —— 手机上抽屉的价值是切换，不是再开一层设置。行状态只有三种：未读绿点（不带数字）、等你处理文字徽章（待授权 / 待输入）、运行中行内转圈；条数一律写「N 条消息」。</li>

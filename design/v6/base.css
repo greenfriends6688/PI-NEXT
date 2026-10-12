@@ -295,10 +295,8 @@
    */
   --nx-glass-blur-large: 6px;
   --nx-glass-blur-small: calc(var(--nx-glass-blur-large) * 6 / 30);   /* = 1.2px，kit 比例 */
-  --nx-glass-blur-medium: var(--nx-glass-blur-large);
   --nx-glass-saturate: 1.4;          /* kit 的 Large light 档（dark 是 1.2） */
   --nx-glass-saturate-small: 1;
-  --nx-glass-saturate-dark: 1.2;
 
   /* rim 与内阴影：逐层照抄 kit 的共享样式（这些是带 spread 的实心环，CSS 能还原） */
   --nx-glass-rim: 0 0 0 0.5px #dbdbdb, -1.25px 0 0 -0.75px #dbdbdb, 1.25px 0 0 -0.75px #dbdbdb;
@@ -373,8 +371,29 @@
  *     `.d-anchor` / 已 `position: relative` 的 `.d-topbar` 排在壳面与浮层之间，
  *     所以壳面成为包含块不改变任何浮层的定位 —— 已在 D-01/D-02/D-04 核对过。
  */
---nx-frost-blur: 40px;    /* deepseek 菜单材质：blur(40px) */
---nx-frost-sat: 1.5;      /* deepseek 菜单材质：saturate(150%) */
+/* fork:v6-glass-hardening（2026-10-13）—— **这两行原来漏了 `:root { }`**。
+   它们直接裸在样式表顶层，而顶层声明不是合法 CSS —— 浏览器整条丢弃，
+   于是每一处 `blur(var(--nx-frost-blur))` 都解析成非法值、`backdrop-filter` 不生效：
+   **V6 的毛玻璃从 2026-10-12 做出来那天起就没真正糊过**（壳面只剩半透明，没有 frost）。
+   静态门禁看不出来：它校验令牌的**定义**与**引用**，不校验声明在不在规则里。 */
+:root {
+  --nx-frost-blur: 40px;    /* deepseek 菜单材质：blur(40px) */
+  --nx-frost-sat: 1.5;      /* deepseek 菜单材质：saturate(150%) */
+}
+
+/* fork:v6-glass-hardening —— **降级**。harness 只有前者，我们两个都要：
+   · `prefers-reduced-transparency: reduce` 是系统级的无障碍开关（macOS / iOS / Windows 都有）。
+     V6 的壳面是**常开**的 40px ×4 层 blur，不跟系统设置走的话，开了「降低透明度」的用户
+     拿到的还是半透明面 —— 而他们开这个开关正是因为透明面看不清。
+   · `@supports not (backdrop-filter)` 兜的是 Safari 16.2 地板与老显卡：没有 blur 时
+     半透明面会直接透出色场，正文对比度跟着底图漂。兜底就是**变实底**。
+   两处都把 `--nx-frost-blur` 归零 + 把壳面填充换成不透明的 `--nx-panel`。 */
+@media (prefers-reduced-transparency: reduce) {
+  :root { --nx-frost-blur: 0px; --nx-frost-sat: 1; --nx-glass-shell: var(--nx-panel); }
+}
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :root { --nx-frost-blur: 0px; --nx-frost-sat: 1; --nx-glass-shell: var(--nx-panel); }
+}
 
 /* ── 共享结构原子：两端都用，定义一次 ─────────────────────────────────────── */
 .nx-grow  { flex: 1 1 auto; min-width: 0; }

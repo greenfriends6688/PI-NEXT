@@ -21,10 +21,19 @@
 .d-shell.two .d-main { margin-right: 0; }
 .d-side  { /* fork:apple-sketch —— macOS kit 的侧栏宽 = 256pt（Windows 页实测） */
   width: 256px; flex: 0 0 auto; display: flex; flex-direction: column;
-  background: var(--nx-sidebar); border-right: 1px solid var(--nx-line); min-width: 0;
-  /* fork:v6-glass —— 侧栏是长文本面，fill 走 `--nx-glass-shell`（70%），不是浮层的 94%。
-     这里挂 backdrop-filter 是安全的：板内所有 `.d-pop` 都在 `<aside>` **外面**
-     （D-01/D-02 逐张核对过），浮层的锚点不是侧栏，包含块换不掉它们的位置。 */
+  border-right: 1px solid var(--nx-line); min-width: 0;
+  /* fork:v6-glass —— 侧栏是长文本面，fill 走 `--nx-glass-shell`（70%），不是浮层的 94%。 */
+  background: none; position: relative; isolation: isolate; }
+/* fork:v6-glass-hardening（2026-10-13）—— fill + blur 都挪到 `::before` 绝对层，**本体不挂
+   `backdrop-filter`**。原注释说「板内 `.d-pop` 都在 `<aside>` 外面所以安全」——那是对**画板**
+   成立的推理，对**产品**不成立：`backdrop-filter` 会让元素成为 `position: fixed` 后代的
+   包含块，而产品里 right-panel 的浮层、toast、抽屉都可能从壳内挂出去，包含块一换、`overflow`
+   一裁，浮层就没了。deepseek-harness 的 `MenuSurface.module.css` 正是这么绕的
+   （`.material { position:absolute; inset:0; z-index:-1 }`，注释直说「filter 会让 panel 成为
+   fixed 后代的包含块」）。`isolation: isolate` 是必须的：没有它，`z-index:-1` 的伪元素会跑到
+   最近的层叠上下文（`.d-shell` 的色场）**后面**，整块看不见。 */
+.d-side::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--nx-sidebar);
   -webkit-backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
   backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat)); }
 .d-main  { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; position: relative; }
@@ -110,9 +119,12 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 
 /* 折叠导轨 */
 .d-rail { width: 48px; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
-  gap: var(--nx-sp-1); padding: var(--nx-sp-3) 0; background: var(--nx-sidebar);
-  border-right: 1px solid var(--nx-line);
-  /* fork:v6-glass —— 与侧栏同材质（同一份 `--nx-sidebar`），几何不变 */
+  gap: var(--nx-sp-1); padding: var(--nx-sp-3) 0; border-right: 1px solid var(--nx-line);
+  /* fork:v6-glass —— 与侧栏同材质（同一份 `--nx-sidebar`），几何不变；
+     fork:v6-glass-hardening —— 同 `.d-side`：fill + blur 走 `::before`，本体不挂 filter。 */
+  background: none; position: relative; isolation: isolate; }
+.d-rail::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--nx-sidebar);
   -webkit-backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
   backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat)); }
 .d-rail .d-iconbtn { width: 32px; height: 32px; }
@@ -125,15 +137,21 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
    桌面档工具栏高是 36、≤1024px 抬到 48 作触控目标。
    这里保持同值，免得库与产品说法不一致（此前写 48，是从没生效过的死值）。 */
   height: var(--nx-mac-toolbar-h, 36px); flex: 0 0 auto; display: flex; align-items: center; gap: var(--nx-sp-2);
-  padding: 0 var(--nx-sp-4); background: var(--nx-glass);
+  padding: 0 var(--nx-sp-4);
   /* fork:v6-glass —— blur 从 kit 的锚点 6px 换成 V6 frost（40px / 1.5，base.css §14，
      配方借 deepseek-harness 的菜单材质）。rim 与内阴影**不动**（它们是 Apple 侧的
      边缘定义，见下面 §AD 注与 base.css §13）：这两件事互不相干，一起改就分不清
      「为什么不好看」是哪一条造成的。
      这里挂 backdrop-filter 是安全的：`.d-topbar` 本来就是 `position: relative`
-     （浮层的锚点，见下面那行 border-bottom 之后），包含块没变。 */
+     （浮层的锚点，见下面那行 border-bottom 之后），包含块没变。
+     fork:v6-glass-hardening（2026-10-13）—— 但「它自己是锚点」不等于「它底下的浮层也安全」：
+     顶栏里挂着状态灯 / 模型选择这类从壳内展开的浮层，包含块一换就会被裁。所以与
+     `.d-side` 同一条处置：fill + blur 走 `::before`，本体不挂 filter。 */
+  background: none; position: relative; isolation: isolate; }
+.d-topbar::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--nx-glass);
   -webkit-backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
-  backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
+  backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat)); }
   /* fork:apple-sketch §AD（2026-10-08，用户实拍「这个顶栏的下面的阴影效果给我去掉吧」）——
      原来还有第三层 `--nx-glass-ambient`（`0 18px 46px rgba(0,0,0,.25)`），
      就是顶栏下方那道 46px 的柔和投影（浅色实测 y=36..40 像素 218–219）。
@@ -1527,8 +1545,10 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 .d-jump { position: absolute; right: var(--nx-sp-6); bottom: var(--nx-sp-4); z-index: var(--nx-z-raised);
   height: var(--nx-ctl-md); padding: 0 12px; display: inline-flex; align-items: center; gap: 6px;
   border: 1px solid var(--nx-line-hi); border-radius: var(--nx-radius-pill); background: var(--nx-glass);
-  -webkit-backdrop-filter: blur(var(--nx-glass-blur-small)) saturate(var(--nx-glass-saturate-small));
-  backdrop-filter: blur(var(--nx-glass-blur-small)) saturate(var(--nx-glass-saturate-small));
+  /* fork:v6-glass-hardening —— 原来这里并存第二套配方（`--nx-glass-blur-small` = 1.2px）。
+     小控件可以减半径，但不该另立一套材质；统一到 frost 的一半。 */
+  -webkit-backdrop-filter: blur(calc(var(--nx-frost-blur) / 3)) saturate(var(--nx-frost-sat));
+  backdrop-filter: blur(calc(var(--nx-frost-blur) / 3)) saturate(var(--nx-frost-sat));
   box-shadow: var(--nx-glass-rim), var(--nx-sh-1);
   font: inherit; font-size: var(--nx-fs-sm); color: var(--nx-vibrant-2); cursor: pointer; }
 .d-jump:hover { color: var(--nx-vibrant-1); }

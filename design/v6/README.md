@@ -9,12 +9,22 @@
 
 ## 0 · 这一版与上一版的差别
 
-**V6 只换一件事：材质。** V5 的毛玻璃只在用户自己开了壁纸时才看得见（默认底是实色 `--nx-canvas`），
-V6 把页面底换成一层内置色场 `--nx-canvas-field`（伪壁纸），壳面（侧栏 / 导轨 / 顶栏 / 输入框）在其上
-半透明 + `blur(40px) saturate(150%)`，**开箱即玻璃**；转录正文、卡片、面板仍是近实底的
-`--nx-panel` / `--nx-elev-panel`，不跟着透。配方逐字借 deepseek-harness 的菜单材质，
-逐条异同登记在 [`DIVERGENCE.md`](./DIVERGENCE.md) §G，材质规格台是
-`web/boards/D-38-v6-glass.html`。**V5 目录原样保留在 `design/v5/`（已落地真值，不动）。**
+**V6 换两件事：材质 + 三处形态。**
+
+1. **材质（§AI）**：V5 的毛玻璃只在用户自己开了壁纸时才看得见（默认底是实色 `--nx-canvas`），
+   V6 把页面底换成一层内置色场 `--nx-canvas-field`（伪壁纸），壳面（侧栏 / 导轨 / 顶栏 / 输入框）
+   在其上半透明 + `blur(40px) saturate(150%)`，**开箱即玻璃**；转录正文、卡片、面板仍是近实底的
+   `--nx-panel` / `--nx-elev-panel`，不跟着透。配方逐字借 deepseek-harness 的菜单材质，
+   材质规格台是 `web/boards/D-38-v6-glass.html`。
+2. **三处形态（§AJ，fork:v6-process，用户 2026-10-12 口令）**：过程从「竖线时间轴」改成
+   「33px 折叠摘要行 + 24px 行式步骤」（`.d-turnproc` / `.m-turnproc`，已完成默认收起）；
+   用户气泡从 `--nx-accent` 铺底白字改成 `--nx-user-bubble` 淡蓝底深字（抄 deepseek 的
+   `rgb(237 243 254)` / `rgb(44 44 46)`）；转录列宽 760 → `--nx-chat-col: 920px`、
+   输入卡恒比列宽 + 32、滚动区内边距 16 / 32；另加 PWA 顶栏去双层渐变叠加
+   （`.m-top` 不带底，渐隐只留 `.m-fade` 一层）。
+
+**V5 目录原样保留在 `design/v5/`（已落地真值，不动）。** 逐条异同登记在
+[`DIVERGENCE.md`](./DIVERGENCE.md) §AI / §AJ。
 
 V5 立下的两条做法 V6 原样继承，不能松：
 

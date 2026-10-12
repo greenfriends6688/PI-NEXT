@@ -471,7 +471,9 @@
   --nx-glass: var(--nx-glass-shell);
   /* 转录列宽（fork:v6-process，对齐 deepseek `ConversationRoot` 的 680–920 夹取）：
      输入卡恒比消息列宽 32px（deepseek `--dsh-composer-card-max-width` 同一关系）。 */
-  --nx-chat-col: 920px;
+  /* fork:v6-glass-hardening —— deepseek 那侧是 `clamp(680px, 计算值, 920px)`；
+     原来写死 920：窄窗口 / 分屏时转录列比可用宽度还宽，正文被挤到边缘。 */
+  --nx-chat-col: clamp(680px, 64vw, 920px);
 }
 
 [data-theme="dark"] {
@@ -486,5 +488,7 @@
   --nx-glass-shell-hi: rgb(45 46 50 / .94);
   --nx-elev-panel: 0 0 0 0.5px var(--nx-line-hi), 0 3px 8px 0 rgb(0 0 0 / .18), 0 0 16px 0 rgb(0 0 0 / .14);
   --nx-elev-soft: 0 6px 20px 0 rgb(0 0 0 / .24), 0 0 28px 0 rgb(0 0 0 / .16);
-  --nx-chat-col: 920px;
+  /* fork:v6-glass-hardening —— deepseek 那侧是 `clamp(680px, 计算值, 920px)`；
+     原来写死 920：窄窗口 / 分屏时转录列比可用宽度还宽，正文被挤到边缘。 */
+  --nx-chat-col: clamp(680px, 64vw, 920px);
 }

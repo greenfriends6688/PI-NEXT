@@ -17,7 +17,7 @@
   <h1>D-03 · 转录（消息全集）</h1>
   <p>
     转录是这个产品真正的界面。三条排版决定：① <b>用户说的话永远在右边</b>，形状与颜色和助手消息彻底不同，
-    扫一眼就知道谁说的；② <b>过程是时间轴不是日志</b>：工具与推理挂在一条竖线上，首末行不画线；
+    扫一眼就知道谁说的（淡蓝底 + 深字，抄 deepseek 的气泡色）；② <b>过程是一行折叠摘要不是日志</b>：摘要行 33px 可展开，展开后是 24px 的行式步骤，没有竖线；
     ③ <b>可展开的东西默认折叠</b>：工具输出、思考、diff 都默认收起，标题行永远可见。
   </p>
   <div class="d-tags" data-board-tags>
@@ -29,7 +29,7 @@
 
 <!-- ── A · 一条完整的助手回合 ──────────────────────────────────────────── -->
 <section class="d-scene">
-  <div class="d-frame-label"><b>帧 A</b> · 一条完整回合：过程时间轴 → 思考 → 正文 → 代码<span class="d-grow"></span>竖线只连中间的行</div>
+  <div class="d-frame-label"><b>帧 A</b> · 一条完整回合：过程折叠行 → 思考 → 正文 → 代码<span class="d-grow"></span>过程是行式，没有竖线</div>
   <div class="d-frame">
     <div class="d-frame-body">
       <div class="d-shell">
@@ -94,7 +94,7 @@
                   <span class="d-plan-meta">3 分 12 秒 · 18.4k token</span>
                 </div>
 
-                <!-- 过程时间轴 -->
+                <!-- 过程折叠行 -->
                 <div class="d-steps">
                   <div class="d-step done">
                     <span class="d-step-ico"><i data-ico="check" data-size="10"></i></span>
@@ -488,8 +488,8 @@
 <div class="d-notes">
   <b>这一张在定什么：</b>
   <ul>
-    <li><b>用户气泡永远在右</b>：右对齐 + 强调底 + 右下角小圆角，这一组形状差异是「谁说的」的唯一可靠信号。</li>
-    <li><b>过程是竖线时间轴</b>（`.d-steps`），首行从图标中心起画、末行到中心收笔 —— 中间连、两边断，这是竖线唯一合理的收法。</li>
+    <li><b>用户气泡永远在右</b>：右对齐 + <span class="d-mono">--nx-user-bubble</span> 淡蓝底（抄 deepseek <span class="d-mono">rgb(237 243 254)</span>，推翻 v5 的强调色铺底）+ 右下角小圆角，这一组形状差异是「谁说的」的唯一可靠信号。</li>
+    <li><b>过程是行式不是时间轴</b>（<span class="d-mono">.d-steps</span>，fork:v6-process）：摘要行 33px + 结构线、已完成默认收起；展开后 24px 一行、整行 tertiary。竖线整条作废 —— 登记见 DIVERGENCE §AJ。</li>
     <li><b>默认折叠的是过程，不是结论</b>：工具输出、思考、diff 收起，但<b>标题行永远可见</b>（含状态徽章与耗时），所以折叠态也能读出「做过什么、成没成」。</li>
     <li><b>失败必须给三件事</b>：错在哪（行号）、怎么重试、还有别的选择（改参数 / 跳过）。只给一句「失败」等于把活推给用户。</li>
     <li><b>权限请求内联在转录里</b>，不是浮在角上：它属于这一轮的语义，离开这条消息就失去上下文。</li>
