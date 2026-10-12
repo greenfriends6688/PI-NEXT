@@ -1571,6 +1571,8 @@ export const enLocale: LocalePlugin = {
     "chat.tokensSaved": "{saved} saved",
     "chatMinimap.locateAssistant": "Locate assistant message",
     "chatMinimap.toolCalls": "Tool calls this turn: {count}",
+    "chatMinimap.lockPreview": "Lock: don't open the preview on hover",
+    "chatMinimap.unlockPreview": "Unlock the hover preview",
     "chatMinimap.userMessage": "User message",
     "chatMinimap.assistantReply": "Assistant reply",
     // fork:v6-landing —— hover card header, per board D-32 `.d-navpop-t`.

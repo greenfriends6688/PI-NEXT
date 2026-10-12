@@ -1575,6 +1575,8 @@ export const zhCNLocale: LocalePlugin = {
     "chat.tokensSaved": "节省 {saved}",
     "chatMinimap.locateAssistant": "定位助手消息",
     "chatMinimap.toolCalls": "本回合工具调用：{count}",
+    "chatMinimap.lockPreview": "锁定：悬停不再打开预览",
+    "chatMinimap.unlockPreview": "解除锁定，恢复悬停预览",
     "chatMinimap.userMessage": "用户消息",
     "chatMinimap.assistantReply": "助手回复",
     // fork:v6-landing —— 悬停卡头行照画板 D-32 的 `.d-navpop-t`：「第 N 轮 · 你」/

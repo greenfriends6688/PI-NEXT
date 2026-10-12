@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo, type RefObject } fro
 import { isMessageGroupAnchor, splitFinalAssistantBlocks } from "@/lib/message-display";
 import type { AgentMessage, AssistantMessage, CustomMessage, TextContent, UserMessage } from "@/lib/types";
 import { useI18n } from "@/hooks/useI18n";
+import { loadMinimapPreviewLocked, saveMinimapPreviewLocked } from "@/lib/minimap-preview-lock";
 
 
 interface Props {
@@ -204,6 +205,8 @@ export function ChatMinimap({
     fillsHeight: false,
   });
   const previewHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // fork:upstream-0.12-chat-parity —— 锁定后悬停不再打开预览；选择存 localStorage（#1128）。
+  const [previewLocked, setPreviewLocked] = useState(() => loadMinimapPreviewLocked());
   const activeNodeLockRef = useRef<{ index: number; until: number } | null>(null);
   const pendingNavigationRef = useRef<{ nodeIndex: number } | null>(null);
 
@@ -409,9 +412,10 @@ export function ChatMinimap({
   }, []);
 
   const showPreview = useCallback(() => {
+    if (previewLocked) return;
     cancelPreviewHide();
     setMinimapHovered(true);
-  }, [cancelPreviewHide]);
+  }, [cancelPreviewHide, previewLocked]);
 
   const schedulePreviewHide = useCallback(() => {
     cancelPreviewHide();
@@ -596,6 +600,29 @@ export function ChatMinimap({
           style={{ top: `${node.topRatio * 100}%` }}
         />
       ))}
+      {/* fork:upstream-0.12-chat-parity —— 小地图锁定开关：锁上后悬停不再打开预览（#1128）。 */}
+      <button
+        type="button"
+        className={`d-navlock${previewLocked ? " is-locked" : ""}`}
+        aria-pressed={previewLocked}
+        title={t(previewLocked ? "chatMinimap.unlockPreview" : "chatMinimap.lockPreview")}
+        aria-label={t(previewLocked ? "chatMinimap.unlockPreview" : "chatMinimap.lockPreview")}
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          setPreviewLocked((current) => {
+            const next = !current;
+            saveMinimapPreviewLocked(next);
+            if (next) {
+              cancelPreviewHide();
+              setMinimapHovered(false);
+            }
+            return next;
+          });
+        }}
+      >
+        <i data-ico={previewLocked ? "lock" : "unlock"} data-size="13" aria-hidden="true"></i>
+      </button>
     </div>
   );
 }

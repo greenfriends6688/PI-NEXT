@@ -1565,6 +1565,8 @@ export const zhTWLocale: LocalePlugin = {
     "chat.tokensSaved": "已節省 {saved}",
     "chatMinimap.locateAssistant": "定位助理訊息",
     "chatMinimap.toolCalls": "本回合工具呼叫：{count}",
+    "chatMinimap.lockPreview": "鎖定：懸停不再開啟預覽",
+    "chatMinimap.unlockPreview": "解除鎖定，恢復懸停預覽",
     "chatMinimap.userMessage": "使用者訊息",
     "chatMinimap.assistantReply": "助手回覆",
     // fork:v6-landing —— 懸停卡頭行照畫板 D-32 的 `.d-navpop-t`。

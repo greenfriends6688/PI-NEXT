@@ -3636,3 +3636,24 @@ body {
   background: var(--nx-accent);
   color: var(--nx-accent-contrast, #fff);
 }
+
+/* fork:upstream-0.12-chat-parity —— 小地图锁定开关（#1128）：贴导轨底部，锁上时高亮。 */
+.d-navlock {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--nx-radius-control, 6px);
+  background: transparent;
+  color: var(--nx-text-3, var(--text-muted));
+  cursor: pointer;
+}
+.d-navlock:hover { background: var(--bg-hover); color: var(--text); }
+.d-navlock.is-locked { color: var(--nx-accent, var(--accent)); }
