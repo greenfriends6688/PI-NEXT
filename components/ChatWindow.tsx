@@ -143,6 +143,8 @@ interface Props {
   soundEnabled?: boolean;
   onSoundToggle?: () => void;
   playDoneSound?: () => void;
+  /** fork:upstream-0.12-audio-parity —— 运行期间保持音频上下文运行，锁屏也能响（#1157）。 */
+  holdAudio?: () => () => void;
   unlockAudio?: () => void;
 }
 
@@ -684,7 +686,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   );
 }
 
-export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, reloadToken, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onOpenSettingsSection, onContextUsageChange, onExtensionStatusChange, actionPanel, onOpenFile, onOpenSession, onOpenSkill, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onEmptyChange, }: Props) {
+export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, reloadToken, newSessionCwd, newSessionDraftKey, onAgentEnd, onAgentError, onAttentionNeeded, onSessionCreated, onSessionForked, onOpenSessionPane, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onOpenSettingsSection, onContextUsageChange, onExtensionStatusChange, actionPanel, onOpenFile, onOpenSession, onOpenSkill, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, newSessionTargets = null, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, holdAudio, onEmptyChange, }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   // fork:v5-wave-n1 —— 窄屏形态（画板 M-02 / M-11）：m-* 分支的信号，与
@@ -795,6 +797,12 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     deferInitialScroll: Boolean(pendingScrollRestore),
   });
   const sessionBusy = agentRunning || bashRunning;
+
+  // fork:upstream-0.12-audio-parity —— 运行期间保持音频上下文运行，锁屏手机上完成音也能响（#1157）。
+  useEffect(() => {
+    if (!agentRunning || !holdAudio) return;
+    return holdAudio();
+  }, [agentRunning, holdAudio]);
 
   const locateSelectionContext = useCallback((context: SelectionContext) => {
     const clearConversationLocation = () => {
