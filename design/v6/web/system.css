@@ -126,10 +126,14 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
    这里保持同值，免得库与产品说法不一致（此前写 48，是从没生效过的死值）。 */
   height: var(--nx-mac-toolbar-h, 36px); flex: 0 0 auto; display: flex; align-items: center; gap: var(--nx-sp-2);
   padding: 0 var(--nx-sp-4); background: var(--nx-glass);
-  /* fork:apple-sketch —— 值来自 Apple macOS 27 kit：blur 用锚点（large 6px，见 base.css §12），
-     saturate 是 kit 的 Large/light 档 1.4；rim 与内阴影逐层照抄 kit 的共享样式。 */
-  -webkit-backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
-  backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
+  /* fork:v6-glass —— blur 从 kit 的锚点 6px 换成 V6 frost（40px / 1.5，base.css §14，
+     配方借 deepseek-harness 的菜单材质）。rim 与内阴影**不动**（它们是 Apple 侧的
+     边缘定义，见下面 §AD 注与 base.css §13）：这两件事互不相干，一起改就分不清
+     「为什么不好看」是哪一条造成的。
+     这里挂 backdrop-filter 是安全的：`.d-topbar` 本来就是 `position: relative`
+     （浮层的锚点，见下面那行 border-bottom 之后），包含块没变。 */
+  -webkit-backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
+  backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
   /* fork:apple-sketch §AD（2026-10-08，用户实拍「这个顶栏的下面的阴影效果给我去掉吧」）——
      原来还有第三层 `--nx-glass-ambient`（`0 18px 46px rgba(0,0,0,.25)`），
      就是顶栏下方那道 46px 的柔和投影（浅色实测 y=36..40 像素 218–219）。
