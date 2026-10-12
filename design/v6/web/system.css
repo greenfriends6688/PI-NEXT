@@ -404,11 +404,30 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
   max-width: 800px; margin: 0 auto 6px; padding: 0 5px; min-height: var(--nx-ctl-sm); }
 .d-ctxbar .d-chipbtn { max-width: 280px; }
 .d-ctx-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.d-composer { max-width: 800px; margin: 0 auto; border: 1px solid var(--nx-line-hi);
-  border-radius: var(--nx-radius-popover); background: var(--nx-panel); box-shadow: var(--nx-sh-1);
-  transition: box-shadow var(--nx-dur-2) var(--nx-ease), border-color var(--nx-dur-2) var(--nx-ease); }
-.d-composer:focus-within { border-color: var(--nx-line-hi);
-  box-shadow: var(--nx-sh-2), 0 0 0 3px color-mix(in srgb, var(--nx-accent) 18%, transparent); }
+/* fork:v6-glass —— 输入框是壳面里唯一**浮在正文上**的一块，所以它吃 elevation
+   （0.5px 发丝描边 + 两层柔光，deepseek 的抬升面口径：抬升面自己不画 1px 边框）。
+
+   **霜化挂在 `::before` 上，不挂在自己身上**（app/wallpaper.css 同一套路）：
+   `backdrop-filter` 会让元素成为 `position: fixed` 后代的包含块，而产品侧输入框
+   里要挂菜单/浮窗 —— 挂在伪元素上，伪元素自己没有后代，这个坑根本不存在。
+   配套两件事缺一不可：
+     · `position: relative` —— 否则 `inset: 0` 的伪元素会跑到 `.d-composer-wrap`
+       的 padding 盒上（顺带修好 `.d-loader-svg` 的 inset 定位：D-04 那张加载态
+       帧里它一直画在整个 wrap 上，不是画在卡片上）；
+     · `isolation: isolate` —— 否则 `z-index: -1` 的伪元素会掉进外层堆叠上下文，
+       被 `.d-shell` 的背景盖住，blur 等于没生效。
+   伪元素同时承担**填充 + 模糊**（background 放它身上，卡片自己透明）：填充若留在
+   卡片上，伪元素会把「已经掺了白的底」再模糊一次，等于叠两层白，玻璃被洗白。 */
+.d-composer { max-width: 800px; margin: 0 auto; position: relative; isolation: isolate;
+  border: 0; border-radius: var(--nx-radius-popover); background: transparent;
+  box-shadow: var(--nx-elev-soft);
+  transition: box-shadow var(--nx-dur-2) var(--nx-ease); }
+.d-composer::before { content: ""; position: absolute; inset: 0; z-index: -1;
+  border-radius: inherit; background: var(--nx-glass-shell); pointer-events: none;
+  -webkit-backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
+  backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat)); }
+.d-composer:focus-within {
+  box-shadow: var(--nx-elev-soft), 0 0 0 3px color-mix(in srgb, var(--nx-accent) 18%, transparent); }
 .d-composer-top { display: flex; flex-wrap: wrap; gap: var(--nx-sp-1); padding: var(--nx-sp-2) var(--nx-sp-2) 0; }
 /* 工具条：几何照产品 `.pw-composer-bar`（align-items:center / gap 4px）——
    用 flex-end + 8px 时，这一行在 800px 里装不下，芯片里的字会自己折行
