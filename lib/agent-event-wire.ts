@@ -71,6 +71,12 @@ export function toClientAgentEvent(
   // whole prompt plus every tool schema and are never rendered, so drop them
   // before they cost the browser bandwidth.
   if (isSystemMessageEvent(event)) return null;
+  // fork:upstream-0.12-infra —— 工具结果 / 投递的用户消息用 message_start + message_end
+  // 背靠背宣告；浏览器只从 assistant 的 start 建气泡，其余只读 role，所以它们的 body
+  // （一次图片读取的 base64）白白发了两次（#1176）。
+  if (event.type === "message_start" && isObject(event.message) && event.message.role !== "assistant") {
+    return { type: "message_start", message: { role: event.message.role } };
+  }
 
   if (event.type === "message_update") {
     const assistantMessageEvent = event.assistantMessageEvent;

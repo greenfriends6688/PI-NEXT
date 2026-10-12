@@ -1,5 +1,8 @@
 @import "@xterm/xterm/css/xterm.css";
 @import "tailwindcss";
+/* fork:upstream-0.12-infra —— .claude 工作树不进 Tailwind 扫描（67421824）。扫描它们会让
+   webpack 快照它们软链的 node_modules，`next build` 会以 "reading 'length'" 崩掉。 */
+@source not "../.claude";
 /* fork:shadcn（PR-20）—— 声明式入场/退场动效工具类（shadcn/ui 同款）。
    提供 animate-in/out + fade-in-0 / zoom-in-95 / slide-in-from-{侧}-N。 */
 @import "tw-animate-css";

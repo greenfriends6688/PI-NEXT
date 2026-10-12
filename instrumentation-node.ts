@@ -9,8 +9,9 @@
  * the bundler eliminates entirely for Edge.
  */
 export async function registerNodeInstrumentation(): Promise<void> {
-  const { configureHttpDispatcher } = await import("@/lib/http-dispatcher");
-  configureHttpDispatcher();
+  const { configureHttpDispatcher, readHttpIdleTimeoutMs } = await import("@/lib/http-dispatcher");
+  // fork:upstream-0.12-infra —— 用户在 settings 里配的 httpIdleTimeoutMs 也作用于 Web UI（#1127）。
+  configureHttpDispatcher(readHttpIdleTimeoutMs());
 
   /* fork:proma-43-automation —— 定时任务调度器。
      必须放在这个**异步体内**：Next 在这里 await 完才放行第一个请求，而 30s 的
@@ -57,4 +58,9 @@ export async function registerNodeInstrumentation(): Promise<void> {
   const shutdownStreams = () => closeAllAgentEventStreams();
   process.on("SIGINT", shutdownStreams);
   process.on("SIGTERM", shutdownStreams);
+
+  // fork:upstream-0.12-infra —— 启动即预导入 pi SDK（#1117）。Next 首次请求才求值
+  // 路由代码，所以过去第一个 /api/sessions 要替整包 SDK 的 import 买单（Windows 上
+  // 数秒）。这里不 await，只让它与浏览器打开重叠；失败留给路由自己的 import 报。
+  void import("@earendil-works/pi-coding-agent").catch(() => {});
 }

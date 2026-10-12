@@ -1383,6 +1383,11 @@ export class AgentSessionWrapper {
       }
 
       case "reload": {
+        // fork:upstream-0.12-reload-guard —— 运行中 reload 会换掉进行中的回合仍持有的
+        // 扩展 ctx，回合会在下一个扩展钩子上死掉（#1172）。与 pi 的 TUI 一致直接拒绝。
+        if (this.isSessionRunningForReplacement()) {
+          throw new Error("Wait for the current response to finish before reloading.");
+        }
         if (this.extensionUiAbortController.signal.aborted) {
           this.extensionUiAbortController = new AbortController();
         }
@@ -2076,6 +2081,23 @@ export class AgentSessionWrapper {
       },
       switchSession: async () => ({ cancelled: true }),
       reload: async () => {
+        // fork:upstream-0.12-reload-guard —— 命令跑在自己的 prompt 里，pendingPromptCount
+        // 不算；只有流式或压缩中的回合要拒（#1172）。
+        const busy = this.inner.isStreaming
+          ? "Wait for the current response to finish before reloading."
+          : this.inner.isCompacting
+            ? "Wait for compaction to finish before reloading."
+            : null;
+        if (busy) {
+          this.emit({
+            type: "extension_ui_request",
+            id: randomUUID(),
+            method: "notify",
+            notifyType: "warning",
+            message: busy,
+          } as ExtensionUiRequest as AgentEvent);
+          return;
+        }
         this.extensionStatuses.clear();
         this.resetExtensionWidgetsForReload();
         this.syncProjectTrust();
