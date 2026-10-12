@@ -3630,3 +3630,9 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* fork:upstream-0.12-terminal-parity —— 额外键排里一次性 CTRL / ALT 点亮态（#1166）。 */
+.m-key.is-active {
+  background: var(--nx-accent);
+  color: var(--nx-accent-contrast, #fff);
+}

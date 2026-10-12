@@ -26,8 +26,10 @@ export async function POST(
     }
     if (body.type === "resize" && Number.isInteger(body.cols) && Number.isInteger(body.rows)
       && (body.cols as number) >= 2 && (body.cols as number) <= 1000
-      && (body.rows as number) >= 2 && (body.rows as number) <= 1000) {
-      return resizeTerminal(id, body.cols as number, body.rows as number)
+      && (body.rows as number) >= 1 && (body.rows as number) <= 1000) {
+      // fork:upstream-0.12-terminal-parity —— 手机软键盘弹出时 fit 会短暂把终端压到一行；
+      // 夹到 2 而不是拒绝，否则客户端 fail-closed 会把输入永久关掉（#1160）。
+      return resizeTerminal(id, body.cols as number, Math.max(2, body.rows as number))
         ? NextResponse.json({ success: true })
         : NextResponse.json({ error: "Terminal not found" }, { status: 404 });
     }

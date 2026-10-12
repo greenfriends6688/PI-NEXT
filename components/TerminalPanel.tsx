@@ -159,7 +159,9 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError, 
     const onResize = terminal.onResize(({ cols, rows }) => {
       // 只在真的变了时 setState：拖窗口时 resize 事件很密，不做这一步会白渲染一片。
       setGrid((current) => (current && current.cols === cols && current.rows === rows ? current : { cols, rows }));
-      if (connected && !exited && !inputFailed) writer.resize(cols, rows);
+      if (!connected || exited || inputFailed) return;
+      // fork:upstream-0.12-terminal-parity —— 夹到至少 2 行/列（#1160）。
+      writer.resize(Math.max(2, cols), Math.max(2, rows));
     });
     const resizeObserver = new ResizeObserver(fitAndResize);
     resizeObserver.observe(container);
@@ -191,7 +193,7 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError, 
         setStatus("ready");
         fitAndResize();
         setGrid((current) => (current && current.cols === terminal.cols && current.rows === terminal.rows ? current : { cols: terminal.cols, rows: terminal.rows }));
-        writer.resize(terminal.cols, terminal.rows);
+        writer.resize(Math.max(2, terminal.cols), Math.max(2, terminal.rows));
         if (container.offsetWidth && container.offsetHeight) terminal.focus();
       };
       events.onerror = () => {
