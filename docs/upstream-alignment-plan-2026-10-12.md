@@ -368,6 +368,12 @@ npm run prod                         # 构建 + 起服 + 浏览器冒烟
 - `npm run build`（next build --webpack）**成功**
 - `npm run check:styles` / `check:icons` **绿**；`npm run lint` **0 error**（此前 583 error，见 PR-0）
 - CLI 端到端：`pi-web start → status → stop` 跑通；`lib/pi-web-cli-commands.test.mjs` 23 pass
+- **运行时验证（2026-10-13 补）**：生产构建下 `/` 真的渲染出侧栁
+  （`errorPage=0 shellNodes=1`、无 pageerror）。这一条抓到了
+  `lib/session-ui-state-store.ts` 的 `snapshot()` **每次返回新对象字面量**，
+  `useSyncExternalStore` 于是判定快照没缓存、无限重渲染（React #185，整个应用白屏）——
+  而当时 `tsc` / 4037 条单测 / `lint` / `next build` **全绿**。
+  以后改任何挂在 `useSyncExternalStore` 上的 getter，先看 `lib/session-ui-state-store.test.mjs`。
 
 **本轮未做（附理由）**
 

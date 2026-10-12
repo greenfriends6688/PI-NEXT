@@ -52,8 +52,28 @@ export interface SessionUiStateApi {
   error: string | null;
 }
 
+/**
+ * fork:upstream-0.12-session-state —— push 的**同一份**快照。
+ *
+ * 四个字段都没变时必须返回同一个引用：这三个 getter 都直接挂在
+ * `useSyncExternalStore` 上（`useSessionGroups` / `useRecordProjectOrder` /
+ * `useSessionUiState`），而它一看到 `getSnapshot()` 每次返回新对象就判定
+ * 「快照没缓存」，当场陷入无限重渲染（React #185，整个应用白屏）——
+ * 生产构建里只有一句 `Minified React error #185`，看不出是谁。
+ */
+let snapshotCache: SessionUiStateApi | null = null;
+
 function snapshot(): SessionUiStateApi {
-  return { state: localState, loaded, synced, error: lastError };
+  if (
+    !snapshotCache
+    || snapshotCache.state !== localState
+    || snapshotCache.loaded !== loaded
+    || snapshotCache.synced !== synced
+    || snapshotCache.error !== lastError
+  ) {
+    snapshotCache = { state: localState, loaded, synced, error: lastError };
+  }
+  return snapshotCache;
 }
 
 function publish(): void {
