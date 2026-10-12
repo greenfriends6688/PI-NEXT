@@ -381,3 +381,30 @@ npm run prod                         # 构建 + 起服 + 浏览器冒烟
 | --- | --- |
 | — | 14 个 PR 全部落地。PR-3b 只把上游 `SessionUiState` 有的 4 个字段服务端化（侧栏开关 / 项目置顶 / 项目名 / 项目顺序）；本仓独有的**项目归档**与**项目分组**按设计仍留 localStorage。 |
 
+
+---
+
+## 8b · P8 实测结论（2026-10-13）：**语义那一半早就做完了，只剩 UI 搬家**
+
+动手前把上游的四条归档规则逐条对照本仓源码，结果四条**全都在**：
+
+| 上游规则 | 本仓现状 | 出处 |
+|---|---|---|
+| `archivedAt` 按 family 存 | ✅ 已有 | `lib/session-flags.ts:36`、`lib/session-ui-state-shared.ts:33` |
+| **隐式失效**：`modified > archivedAt` 自动回列表 | ✅ 已有（注释写明是「上游 2e87ddb1b」） | `lib/session-flags.ts:166-177` |
+| **pin / archive 互斥** | ✅ 已有（`nextFamily` 原文注释 *Pin and archive exclude each other*） | `lib/session-ui-state-shared.ts:392-417` |
+| 「归档 7 天前」+ 批量 + **Undo** | ✅ 已有 | `lib/sidebar-bulk.ts:86`、`SessionSidebar.tsx:1832-1840` |
+
+本轮只补了一条测试（`lib/session-ui-state-shared.test.mjs` 的 *pin and archive exclude
+each other*）—— 那四条规则此前**一条测试都没盯着**，注释被顺手改掉不会有人发现。
+
+**真正还差的只有一件事：归档视图的位置。** 上游把它做成侧栏**内联全屏层**（底部
+`Archived · N` 入口），本仓还在「设置 → 归档」整页。做完需要：
+
+1. 侧栏内联视图（复用现有 `ArchivedSessionsPanel` 的行推导）；
+2. 删掉设置里的 `archived` 分节 —— 这会改 `SETTINGS_HUB_GROUPS`（16→15）
+   并**重同步 19 张画板的左导航**；
+3. 重画 D-21（它现在是「设置页整页」形态）。
+
+②③ 是画板级的硬契约（`SettingsPanel.boardnav.test.mjs` 逐项对着板面验），**不是一次盲改
+能收的**，所以 P8 按「语义已就绪 + UI 搬家单独一轮」结项，而不是半做成两边都不像的中间态。
