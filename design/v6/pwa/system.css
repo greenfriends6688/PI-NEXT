@@ -7,13 +7,13 @@
 
 /* ── 0 · 手机取景框（画板家具）与页面壳 ───────────────────────────────────── */
 .m-phone { width: 390px; height: 844px; margin: 0 auto; border-radius: 44px;
-  border: 1px solid var(--nx-line-hi); background: var(--nx-canvas); box-shadow: var(--nx-sh-2);
+  border: 1px solid var(--nx-line-hi); background: var(--nx-canvas-field); box-shadow: var(--nx-sh-2);
   overflow: hidden; position: relative; display: flex; flex-direction: column;
   font-family: var(--nx-font-ui); font-size: var(--nx-fs-body); line-height: var(--nx-lh-body);
   color: var(--nx-text); }
 .m-phone-inner { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .m-workspace { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; position: relative;
-  background: var(--nx-canvas); }
+  background: var(--nx-canvas-field); }
 .m-statusbar { height: 44px; flex: 0 0 auto; display: flex; align-items: flex-end;
   justify-content: space-between; padding: 0 22px 6px; font-size: var(--nx-fs-xs);
   font-weight: 600; color: var(--nx-text); position: relative; z-index: var(--nx-z-sticky); }
@@ -28,7 +28,9 @@
 .m-wordmark { height: 20px; width: auto; display: block; flex: 0 0 auto; }
 .m-top { position: absolute; top: 0; left: 0; right: 0; z-index: var(--nx-z-sticky);
   padding: 6px 14px 10px; display: flex; align-items: center; gap: var(--nx-sp-2);
-  background: linear-gradient(to bottom, var(--nx-canvas) 42%, transparent); pointer-events: none; }
+  /* fork:v6-glass —— 渐隐顶栏的实色改成壳面色：色场在底下，实色色标会露出一条
+     与底不同的边。半透明壳面色作渐变起点 = 顶栏自己也是玻璃的一段。 */
+  background: linear-gradient(to bottom, var(--nx-glass-shell) 42%, transparent); pointer-events: none; }
 .m-top > * { pointer-events: auto; }
 .m-top-title { font-size: var(--nx-sk-t-headline-size); line-height: var(--nx-sk-t-headline-lh);
   font-weight: var(--nx-sk-t-headline-w); color: var(--nx-vibrant-1); min-width: 0;
@@ -44,9 +46,9 @@
 
 /* 渐隐尾（列表滚动到顶栏下的柔和过渡） */
 .m-fade { position: absolute; top: 0; left: 0; right: 0; height: 96px; z-index: calc(var(--nx-z-sticky) - 1);
-  background: linear-gradient(to bottom, var(--nx-canvas) 30%, transparent); pointer-events: none; }
+  background: linear-gradient(to bottom, var(--nx-glass-shell) 30%, transparent); pointer-events: none; }
 .m-fade-tail { position: absolute; left: 0; right: 0; bottom: 0; height: 72px; z-index: calc(var(--nx-z-sticky) - 1);
-  background: linear-gradient(to top, var(--nx-canvas) 36%, transparent); pointer-events: none; }
+  background: linear-gradient(to top, var(--nx-glass-shell) 36%, transparent); pointer-events: none; }
 
 /* ── 2 · 消息流 ───────────────────────────────────────────────────────────── */
 .m-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
@@ -227,9 +229,12 @@
    `position: relative`，所以只缺窄屏这一边）。 */
   position: relative;
   background: var(--nx-glass);
-  -webkit-backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
-  backdrop-filter: blur(var(--nx-glass-blur-large)) saturate(var(--nx-glass-saturate));
-  border-radius: var(--nx-radius-popover); box-shadow: var(--nx-sh-2), var(--nx-halo);
+  /* fork:v6-glass —— 从 kit 的 6px 锚点换成 V6 frost（40px / 1.5，base.css §14）。
+     这里可以直接挂 backdrop-filter：`.m-composer` 自己就是 `position: relative`
+     （浮层的锚点没变），而且它是浮层的**兄弟**不是宿主。 */
+  -webkit-backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
+  backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
+  border-radius: var(--nx-radius-popover); box-shadow: var(--nx-elev-soft), var(--nx-halo);
   padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--nx-line); }
 .m-composer-row { display: flex; align-items: center; gap: 8px; }
 /* height 必须是 auto：.m-input 给的是 height 44px（单行控件），
@@ -319,9 +324,10 @@
   border-radius: var(--nx-radius-control); font-size: var(--nx-fs-cap); color: var(--nx-text-2); }
 
 /* ── 4 · 浮层 / 底部面板 / 抽屉 ───────────────────────────────────────────── */
+/* fork:v6-glass —— 浮层不挂 backdrop-filter（§Z），走 94% 填充 + 描边式 elevation */
 .m-pop-float { position: absolute; z-index: var(--nx-z-pop); left: var(--nx-sp-3); right: var(--nx-sp-3);
-  background: var(--nx-panel); border-radius: var(--nx-radius-card); box-shadow: var(--nx-sh-2);
-  border: 1px solid var(--nx-line); padding: 6px; display: none; }
+  background: var(--nx-glass-shell-hi); border-radius: var(--nx-radius-card);
+  box-shadow: var(--nx-elev-panel); border: 0; padding: 6px; display: none; }
 /* 同 .d-pop：.is-open 开、hidden 强制关（全局 [hidden] 兜底压得住它）。 */
 .m-pop-float.is-open { display: block; animation: nx-pop-in var(--nx-dur-2) var(--nx-ease-out); }
 /* 能力浮层的分组容器：不带任何视觉，只把四块浮层收在一起（各块自己管 hidden） */
@@ -375,9 +381,14 @@
   pointer-events: none; transition: opacity var(--nx-dur-3) var(--nx-ease); }
 .m-scrim.is-open { opacity: 1; pointer-events: auto; }
 
+/* fork:v6-glass —— 手机侧栏同 Web 侧栏：壳面半透明 + frost。
+   `transform` 本来就是包含块，所以挂 backdrop-filter 不改变任何后代的定位。 */
 .m-drawer { position: absolute; top: 0; bottom: 0; left: 0; width: min(84%, 320px); z-index: var(--nx-z-drawer);
-  background: var(--nx-panel); border-radius: 0 var(--nx-radius-popover) var(--nx-radius-popover) 0;
-  box-shadow: var(--nx-sh-2); transform: translateX(-104%);
+  background: var(--nx-glass-shell);
+  -webkit-backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
+  backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
+  border-radius: 0 var(--nx-radius-popover) var(--nx-radius-popover) 0;
+  box-shadow: var(--nx-elev-soft); transform: translateX(-104%);
   transition: transform var(--nx-dur-4) var(--nx-ease); display: flex; flex-direction: column; }
 .m-drawer.is-open { transform: translateX(0); }
 /* 抽屉主体：列表超高时**必须**自己滚动，底栏才不会被顶出屏。
@@ -388,8 +399,9 @@
 
 /* 底部面板（sheet）—— translateY 而非 hidden，动画才生效 */
 .m-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: var(--nx-z-modal);
-  max-height: 78%; background: var(--nx-panel); border-radius: var(--nx-radius-popover) var(--nx-radius-popover) 0 0;
-  box-shadow: var(--nx-sh-2); transform: translateY(104%);
+  max-height: 78%; background: var(--nx-glass-shell-hi);
+  border-radius: var(--nx-radius-popover) var(--nx-radius-popover) 0 0;
+  box-shadow: var(--nx-elev-soft); transform: translateY(104%);
   transition: transform var(--nx-dur-4) var(--nx-ease); display: flex; flex-direction: column; }
 .m-sheet.is-open { transform: translateY(0); }
 .m-sheet-grab { width: 36px; height: 4px; border-radius: 999px; background: var(--nx-line-hi);
@@ -828,7 +840,7 @@
 .m-btn:disabled { opacity: var(--nx-a-disabled); }
 
 /* ── 画板页面家具（只在 design/v6 画板里出现，永不进产品）────────────────── */
-.m-board { min-height: 100vh; background: var(--nx-canvas); padding: var(--nx-sp-6) var(--nx-sp-4) var(--nx-sp-10);
+.m-board { min-height: 100vh; background: var(--nx-canvas-field); padding: var(--nx-sp-6) var(--nx-sp-4) var(--nx-sp-10);
   font-family: var(--nx-font-ui); font-size: var(--nx-fs-body); line-height: var(--nx-lh-body); color: var(--nx-text); }
 .m-board-head { max-width: 620px; margin: 0 auto var(--nx-sp-6); display: flex; flex-direction: column; gap: var(--nx-sp-2); }
 .m-board-head h1 { font-size: var(--nx-fs-title); font-weight: 600; line-height: var(--nx-lh-tight); }

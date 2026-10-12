@@ -282,8 +282,10 @@
     linear-gradient(180deg, #eef1f7 0%, #f2f0f7 58%, #eef3f5 100%);
   --nx-glass-shell: rgb(255 255 255 / .74);
   --nx-glass-shell-hi: rgb(255 255 255 / .95);
+  /* 两档的分工同 Web：panel 自带 0.5px 描边（给 border:0 的浮层），
+     soft 不带（给还留着 1px 结构线的面）—— 叠两层描边就是一条双线。 */
   --nx-elev-panel: 0 0 0 0.5px var(--nx-line-hi), 0 3px 8px 0 rgb(0 0 0 / .03), 0 0 16px 0 rgb(0 0 0 / .02);
-  --nx-elev-soft: 0 0 0 0.5px var(--nx-line-hi), 0 6px 20px 0 rgb(0 0 0 / .05), 0 0 28px 0 rgb(0 0 0 / .03);
+  --nx-elev-soft: 0 6px 20px 0 rgb(0 0 0 / .05), 0 0 28px 0 rgb(0 0 0 / .03);
   --nx-sidebar: var(--nx-glass-shell);
   --nx-glass: var(--nx-glass-shell);
 }
@@ -296,5 +298,5 @@
   --nx-glass-shell: rgb(28 28 30 / .72);
   --nx-glass-shell-hi: rgb(44 44 46 / .95);
   --nx-elev-panel: 0 0 0 0.5px var(--nx-line-hi), 0 3px 8px 0 rgb(0 0 0 / .18), 0 0 16px 0 rgb(0 0 0 / .14);
-  --nx-elev-soft: 0 0 0 0.5px var(--nx-line-hi), 0 6px 20px 0 rgb(0 0 0 / .24), 0 0 28px 0 rgb(0 0 0 / .16);
+  --nx-elev-soft: 0 6px 20px 0 rgb(0 0 0 / .24), 0 0 28px 0 rgb(0 0 0 / .16);
 }

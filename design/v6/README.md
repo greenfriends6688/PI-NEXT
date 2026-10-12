@@ -1,4 +1,4 @@
-# PI NEXT · 设计体系 V5
+# PI NEXT · 设计体系 V6
 
 > **一份真值 · 两套形态 · 一个落地口**
 > `base.css` 是唯一的角色令牌出处；`web/`（`d-` 前缀，桌面 1440×900）与 `pwa/`（`m-` 前缀，手机 390×844）
@@ -7,16 +7,19 @@
 
 ---
 
-## 0 · 这一版与上一版的差别（一句话）
+## 0 · 这一版与上一版的差别
 
-上一版的问题不是画得不好，是**同一个视觉有两个来源**：画板一套类名、产品一套类名，中间靠桥接层追，
-追不上就漂移（活 bug：`.fork-msg-actions` 写进 CSS，组件渲染的却是 `.pw-msg-acts`，消息动作行**永久透明**）。
-编译器绿、单测绿、人眼评审也绿 —— 因为这类漂移**没有任何仲裁者**。
+**V6 只换一件事：材质。** V5 的毛玻璃只在用户自己开了壁纸时才看得见（默认底是实色 `--nx-canvas`），
+V6 把页面底换成一层内置色场 `--nx-canvas-field`（伪壁纸），壳面（侧栏 / 导轨 / 顶栏 / 输入框）在其上
+半透明 + `blur(40px) saturate(150%)`，**开箱即玻璃**；转录正文、卡片、面板仍是近实底的
+`--nx-panel` / `--nx-elev-panel`，不跟着透。配方逐字借 deepseek-harness 的菜单材质，
+逐条异同登记在 [`DIVERGENCE.md`](./DIVERGENCE.md) §G，材质规格台是
+`web/boards/D-38-v6-glass.html`。**V5 目录原样保留在 `design/v5/`（已落地真值，不动）。**
 
-V5 的做法只有两条，但这两条是不能松的：
+V5 立下的两条做法 V6 原样继承，不能松：
 
 1. **画板 DOM 即产品 DOM**。落地的唯一动作是「打开画板，抄那段 DOM」，不许照着截图做一个差不多的。
-2. **机器判，不靠人记**。`check-v5.mjs` 拦静态（令牌/类/图标/接线/静默失效），
+2. **机器判，不靠人记**。`check-v6.mjs` 拦静态（令牌/类/图标/接线/静默失效），
    `land-status.mjs` 生成落地清单（不凭记忆），`shoot.mjs` 在真浏览器里真点一遍并出图，
    `board-diff.mjs` 与产品逐选择器对几何。
 
@@ -25,12 +28,13 @@ V5 的做法只有两条，但这两条是不能松的：
 ## 1 · 目录
 
 ```
-design/v5/
+design/v6/
   demo/index.html        **整体 Demo**：一个能点的完整应用（桌面 ⇄ 手机形态 ⇄ 设置弹窗），
                         41 张画板背后的数据模型就是它 —— 看它等于看整套设计在跑
   assets/brand/         品牌（logo / 字标，由 PI NEXT品牌/ 原图精确裁切）
   index.html            画板集合页（缩略图 + 搜索 + 分域；file:// 双击也能开）
   base.css            角色令牌（间距/字阶比例/行高/圆角角色/控件高度/动效曲线与时长/层级/透明度）
+                        §14 毛玻璃角色：--nx-frost-blur / --nx-frost-sat（两端共用）
   base.css 末尾        共享动效原子：13 组关键帧（两端共用，只在这里出现一次）
   web/tokens.css      Web 形态值：基准 14px、圆角 4–20、控件 20–32、触控下限 28
   web/system.css      Web 组件库（d- 前缀，唯一出处）+ 画板家具（d-board/d-scene/d-frame）
@@ -39,7 +43,7 @@ design/v5/
   pwa/system.css      PWA 组件库（m- 前缀，唯一出处）
   pwa/boards/         PWA 画板
   assets/demo.js      画板交互引擎（12 类声明式接线，零手写脚本）
-  scripts/check-v5.mjs  静态门禁（退出码 0 才算过）
+  scripts/check-v6.mjs  静态门禁（退出码 0 才算过）
   scripts/land-status.mjs 落地清单生成器（「我说一句话就启动改版」的数据源）
   scripts/shoot.mjs   真浏览器出图 + 交互件冒烟
   .shots/             截图存档（不入库）
@@ -51,11 +55,11 @@ design/v5/
 2. **一个值只有一个来源。** 角色值只在 `base.css`；形态值只在各自的 `tokens.css`；
    产品运行时**只挂 `base.css` + 其中一套形态**，绝不同时挂两套。
 3. **值必须能被算出来。** 内联样式只许写字面量以外的东西（宽度百分比、动画错峰、几何定位）；
-   颜色/字号/间距/圆角/阴影一律 `var()`。`check-v5.mjs` 直接拦。
+   颜色/字号/间距/圆角/阴影一律 `var()`。`check-v6.mjs` 直接拦。
 
 ## 3 · 画板清单
 
-> **这一段是自动生成的**（`check-v5.mjs` 从每张板的 `<h1>` / 说明 / 三标签抽取并回写），
+> **这一段是自动生成的**（`check-v6.mjs` 从每张板的 `<h1>` / 说明 / 三标签抽取并回写），
 > 不要手改 —— 手写的清单和磁盘必然对不上，那正是「两套东西」。
 > 完整清单与落地对应见 [`BOARDS.md`](./BOARDS.md)；机器可读版 `manifest.json`；
 > 带缩略图的页面集合 [`index.html`](./index.html)。
@@ -108,6 +112,7 @@ design/v5/
 | `D-35-v6-workbench-parts.html` | D-35 · V6 提案 · 工作台件 | 转录区 / 输入框 / 右栏 | D-35-v6-workbench-parts.html |
 | `D-36-settings-memory.html` | D-36 · 记忆 | 设置 / 记忆 | D-36-settings-memory.html |
 | `D-37-settings-websearch.html` | D-37 · 联网搜索 | 设置 / 联网搜索 | D-37-settings-websearch.html |
+| `D-38-v6-glass.html` | D-38 · V6 毛玻璃材质 · 壳面与色场 | 类型：材质规格台 | D-38-v6-glass.html |
 | `M-01-conversation-drawer.html` | M-01 · 会话页与抽屉 | 会话流 / 会话抽屉 / 模型选择 | M-01-conversation-drawer.html |
 | `M-02-transcript.html` | M-02 · 手机转录 | 会话转录 | M-02-transcript.html |
 | `M-03-composer-sheet.html` | M-03 · 手机输入卡与面板 | 输入卡 / 能力浮层 / 补全面板 / 队列面板 | M-03-composer-sheet.html |
@@ -135,10 +140,10 @@ design/v5/
 
 | 命令 | 作用 |
 |---|---|
-| `npm run design:v5` | 静态门禁（令牌 / 类 / 图标 / demo 接线 / 静默失效） |
-| `npm run design:v5:land` | **落地清单**：每张画板哪些类还没进产品，按批次排序 |
-| `npm run design:v5:shots` | 真浏览器逐张出图 + 交互件冒烟（需先起静态服务） |
-| 静态预览 | `cd design && python3 -m http.server 39411` → `http://127.0.0.1:39411/v5/` |
+| `npm run design:v6` | 静态门禁（令牌 / 类 / 图标 / demo 接线 / 静默失效） |
+| `npm run design:v6:land` | **落地清单**：每张画板哪些类还没进产品，按批次排序 |
+| `npm run design:v6:shots` | 真浏览器逐张出图 + 交互件冒烟（需先起静态服务） |
+| 静态预览 | `cd design && python3 -m http.server 39411` → `http://127.0.0.1:39411/v6/` |
 
 ## 5 · 看板里不许出现的东西
 

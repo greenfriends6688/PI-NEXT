@@ -357,7 +357,7 @@
  * tokens.css，因为明暗的调子不同），壳面在其上半透明 + blur，开箱即玻璃。
  *
  * 模糊半径与饱和度是**角色**（两端同值、明暗同值），配方逐字取 deepseek-harness：
- *     --dsw-menu-backdrop-filter: blur(40px) saturate(150%)
+ *     --dsw-menu-backdrop-filter = blur(40px) saturate(150%)
  *     （packages/client/ui-theme/src/styles/gradient-shadow-text.css:20）
  * 抬升面同口径：**0.5px 发丝描边当第一层**，再叠两层极轻柔影（`--dsw-elevation-panel`
  * / `-prominent`，design-platform.css 一带），抬升面自己 `border: 0` —— 分层靠描边 +

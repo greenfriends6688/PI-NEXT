@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-38 · V6 毛玻璃材质 · 壳面与色场 · PI NEXT v6</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../system.css">
+</head>
+<body class="d-board">
+
+<div class="d-theme-toggle">
+  <button class="d-btn sm ghost" data-demo-theme>深色</button>
+</div>
+
+<header class="d-board-head">
+  <h1>D-38 · V6 毛玻璃材质 · 壳面与色场</h1>
+  <p>
+    V5 的毛玻璃只在用户自己开了壁纸时才看得见（默认底是实色 <code>--nx-canvas</code>）；
+    <b>V6 把页面底换成一层色场</b> <code>--nx-canvas-field</code>，壳面在其上半透明 + blur，
+    <b>开箱即玻璃</b>。配方逐字借 deepseek-harness 的菜单材质
+    （<code>blur(40px) saturate(150%)</code> + 0.5px 发丝描边式 elevation）。
+    玻璃只落在<b>壳</b>上 —— 侧栏 / 折叠导轨 / 顶栏 / 输入框 / 浮层；
+    转录、卡片、右栏面板保持近实底，长正文的对比度不许跟着底图走。
+  </p>
+  <div class="d-tags" data-board-tags>
+    <span class="d-tag">类型：材质规格台</span>
+    <span class="d-tag">组件：d-shell · d-side · d-rail · d-topbar · d-composer · d-pop</span>
+    <span class="d-tag">状态：明暗两套已落库，深色开关可点，§Z 反例见帧 C</span>
+  </div>
+</header>
+
+<!-- ── 帧 A · 材质台账 ─────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 A</b> · 材质台账：谁玻璃、谁不玻璃、值从哪来</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4);max-width:1280px">
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="layers" data-size="15"></i>V6 材质台账<span class="d-grow"></span><span class="d-badge mute">值的出处在最后一列</span></div>
+                <div class="d-card-body">
+                  <table class="d-table">
+                    <thead>
+                      <tr><th>面</th><th>填充</th><th>模糊 / 饱和</th><th>描边与影</th><th>出处与口径</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td class="d-mono">页面底 .d-shell</td><td class="d-mono">--nx-canvas-field</td><td>—（它就是被透的那层）</td><td>—</td><td>V6 新增：三层色场，最底冷中性 + 品牌两端低透明色晕</td></tr>
+                      <tr><td class="d-mono">侧栏 .d-side / 导轨 .d-rail</td><td class="d-mono">--nx-sidebar（= --nx-glass-shell）</td><td class="d-mono">--nx-frost-blur 40px · --nx-frost-sat 1.5</td><td>1px <code>--nx-line</code> 结构线</td><td>deepseek 菜单材质 blur40/sat150；填充 70%（比它的 58% 实一档，侧栏是长文本面）</td></tr>
+                      <tr><td class="d-mono">顶栏 .d-topbar</td><td class="d-mono">--nx-glass（= --nx-glass-shell）</td><td class="d-mono">--nx-frost-blur · --nx-frost-sat</td><td>rim + 1px 底边（Apple 侧不动）</td><td>只换 blur 配方，rim / 内阴影是 v5 §AB§AD 的裁定，不与本轮混改</td></tr>
+                      <tr><td class="d-mono">输入框 .d-composer</td><td class="d-mono">--nx-glass-shell（画在 ::before 上）</td><td class="d-mono">同上，挂在伪元素</td><td class="d-mono">--nx-elev-soft（影，不带描边）+ 自己那条 1px 线</td><td>伪元素承担填充+模糊：卡片自己有 fixed 后代，backdrop-filter 挂身上会改包含块</td></tr>
+                      <tr><td class="d-mono">浮层 .d-pop / .d-pop-float</td><td class="d-mono">--nx-glass-shell-hi（94%）</td><td>—（<b>禁止</b>，见 §Z）</td><td class="d-mono">--nx-elev-panel（0.5px 描边 + 两层柔影）</td><td>deepseek macOS <code>--dsw-specific-menu</code> 约 94% 不透明，同口径</td></tr>
+                      <tr><td class="d-mono">模态 .d-modal-box · 命令面板 .d-cmd-input</td><td class="d-mono">--nx-glass-shell-hi</td><td>—</td><td class="d-mono">--nx-elev-soft + 自己的 1px 线</td><td>留 1px 线的面吃不带描边那一档，否则叠成双线</td></tr>
+                      <tr><td class="d-mono">转录 .d-card · 右栏 .d-panel · 正文</td><td class="d-mono">--nx-panel（近实底）</td><td>—</td><td>1px <code>--nx-line</code></td><td><b>刻意不玻璃</b>：内容面，对比度不跟底图走</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="d-notes">
+                <b>两档 elevation 的分工（别再往上加第三档）</b>
+                <code>--nx-elev-panel</code> <b>自带 0.5px 描边</b>，给本来就 <code>border: 0</code> 的浮层；
+                <code>--nx-elev-soft</code> <b>不带描边</b>，给还留着自己 1px 结构线的面。
+                两者都带描边 = 一条双线；都不带 = 抬升面与背景之间只剩一层柔光，近白底上看不见分层。
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 B · 整壳实拍 ─────────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 B</b> · 整壳：色场 + 侧栏 + 顶栏 + 输入框 + 浮层（浮层可点开）</div>
+  <div class="d-frame">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <aside class="d-side">
+          <div class="d-side-head">
+            <span class="d-logo"><span>π</span></span>
+            <span class="d-grow">PI NEXT</span>
+            <button class="d-iconbtn" title="新建会话"><i data-ico="square-pen" data-size="15"></i></button>
+          </div>
+          <div class="d-side-nav">
+            <button class="d-row is-on"><i data-ico="message-square" data-size="14"></i><span class="d-grow">今天</span><span class="d-badge mute">6</span></button>
+            <button class="d-row"><i data-ico="folder-tree" data-size="14"></i><span class="d-grow">PI NEXT</span></button>
+            <button class="d-row"><i data-ico="clock" data-size="14"></i><span class="d-grow">最近</span></button>
+          </div>
+          <div class="d-side-scroll">
+            <button class="d-sess is-on">
+              <span class="d-sess-t">V6 玻璃材质规格台</span>
+              <span class="d-sess-m">10:41 · 5 条消息</span>
+            </button>
+            <button class="d-sess">
+              <span class="d-sess-t">会话动作菜单的 12 项</span>
+              <span class="d-sess-m">昨天 · 12 条消息</span>
+            </button>
+            <button class="d-sess">
+              <span class="d-sess-t">深色下的发丝描边</span>
+              <span class="d-sess-m">昨天 · 3 条消息</span>
+            </button>
+            <button class="d-sess">
+              <span class="d-sess-t">色场与壁纸的关系</span>
+              <span class="d-sess-m">10-10 · 8 条消息</span>
+            </button>
+          </div>
+        </aside>
+
+        <main class="d-main">
+          <header class="d-topbar">
+            <span class="d-t-xs">V6 玻璃材质规格台</span>
+            <span class="d-badge mute">工作区 ~/Desktop/PI NEXT</span>
+            <span class="d-grow"></span>
+            <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+            <div class="d-anchor">
+              <button class="d-iconbtn" title="上下文占用" data-demo-open="ctx"><span class="d-ring" style="--p:18"></span></button>
+              <div class="d-pop up" data-demo-pop="ctx" hidden style="min-width:220px;right:0;left:auto">
+                <div class="d-pop-title">上下文占用</div>
+                <div class="d-pop-body d-col" style="gap:var(--nx-sp-2)">
+                  <div class="d-row"><span class="d-grow d-t-xs d-t-dim">已用</span><span class="d-t-xs">18.4k / 200k</span></div>
+                  <div class="d-bar"><i style="width:12%"></i></div>
+                  <div class="d-row"><span class="d-grow d-t-xs d-t-dim">缓存命中</span><span class="d-t-xs">71%</span></div>
+                </div>
+                <div class="d-pop-foot">浮层只有填充与影，<b>没有 backdrop-filter</b> —— §Z。</div>
+              </div>
+            </div>
+            <button class="d-iconbtn" title="调用轨迹"><i data-ico="git-branch" data-size="15"></i></button>
+          </header>
+
+          <div class="d-chat">
+            <div class="d-chat-inner">
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="user" data-size="15"></i>你<span class="d-grow"></span><span class="d-t-xs d-t-dim">10:41</span></div>
+                <div class="d-card-body">这一页的侧栏、顶栏、输入框下面是什么颜色？</div>
+              </div>
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="sparkles" data-size="15"></i>PI NEXT<span class="d-grow"></span><span class="d-t-xs d-t-dim">10:41</span></div>
+                <div class="d-card-body">
+                  是一层色场 <code>--nx-canvas-field</code>，不是实色。卡片这一块<b>故意保持近实底</b>：
+                  正文跟着底图走，读起来要多花一分力气。
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-composer-wrap">
+            <div class="d-ctxbar"><span class="d-chipbtn"><i data-ico="file-code" data-size="13"></i><span class="d-grow">lib/rpc-manager.ts</span></span></div>
+            <div class="d-composer">
+              <div class="d-composer-top"><span class="d-t-dim">描述任务…</span></div>
+              <div class="d-composer-bar">
+                <button class="d-iconbtn" title="添加附件"><i data-ico="plus" data-size="16"></i></button>
+                <button class="d-select" title="模型"><i data-ico="cpu" data-size="13"></i>claude-opus-4-6<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="思考强度"><i data-ico="brain" data-size="13"></i>思考强度：中<i data-ico="chevron-down" data-size="12"></i></button>
+                <button class="d-select" title="权限"><i data-ico="shield-check" data-size="13"></i>权限：每次问<i data-ico="chevron-down" data-size="12"></i></button>
+                <span class="d-grow"></span>
+                <button class="d-send" title="发送"><i data-ico="arrow-up" data-size="16"></i></button>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <aside class="d-panel">
+          <div class="d-tabbar"><button class="d-tab is-on">文件</button><button class="d-tab">终端</button></div>
+          <div class="d-panel-body d-col">
+            <div class="d-row"><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">base.css</span><span class="d-dot"></span></div>
+            <div class="d-row"><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">web/tokens.css</span></div>
+            <div class="d-row"><i data-ico="file-code" data-size="14"></i><span class="d-grow d-mono">web/system.css</span></div>
+            <div class="d-t-xs d-t-dim" style="margin-top:var(--nx-sp-3)">右栏是内容面，<b>不玻璃</b>（--nx-panel）。</div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 帧 C · 三条不变量 ───────────────────────────────────────────────── -->
+<section class="d-scene">
+  <div class="d-frame-label"><b>帧 C</b> · 不变量：写错这三条，玻璃会自己坏掉</div>
+  <div class="d-frame sheet">
+    <div class="d-frame-body">
+      <div class="d-shell">
+        <main class="d-main">
+          <div class="d-chat">
+            <div class="d-chat-inner" style="gap:var(--nx-sp-4);max-width:1280px">
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="shield-alert" data-size="15"></i>§Z · 弹层不许挂 backdrop-filter<span class="d-grow"></span><span class="d-badge bad">反例</span></div>
+                <div class="d-card-body">
+                  <code>backdrop-filter</code> 会让元素成为 <code>position: fixed</code> 后代的<b>包含块</b>，浮窗被裁到视口外。
+                  所以浮层只吃 <b>94% 不透明填充 + elevation</b>；要挂 blur 的是壳面（侧栏 / 导轨 / 顶栏 / 抽屉）。
+                </div>
+              </div>
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="square-mouse-pointer" data-size="15"></i>输入框的霜化走 ::before<span class="d-grow"></span><span class="d-badge warn">两件事缺一不可</span></div>
+                <div class="d-card-body">
+                  <code>position: relative</code>（否则伪元素量到 <code>.d-composer-wrap</code> 的 padding 盒上）+
+                  <code>isolation: isolate</code>（否则 <code>z-index: -1</code> 的伪元素掉进外层堆叠上下文，被壳底盖住 = blur 白挂）。
+                  填充与模糊<b>都放伪元素</b>：填充留在卡片上会把「已经掺白的底」再模糊一次，玻璃被洗白。
+                </div>
+              </div>
+              <div class="d-card">
+                <div class="d-card-head"><i data-ico="palette" data-size="15"></i>色场是形态值，frost 是角色<span class="d-grow"></span><span class="d-badge ok">已进门禁</span></div>
+                <div class="d-card-body">
+                  <code>--nx-frost-blur</code> / <code>--nx-frost-sat</code> 定义在 <code>base.css</code>（两端同值）；
+                  <code>--nx-canvas-field</code> / <code>--nx-glass-shell</code> / <code>--nx-glass-shell-hi</code> /
+                  <code>--nx-elev-panel</code> / <code>--nx-elev-soft</code> 在两份 tokens 里成对定义，
+                  且每个都在 <code>[data-theme="dark"]</code> 里重新声明过 —— 门禁 §3c 盯着这一条。
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="d-notes">
+    <b>怎么复算</b>
+    <code>npm run design:v6</code>（静态门禁）· <code>npm run design:v6:shots</code>（逐张出图 + 真点一遍，
+    要先在 <code>design/</code> 起 <code>python3 -m http.server 39411</code>）· 深色用右上角开关或 <code>--dark</code>。
+    与 deepseek-harness 的逐条异同登记在 <code>DIVERGENCE.md</code> §AI。
+</div>
+
+<script src="../../../pi-web-design/assets/icons.js"></script>
+<script src="../../assets/demo.js"></script>
+</body>
+</html>

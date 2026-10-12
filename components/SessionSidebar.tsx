@@ -2337,7 +2337,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                   }}
                   // fork:pi-1.1（上游 groupMenuItems）—— 项目菜单的批量动作。
                   pinned={projectFlags.pinned.includes(project.key)}
-                  onTogglePin={() => pinProject(project.key)}
+                  onTogglePin={() => pinProject(project.key, project.root)}
                   onMoveUp={() => sessionGroups.moveProjectAdjacent(project.key, projectVisibleKeys, "up")}
                   onMoveDown={() => sessionGroups.moveProjectAdjacent(project.key, projectVisibleKeys, "down")}
                   canMoveUp={projectVisibleKeys.indexOf(project.key) > 0}

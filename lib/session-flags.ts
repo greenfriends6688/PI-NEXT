@@ -1,29 +1,27 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import type { SessionInfo } from "./types";
+import {
+  applySessionUiState,
+  ensureSessionUiState,
+  getSessionUiStateSnapshot,
+  subscribeSessionUiState,
+  whenSessionUiStateSettled,
+  type SessionUiStateApi,
+} from "./session-ui-state-store";
+import type { SessionUiState } from "./session-ui-state-shared";
 
 /**
- * Client-side session flags: pinned and archived.
+ * fork:upstream-0.12-session-state（PR-3b）—— 会话的置顶 / 归档。
  *
- * Both are **presentation-only**. Nothing here renames, moves or deletes a
- * `.jsonl` file — that is a hard rule for this app (a session the user cannot
- * see is still a session the user owns), and it is why these flags live in
- * `localStorage` rather than in the session file.
+ * 两者仍是**纯展示**：这里不改名、不移动、不删任何 `.jsonl` 文件。区别只在
+ * 权威从 `localStorage` 换成了服务端状态（`/api/sessions/ui-state`，见
+ * `lib/session-ui-state.ts`），于是换浏览器、换设备都跟着走，跨端同步也由
+ * 服务端的 revision 兜住。
  *
- * Stored as two id arrays under one key so a flag write is a single atomic
- * `setItem`. Cross-tab changes arrive through the `storage` event; same-tab
- * changes through a custom event (the `storage` event does not fire in the
- * originating tab).
- */
-
-const STORAGE_KEY = "pi-session-flags";
-const CHANGE_EVENT = "pi-session-flags-change";
-
-/*
- * fork:no-session-tag（用户 2026-10-01）—— 手动「状态标记」（`SESSION_TAGS` / `tags` /
- * 彩色点）整块退役：它只改 localStorage，刷新后没人再看，右侧那个点也没人认得。
- * `parseSessionFlags` 照旧忽略老 payload 里残留的 `tags` 字段。
+ * 对外仍是**同步**接口（`getSessionFlags()` / `applySessionFlags()` 到处都是），
+ * 从 store 的快照派生；`parseSessionFlags` 只是老数据的兼容解析器，保留给测试。
  */
 
 export interface SessionFlags {
@@ -32,26 +30,23 @@ export interface SessionFlags {
   /**
    * fork:ui-archive-history — session id → 归档时间（ISO）。
    *
-   * 「归档历史」页要按时间排序并显示「多久前归档」，光有一串 id 排不出来。老数据没有这个
-   * 字段，解析时按缺失处理（这些行按 id 顺序排在末尾）。
+   * 「归档历史」页要按时间排序并显示「多久前归档」。服务端存的是 epoch ms，
+   * 这里转成 ISO 保持老形状。
    */
   archivedAt: Record<string, string>;
 }
 
+// 派生缓存：state 对象身份 → flags。
+let cache: { state: SessionUiState; flags: SessionFlags } | null = null;
+
 const EMPTY: SessionFlags = { pinned: [], archived: [], archivedAt: {} };
-
-const listeners = new Set<() => void>();
-let cache: SessionFlags | null = null;
-
-function emit(): void {
-  listeners.forEach((cb) => cb());
-}
 
 function sanitizeIdList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.filter((item): item is string => typeof item === "string" && item.length > 0))];
 }
 
+/** 老 localStorage 形状的兼容解析器（迁移 / 测试用）。 */
 export function parseSessionFlags(raw: string | null): SessionFlags {
   if (!raw) return { ...EMPTY };
   try {
@@ -78,44 +73,41 @@ function sanitizeArchivedAt(value: unknown): Record<string, string> {
   return out;
 }
 
-function read(): SessionFlags {
-  if (typeof window === "undefined") return EMPTY;
-  try {
-    return parseSessionFlags(window.localStorage.getItem(STORAGE_KEY));
-  } catch {
-    return EMPTY;
+/** 服务端状态 → 老形状。 */
+function flagsFromState(state: SessionUiState): SessionFlags {
+  const pinned: string[] = [];
+  const archived: string[] = [];
+  const archivedAt: Record<string, string> = {};
+  for (const [id, entry] of Object.entries(state.sessions)) {
+    if (entry.pinnedAt !== undefined) pinned.push(id);
+    if (entry.archivedAt !== undefined) {
+      archived.push(id);
+      archivedAt[id] = new Date(entry.archivedAt).toISOString();
+    }
   }
+  return { pinned, archived, archivedAt };
 }
 
-function ensure(): SessionFlags {
-  if (cache === null) cache = read();
-  return cache;
+function snapshotFlags(api: SessionUiStateApi): SessionFlags {
+  // store 每次 publish 都会新建对象；派生的 flags 按 state 对象身份缓存。
+  if (cache !== null && cache.state === api.state) return cache.flags;
+  const flags = flagsFromState(api.state);
+  cache = { state: api.state, flags };
+  return flags;
 }
 
-function write(next: SessionFlags): void {
-  cache = next;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    // storage unavailable — the in-memory flags still apply for this session
-  }
-  window.dispatchEvent(new Event(CHANGE_EVENT));
-  emit();
+/** Non-hook accessor for imperative callers (context menu actions). */
+export function getSessionFlags(): SessionFlags {
+  return snapshotFlags(getSessionUiStateSnapshot());
 }
 
 function subscribe(cb: () => void): () => void {
   if (typeof window === "undefined") return () => {};
-  const onStorage = (event: StorageEvent) => {
-    if (event.key !== STORAGE_KEY) return;
+  ensureSessionUiState();
+  return subscribeSessionUiState(() => {
     cache = null;
-    emit();
-  };
-  window.addEventListener(CHANGE_EVENT, cb);
-  window.addEventListener("storage", onStorage);
-  return () => {
-    window.removeEventListener(CHANGE_EVENT, cb);
-    window.removeEventListener("storage", onStorage);
-  };
+    cb();
+  });
 }
 
 function toggleIn(list: string[], id: string): string[] {
@@ -123,49 +115,41 @@ function toggleIn(list: string[], id: string): string[] {
 }
 
 export function togglePinned(id: string): void {
-  const current = ensure();
-  write({ ...current, pinned: toggleIn(current.pinned, id) });
+  ensureSessionUiState();
+  const flags = getSessionFlags();
+  void applySessionUiState({ action: "set", ids: [id], pinned: !flags.pinned.includes(id) });
 }
 
 export function toggleArchived(id: string): void {
-  const current = ensure();
-  const archived = toggleIn(current.archived, id);
-  const archivedAt = { ...current.archivedAt };
-  if (archived.includes(id)) archivedAt[id] = new Date().toISOString();
-  else delete archivedAt[id];
-  write({ ...current, archived, archivedAt });
+  ensureSessionUiState();
+  const flags = getSessionFlags();
+  void applySessionUiState({ action: "set", ids: [id], archived: !flags.archived.includes(id) });
 }
 
 /**
  * fork:pi-1.1（上游 archiveFamilies / sidebar.archiveOlderThanWeek）—— 批量归档。
  *
- * 一次写盘的原子操作：给每个 id 记同一个归档时刻，**不存在的 id 不写**（归档一个
- * 已经不在列表里的会话是空操作）。返回真正被新归档的 id，调用方据此决定要不要弹
- * 撤销条。
+ * 返回真正被新归档的 id，调用方据此决定要不要弹撤销条。乐观：本地立刻生效，
+ * 服务端写异步跟上。
  */
 export function archiveSessions(ids: readonly string[]): string[] {
-  const current = ensure();
+  ensureSessionUiState();
+  const current = getSessionFlags();
   const known = new Set(current.archived);
-  // 入参可能带重复（家族展开 / 两次点击）：先去重再筛，否则同一个 id 会被写两遍。
   const added = [...new Set(ids)].filter((id) => id && !known.has(id));
   if (added.length === 0) return [];
-  const at = new Date().toISOString();
-  const archivedAt = { ...current.archivedAt };
-  for (const id of added) archivedAt[id] = at;
-  write({ ...current, archived: [...current.archived, ...added], archivedAt });
+  void applySessionUiState({ action: "set", ids: added, archived: true });
   return added;
 }
 
 /** 批量撤销（归档条上的 Undo）：只恢复确实在归档里的那几个。 */
 export function restoreSessions(ids: readonly string[]): string[] {
-  const current = ensure();
+  ensureSessionUiState();
+  const current = getSessionFlags();
   const known = new Set(current.archived);
   const restored = ids.filter((id) => known.has(id));
   if (restored.length === 0) return [];
-  const drop = new Set(restored);
-  const archivedAt = { ...current.archivedAt };
-  for (const id of restored) delete archivedAt[id];
-  write({ ...current, archived: current.archived.filter((id) => !drop.has(id)), archivedAt });
+  void applySessionUiState({ action: "set", ids: restored, archived: false });
   return restored;
 }
 
@@ -174,17 +158,11 @@ export function isPinnedSession(id: string, flags: SessionFlags): boolean {
   return flags.pinned.includes(id);
 }
 
-/** Non-hook accessor for imperative callers (context menu actions). */
-export function getSessionFlags(): SessionFlags {
-  return ensure();
-}
-
 /**
  * fork:pi-1.1（上游 2e87ddb1b）—— 「归档着且没有新动静」。
  *
- * 归档后**又收到新消息**的会话自动回到列表：拿 `modified` 与归档时间（`archivedAt`）
- * 比。老数据没有归档时间（或时间解析不出来）时保守保持归档，不会把用户手动的归档
- * 当成自动回退。
+ * 归档后**又收到新消息**的会话自动回到列表：拿 `modified` 与归档时间比。
+ * 老数据没有归档时间（或时间解析不出来）时保守保持归档。
  */
 export function isArchivedAndQuiet(
   session: Pick<SessionInfo, "id" | "modified">,
@@ -201,8 +179,7 @@ export function isArchivedAndQuiet(
  * Filter + order one project's sessions.
  *
  * Archived sessions are dropped from the main list; pinned ones move to the top
- * while keeping the existing relative order (a stable partition, so the list
- * does not reshuffle when a second session is pinned).
+ * while keeping the existing relative order (a stable partition).
  */
 export function applySessionFlags<T extends Pick<SessionInfo, "id" | "modified">>(
   sessions: readonly T[],
@@ -222,11 +199,6 @@ export function applySessionFlags<T extends Pick<SessionInfo, "id" | "modified">
 
 /**
  * The archived rows of one session list.
- *
- * `applySessionFlags` intentionally drops archived sessions from the main
- * list; this is the explicit counterpart a caller uses to surface them again
- * (the sidebar's per-project "Archived" section), so the two behaviours stay
- * independent instead of weakening the filter for existing callers.
  */
 export function archivedSessions<T extends Pick<SessionInfo, "id" | "modified">>(
   sessions: readonly T[],
@@ -236,11 +208,21 @@ export function archivedSessions<T extends Pick<SessionInfo, "id" | "modified">>
   return sessions.filter((session) => isArchivedAndQuiet(session, flags));
 }
 
+/** 首次取状态（弱网/无网时也能拿到已缓存的那份）。 */
+export { whenSessionUiStateSettled, ensureSessionUiState };
+
 export function useSessionFlags() {
-  const flags = useSyncExternalStore(subscribe, ensure, () => EMPTY);
+  const api = useSyncExternalStore(
+    subscribeSessionUiState,
+    getSessionUiStateSnapshot,
+    getSessionUiStateSnapshot,
+  );
+  // 第一个订阅者触发 hydrate（不在模块加载时打网络）。
+  ensureSessionUiState();
+  const flags = useMemo(() => snapshotFlags(api), [api]);
 
   const pin = useCallback((id: string) => togglePinned(id), []);
   const archive = useCallback((id: string) => toggleArchived(id), []);
 
-  return { flags, pin, archive };
+  return { flags, pin, archive, synced: api.synced, loaded: api.loaded, error: api.error };
 }

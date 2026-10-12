@@ -1,49 +1,40 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import {
+  applySessionUiState,
+  ensureSessionUiState,
+  getSessionUiStateSnapshot,
+  subscribeSessionUiState,
+  type SessionUiStateApi,
+} from "./session-ui-state-store";
+import type { SessionUiState } from "./session-ui-state-shared";
 
 /**
- * fork:project-archive — project-level archive flag.
+ * fork:project-archive —— 项目级的「归档」与「置顶」。
  *
- * Same hard rule as `lib/session-flags.ts`: this is **presentation only**. Archiving a
- * project hides its row from the sidebar; it never renames, moves or deletes a `.jsonl`,
- * and it never touches the directory on disk.
+ * 与 `lib/session-flags.ts` 同一条硬规矩：**纯展示**。归档一个项目只是把它的行
+ * 从侧栏藏起来；绝不改名、移动、删除任何 `.jsonl`，也绝不碰磁盘上的目录。
  *
- * The key is `SessionInfo.projectKey` — the **server-computed** project identity
- * (`projectIdentityKey(projectRoot)`, see `/api/worktrees`), not a path we assemble in
- * the browser. Two reasons:
- *
- *   1. It is the same identity the sidebar already groups by, so "an archived project"
- *      is exactly one row in the sidebar, worktrees included.
- *   2. Windows keys are case- and separator-insensitive on the server, so this store
- *      never has to re-implement path normalisation. (The reference implementation
- *      keyed its archive on a client-side normalised path and hit a real element-id
- *      collision when two spellings of one path slugged to the same id.)
+ * fork:upstream-0.12-session-state（PR-3b）—— 拆成两个来源：
+ *   · **置顶**走服务端（上游 `SessionUiState.projects` 只有它：`pinnedAt` + `root`），
+ *     所以换浏览器也跟着走；
+ *   · **归档**上游没有这个概念（`SessionUiState` 里没有项目归档字段），是本仓
+ *     独有的，仍留 `localStorage`。
  */
 
 const STORAGE_KEY = "pi-project-flags";
-const CHANGE_EVENT = "pi-project-flags-change";
 
 export interface ProjectFlags {
-  /** projectKey values. */
+  /** projectKey values.（本机） */
   archived: string[];
-  /** projectKey → archive time (ISO). Older records may not have one. */
+  /** projectKey → archive time (ISO). Older records may not have one.（本机） */
   archivedAt: Record<string, string>;
-  /**
-   * fork:pi-1.1（上游 sidebar.pinProject）—— 置顶的项目 key。置顶的排在项目列表
-   * 最前（在分组内也靠前），但仍可被拖拽 / 上移下移调整相对顺序。
-   */
+  /** 置顶的项目 key（服务端）。 */
   pinned: string[];
 }
 
 const EMPTY: ProjectFlags = { archived: [], archivedAt: {}, pinned: [] };
-
-const listeners = new Set<() => void>();
-let cache: ProjectFlags | null = null;
-
-function emit(): void {
-  for (const cb of listeners) cb();
-}
 
 function sanitizeProjectKeys(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -59,6 +50,7 @@ function sanitizeArchivedAt(value: unknown): Record<string, string> {
   return out;
 }
 
+/** 老 localStorage 形状的兼容解析器（迁移 / 测试用）。 */
 export function parseProjectFlags(raw: string | null): ProjectFlags {
   if (!raw) return { ...EMPTY };
   try {
@@ -75,87 +67,77 @@ export function parseProjectFlags(raw: string | null): ProjectFlags {
   }
 }
 
-function read(): ProjectFlags {
-  if (typeof window === "undefined") return EMPTY;
+/** 本机那份（只有归档）。 */
+function readArchive(): { archived: string[]; archivedAt: Record<string, string> } {
+  if (typeof window === "undefined") return { archived: [], archivedAt: {} };
   try {
-    return parseProjectFlags(window.localStorage.getItem(STORAGE_KEY));
+    const parsed = parseProjectFlags(window.localStorage.getItem(STORAGE_KEY));
+    return { archived: parsed.archived, archivedAt: parsed.archivedAt };
   } catch {
-    return EMPTY;
+    return { archived: [], archivedAt: {} };
   }
 }
 
-function ensure(): ProjectFlags {
-  if (cache === null) cache = read();
-  return cache;
-}
-
-function write(next: ProjectFlags): void {
-  cache = next;
+function writeArchive(next: { archived: string[]; archivedAt: Record<string, string> }): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   } catch {
     // Storage unavailable — the in-memory flags still apply for this session.
   }
-  window.dispatchEvent(new Event(CHANGE_EVENT));
-  emit();
 }
 
-function subscribe(cb: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
-  const onStorage = (event: StorageEvent) => {
-    if (event.key !== STORAGE_KEY) return;
-    cache = null;
-    emit();
+/** 派生缓存：state 对象身份 → 归档 + 服务端置顶。 */
+let archiveCache: { archived: string[]; archivedAt: Record<string, string> } | null = null;
+let flagsCache: { api: SessionUiStateApi; flags: ProjectFlags } | null = null;
+
+function snapshotFlags(api: SessionUiStateApi): ProjectFlags {
+  if (flagsCache !== null && flagsCache.api.state === api.state) return flagsCache.flags;
+  if (archiveCache === null) archiveCache = readArchive();
+  const flags: ProjectFlags = {
+    archived: archiveCache.archived,
+    archivedAt: archiveCache.archivedAt,
+    pinned: Object.keys(api.state.projects),
   };
-  window.addEventListener(CHANGE_EVENT, cb);
-  window.addEventListener("storage", onStorage);
-  return () => {
-    window.removeEventListener(CHANGE_EVENT, cb);
-    window.removeEventListener("storage", onStorage);
-  };
+  flagsCache = { api, flags };
+  return flags;
 }
 
 /** Archive or restore one project. The time is recorded only on archive. */
 export function setProjectArchived(projectKey: string, archived: boolean): void {
   if (!projectKey || typeof window === "undefined") return;
-  const current = ensure();
+  const current = readArchive();
   if (archived === current.archived.includes(projectKey)) return;
-  const next: ProjectFlags = {
-    archived: archived
-      ? [...current.archived, projectKey]
-      : current.archived.filter((key) => key !== projectKey),
-    archivedAt: { ...current.archivedAt },
-    pinned: [...current.pinned],
+  const archivedAt = { ...current.archivedAt };
+  if (archived) archivedAt[projectKey] = new Date().toISOString();
+  else delete archivedAt[projectKey];
+  archiveCache = {
+    archived: archived ? [...current.archived, projectKey] : current.archived.filter((key) => key !== projectKey),
+    archivedAt,
   };
-  if (archived) next.archivedAt[projectKey] = new Date().toISOString();
-  else delete next.archivedAt[projectKey];
-  write(next);
+  writeArchive(archiveCache);
+  flagsCache = null;
+  emitLocal();
 }
 
 export function toggleProjectArchived(projectKey: string): void {
-  setProjectArchived(projectKey, !ensure().archived.includes(projectKey));
+  setProjectArchived(projectKey, !readArchive().archived.includes(projectKey));
 }
 
-/** 置顶 / 取消置顶一个项目。归档与置顶互不影响，但置顶的项目不会被归档。 */
-export function setProjectPinned(projectKey: string, pinned: boolean): void {
-  if (!projectKey || typeof window === "undefined") return;
-  const current = ensure();
-  if (pinned === current.pinned.includes(projectKey)) return;
-  write({
-    ...current,
-    pinned: pinned
-      ? [...current.pinned, projectKey]
-      : current.pinned.filter((key) => key !== projectKey),
-  });
+/** 置顶 / 取消置顶一个项目。走服务端（`root` 是服务端状态的一部分）。 */
+export function setProjectPinned(projectKey: string, pinned: boolean, root: string): void {
+  if (!projectKey || !root) return;
+  ensureSessionUiState();
+  if (pinned === getProjectFlags().pinned.includes(projectKey)) return;
+  void applySessionUiState({ action: "pin-project", projectKey, root, pinned });
 }
 
-export function toggleProjectPinned(projectKey: string): void {
-  setProjectPinned(projectKey, !ensure().pinned.includes(projectKey));
+export function toggleProjectPinned(projectKey: string, root: string): void {
+  setProjectPinned(projectKey, !getProjectFlags().pinned.includes(projectKey), root);
 }
 
 /**
  * fork:pi-1.1 —— 置顶的项目排在最前，其余保持原顺序（稳定分区，与
- * `applySessionFlags` 的会话置顶同一套语义：再置顶一个不会打乱别的）。
+ * `applySessionFlags` 的会话置顶同一套语义）。
  */
 export function applyProjectPins<T extends { key: string }>(
   projects: readonly T[],
@@ -173,7 +155,7 @@ export function applyProjectPins<T extends { key: string }>(
 }
 
 export function getProjectFlags(): ProjectFlags {
-  return ensure();
+  return snapshotFlags(getSessionUiStateSnapshot());
 }
 
 export function isProjectArchived(projectKey: string, flags: ProjectFlags): boolean {
@@ -198,10 +180,6 @@ export function partitionProjects<T extends { key: string }>(
 
 /**
  * Drop archived projects, keeping `keepKey` regardless.
- *
- * The selected project always stays visible — hiding the row the user is currently
- * working in would leave them unable to see where they are (the same rule
- * `filterHiddenProjects` follows for its own "remove from list" pref).
  */
 export function filterArchivedProjects<T extends { key: string }>(
   projects: readonly T[],
@@ -213,12 +191,48 @@ export function filterArchivedProjects<T extends { key: string }>(
   return projects.filter((project) => !archived.has(project.key) || project.key === keepKey);
 }
 
-export function useProjectFlags() {
-  const flags = useSyncExternalStore(subscribe, ensure, () => EMPTY);
+// 本机归档的变更事件（`storage` 事件不在发起标签触发，所以另有自定义事件）。
+const listeners = new Set<() => void>();
+const CHANGE_EVENT = "pi-project-flags-change";
+function emitLocal(): void {
+  for (const cb of listeners) cb();
+}
+function subscribeLocal(cb: () => void): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== STORAGE_KEY) return;
+    archiveCache = null;
+    flagsCache = null;
+    cb();
+  };
+  window.addEventListener(CHANGE_EVENT, cb);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(CHANGE_EVENT, cb);
+    window.removeEventListener("storage", onStorage);
+  };
+}
 
+function subscribe(cb: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  ensureSessionUiState();
+  const offStore = subscribeSessionUiState(() => {
+    flagsCache = null;
+    cb();
+  });
+  const offLocal = subscribeLocal(() => {
+    flagsCache = null;
+    cb();
+  });
+  return () => {
+    offStore();
+    offLocal();
+  };
+}
+
+export function useProjectFlags() {
+  const flags = useSyncExternalStore(subscribe, getProjectFlags, () => EMPTY);
   const archive = useCallback((projectKey: string) => toggleProjectArchived(projectKey), []);
   const restore = useCallback((projectKey: string) => setProjectArchived(projectKey, false), []);
-  const pin = useCallback((projectKey: string) => toggleProjectPinned(projectKey), []);
-
+  const pin = useCallback((projectKey: string, root: string) => toggleProjectPinned(projectKey, root), []);
   return { flags, archive, restore, pin };
 }

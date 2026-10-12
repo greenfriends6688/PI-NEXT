@@ -445,15 +445,21 @@
      浮层走 94%（deepseek macOS `--dsw-specific-menu` 的不透明度）—— 见 base.css §Z。 */
 :root {
   --nx-canvas-field:
-    radial-gradient(130% 95% at 4% -14%, color-mix(in srgb, #22b8e6 18%, transparent) 0%, transparent 56%),
-    radial-gradient(100% 80% at 106% -8%, color-mix(in srgb, #b45cf0 15%, transparent) 0%, transparent 60%),
-    linear-gradient(178deg, #eef1f7 0%, #f2f0f7 54%, #edf3f5 100%);
+    radial-gradient(130% 95% at 4% -14%, color-mix(in srgb, #22b8e6 24%, transparent) 0%, transparent 62%),
+    radial-gradient(100% 80% at 106% -8%, color-mix(in srgb, #b45cf0 20%, transparent) 0%, transparent 64%),
+    radial-gradient(52% 130% at -12% 58%, color-mix(in srgb, #22b8e6 16%, transparent) 0%, transparent 72%),
+    radial-gradient(46% 110% at 112% 96%, color-mix(in srgb, #b45cf0 13%, transparent) 0%, transparent 74%),
+    linear-gradient(178deg, #eaeff6 0%, #f1eff7 54%, #e9f1f4 100%);
   --nx-glass-shell: rgb(248 249 250 / .70);
   --nx-glass-shell-hi: rgb(248 249 250 / .94);
-  /* 抬升面：0.5px 发丝描边当第一层 + 两层极轻柔影（deepseek elevation 同形）。
-     颜色不是写死的黑，是 `var(--nx-line-hi)` —— 明暗两套描边色由那个角色自己带。 */
+  /* 抬升两档（deepseek elevation 同形：0.5px 发丝描边当第一层，再叠两层极轻柔影）。
+     · `--nx-elev-panel` **自带描边**，给那些 `border: 0` 的浮层（菜单 / 弹层）——
+       deepseek 的口径是「抬升面自己不画 1px 边框，分层靠描边 + 柔光」；
+     · `--nx-elev-soft` **不带描边**，给还留着自己 1px 结构线的面（输入框、模态、
+       命令面板）—— 两层描边会叠成一条双线，那不是设计是事故。
+     描边色不是写死的黑，是 `var(--nx-line-hi)`：明暗两套描边色由那个角色自己带。 */
   --nx-elev-panel: 0 0 0 0.5px var(--nx-line-hi), 0 3px 8px 0 rgb(0 0 0 / .03), 0 0 16px 0 rgb(0 0 0 / .02);
-  --nx-elev-soft: 0 0 0 0.5px var(--nx-line-hi), 0 6px 20px 0 rgb(0 0 0 / .04), 0 0 28px 0 rgb(0 0 0 / .03);
+  --nx-elev-soft: 0 6px 20px 0 rgb(0 0 0 / .04), 0 0 28px 0 rgb(0 0 0 / .03);
   /* 侧栏与玻璃钮共用同一份壳面填充：改一处，`.d-side` / `.d-topbar` /
      `.d-composer` / `.m-top-btn` 一起跟（它们本来读的就是这两个角色）。 */
   --nx-sidebar: var(--nx-glass-shell);
@@ -462,11 +468,13 @@
 
 [data-theme="dark"] {
   --nx-canvas-field:
-    radial-gradient(130% 95% at 4% -14%, color-mix(in srgb, #22b8e6 22%, transparent) 0%, transparent 58%),
-    radial-gradient(100% 80% at 106% -8%, color-mix(in srgb, #b45cf0 20%, transparent) 0%, transparent 62%),
+    radial-gradient(130% 95% at 4% -14%, color-mix(in srgb, #22b8e6 26%, transparent) 0%, transparent 64%),
+    radial-gradient(100% 80% at 106% -8%, color-mix(in srgb, #b45cf0 24%, transparent) 0%, transparent 66%),
+    radial-gradient(52% 130% at -12% 58%, color-mix(in srgb, #22b8e6 18%, transparent) 0%, transparent 74%),
+    radial-gradient(46% 110% at 112% 96%, color-mix(in srgb, #b45cf0 15%, transparent) 0%, transparent 76%),
     linear-gradient(178deg, #0f1116 0%, #14121b 54%, #0e1416 100%);
   --nx-glass-shell: rgb(67 69 74 / .62);
   --nx-glass-shell-hi: rgb(45 46 50 / .94);
   --nx-elev-panel: 0 0 0 0.5px var(--nx-line-hi), 0 3px 8px 0 rgb(0 0 0 / .18), 0 0 16px 0 rgb(0 0 0 / .14);
-  --nx-elev-soft: 0 0 0 0.5px var(--nx-line-hi), 0 6px 20px 0 rgb(0 0 0 / .24), 0 0 28px 0 rgb(0 0 0 / .16);
+  --nx-elev-soft: 0 6px 20px 0 rgb(0 0 0 / .24), 0 0 28px 0 rgb(0 0 0 / .16);
 }

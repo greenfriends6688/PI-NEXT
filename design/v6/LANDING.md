@@ -1,4 +1,4 @@
-# 落地契约 · LANDING.md（v5）
+# 落地契约 · LANDING.md（v6）
 
 > **这份文档是「设计 → 代码」的唯一通道。常驻，不随任何一次改版作废。**
 > 画板侧看 [`README.md`](./README.md)（清单与索引）。本文件只管**怎么落地**。
@@ -18,9 +18,9 @@
 V5 的仲裁者只有四个命令，都可复算：
 
 ```
-node design/v5/scripts/check-v5.mjs      # 静态：令牌/类/图标/接线/静默失效
-node design/v5/scripts/land-status.mjs   # 清单：哪些还没进产品（不凭记忆）
-node design/v5/scripts/shoot.mjs         # 运行时：真点一遍 + 出图
+node design/v6/scripts/check-v6.mjs      # 静态：令牌/类/图标/接线/静默失效
+node design/v6/scripts/land-status.mjs   # 清单：哪些还没进产品（不凭记忆）
+node design/v6/scripts/shoot.mjs         # 运行时：真点一遍 + 出图
 node scripts/board-diff-all.mjs          # 几何：画板 vs 产品逐选择器对数
 ```
 
@@ -82,10 +82,10 @@ DOM 挪了而 CSS 还在，是**已经发生过的事故**（负 margin 把树�
 | # | 检查 | 命令 |
 |---|---|---|
 | 1 | 类型 / lint / 单测 | `npx tsc --noEmit` · `npm run lint` · `npm test` |
-| 2 | 设计门禁 | `npm run design:v5` |
+| 2 | 设计门禁 | `npm run design:v6` |
 | 3 | 几何对数（该组件的 spec） | `node scripts/board-diff.mjs scripts/board-specs/<x>.mjs` |
 | 4 | 浮窗裁切审计 | 逐个浮窗沿祖先链查 overflow，0 处裁切 |
-| 5 | 交互冒烟 | `node design/v5/scripts/shoot.mjs --only <画板号>` |
+| 5 | 交互冒烟 | `node design/v6/scripts/shoot.mjs --only <画板号>` |
 | 6 | 改了颜色则跑对比度 | `npm run check:contrast` |
 
 单测被结构变更打断时，**断言新的等价约束**，不许删测试、不许加 `@ts-ignore`。
@@ -96,11 +96,11 @@ DOM 挪了而 CSS 还在，是**已经发生过的事故**（负 margin 把树�
 
 | 用户说 | 执行 |
 |---|---|
-| **「按 v5 设计落地」/「启动改版 v5」** | `land-status.mjs` 出清单 → 按清单顺序逐项走 §2 四步法 → 每项完成后重跑清单 → 全清后跑 §2④ 六件套 |
+| **「按 v6 设计落地」/「启动改版 v6」** | `land-status.mjs` 出清单 → 按清单顺序逐项走 §2 四步法 → 每项完成后重跑清单 → 全清后跑 §2④ 六件套 |
 | 「只落地 D-04」 | 只做该项，其余不动；同样四步法 + 六件套 |
-| 「画板改了，同步产品」 | `check-v5` 找受影响组件 → 逐项 structdiff，列出真实偏差 → 只改有偏差的 |
-| 「设计检查」/「画板和产品对得上吗」 | `check-v5` + `shoot` + `board-diff-all`，**只报告不修改** |
-| 「新增画板 XX」 | 确认编号未占用 → 只从 `base.css`/本形态 `tokens.css` 取值 → 类先进 `system.css` 且必须有画板在用 → 加进 `README §3` → `check-v5` 绿 |
+| 「画板改了，同步产品」 | `check-v6` 找受影响组件 → 逐项 structdiff，列出真实偏差 → 只改有偏差的 |
+| 「设计检查」/「画板和产品对得上吗」 | `check-v6` + `shoot` + `board-diff-all`，**只报告不修改** |
+| 「新增画板 XX」 | 确认编号未占用 → 只从 `base.css`/本形态 `tokens.css` 取值 → 类先进 `system.css` 且必须有画板在用 → 加进 `README §3` → `check-v6` 绿 |
 | 「给 PWA 也来一套」 | 另一形态的令牌与类前缀是另一套，**不许混用**；导航范式与桌面同构，只换手感（圆角/字号/触控尺寸/顶栏） |
 
 **执行者的硬性动作顺序**（缺一步即返工）：
@@ -125,9 +125,9 @@ DOM 挪了而 CSS 还在，是**已经发生过的事故**（负 margin 把树�
 | 折叠判据用视口断点 | 宽视口开右栏后聊天列很窄，发送钮被顶出裁掉 | 断点 **或** `ResizeObserver` 实测容器宽 |
 | 挪 DOM 留 stale CSS | 结构挪了 CSS 还在，负 margin 顶出面板 | 同批 grep 旧规则并删 |
 | 内联样式压 CSS | 组件根节点 inline `minWidth:0` 压过任何 CSS 保底 | 改组件内联本身，别用 CSS 赢 inline |
-| **同名两义** | `--nx-r-*` 同时是字阶比例与圆角，后者覆盖前者 → 六档字阶全成无效 calc，**一路绿灯** | V5 已拆成 `--nx-f-*`（比例）与 `--nx-r-*`（圆角）；`check-v5` 有专门一条门禁 |
+| **同名两义** | `--nx-r-*` 同时是字阶比例与圆角，后者覆盖前者 → 六档字阶全成无效 calc，**一路绿灯** | V5 已拆成 `--nx-f-*`（比例）与 `--nx-r-*`（圆角）；`check-v6` 有专门一条门禁 |
 | 同时挂两套形态 | 类名冲突 + 令牌覆盖 | 只挂 `base.css` + 一套形态 |
-| 形态类前缀混用 | Web 画板里出现 `m-*` | `check-v5` 直接拦 |
+| 形态类前缀混用 | Web 画板里出现 `m-*` | `check-v6` 直接拦 |
 | 源码守卫测试失效 | 换结构后旧断言红 | 断言新的等价约束，不删 |
 | dev/prod 共用 `.next` | 混用报 `Module factory is not available` 假故障 | 只走 `npm run dev:clean` / `npm run prod` |
 
@@ -143,7 +143,7 @@ DOM 挪了而 CSS 还在，是**已经发生过的事故**（负 margin 把树�
 **四段，只有这四段**：`全部 · 运行中 · 未读 · 归档`。
 桌面侧栏（`D-02`）与手机抽屉（`M-04`）都只允许出现这四个词，且顺序一致。
 之前手机端是「置顶 / 全部 / 运行中 / 归档」而桌面端没有显式筛选 —— **两端不一致本身就是 bug**：
-用户在手机上学会的分类法，桌面上找不到。`check-v5` 不查文案，但改这两个文件时必须一起改。
+用户在手机上学会的分类法，桌面上找不到。`check-v6` 不查文案，但改这两个文件时必须一起改。
 
 ---
 

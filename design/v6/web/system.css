@@ -405,7 +405,9 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
 .d-ctxbar .d-chipbtn { max-width: 280px; }
 .d-ctx-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* fork:v6-glass —— 输入框是壳面里唯一**浮在正文上**的一块，所以它吃 elevation
-   （0.5px 发丝描边 + 两层柔光，deepseek 的抬升面口径：抬升面自己不画 1px 边框）。
+   （`--nx-elev-soft`：两层柔光，**不带描边**）。它自己那条 1px `--nx-line-hi` 结构线
+   保留 —— 危险档的红边与 D-26b 那张的虚线态都画在那条线上，拆掉就没地方画了
+   （deepseek「抬升面 border: 0」的口径交给真正无边的 `.d-pop` / `.d-pop-float`）。
 
    **霜化挂在 `::before` 上，不挂在自己身上**（app/wallpaper.css 同一套路）：
    `backdrop-filter` 会让元素成为 `position: fixed` 后代的包含块，而产品侧输入框
@@ -419,8 +421,8 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
    伪元素同时承担**填充 + 模糊**（background 放它身上，卡片自己透明）：填充若留在
    卡片上，伪元素会把「已经掺了白的底」再模糊一次，等于叠两层白，玻璃被洗白。 */
 .d-composer { max-width: 800px; margin: 0 auto; position: relative; isolation: isolate;
-  border: 0; border-radius: var(--nx-radius-popover); background: transparent;
-  box-shadow: var(--nx-elev-soft);
+  border: 1px solid var(--nx-line-hi); border-radius: var(--nx-radius-popover);
+  background: transparent; box-shadow: var(--nx-elev-soft);
   transition: box-shadow var(--nx-dur-2) var(--nx-ease); }
 .d-composer::before { content: ""; position: absolute; inset: 0; z-index: -1;
   border-radius: inherit; background: var(--nx-glass-shell); pointer-events: none;
@@ -488,9 +490,12 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
    类却压着 UA 规则不放手 → 板面不得不各写一句 `.d-pop:not([hidden]){display:block}`
    取景补丁（一度有 6 张板各写一遍）。**两套机制就是这类坑的根源**，现在只留一套。
    `.is-open` 作为别名保留，给产品侧习惯用类名开关的代码。 */
+/* fork:v6-glass —— 浮层**不挂 backdrop-filter**（§Z：那会成为 fixed 后代的包含块），
+   改走 94% 不透明填充 + elevation（`--nx-elev-panel` 自带 0.5px 发丝描边）——
+   deepseek 在 macOS 上的菜单就是这个口径（`--dsw-specific-menu` 约 94% 不透明）。 */
 .d-pop { position: absolute; z-index: var(--nx-z-pop); min-width: 200px;
-  background: var(--nx-pop-fill); border: 0; border-radius: var(--nx-radius-popover);
-  box-shadow: var(--nx-pop-shadow); padding: var(--nx-sp-1); display: none; }
+  background: var(--nx-glass-shell-hi); border: 0; border-radius: var(--nx-radius-popover);
+  box-shadow: var(--nx-elev-panel); padding: var(--nx-sp-1); display: none; }
 /* 两个开关并存，语义分工明确：
      `.is-open` = 「我要它开」（板面与产品的类名开关）；
      `hidden` 属性 = 「强制关」，且靠 base.css 的全局 `[hidden]{display:none!important}`
@@ -499,8 +504,8 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
      反过来只有 hidden 一套时，`<div class="d-pop">` 会常驻可见。两种都要在。 */
 .d-pop.is-open { display: block; animation: nx-pop-in var(--nx-dur-2) var(--nx-ease-out); }
 .d-pop.up { bottom: calc(100% + 6px); }
-.d-pop-float { position: fixed; z-index: var(--nx-z-pop); background: var(--nx-pop-fill);
-  border: 0; border-radius: var(--nx-radius-popover); box-shadow: var(--nx-pop-shadow);
+.d-pop-float { position: fixed; z-index: var(--nx-z-pop); background: var(--nx-glass-shell-hi);
+  border: 0; border-radius: var(--nx-radius-popover); box-shadow: var(--nx-elev-panel);
   padding: var(--nx-sp-1); }
 .d-pop-title { padding: 6px 10px 4px; font-size: var(--nx-fs-xs); font-weight: 600; color: var(--nx-text-3); }
 .d-pop-body { padding: var(--nx-sp-2) var(--nx-sp-3); }
@@ -541,7 +546,7 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
   background: color-mix(in srgb, var(--nx-text) 24%, transparent); }
 .d-cmd.is-open { display: flex; }
 .d-cmd-input { width: 640px; border: 1px solid var(--nx-line); border-radius: var(--nx-radius-popover);
-  background: var(--nx-panel); box-shadow: var(--nx-sh-2); overflow: hidden;
+  background: var(--nx-glass-shell-hi); box-shadow: var(--nx-elev-soft); overflow: hidden;
   animation: nx-pop-in var(--nx-dur-2) var(--nx-ease-out); }
 .d-cmd > .d-cmd-input > input { width: 100%; border: 0; outline: none; background: none;
   padding: 14px 16px; font: inherit; font-size: var(--nx-fs-lg); color: var(--nx-text); }
@@ -566,8 +571,8 @@ button.d-row.is-on { background: var(--nx-selected); color: var(--nx-text); font
      没有这一段，长一点的分节就整块被裁，板面只能靠「把文案压短」来规避，
      那等于把设计约束写成了写作纪律。 */
   max-height: calc(100vh - var(--nx-sp-8)); display: flex; flex-direction: column;
-  background: var(--nx-panel);
-  border: 1px solid var(--nx-line); border-radius: var(--nx-radius-sheet); box-shadow: var(--nx-sh-2);
+  background: var(--nx-glass-shell-hi);
+  border: 1px solid var(--nx-line); border-radius: var(--nx-radius-sheet); box-shadow: var(--nx-elev-soft);
   animation: nx-pop-in var(--nx-dur-2) var(--nx-ease-out); }
 .d-modal-box.wide { width: 680px; }
 .d-modal-box.narrow { width: 360px; }
@@ -1055,7 +1060,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 /* ── 20 · 画板家具（仅画板取景用，永不进产品）────────────────────────────── */
 .d-frame { width: 1440px; height: 900px; margin: 0 auto; border-radius: var(--nx-radius-popover);
   border: 1px solid var(--nx-line-hi); overflow: hidden; position: relative;
-  box-shadow: var(--nx-sh-2); background: var(--nx-canvas); display: flex; flex-direction: column; }
+  box-shadow: var(--nx-sh-2); background: var(--nx-canvas-field); display: flex; flex-direction: column; }
 .d-frame-body { flex: 1 1 auto; min-height: 0; display: flex; }
 .d-frame-label { position: absolute; top: -28px; left: 0; font-size: var(--nx-fs-xs); color: var(--nx-text-3);
   display: flex; gap: var(--nx-sp-2); align-items: baseline; }
@@ -1086,7 +1091,7 @@ button.d-radiorow { width: 100%; text-align: left; border: 0; background: none; 
 /* ── 画板页面家具（只在 design/v6 画板里出现，永不进产品）──────────────────
    取景框（.d-frame）已在上方；这里补的是「一张画板这个文档」的壳：页头 + 帧间距。
    两套形态刻意不同名（d-board / m-board），理由同铁律二：一个类名一个来源。 */
-.d-board { min-height: 100vh; background: var(--nx-canvas); padding: var(--nx-sp-8) var(--nx-sp-6) var(--nx-sp-10);
+.d-board { min-height: 100vh; background: var(--nx-canvas-field); padding: var(--nx-sp-8) var(--nx-sp-6) var(--nx-sp-10);
   font-family: var(--nx-font-ui); font-size: var(--nx-fs-body); line-height: var(--nx-lh-body); color: var(--nx-text); }
 .d-board-head { max-width: 880px; margin: 0 auto var(--nx-sp-8); display: flex; flex-direction: column; gap: var(--nx-sp-2); }
 .d-board-head h1 { font-size: var(--nx-fs-title); font-weight: 600; line-height: var(--nx-lh-tight); }

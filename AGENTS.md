@@ -658,6 +658,21 @@ Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 * **BoardUI 采纳清单**（MIT，抄规格不抄实现）在 `design/v5/DIVERGENCE.md §A`：采纳 11 组动效关键帧 +
   输入框环绕光带 + 四态思考指示器 + 行展开收起；**拒绝** Tailwind v4 / React Aria / 它的 400 令牌 —— 引入即多一套样式来源
 
+### 设计系统 V6：`design/v6/`（2026-10-12 起，毛玻璃版；**尚未落地产品**）
+
+V6 是 v5 的**并行副本**，只换材质：页面底换成内置色场 `--nx-canvas-field`，壳面（侧栏 / 导轨 /
+顶栏 / 输入框）在其上 `blur(40px) saturate(150%)` 半透明，**开箱即玻璃**；转录与卡片仍是近实底的
+`--nx-panel`。配方逐字借 deepseek-harness 的菜单材质，逐条异同在 `design/v6/DIVERGENCE.md §AI`，
+材质规格台是 `design/v6/web/boards/D-38-v6-glass.html`。
+
+* **V5 目录一个字没动**（已落地真值）；两条铁律与四步法照旧，只是命令换成
+  `npm run design:v6` / `design:v6:land` / `design:v6:shots`（静态门禁 0 错误、落地清单 0 项已落、
+  真浏览器明暗两套出图全过 —— 唯一红的 D-27「重播流光」在 v5 里同样红，是既有问题）。
+* **§Z 不变式在 V6 里是硬边界**：浮层不许挂 backdrop-filter（会成为 fixed 后代的包含块），
+  只吃 `--nx-glass-shell-hi` 94% 填充 + `--nx-elev-panel`；输入框霜化走 `::before`
+  （`.d-composer` 自身 `position:relative; isolation:isolate`）。
+* 落地产品的那一刻才动 `app/` —— 触发口令「按 v6 设计落地」走 `design/v6/LANDING.md` 同一套流程。
+
 * **颜色链路**：`design/pi-web-design/assets/tokens.css`（规范真值）→ `app/design/tokens.css`（`--ds-*` 逐值副本）→ `globals.css` 末尾 `fork:boardui-bridge` 块（把 `--bg/--text/--accent` 等 Zeno 槽位指向 `--ds-*`）。**新代码写 `var(--bg)` 这类 Zeno 名**，不写 hex。
 * **CSS 引入顺序**（`app/layout.tsx`）：katex → tokens.css → `app/design/tokens.css` → globals.css → settings.css → wallpaper.css → **board.css（画板原件，刻意在产品样式之后）** → fork-ui.css（永远最后）。产品要覆盖画板用 0-2-0 双类（`.chat-input-shell.pw-composer`），并注明为什么。
 * **第〇原则：禁止截图模仿**。改组件 = 打开定义它的画板 HTML，原样复制那段 DOM（类名/层级/`<i data-ico>`），再接产品数据与事件；计划与验收协议见 `docs/design-skin-swap-plan-2026-09-29.md`（SW-00~17 批次 + 陷阱清单 + 组件矩阵）。

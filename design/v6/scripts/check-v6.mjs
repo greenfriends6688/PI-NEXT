@@ -292,6 +292,8 @@ const ROLES = [
   "--nx-success", "--nx-warning", "--nx-danger", "--nx-info",
   "--nx-diff-add", "--nx-diff-del", "--nx-sh-1", "--nx-sh-2", "--nx-glass",
   "--nx-code-bg", "--nx-code-line", "--nx-code-key", "--nx-code-str", "--nx-code-num", "--nx-code-com",
+  // V6 毛玻璃（fork:v6-glass）：色场 / 壳面两档填充 / 抬升两档 —— 两端必须成对定义
+  "--nx-canvas-field", "--nx-glass-shell", "--nx-glass-shell-hi", "--nx-elev-panel", "--nx-elev-soft",
 ];
 for (const role of ROLES) {
   if (!T_WEB_ONLY.has(role)) errors.push(`web/tokens.css 缺角色令牌 ${role}`);

@@ -1,4 +1,4 @@
-# 偏离台账 · DIVERGENCE.md（v5）
+# 偏离台账 · DIVERGENCE.md（v6）
 
 > 三类条目：**采纳**（从参考项目抄了什么，换成了什么）、**拒绝**（为什么不抄）、
 > **登记不改**（本仓有意与参考项目不同的地方）。
@@ -1301,3 +1301,36 @@ Web 拿不到整窗材质，页底/卡片分层照 iOS（Grouped 灰 / Primary �
 **下一波待办**：① PWA（iOS）控件绑定从 `spec/ios.json` 符号层补齐（iOS 底板不走 Content Area 族，
 `--nx-sk-cs-*` 目前只有 3 条）；② 警告框按钮的堆叠形态（228×28、红洗 23%）未落到 `.d-modal-foot`
 的默认组合；③ 输入框/开关的 sm/lg 档圆角阶梯只落到了按钮；④ `.d-kbd`、`.d-slider` 旋钮高清。
+
+
+## AI · V6 毛玻璃 · deepseek-harness 逐条异同（2026-10-12 · fork:v6-glass）
+
+> 来源：`pi参考项目/deepseek-harness-master/packages/client/ui-theme/src/styles/gradient-shadow-text.css`
+> 与 `design-platform.css`（逐条实读，2026-10-12）。V6 的壳面材质配方逐字借它的菜单材质，
+> 规格台见 `web/boards/D-38-v6-glass.html`。**V5 目录不动**（已落地真值），V6 是并行的新设计目录。
+
+### AI1 · 采纳
+
+| 抄了什么 | 它的值 | V6 的落点 |
+|---|---|---|
+| **菜单毛玻璃配方** | `--dsw-menu-backdrop-filter: blur(40px) saturate(150%)` | `base.css` §14 `--nx-frost-blur: 40px` / `--nx-frost-sat: 1.5`（角色层，两端共用）；`web/system.css` 的 `.d-side` / `.d-rail` / `.d-topbar` / `.d-composer::before` 直接用它 |
+| **冷中性半透明填充** | light `rgba(248,249,250,…)` / dark `rgba(67,69,74,…)`（同色相） | `--nx-glass-shell`：light `rgb(248 249 250/.70)` / dark `rgb(67 69 74/.62)` |
+| **抬升面靠描边 + 柔光，不靠 border** | `0 0 0 0.5px <stroke>, 0 3px 8px rgba(0,0,0,.03), 0 0 16px rgba(0,0,0,.02)` | `--nx-elev-panel`（自带 0.5px 描边，给 `border:0` 的 `.d-pop` / `.d-pop-float`） |
+| **玻璃面比普通面更不透明一档**（`--dsw-specific-menu` ≈94%） | 浮层要压在内容上，比壳面更实 | `--nx-glass-shell-hi`：light `.94` / dark `.95`（`.d-cmd-input` / `.d-modal-box` / PWA `.m-sheet` `.m-pop-float`） |
+| **页面底先有一层色场再谈玻璃** | 它的 gradient-shadow-text 背后是多层渐变 | `--nx-canvas-field`（light：#22b8e6 品牌青 + #b45cf0 品牌紫 + 冷中性渐变；dark 对应压暗），`.d-shell` / `.d-frame` / `.d-board` / PWA `.m-phone` `.m-workspace` 取它 |
+
+### AI2 · 拒绝 / 不抄
+
+| 它的做法 | 为什么不抄 |
+|---|---|
+| 0.5px 描边用作**一切**结构分隔 | 0.5px 在 1x 屏上是亚像素，侧栏/顶栏的结构线靠它会虚掉。V6 的结构线仍是 1px `--nx-line`（含壳面之间），0.5px 只出现在 `--nx-elev-panel` 的抬升描边里 —— **两套线各管一层，不是两套真值** |
+| 浮层挂 backdrop-filter | V6 铁律 §Z：`fixed`/`absolute` 浮层一旦有 backdrop-filter 就会成为 fixed 后代的包含块（2026-10-07 已翻过车，`fork:*-pop-portal`）。浮层只吃 `--nx-glass-shell-hi` 填充 + elevation，**不 frost** |
+| 抬升面 `border:0` 一刀切 | `.d-composer` 保留 `border: 1px solid var(--nx-line-hi)`：D-26b 的拖放落区靠内联 `border-style:dashed` 叠在这条边框上，去掉即静默失效 |
+| 平台分档的 `--dsw-*` 变量层（win/mac/linux 各一套） | 本仓只有 light/dark + web/pwa 两轴，不再加第三轴 |
+
+### AI3 · 登记不改（V6 内有意如此）
+
+- **转录正文与卡片不玻璃**：`.d-panel` / `.d-card` 仍是 `--nx-panel` 近实底，`.d-toast` / `.d-banner` 的语义边框不动。玻璃只给「壳」（页面底 / 侧栏 / 顶栏 / 输入框 / 浮层填充），正文永远是可读优先。
+- **`--nx-canvas` 不删**：PWA 的 `.m-fade` 等渐隐层仍从它取色，且它是无色场场景的兜底；新增的 `--nx-canvas-field` 是壳面背后的色场，两者各一用途。
+- **输入框霜化走 `::before`**：`.d-composer` 自身 `position:relative; isolation:isolate; background:transparent`，填充与 blur 放在 `z-index:-1` 的伪元素里（`app/wallpaper.css` 的既有先例），避免它成为内部 absolute 后代的包含块。
+- **发丝描边两档**：`--nx-elev-panel` 自带 0.5px 描边（配 `border:0`），`--nx-elev-soft` 不带（配还留 1px 线的面），避免双线。

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-12T05:50",
+  "generatedAt": "2026-10-12T06:22",
   "boards": [
     {
       "id": "D-01",
@@ -588,6 +588,19 @@
         "组件：WebSearchSettingsPanel · /api/websearch · web_search",
         "状态：关着 / 已开启 / 测试通过 / 被风控",
         "免 key：Bing · DuckDuckGo · Mojeek · SearXNG"
+      ]
+    },
+    {
+      "id": "D-38",
+      "file": "D-38-v6-glass.html",
+      "form": "web",
+      "group": "core",
+      "title": "D-38 · V6 毛玻璃材质 · 壳面与色场",
+      "desc": "V5 的毛玻璃只在用户自己开了壁纸时才看得见（默认底是实色 --nx-canvas）； V6 把页面底换成一层色场 --nx-canvas-field，壳面在其上半透明 + blur， 开箱即玻璃。配方逐字借 deepseek-harness 的菜单材质 （blur(40px) saturate(150%) + 0.5px 发丝描边式 e",
+      "tags": [
+        "类型：材质规格台",
+        "组件：d-shell · d-side · d-rail · d-topbar · d-composer · d-pop",
+        "状态：明暗两套已落库，深色开关可点，§Z 反例见帧 C"
       ]
     },
     {
