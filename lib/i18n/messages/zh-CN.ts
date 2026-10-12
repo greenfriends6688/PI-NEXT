@@ -619,6 +619,8 @@ export const zhCNLocale: LocalePlugin = {
     "pwa.rightPanels.groupTitle": "选一块进入 · 六块共用一层切换条",
     "pwa.rightPanels.footNote": "不做常驻页签：手机底部要留给输入卡与 home 手势，六格横排既够不着也挤正文。按需开、选完即走，是这一层唯一的入口。",
     "pwa.rightPanels.closedHint": "未打开 · 点按打开",
+    "pwa.rightPanels.add": "新建面板",
+    "pwa.rightPanels.alreadyOpen": "已打开",
     "phonePush.quickOpen": "手机与推送",
     "phonePush.lanTitle": "把手机连到这台电脑",
     "phonePush.botTitle": "聊天 Bot 通道（入站）",

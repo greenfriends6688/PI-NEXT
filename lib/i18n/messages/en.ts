@@ -610,6 +610,8 @@ export const enLocale: LocalePlugin = {
     "pwa.rightPanels.groupTitle": "Pick one · all six share one layer",
     "pwa.rightPanels.footNote": "No permanent tabs: the bottom of a phone belongs to the composer and the home gesture. Open on demand, pick and go \u2014 this sheet is the only way in.",
     "pwa.rightPanels.closedHint": "Not open · tap to open",
+    "pwa.rightPanels.add": "New panel",
+    "pwa.rightPanels.alreadyOpen": "Open",
     "phonePush.quickOpen": "Phone & push",
     "phonePush.lanTitle": "Pair a phone on this network",
     "phonePush.botTitle": "Chat bot channels (inbound)",

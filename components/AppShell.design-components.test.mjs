@@ -84,7 +84,8 @@ test("the top bar action buttons take their size from the board classes", () => 
   // 终端 / 浏览器两枚（浏览器那枚本来就有，从文件树头行搬过来），多用了一处。
   // fork:tb-slim（2026-10-07 用户裁定）—— 顶栏的「生成会话标题」与「导出 Markdown」
   // 两枚图标钮退场（前者搬进会话动作 ⋯ 菜单，后者本来就在那个菜单里），所以 10 → 8。
-  assert.equal(source.match(/className="d-iconbtn"/g)?.length, 8);
+  // fork:panel-add-menu（P7）—— 右栏头行的「+」也是画板级 `.d-iconbtn`，所以总数 8 → 9。
+  assert.equal(source.match(/className="d-iconbtn"/g)?.length, 9);
   // fork:v5-frame-audit（2026-10-05）—— 抽屉底栏那枚「手机与推送」钮按画板
   // M-04 帧 A 的 `.m-drawer-foot` 改成了 `.m-top-btn`（桌面上仍是 `.d-iconbtn`）。
   // fork:pwa-drawer-foot-icon（2026-10-06 用户裁定）—— 随后换成无底的 `.m-iconbtn`：

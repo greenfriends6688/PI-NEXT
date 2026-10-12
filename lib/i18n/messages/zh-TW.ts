@@ -612,6 +612,8 @@ export const zhTWLocale: LocalePlugin = {
     "pwa.rightPanels.groupTitle": "選一塊進入 · 六塊共用一層切換條",
     "pwa.rightPanels.footNote": "不做常駐頁籤：手機底部要留給輸入卡與 home 手勢，六格橫排既夠不著也擠正文。按需開、選完即走，是這一層唯一的入口。",
     "pwa.rightPanels.closedHint": "未開啟 · 點按開啟",
+    "pwa.rightPanels.add": "新增面板",
+    "pwa.rightPanels.alreadyOpen": "已開啟",
     "phonePush.quickOpen": "手機與推送",
     "phonePush.lanTitle": "把手機連到這台電腦",
     "phonePush.botTitle": "聊天 Bot 通道（入站）",

@@ -82,6 +82,7 @@ import { ToolDefinitionsPanel } from "./ToolDefinitionsPanel";
 import { AgentSessionPanel } from "./AgentSessionPanel";
 import { TerminalPanel } from "./TerminalPanel";
 import { newTerminalTab, restoreTerminalTabs, TERMINAL_TABS_KEY, type TerminalTab } from "./terminal-tab-state";
+import { PortalDropdown, useDismissMenu } from "./PortalDropdown";
 import { BrowserPanel } from "./BrowserPanel";
 import { browserTabLabel, BROWSER_TABS_KEY, newBrowserTab, restoreBrowserTabs, type BrowserTab } from "./browser-tab-state";
 import { useTheme } from "@/hooks/useTheme";
@@ -2172,6 +2173,30 @@ export function AppShell() {
     setRightPanelOpen(true);
   }, [selectedSession]);
 
+  /* fork:panel-add-menu（P7）—— 右栏头行那枚「+」：显式列出**当前可用**的面板，
+     而不是只能靠「点到某个东西才冒出一个 tab」。列表读的是同一个 `features`（P2 的开关），
+     关掉的面板不出现；已经开着的也不列（它就在旁边，再点一次没有意义）。 */
+  const [panelAddOpen, setPanelAddOpen] = useState(false);
+  const panelAddAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const panelAddPanelRef = useRef<HTMLDivElement | null>(null);
+  useDismissMenu(panelAddOpen, panelAddAnchorRef, panelAddPanelRef, () => setPanelAddOpen(false));
+  const panelAddItems = useMemo(() => ([
+    { key: "files", icon: "folder-tree", label: translate("pwa.rightPanels.files"), enabled: true, open: fileTabs.length > 0,
+      run: () => { if (activeCwd) handleOpenFile(activeCwd, getFileName(activeCwd)); } },
+    { key: "terminal", icon: "square-terminal", label: translate("terminal.open"), enabled: features.terminalPane, open: terminalTabs.length > 0,
+      run: () => { if (activeCwd) handleOpenTerminal(activeCwd); } },
+    { key: "browser", icon: "globe", label: translate("browser.newTab"), enabled: features.browser, open: browserTabs.length > 0,
+      run: () => handleOpenBrowser() },
+    { key: "git", icon: "git-branch", label: translate("git.graph"), enabled: features.gitGraph, open: gitGraphOpen,
+      run: () => openGitGraphTab() },
+    { key: "trace", icon: "list-tree", label: translate("trace.title"), enabled: features.tracePane, open: traceOpen,
+      run: () => handleViewFullHistory() },
+  ].filter((item) => item.enabled)), [
+    activeCwd, browserTabs.length, features.browser, features.gitGraph, features.terminalPane,
+    features.tracePane, fileTabs.length, gitGraphOpen, handleOpenBrowser, handleOpenFile,
+    handleOpenTerminal, openGitGraphTab, handleViewFullHistory, terminalTabs.length, traceOpen, translate,
+  ]);
+
   // Show chat area if a session is selected, or if we have a cwd to start a new session in
   const effectiveNewSessionCwd = newSessionCwd ?? (selectedSession === null && activeCwd ? activeCwd : null);
   const newSessionDraftKey = selectedSession === null && effectiveNewSessionCwd
@@ -4055,6 +4080,36 @@ export function AppShell() {
                 : translate("split.collapse")}
             />
           </div>
+          {/* fork:panel-add-menu（P7）—— 「+」显式新建面板。 */}
+          <button
+            type="button"
+            ref={panelAddAnchorRef}
+            className="d-iconbtn"
+            title={translate("pwa.rightPanels.add")}
+            aria-label={translate("pwa.rightPanels.add")}
+            aria-expanded={panelAddOpen}
+            onClick={() => setPanelAddOpen((open) => !open)}
+          >
+            <i data-ico="plus" data-size="14" aria-hidden="true"></i>
+          </button>
+          <PortalDropdown open={panelAddOpen} anchorRef={panelAddAnchorRef} panelRef={panelAddPanelRef} align="right" width={220}>
+            <div className="d-menu">
+              {panelAddItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className="d-menu-row"
+                  disabled={item.open}
+                  onClick={() => { setPanelAddOpen(false); item.run(); }}
+                >
+                  <i data-ico={item.icon} data-size="14" aria-hidden="true"></i>
+                  <span>{item.label}</span>
+                  {item.open && <span className="d-grow"></span>}
+                  {item.open && <span className="d-t-xs d-t-faint">{translate("pwa.rightPanels.alreadyOpen")}</span>}
+                </button>
+              ))}
+            </div>
+          </PortalDropdown>
           {activeCwd && !gitGraphOpen && features.gitGraph && (
             <button
               type="button"
