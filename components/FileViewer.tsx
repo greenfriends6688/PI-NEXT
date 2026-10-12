@@ -3099,7 +3099,7 @@ function TextFileViewer({
                 style={isHtml ? { height: "100%", minHeight: 0 } : undefined}
               >
                 {isHtml && effectiveDisplayMode === "preview" && data?.truncated && !htmlFull?.text ? (
-                  <div style={{ padding: 24, color: "var(--text-dim)", fontSize: 12 }}>
+                  <div style={{ padding: 24, color: "var(--text-dim)", fontSize: TEXT.sm }}>
                     {htmlFull?.error ?? t("i18n.loading")}
                   </div>
                 ) : isHtml ? (
