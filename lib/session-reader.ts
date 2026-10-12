@@ -8,7 +8,7 @@ import { isAbsolute, join, normalize as normalizePath, relative, resolve as reso
 import type { AgentMessage, ImageContent, SessionEntry, SessionHeader, SessionInfo, SessionContext } from "./types";
 import { normalizeToolCalls } from "./normalize";
 import { DEFAULT_PERMISSION_MODE, readPermissionMode } from "./permission-mode";
-import { getThinkingPreview } from "./message-display";
+import { getThinkingPreview, isMessageGroupAnchor } from "./message-display";
 import { projectIdentityKey } from "./project-identity";
 import { sessionPathKey } from "./session-path";
 import { skillExpansionToCommand } from "./slash-display";
@@ -712,6 +712,7 @@ export function buildSessionContext(
     entries, leafId ?? null, tail && tail > 0 ? tail : entries.length, excludeLeaf,
   );
   const hasMore = Boolean(tail && tail > 0 && sliced[0]?.parentId);
+  const turnsBefore = hasMore ? countTurnsBefore(entries, sliced[0]) : 0;
 
   // Convert messages and their IDs together to keep fork/navigation targets aligned.
   const messages: AgentMessage[] = [];
@@ -729,8 +730,46 @@ export function buildSessionContext(
     entryIds,
     oldestEntryId: sliced[0]?.id ?? null,
     hasMore,
+    turnsBefore,
     ...getSessionSettings(entries, leafId),
   };
+}
+
+/**
+ * fork:upstream-0.12-chat-parity —— `isMessageGroupAnchor()` 读到的 entryToUiMessage() 结果的
+ * 字段，不转 entry 的 body。
+ */
+function turnAnchorShape(entry: SessionEntry): Parameters<typeof isMessageGroupAnchor>[0] | null {
+  switch (entry.type) {
+    case "message":
+      return entry.message.role === "system" ? null : entry.message as AgentMessage;
+    case "compaction":
+      return { role: "custom", customType: "compaction", display: true };
+    case "branch_summary":
+      return entry.summary ? { role: "user" } : null;
+    case "custom_message":
+      return { role: "custom", customType: entry.customType, display: entry.display };
+    default:
+      return null;
+  }
+}
+
+/**
+ * fork:upstream-0.12-chat-parity —— `oldest`（一页的第一条 entry）以上的回合数：
+ * 聊天分组用的锚点（#791）。小地图从它开始给已加载的回合编号，于是老页加载时
+ * 一个回合的编号不变。
+ */
+function countTurnsBefore(entries: SessionEntry[], oldest: SessionEntry): number {
+  const byId = new Map<string, SessionEntry>();
+  for (const e of entries) byId.set(e.id, e);
+  let turns = 0;
+  let current = oldest.parentId ? byId.get(oldest.parentId) : undefined;
+  while (current) {
+    const shape = turnAnchorShape(current);
+    if (shape && isMessageGroupAnchor(shape)) turns++;
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+  return turns;
 }
 
 /**

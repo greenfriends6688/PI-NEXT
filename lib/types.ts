@@ -407,6 +407,8 @@ export interface SessionContext {
   entryIds: string[]; // parallel to messages — the session entry id for each message
   oldestEntryId: string | null;
   hasMore: boolean;
+  /** fork:upstream-0.12-chat-parity —— `oldestEntryId` 之前的回合数（服务端的 `turnsBefore`，#791）。 */
+  turnsBefore?: number;
   thinkingLevel: string;
   model: { provider: string; modelId: string } | null;
   /** fork:proma-02-mode — 会话级的权限档位（全自动 / 需审批 / 计划）。

@@ -763,7 +763,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   }, [chatInputRef, onSessionStatsPanelOpen]);
 
   const {
-    loading, error, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, streamState,
+    loading, error, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, earlierTurnCount, streamState,
     refreshing, refreshAfterReload,
     agentRunning, bashRunning, pendingBash, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, toolPreset, thinkingLevel,
     retryInfo, retryNotices, contextUsage, forkingEntryId,
@@ -3047,6 +3047,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           streamingMessage={streamState.streamingMessage}
           scrollContainer={scrollContainerRef}
           messageRefs={messageRefs}
+          turnsBefore={earlierTurnCount}
           onRevealHistory={revealHistoryForMinimap}
         />
       )}

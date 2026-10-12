@@ -13,6 +13,8 @@ interface Props {
   scrollContainer: RefObject<HTMLDivElement | null>;
   messageRefs: RefObject<(HTMLDivElement | null)[]>;
   onRevealHistory: () => void;
+  /** fork:upstream-0.12-chat-parity —— 已加载页之前的回合数：轮次从会话第一轮开始编号（#791）。 */
+  turnsBefore?: number;
 }
 
 /*
@@ -185,6 +187,7 @@ export function ChatMinimap({
   scrollContainer,
   messageRefs,
   onRevealHistory,
+  turnsBefore = 0,
 }: Props) {
   const { t } = useI18n();
   const [visible, setVisible] = useState(false);
@@ -557,7 +560,7 @@ export function ChatMinimap({
               <i data-ico={isUser ? "message-square" : "bot"} data-size="11" aria-hidden="true"></i>
               {/* 画板 D-32 的 `.d-navpop-t` 写的是「第 N 轮 · 你 / PI NEXT」，不是
                   「用户消息 / 助手回复」。 */}
-              {t(isUser ? "chatMinimap.turnUser" : "chatMinimap.turnAssistant", { index: node.index + 1 })}
+              {t(isUser ? "chatMinimap.turnUser" : "chatMinimap.turnAssistant", { index: node.index + 1 + turnsBefore })}
               {tooltipTurn.toolCount > 0 && (
                 <span
                   className="d-badge mute"

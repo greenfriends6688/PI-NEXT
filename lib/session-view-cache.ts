@@ -24,6 +24,8 @@ export interface SessionViewSnapshot {
 	/** Oldest entry id currently loaded — the pagination cursor. */
 	oldestEntryId: string | null;
 	hasMore: boolean;
+	/** fork:upstream-0.12-chat-parity —— 已加载页之前的回合数（#791）。 */
+	turnsBefore?: number;
 	/** Summary-format branch tree (no bodies) when the server sent one. */
 	summaryTree?: unknown;
 	thinkingLevel: string;

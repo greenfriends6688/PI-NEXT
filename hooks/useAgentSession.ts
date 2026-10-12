@@ -98,6 +98,8 @@ export interface SessionData {
     entryIds: string[];
     oldestEntryId: string | null;
     hasMore: boolean;
+    /** fork:upstream-0.12-chat-parity —— 已加载页之前的回合数（#791）。 */
+    turnsBefore?: number;
     thinkingLevel: string;
     model: { provider: string; modelId: string } | null;
     /** fork:proma-02-mode — 会话级的权限档位，随会话文件走。 */
@@ -395,6 +397,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const [activeToolResults, setActiveToolResults] = useState<Map<string, ToolResultMessage>>(new Map());
   const [entryIds, setEntryIds] = useState<string[]>([]);
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  // fork:upstream-0.12-chat-parity —— 已加载页之前的回合数，小地图从它开始编号（#791）。
+  const [earlierTurnCount, setEarlierTurnCount] = useState(0);
   const [hasEarlierMessages, setHasEarlierMessages] = useState(false);
   const [streamState, dispatchStreamState] = useReducer(streamReducer, INITIAL_STREAMING_STATE);
   const [agentRunning, setAgentRunning] = useState(false);
@@ -788,6 +792,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           setMessages([]);
           setEntryIds([]);
           setHistoryCursor(null);
+          setEarlierTurnCount(0);
           setHasEarlierMessages(false);
           // 新会话（还没落盘）不继承上一个会话的档位。
           setPermissionMode(DEFAULT_PERMISSION_MODE);
@@ -845,6 +850,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         setMessages(persistedMessages);
         setEntryIds(d.context.entryIds ?? []);
         setHistoryCursor(d.context.oldestEntryId);
+        setEarlierTurnCount(d.context.turnsBefore ?? 0);
         setHasEarlierMessages(d.context.hasMore);
       }
       sessionToolsPinnedRef.current = d.toolNames !== undefined;
@@ -940,6 +946,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       const d = await res.json() as { context: SessionData["context"] };
       if (sessionIdRef.current !== sid || options?.signal?.aborted || !sessionHookMountedRef.current) return;
       setHistoryCursor(d.context.oldestEntryId);
+      setEarlierTurnCount(d.context.turnsBefore ?? 0);
       setHasEarlierMessages(d.context.hasMore);
       setData((prev) => {
         if (!prev || prev.sessionId !== sid) return prev;
@@ -3156,7 +3163,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   return {
     // State
-    data, loading, refreshing, error, activeLeafId, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, streamState,
+    data, loading, refreshing, error, activeLeafId, messages, activeToolResults, entryIds, historyCursor, hasEarlierMessages, earlierTurnCount, streamState,
     refreshAfterReload,
     agentRunning, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, newSessionModel, toolPreset, thinkingLevel,
     retryInfo, retryNotices, contextUsage, systemPrompt, forkingEntryId,
