@@ -1068,6 +1068,8 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // 用短窗口而不是布尔量：万一那次滚动没产生事件，窗口过期后不会误判用户滚动。
   const sendFollowUntilRef = useRef(0);
   const loadingOlderRef = useRef(false);
+  // fork:upstream-0.12-chat-parity —— 最后请求的那个更旧页面游标，直到下一个游标渲染出来（#1149）。
+  const requestedCursorRef = useRef<string | null>(null);
   const [loadingEarlier, setLoadingEarlier] = useState(false);
   const restoreStartedRef = useRef(false);
   const pendingScrollRestoreRef = useRef(pendingScrollRestore);
@@ -1245,6 +1247,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     if (!hasEarlierMessages) return;
     const oldestId = historyCursor;
     if (!oldestId) return;
+    // fork:upstream-0.12-chat-parity —— 同一个游标只请求一次：页面落盘与 loadingOlderRef
+    // 清除之间有一瞬，此时观察者的又一次报告会拿着同一个游标（#1149）。
+    if (requestedCursorRef.current === oldestId) return;
+    requestedCursorRef.current = oldestId;
     const sid = session?.id ?? sessionIdRef.current;
     if (!sid) return;
     const container = scrollContainerRef.current;
@@ -1263,6 +1269,8 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
         // 拉取失败：不要让本次采样留给下一次无关的 visibleCount 变化。
         prevScrollDistanceRef.current = null;
         prependAnchorRef.current = null;
+        // 什么都没落，同一个页面可以再问一次。
+        if (requestedCursorRef.current === oldestId) requestedCursorRef.current = null;
       }
     } finally {
       loadingOlderRef.current = false;
