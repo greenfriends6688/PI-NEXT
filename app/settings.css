@@ -879,3 +879,49 @@
     max-height: 60vh;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:fastvibe-stack (L1 三) —— 设置左导航按 FastVibe 的规格重画
+ *
+ * 规格来自 `fastvibe-main/src/renderer/src/components/settings/settings-dialog.tsx:177-193`：
+ *   行   `flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-sm`
+ *        + `pointer-coarse:h-10`（触屏加高到 40）
+ *   分组标题 `px-2 pb-1 text-xs font-medium text-muted-foreground`
+ *   选中   `bg-sidebar-accent font-medium`；悬停 `hover:bg-sidebar-accent/50`
+ *
+ * 只改**几何与状态**，不动 DOM（`.d-set-nav` / `.d-set-navitem` / `.d-set-navsep`
+ * 三个类名原样保留）—— 三个测试（navsep / boardnav / test）按类名断言，
+ * 换类名会让它们全红而收益为零。
+ *
+ * 与旧值的差别：
+ *   · 行高 7px padding → **固定 32px**（`h-8`）—— 旧值是「内容撑高」，
+ *     图标大小一变行高就变，与 FastVibe「行高是常数」的纪律不符；
+ *   · 间距 gap 8 → **10px**（`gap-2.5`）；
+ *   · 圆角 `--nx-radius-row`（8px）→ `--nx-radius-control`（10px）—— 与
+ *     FastVibe 的 `rounded-md`（= 8px）在视觉上同档，本仓 10px 是同一档的
+ *     最近值（详见 globals.css 的圆角真值块）；
+ *   · 触屏加高：`@media (pointer: coarse)` 下 40px —— FastVibe 的
+ *     `pointer-coarse:h-10` 是同一件事。
+ *
+ * **选择器为什么带 `.d-set-nav` 前缀**（`.d-set-nav .d-set-navitem`）：旧定义在
+ * `design/v5/web/system.css`，而那个文件经 `app/design/v5-forms.css` 引入，
+ * **排在 `app/settings.css` 之后** —— 同特异性（0,1,0）时后者赢。实测第一版
+ * 就中过这条：行高 32px 生效了（旧定义没有 height），而圆角仍是旧的 8px。
+ * 加一层前缀变 0,2,0，不再依赖加载顺序。
+ * ═════════════════════════════════════════════════════════════════════════ */
+.d-set-nav .d-set-navitem {
+  height: 32px;
+  padding: 0 var(--nx-sp-2);
+  gap: 10px;
+  border-radius: var(--nx-radius-control);
+}
+.d-set-nav .d-set-navsep {
+  padding: var(--nx-sp-3) var(--nx-sp-2) 4px;
+  font-weight: 500;
+}
+/* 触屏：行加高到 40px（FastVibe 的 `pointer-coarse:h-10`）。
+   用 `pointer: coarse` 而不是宽度断点 —— 那是**输入方式**，与窗口多宽无关：
+   平板接鼠标时不该被加高。 */
+@media (pointer: coarse) {
+  .d-set-nav .d-set-navitem { height: 40px; }
+}
