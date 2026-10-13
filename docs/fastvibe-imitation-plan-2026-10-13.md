@@ -22,7 +22,7 @@
 
 **本次改造 = 把 FastVibe 的形态（布局 / 信息结构 / 交互 / 视觉规格）与产品能力搬进 PI NEXT 的 Web 形态**，而不是把 Electron 搬进来。
 
-改造分 7 个批次、共 **44 个核心 PR**（另有 B11 / G9 两个可选），三条里程碑加一批大件（G 批次为 PWA 移动端，与 M2 并行）：
+改造分 7 个批次、共 **47 个核心 PR**（另有 B11 / G9 两个可选），三条里程碑加一批大件（G 批次为 PWA 移动端，与 M2 并行）：
 
 - **M1「看得见」**：A1–A4（浮岛壳 / 玻璃二期 / 主题 / 字阶）+ B1/B4/B6/B7（转录滚动 / 工具行 / composer / 队列）→ 打开应用就是 FastVibe 的那个样子。
 - **M2「天天用」**：B2/B3/B5/B8–B10 + C1–C5 → 聊天、侧栏、右栏全部对齐。
@@ -173,6 +173,11 @@
 | 88 | DAG 移动呈现 | 44pt 摘要条 + 任务图 sheet | 无（依赖 E1–E3） | ❌ | G9（可选） |
 | 89 | 手势 / 终端键盘条 / 配对 | 下拉刷新 + 侧滑返回；无终端 | `m-pull` / `m-swipe` / Termux 键盘条 / 6 位配对码已做 | ✅+ | — |
 | 90 | 原生专属（Keychain / mDNS / APK 自更新 / shader 玻璃） | 有 | 浏览器无等价物 | ⛔ | — |
+| 91 | 连接状态机 | 断线保列表 + 状态点四态 + 指数退避抖动 + 前台立即探活 | 固定 1s 重连；除 `navigator.onLine` 横幅外无连接状态 UI | ❌ | G10 |
+| 92 | 草稿持久化 | 按会话存、350ms debounce | `lib/draft-store.ts` 纯内存 Map，刷新即丢 | ❌ | G11 |
+| 93 | 会话内搜索 | 进聊天后「搜索此对话」 | `ConversationFindBar` 完整但入口只有 ⌘F，手机不可达 | 🟡 | G12 |
+| 94 | 手机转写输出纪律 | 参数/输出/diff 不进手机转写；只有 todo / dag 可展开 | 可展开看输出（M-02 板口径） | ⚠️ 需裁定 | G12 |
+| 95 | 附件压缩管线 | 长边 2048 / q78 / 最多 4 张 / base64 上限 5.5MB | 长边 1024 / q85 / 最多 10 张 / 上限 10MB | ⚠️ 需裁定 | G4 |
 
 ---
 
@@ -425,6 +430,8 @@
 ### 批次 G · PWA 移动端（P0，与 M2 并行）
 
 > 移动端的目标不是照抄 Flutter，而是把 FastVibe 移动端的**信息结构 / 交互 / 视觉纪律**搬进 PI NEXT 的 PWA（`m-*` 设计系统 + Capacitor 壳）。FastVibe 的四类原生依赖（Keychain、系统设置跳转、mDNS、后台进程存活）不在范围内。
+>
+> **第二轮深读（2026-10-13 下午）补入 G10–G12**：对 Flutter 端做逐文件规格提取后，发现三块**没有进第一版计划**的真实差距 —— 连接状态机（G10）、草稿持久化（G11）、手机转写收口（G12）。同时修正 G2 的两处口径错误：Flutter 的「等你处理 / 运行中 / 最近」三分组与「全部 / 进行中 / 待处理」dock 是针对**它的** WorkSpace 页，与本仓 M-04 板（「未读 / 运行中 / 归档都不是分类，而是行上的状态」；分段只有空间 / 任务）冲突，按本仓板面执行。
 
 #### G1 — PWA 玻璃外壳
 - **目标**：对齐 FastVibe 移动端的两条材质纪律：**玻璃只是 chrome、正文永不透明**；顶栏渐进模糊（progressive blur）+ 用壁纸自身裁切的 scrim；设置里「减少玻璃」自动降级。
@@ -433,11 +440,13 @@
 - **验收**：`prefers-reduced-transparency` 与低端机降级；桌面板零变化；真机/移动仿真截图。
 - **量级**：M。依赖：A2。
 
-#### G2 — 手机会话列表页
-- **目标**：分组「等你处理 / 运行中 / 最近」；会话卡（leading 状态 mark、标题 + 相对时间、一行预览、项目行）；底部 dock（分段「全部 / 进行中 / 待处理」+ 新会话）；项目过滤胶囊；搜索命中时用 snippet 替换预览。
-- **参考**：`lib/screens/server.dart:518-830`；`lib/ui/dock.dart:20-91`。
-- **PI NEXT**：`components/SessionSidebar.tsx`（m 分支）、`components/pwa/*`、`design/v5/pwa/boards/M-*`。
-- **验收**：状态优先级（等你 > 运行 > 项目）；空态；新会话优先回到带草稿的空会话。
+#### G2 — 手机会话列表页（口径已按 M-04 修正）
+- **目标**：把 Flutter 的「信息结构」搬进来，但**布局纪律以本仓 M-04 板为准**：抽屉只配三样 —— 搜索（常驻）、分段（**空间 / 任务**两档，切段只换范围、不推路由）、会话行（两行字）。Flutter 的「等你处理 / 运行中 / 最近」三分组**不做成三个分区** —— M-04 板的原话是「未读 / 运行中 / 归档都不是分类，而是行上的状态」，本仓已有 `runningSessionIds` + `useUnreadSessions` + `awaitingInput`/`awaitingApproval`，它们进**行内**徽章与左侧状态 mark，不新开分区。
+- **内容**：会话行 leading 状态 mark（等你 > 运行 > 有项目 → 项目首字母色块 > 普通气泡，**优先级必须实现在一个纯函数里**并有单测）；标题 + 右侧相对时间；一行预览（搜索命中时替换为 snippet）；有项目时第三行文件夹 + 项目名；行尾状态徽章。相对时间与 snippet 都已有工具（`formatRelativeTime` / `SearchGroup`）。
+- **不做**：Flutter 的底部 dock 分段悬浮条（M-04 板的分段贴在搜索下面，与抽屉同宽）；Flutter 的项目过滤胶囊（本仓分段已经是「空间 / 任务」两档，再叠一层胶囊是第二套分类）；「新对话先弹项目 sheet」（本仓新会话已有空间选择器，不重做）。
+- **参考**：`lib/screens/server.dart:518-830`（状态 mark 的优先级与颜色语义）；`lib/ui/dock.dart:20-91`（只看分段行为，不看其位置）；本仓 `design/v5/pwa/boards/M-04-sessions-drawer.html` 帧 A/B（**布局真值**）。
+- **PI NEXT**：`components/SessionSidebar.tsx`（m 分支、`.m-row` / `.m-row-m` / `.m-rowlabel`）、`lib/session-groups.ts`、`design/v5/pwa/system.css`。
+- **验收**：状态优先级单测（四态 × 组合）；空态；搜索命中不丢状态 mark；行高与 M-04 板对位。
 - **量级**：L。依赖：C1。
 
 #### G3 — 手机会话页形态
@@ -448,10 +457,13 @@
 - **量级**：L。依赖：B1。
 
 #### G4 — 手机 Composer v2
-- **目标**：四态动作按钮（发送 / 停止 / 继续 / spinner）；上下文环（70% / 90% 阈值）；模型 sheet（搜索 + provider rail + 最近 6 + 折叠分组）；思考档 sheet；附件压缩管线（长边 2048 / JPEG q78 / 大小上限）；缩略图行；Enter 换行。
+- **目标**：四态动作按钮（发送 / 停止 / 继续 / spinner）；上下文环（70% / 90% 阈值）；模型 sheet（搜索 + provider rail + 最近 6 + 折叠分组）；思考档 sheet；附件压缩管线；缩略图行；Enter 换行。
+- **已具备（不重做，只对齐）**：四态按钮事实上已是「单格 + 按 `hasDraftToSubmit` 切图标」（`ChatInput.tsx:3315`）；模型 sheet 已有搜索 + 按 provider 分组（`ModelSelector.tsx:244,287`）；手机 Enter 已是换行（`ChatInput.tsx:2807`）。**本 PR 的重点是把「已有但不完整」的补齐，而不是新建。**
+- **缺口（要做的）**：① **上下文环的档位在 PWA 形态下完全缺失** —— `.m-ring` 只有一根强调色 conic 渐变，没有 warn / bad 档（`design/v5/pwa/system.css:308-311`）；桌面 `.d-ring` 也只有 `>70%` 一档（`>90%` 的 `.bad` 已在画板缺件清单里登记过）。两档一起补，而且产品里 `.m-ring` 有两处挂点（`ChatInput.tsx:4206` 行首、`4272`）都要改；② 模型 sheet 补「provider 横向 rail + 最近 6 个 + 多于 14 个才折叠」两条行为；③ 切模型后若当前思考强度不在新模型的 `thinkingLevels` 内要自动改写（否则下一轮发出去会被服务端拒）；④ 附件压缩参数（见下条，待裁定）。
+- **参数对照（需裁定）**：本仓是长边 **1024** / JPEG **q85** / 最多 **10 张** / 单图上限 **10MB**（`ChatInput.tsx:606-607`、`lib/image-attachments.ts:1-2`）；Flutter 是长边 **2048** / q78 / 最多 **4 张** / base64 上限 5.5MB。方向相反：本仓压得更狠但存得更多。建议**长边跟 Flutter 提到 2048**（1024 在手机上看文档截图已经胡），**张数维持 10**（本仓上限本来就高且服务端已有校验）。不自行改 —— 这一步影响 token 消耗与后台上传体积。
 - **参考**：`lib/chat/composer.dart:428-830`；`lib/chat/model_picker.dart:56-213`；`lib/chat/images.dart:17-140`。
-- **PI NEXT**：`components/ChatInput.tsx`（`renderPwaComposer`）、`components/pwa/PwaComposerSheet.tsx`。
-- **验收**：四态切换；环阈值；压缩后大小；模型 <14 不折叠。
+- **PI NEXT**：`components/ChatInput.tsx`（`renderPwaComposer` / `compressImageFile`）、`components/pwa/PwaComposerSheet.tsx`、`components/ModelSelector.tsx`、`design/v5/pwa/system.css`（`.m-ring`）。
+- **验收**：四态切换；环三档；压缩后尺寸与质量肉眼可接受；模型 <14 不折叠；切模型后思考强度已归位。
 - **量级**：L。依赖：B6。
 
 #### G5 — 手机队列与提问卡
@@ -486,6 +498,33 @@
 - **参考**：`lib/chat/dag_panel.dart:19-110`。
 - **判定**：等 E1–E3 完成后再做。
 - **量级**：M。依赖：E1–E3。
+
+#### G10 — 连接状态机与重连可见性
+- **目标**：对齐 Flutter 的断线纪律 —— **断线不切错误页**：保留最后一份列表与转写，状态降为「重连中」；指数退避 300ms → 10s（封顶 10 次）+ 0.8–1.0 抖动；只有 4001 / unauthorized 才降级为「需要密码 / 需要登录」；回前台立即探活（不等下一个退避周期）；网络变化（`online` / `offline`）时立刻重试。
+- **为什么进计划**：本仓现在只有固定 `EVENT_STREAM_RECONNECT_DELAY_MS = 1000` 的匀速重连（`hooks/useAgentSession.ts:246`），且**没有任何连接状态 UI** —— 用户在手机切回前台时看到的是「卡住的转圈」，不知道是在重连还是真的挂了。`PwaOfflineBanner` 只看 `navigator.onLine`，看不到「网通了但服务端没回来」。
+- **内容**：把 `AgentEventConnection` 的重连节奏换成退避 + 抖动（纯函数，可单测）；新增一个**全局连接状态 store**（`ready` / `reconnecting` / `needs-auth` / `offline` 四态），由顶层挂一次探活；`.m-top` 副标题显示状态点 + 文案（照 `server.dart:518-556` 的四色语义）；转写区不加遮罩、不禁用输入（离线时发送走既有队列）。
+- **参考**：`lib/session/connection.dart:20-21,367-441,460-560,620-700`（退避参数、4001 降级、凭证预建热切换、前台探活）。
+- **PI NEXT**：`hooks/useAgentSession.ts`（重连参数）、新 `lib/connection-store.ts`（纯状态 + 订阅）、`components/AppShell.tsx`（`.m-top` 状态位）、`lib/mobile-shell.ts`（网络变化桥）。
+- **验收**：退避序列单测（含抖动上下界）；拔网 → 横幅「重连中」且列表可读；换回 → 自动恢复且**不重挂对话**；401 场景走「需要密码」分支；前台切换立即触发一次探活。
+- **量级**：M。依赖：无（与 G7 共享 `lib/notification-plan.ts` 的在场裁决口径）。
+
+#### G11 — 草稿持久化（手机尤其重要）
+- **目标**：草稿按「服务器 + 会话」持久化，350ms debounce 落盘，刷新 / 切后台 / 冷启动都还在。
+- **为什么进计划**：`lib/draft-store.ts` 现在是一个**纯内存 `Map`**（第 26 行），刷新页面即丢。桌面上这是个不便，**手机上这是数据丢失** —— 系统回收 WebView、用户切回微信再切回来、来电打断，输入框里的字就没了。
+- **内容**：`draft-store.ts` 加持久化后端（`localStorage` + 版本前缀 + 容量上限 + 损坏时丢弃而不是抛错；附件图片**不入** localStorage —— 体积会爆，只存文本与引用，图片丢了就在恢复时如实剔除并提示）；保留现有纯内存路径给测试（注入式 store，默认用 localStorage）；`rekeyDraft` / `parkedNewSessionDraftKey` 那套「新会话先驻留再改名」的逻辑必须跟着持久化走，否则新会话第一条消息发出去后草稿键会漂。
+- **参考**：`lib/chat/draft_storage.dart`（350ms debounce、按 server+conversation 建键、`chat.dart:190-215` 的接线）。
+- **PI NEXT**：`lib/draft-store.ts`、`components/ChatInput.tsx`（`draftKey` 生命周期）、`components/AppShell.tsx`（`rekeyDraft` / `parkedNewSessionDraftKey`）。
+- **验收**：单测（debounce、容量、坏数据、附件剔除）；手动：打字 → 刷新 → 还在；打字 → 切会话 → 切回 → 还在；新会话发首条消息后草稿键不漂。
+- **量级**：S–M。依赖：无。
+
+#### G12 — 手机转写收口与会话内搜索入口
+- **目标**：两件手机上的「够得着」问题。
+- **(a) 会话内搜索入口**：`ConversationFindBar` 功能完整（逐条命中、跨分页、计数器、高亮），但**入口只有 ⌘F**（`ChatWindow.tsx:2031`）—— 手机没有这个键，于是整条功能在手机上等于不存在。在会话页的移动工具条加一枚「搜索此对话」（走已有的 `mobile-toolbar-slim` 收口，与 ⋯ 菜单同一格，不新增底栏）。
+- **(b) 参数 / 输出 / diff 是否进手机转写 —— 需裁定**：Flutter 的纪律是「参数、输出、diff **一律不进**手机转写；只有 `todo` 与 `dag_*` 可展开」。本仓 M-02 板写的**恰恰相反**：「能展开的默认收起，标题行永远可见：代码、表格、附件都自带滚动，不许把整屏撑开」（`M-02-transcript.html:22`），产品也已按板实现（`.m-tool` + `.m-card-body` 可展开）。**两条纪律不冲突的地方是「默认折叠」，冲突的是「能不能展开」。**建议保留本仓行为（可展开、默认收起）—— 手机上确实有看输出的需求，而板面已经用「自带滚动 + 默认收起」约束了它；但这一条要用户点头，所以先记为待裁定，默认**维持现状**，不照 Flutter 删掉展开能力。
+- **参考**：`lib/screens/chat.dart`（搜索此对话入口）；`lib/chat/tool_card.dart:20-60,400-560`（Flutter 的「一行到底」纪律，供对照）。
+- **PI NEXT**：`components/AppShell.tsx`（`renderChatToolbarActions` 的 mobile 分支）、`components/ChatWindow.tsx`（`findOpen` 已有，需要能被外部点亮）、`components/fork/ConversationFindBar.tsx`（无需改）。
+- **验收**：(a) 手机上点得到、点开可用、Esc / 关闭钮回得来；(b) 裁定后要么维持现状并在 `DIVERGENCE.md` 记一条「与 Flutter 不同」，要么按 Flutter 收口并删掉对应展开入口。
+- **量级**：S。依赖：无。
 
 ### 批次 F · 大件（P2，执行前需单独确认）
 
@@ -526,8 +565,8 @@
 M1「看得见」  A1 → A2 → A4 → B1 → B6 → B4 → B7 → B3 →（A3 与 B 并行）
               交付物：打开应用 = 浮岛 + 玻璃 + 居中转录 + 单行工具 + 圆角 composer + 队列
 M2「天天用」  B2 → B5 → B8 → B9 → B10 → C1 → C3 → C2 → C4 → C5 → C6 → D1
-              G1 → G2 → G3 → G4 → G5 → G6 → G7 → G8（移动端，与 C/D 并行）
-              交付物：长会话流畅、问询不弹窗、侧栏/右栏/设置 = FastVibe 形态；手机端 = FastVibe 移动端形态
+              G1 → G2 → G3 → G4 → G5 → G6 → G7 → G8 → G10 → G11 → G12（移动端，与 C/D 并行）
+              交付物：长会话流畅、问询不弹窗、侧栏/右栏/设置 = FastVibe 形态；手机端 = FastVibe 移动端形态 + 断线可读 + 草稿不丢 + 搜得到
 M3「补齐」    D2 → D3 → D4 → D5 → D6 → E4 → E5 → E6 → E7 → E1 → E2 → E3
               交付物：设置同深；Goal / checkpoint / 决策 / DAG 可用
 M4「大件」    F1 / F2 / F3（逐个确认后再开）
@@ -569,4 +608,5 @@ M4「大件」    F1 / F2 / F3（逐个确认后再开）
 | 导入 / 统计 / 配额 / 代理 / cc-switch | `engine/import/*`、`engine/usage-*.ts`、`openai-quota.ts`、`gateway-probe.ts`、`network-proxy.ts`、`cc-switch.ts` |
 | 远程 / SSH / agent | `src/main/server/*`、`src/main/rtc/*`、`src/main/ssh/*`、`src/agent/*` |
 | 移动端 / PWA | `apps/mobile_flutter/lib/**`（screens / chat / ui / theme / session / notifications）；`apps/mobile_flutter/AGENTS.md`（材质与平台纪律） |
+| PWA 连接态 / 草稿（G10–G12） | `lib/session/connection.dart`（退避与状态四态）；`lib/chat/draft_storage.dart`（debounce 落盘）；`lib/screens/chat.dart:300-320`（从不调 `conversations.open`，只按名订阅）；`lib/chat/tool_card.dart`（输出纪律，对照用） |
 | 设计/交互约定（文字版） | `fastvibe-main/AGENTS.md`（UI / Theming / 模板章节） |
