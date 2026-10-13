@@ -4,6 +4,17 @@ import { useEffect } from "react";
 // fork:icons-manual —— **必须排在 icons.js 前面**：它把画板文件末尾那次自跑关掉
 // （自跑会赶在 React 认领流式片段之前改 DOM → hydration mismatch）。
 import "./pw-icons-manual";
+// fork:fastvibe-stack (H3) —— Hugeicons 数据源（双轨共存）。
+//
+// `components/PwIcons.tsx` 是全仓唯一的图标渲染 seam（940 处 `<i data-ico>`
+// 都走 `repaint()`）。H3 的做法是**换数据源、不换调用点**：映射表命中就用
+// Hugeicons 画，未命中回落 icons.js 的 lucide 路径。于是可以按页、按组件
+// 逐步验证，不会出现「换到一半图标全没了」。
+//
+// L 批次把调用点逐个改写成 `<HugeiconsIcon>` 后，本文件的 data-ico 分支与
+// icons.js 一起退役（L10）。
+import { ICON_MAP } from "@/lib/hugeicons-map";
+import { hugeiconSvg } from "@/lib/hugeicons-render";
 // fork:design-components —— 设计画板的图标集**原样进 client bundle**：
 // 这是一次副作用 import，执行后 window.Icons = { paths, svg, hydrate }。
 // 产品组件里直接写 <i data-ico="check" data-size="12"></i>，与画板 HTML 同一写法。
@@ -19,15 +30,20 @@ declare global {
 }
 
 function hydrateInto(el: Element) {
-  const Icons = window.Icons;
-  if (!Icons) return;
-  // hydrate(scope) 只扫 scope **内部**的 [data-ico]；
-  // 新增节点自身就是 <i data-ico> 时退到父级扫一遍（data-ico-done 防重复，开销可控）。
-  if (el.matches("[data-ico]")) {
-    Icons.hydrate(el.parentElement ?? document.body);
-  } else {
-    Icons.hydrate(el);
-  }
+  // fork:fastvibe-stack (H3) —— 这里以前直接调 `Icons.hydrate()`（lucide 专用）。
+  //
+  // **那是 H3 接入时的真 bug**：`Icons.hydrate()` 会给每个节点写
+  // `data-ico-done="1"`，而 `repaint()` 只在 key 不匹配时重画 —— 于是首屏的
+  // 764 个图标全部被 lucide 抢先画完并标记为已完成，Hugeicons 路径一次都没走到
+  // （实测：图标都画出来了，但字形全是 lucide 的，不报错，只是换库没生效）。
+  //
+  // 现在统一走 `repaint()`：它自己做 Hugeicons 优先 + lucide 回落的判断，
+  // 并且写的 `data-ico-done` 是 `名字:尺寸:线宽`（比 icons.js 的字面量 `"1"` 更严），
+  // 尺寸/线宽变化时能正确重画。
+  const targets = el.matches("[data-ico]")
+    ? Array.from(el.parentElement?.querySelectorAll("[data-ico]") ?? [el])
+    : Array.from(el.querySelectorAll("[data-ico]"));
+  for (const target of targets) repaint(target);
 }
 
 /** 已画上去的那枚字形由 `名字:尺寸:线宽` 记在 `data-ico-done` 上；与它一致就什么都不做。
@@ -35,12 +51,24 @@ function hydrateInto(el: Element) {
 function repaint(el: Element) {
   const Icons = window.Icons;
   const name = el.getAttribute("data-ico");
-  if (!Icons || !name) return;
+  if (!name) return;
   const size = el.getAttribute("data-size") || "16";
   const stroke = el.getAttribute("data-stroke") || "1.5";
   const key = `${name}:${size}:${stroke}`;
   if (el.getAttribute("data-ico-done") === key) return;
-  const html = Icons.svg(name, Number(size), Number(stroke));
+  /* fork:fastvibe-stack (H3) —— Hugeicons 优先，未命中回落 lucide。
+
+     命中时用的是 `hugeiconSvg()`，它产出的外层 `<svg>` 与 `Icons.svg()` 的
+     逐字同形（viewBox / fill / stroke / stroke-width / aria 全部一致），所以
+     `data-size` / `data-stroke` 与既有 CSS 选择器不用改一行。
+
+     为什么不直接删掉 lucide 分支：映射表只覆盖产品实际用到的 152 个名字，
+     画板专属的另 104 个不在里面；而且这正是「H3 只换数据源、不动 940 处
+     调用点」这个分批策略的安全垫 —— 漏掉的名字只会画成原来的字形，不会空白。 */
+  const huge = ICON_MAP[name as keyof typeof ICON_MAP];
+  const html = huge
+    ? hugeiconSvg(huge, Number(size), Number(stroke))
+    : (Icons ? Icons.svg(name, Number(size), Number(stroke)) : "");
   if (!html) return;
   el.innerHTML = html;
   el.setAttribute("data-ico-done", key);
@@ -60,7 +88,8 @@ function repaint(el: Element) {
  */
 export function PwIcons() {
   useEffect(() => {
-    window.Icons?.hydrate();
+    // fork:fastvibe-stack (H3) —— 首屏不再调 `Icons.hydrate()`，理由见 `hydrateInto`。
+    hydrateInto(document.body);
     const mo = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (mutation.type === "attributes") {
