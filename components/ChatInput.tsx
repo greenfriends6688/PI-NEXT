@@ -4490,7 +4490,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           e.target.value = "";
         }}
       />}
-      <div style={{ maxWidth: "var(--composer-max-width, 892px)", margin: "0 auto" }}>
+      <div style={{ maxWidth: "var(--composer-max-width, 768px)", margin: "0 auto" }}>
         {/* fork:zn-04 — banners sit above the strip and the strip stays welded to
             the card. Banners are transient alerts, the strip is chrome, so an
             alert must never come between the strip and the card (it would break

@@ -415,7 +415,7 @@ const CHAT_MINIMAP_WIDTH = 36;
 const CHAT_COLUMN_PADDING = 16;
 /* 消息列的定宽只有一个来源（ChatAppearance.test.mjs 钉着这一条）：窄屏只是把
    横向内距让给 `.m-scroll`，max-width 这一格两个形态是同一个值，所以只写一次。 */
-const CHAT_COLUMN_MAX_WIDTH = "var(--chat-content-max-width, 800px)";
+const CHAT_COLUMN_MAX_WIDTH = "var(--chat-content-max-width, 768px)";
 // fork:ui-22 — density scales the column gutter too; the value stays a CSS calc so
 // the density hook only has to write one variable.
 const CHAT_COLUMN_PADDING_CSS = `calc(${CHAT_COLUMN_PADDING}px * var(--fork-density, 1))`;
@@ -3051,7 +3051,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           </div>
         )}
         {isEmptyNew && (
-          <div className="mx-auto w-full" style={{ maxWidth: "var(--composer-max-width, 892px)", paddingLeft: "var(--s4)", paddingRight: "var(--s4)" }}>
+          <div className="mx-auto w-full" style={{ maxWidth: "var(--composer-max-width, 768px)", paddingLeft: "var(--s4)", paddingRight: "var(--s4)" }}>
             <NewSessionUpdateLink label={(version) => t("appUpdate.releaseNotes", { version })} />
           </div>
         )}

@@ -302,7 +302,12 @@
      800 rather than the original 860: at 860 the prose column ran wider than
      upstream (760) and Wegent (768, `max-w-3xl`) both settle on, and long
      paragraphs started losing the line. User-overridable in 设置 → 通用. */
-  --chat-content-max-width: 800px;
+  /* fork:fastvibe-stack (L2) —— 800 → **768**（= Tailwind `max-w-3xl`，FastVibe 的
+     `CHAT_COLUMN_CLASS = "mx-auto w-full max-w-3xl px-6"`）。
+     上面那段注释本来就写着「upstream 760 与 Wegent 768（`max-w-3xl`）都落在这一档，
+     860 太宽」—— 800 是当时取的中间值。现在真值换成 FastVibe，直接用它的 768。
+     输入卡跟着同宽（`--composer-max-width`），FastVibe 那边两者也是同一个类。 */
+  --chat-content-max-width: 768px;
   /* Right-hand file-tree column inside the workspace panel. Container-query
      gated (see .file-panel-body below), so it only appears when the panel is
      wide enough to seat both the viewer and the tree. */
@@ -311,7 +316,7 @@
      PR #838). Deliberately wider than the chat thread: prose reads better
      at ~900px than at the 800px the chat column uses. */
   --readable-content-max-width: 900px;
-  --composer-max-width: 800px;
+  --composer-max-width: 768px;
   /* 12px: Zeno's panel radius, which is what its composer card uses. */
   --radius-composer: var(--nx-radius-sheet);
   --height-toolbar: 36px;
@@ -326,8 +331,10 @@
     --topbar-icon-size: 36px;
   }
   --spacing-token-button-composer: 28px;
-  /* Consumed by the skin override layer's chat rhythm rule. */
-  --conversation-item-gap: 24px;
+  /* Consumed by the skin override layer's chat rhythm rule.
+     fork:fastvibe-stack (L2) —— 24 → **20px**：FastVibe 的每一轮是
+     `absolute inset-x-0 pb-5`（Tailwind `pb-5` = 20px），这是它的轮间距真值。 */
+  --conversation-item-gap: 20px;
   /* fork:type-unify-2026-10-03 —— 13px，与另外两处对齐：JS 默认值
      （CHAT_CONTENT_FONT_SIZE_DEFAULT = DESIGN_TEXT_PX.body = 13），以及
      `.chat-content` 里 offset 的基准（`calc(var(--chat-content-font-size, 13px) - 13px)`）。

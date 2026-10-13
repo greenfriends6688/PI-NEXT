@@ -308,8 +308,12 @@ html.keyboard-open .extension-status-shelf {
 }
 /* The message rhythm already reads this variable (globals.css:2356 applies it as
    a margin), so scaling the variable scales the whole conversation. */
+/* fork:fastvibe-stack (L2) —— 基准 16 → **20px**（FastVibe 每轮 `pb-5` = 20px）。
+   密度系数保留：紧凑 / 舒适三档仍按同一比例缩放，只是基准换成 FastVibe 的值。
+   注意这条**覆盖了** globals.css 里同名的 20px 声明（同特异性 + 靠后加载），
+   所以两处必须一起改 —— 只改 globals 那处会被这条盖掉，实测第一版就中过。 */
 :root {
-  --conversation-item-gap: calc(16px * var(--fork-density));
+  --conversation-item-gap: calc(20px * var(--fork-density));
 }
 .settings-general-section {
   margin-bottom: calc(20px * var(--fork-density));

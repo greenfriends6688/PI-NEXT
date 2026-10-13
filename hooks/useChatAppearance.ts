@@ -3,7 +3,11 @@
 import { useSyncExternalStore } from "react";
 import { DESIGN_TEXT_PX, snapUserTextSize } from "@/lib/typography";
 
-export const CHAT_CONTENT_WIDTH_DEFAULT = 800;
+/* fork:fastvibe-stack (L2) —— 默认 800 → **768**（Tailwind `max-w-3xl`，FastVibe 的
+   `CHAT_COLUMN_CLASS`）。这个值是**用户可改的偏好**（设置 → 通用 → 聊天内容宽度），
+   所以改的是默认值：已经存过偏好的用户不受影响（那是他自己选的），新用户拿到 768。
+   与 `app/globals.css` 的 `--chat-content-max-width` 同步（那边是 CSS 侧的同一默认）。 */
+export const CHAT_CONTENT_WIDTH_DEFAULT = 768;
 export const CHAT_CONTENT_WIDTH_MIN = 640;
 export const CHAT_CONTENT_WIDTH_MAX = 2000;
 export const CHAT_CONTENT_WIDTH_STORAGE_KEY = "pi-chat-content-width";

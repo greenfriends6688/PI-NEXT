@@ -13,14 +13,17 @@ const jiti = createJiti(import.meta.url, { tsconfigPaths: true });
 const { clampChatContentWidth, clampChatContentFontSize, clampExtensionWidgetFontSize } = await jiti.import("../hooks/useChatAppearance.ts");
 const { USER_TEXT_SIZE_OPTIONS } = await jiti.import("../lib/typography.ts");
 
-const widthVariable = /var\(--chat-content-max-width, 800px\)/g;
-const composerVariable = /var\(--composer-max-width, 892px\)/g;
+/* fork:fastvibe-stack (L2) —— 默认列宽 800 → 768（Tailwind max-w-3xl，FastVibe 的
+   CHAT_COLUMN_CLASS）。变量名与「只有一个出口」这两条不变，变的只是那个默认数。 */
+const widthVariable = /var\(--chat-content-max-width, 768px\)/g;
+const composerVariable = /var\(--composer-max-width, 768px\)/g;
 
-test("chat content keeps the 800px default behind one shared variable", () => {
+test("chat content keeps the 768px default behind one shared variable", () => {
   assert.equal((chatWindow.match(widthVariable) ?? []).length, 1);
   assert.equal((chatInput.match(composerVariable) ?? []).length, 1);
-  assert.match(globals, /--chat-content-max-width: 800px;/);
-  assert.doesNotMatch(chatWindow, /max-w-\[768px\]|maxWidth: 768/);
+  assert.match(globals, /--chat-content-max-width: 768px;/);
+  /* 宽度只有一个出口（共享变量）：不许在组件里写死 maxWidth。 */
+  assert.doesNotMatch(chatWindow, /maxWidth: 768/);
   assert.doesNotMatch(chatInput, /maxWidth: 768/);
 });
 
@@ -50,8 +53,8 @@ test("General chat settings own the chat width preference", () => {
   assert.match(chatAppearanceHook, /localStorage\.setItem/);
 });
 test("chat width validation preserves the default and supported range", () => {
-  assert.equal(clampChatContentWidth(undefined), 800);
-  assert.equal(clampChatContentWidth("invalid"), 800);
+  assert.equal(clampChatContentWidth(undefined), 768);
+  assert.equal(clampChatContentWidth("invalid"), 768);
   assert.equal(clampChatContentWidth(700), 700);
   assert.equal(clampChatContentWidth(1104), 1104);
   assert.equal(clampChatContentWidth(2400), 2000);
