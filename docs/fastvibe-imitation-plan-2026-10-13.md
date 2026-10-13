@@ -1,35 +1,46 @@
 # FastVibe 对齐改造计划（PI NEXT × FastVibe）
 
-日期：2026-10-13
+日期：2026-10-13（第 3 版：技术栈换血 + 逐页迁移）
 参考项目：`/Users/yingjing/Downloads/fastvibe-main`（FastVibe 0.19.3，Electron 44 + React 19 + pi SDK 1.1.0）
-目标仓库：本仓库 @ `ab67d3d1`（0.10.0-beta.3，Next.js 16 + React 19 + pi SDK 1.1.0）
-审计方式：对 FastVibe 做 7 路并行深读（聊天 UI / 壳与布局 / 设置 / 设计系统 / 引擎功能 / 远程移动 / 数据流），对 PI NEXT 做 2 路现状盘点（UI 面 / 功能面）。本文件是唯一的执行台账，后续每个 PR 按 §4 的六件套交付。
+目标仓库：本仓库 @ `adbe4537`（0.10.0-beta.3，Next.js 16 + React 19 + pi SDK 1.1.0）
+审计方式：对 FastVibe 做 7 路并行深读（聊天 UI / 壳与布局 / 设置 / 设计系统 / 引擎功能 / 远程移动 / 数据流），对 PI NEXT 做 2 路现状盘点（UI 面 / 功能面），第 3 版追加两边**技术栈差异**清点。本文件是唯一的执行台账，后续每个 PR 按 §4 的六件套交付。
 
 ---
 
 ## 0. 一页结论
 
-用户裁定：**FastVibe 的形态最合理，PI NEXT 照它做全方位改造。**
+用户裁定（2026-10-13，第 3 次）：
+
+> 「所有页面布局、设计啥的也请你帮我按照 fastvibe-main 这个帮我调整，不需要搞 V6 啥的了，全部抄他的，设置可以参考他的，但是设备我想保留弹窗的形式。每一页都抄他的。」
+
+四条决策：
+
+1. **连技术栈一起抄**（Tailwind v4 + shadcn/Base UI + Hugeicons + 他的主题体系），不是只抄形态。
+2. **设置继续用弹窗**——这一点与 FastVibe 一致（它本来就是 `SettingsDialog`，不是独立页）。
+3. **V5/V6 画板体系与门禁整套拆掉**，验收完全换成「与 FastVibe 对照」。
+4. **迁移策略**：先立样板 → 再批量；**图标换 Hugeicons**；**旧 CSS 先共存、最后统一清**（不边迁边删）。
 
 先说清楚两个项目不是一个东西，然后按「能搬什么」组织：
 
-| 维度 | FastVibe | PI NEXT |
-| --- | --- | --- |
-| 交付形态 | Electron 桌面应用（macOS/Windows/Linux）+ Flutter 手机端 | 本地 Web 工作台（浏览器 + Electron 壳 + PWA 手机端） |
-| 引擎 | pi SDK 嵌入主进程，私有 userData 目录 | pi SDK 嵌在 Next server 进程，读写 `~/.pi` |
-| UI 技术 | Tailwind v4 + shadcn Nova（Base UI）+ Hugeicons | 自研 V5/V6 设计系统（`d-*`/`m-*` + 画板 + 门禁），lucide 图标 |
-| 强项 | 桌面壳打磨、DAG 编排、决策引擎、记忆、电脑操控、SSH、24 主题、浮岛/玻璃 | 多渠道推送、生图、联网搜索、定时任务、PWA、MCP 深度、文件/文档能力 |
+| 维度 | FastVibe | PI NEXT | 差异性质 |
+| --- | --- | --- | --- |
+| 交付形态 | Electron 桌面应用 + Flutter 手机端 | 本地 Web 工作台（浏览器 + Electron 壳 + PWA） | 形态不同，样式规范可搬 |
+| 引擎 | pi SDK 嵌入主进程 | pi SDK 嵌在 Next server 进程 | 已对齐（都是 1.1.0） |
+| UI 技术 | Tailwind v4 + shadcn Nova（Base UI）+ Hugeicons + 24 主题 | **已有 Tailwind v4.2 基础** + 自研 `d-*`/`m-*` + lucide | **本次换血目标** |
+| 强项 | 桌面壳打磨、DAG、决策、记忆、电脑操控、SSH、主题 | 多渠道推送、生图、联网搜索、定时任务、PWA、MCP 深度 | 互相补 |
 
-**本次改造 = 把 FastVibe 的形态（布局 / 信息结构 / 交互 / 视觉规格）与产品能力搬进 PI NEXT 的 Web 形态**，而不是把 Electron 搬进来。
+**本次改造 = 把 FastVibe 的技术栈与视觉规范整体搬进 PI NEXT，再在此基座上逐页重建。**
 
-改造分 7 个批次、共 **47 个核心 PR**（另有 B11 / G9 两个可选），三条里程碑加一批大件（G 批次为 PWA 移动端，与 M2 并行）：
+改造分 **9 个批次**。计入实际工作量的 PR 共 **57 个核心 + 3 个大件（F，需单独裁定）+ 2 个可选**（B11 / G9）。其中 **A1–A3 已被 H4 / L3 吸收**（本计划仍保留其条目作为规格对照，不再单独施工）。
 
-- **M1「看得见」**：A1–A4（浮岛壳 / 玻璃二期 / 主题 / 字阶）+ B1/B4/B6/B7（转录滚动 / 工具行 / composer / 队列）→ 打开应用就是 FastVibe 的那个样子。
-- **M2「天天用」**：B2/B3/B5/B8–B10 + C1–C5 → 聊天、侧栏、右栏全部对齐。
-- **M3「能力补齐」**：D1–D6 + E1–E7 → 设置与 FastVibe 同深；DAG / Goal / checkpoint / 决策引擎补齐。
+- **M0「换基座」**：H1–H6（依赖+组件层 / 35 个 shadcn / Hugeicons / 24 主题 / 杂项 / 门禁重建）—— 之后所有页面都建在它上面。
+- **M1「样板」**：L1–L3（设置弹窗 / 聊天转录 / 壳与侧栏）—— 验证整套技术栈在 Next.js 里跑得通。
+- **M2「铺开」**：L4–L9 + B/C/D 的行为条目 + G 的移动端条目 → 全部页面对齐 + 手机端可用。
+- **M3「能力补齐」**：E1–E7 → DAG / Goal / checkpoint / 决策引擎。
 - **M4「大件」（需单独裁定）**：F1 SSH、F2 电脑操控、F3 记忆形态。
+- **M5「清场」**：L10（旧 CSS / 画板 / 门禁统一删除）—— **只在 L1–L9 全部完成后执行**。
 
-**明确不做清单**（理由见 §6）：原生窗口 chrome/vibrancy、官方 WebRTC 连接与云端中继、Flutter App、彩色 Material 文件图标（除非改设计门禁）、24 主题整套硬搬、pi-tui 桥。
+**明确不做清单**（理由见 §6）：原生窗口 chrome/vibrancy、官方 WebRTC 连接与云端中继、Flutter App、Vite/electron-vite、`@fontsource-variable/geist`（保持 next/font）、`@tanstack/react-virtual` 与 `@dnd-kit` 替换自研、pi-tui 桥、彩色 Material 文件图标（待单独裁定）。
 
 ---
 
@@ -47,6 +58,32 @@
 8. **队列是一等公民**：排队的 prompt 有托盘（拖拽排序 / 编辑 / 立即发送 / 召回）；"立即发送"有完整的乐观 UI 与撤回路径。
 9. **设置行有纪律**：label 占 12rem 起，控件的描述只写"做什么"，中英文各自有 130/150 字上限并被测试锁死（`test/settings-copy.test.ts`）。
 10. **动效克制**：面板开合 280ms spring，浮层淡入 110ms / 淡出 90ms，光标 `steps(1)` 闪烁 —— 全部登记在 `prefers-reduced-motion` 下关闭。
+
+---
+
+## 1.5 技术栈换血（第 3 版新增，批次 H 的规格依据）
+
+用户裁定「连技术栈一起抄」。先把两边差什么列清楚 —— **本仓已经有半套，不是从零建**：
+
+| 层 | FastVibe | PI NEXT 现状 | 行动 |
+| --- | --- | --- | --- |
+| 原子 CSS | Tailwind v4.1.13（`@tailwindcss/vite`） | **Tailwind v4.2.2 已装且已接**（`@import "tailwindcss"`、`@tailwindcss/postcss`） | ✅ 保留，扩大使用面 |
+| 动效工具类 | `tw-animate-css` | **已装已接** | ✅ 保留 |
+| 状态变体 | `data-open:` / `data-closed:` 自定义变体 | **已定义**（`app/globals.css:13+` 的 `@custom-variant`） | ✅ 保留 |
+| 字体 | `@fontsource-variable/geist` + `--font-sans` | `next/font/google` 的 Geist + Geist Mono | ⚠️ 保持 next/font（Next 更优，不为一致而降级） |
+| 组件层 | **35 个 shadcn/base-ui 组件**（`components/ui/`） | 无（全是自研） | ❌ **H2 新建** |
+| 无头原语 | `@base-ui/react` ^1.8.0（Dialog/Popover/Menu/Select/Switch/Tabs/Tooltip…） | 无 | ❌ **H2 引入** |
+| 变体工具 | `class-variance-authority` + `clsx` + `tailwind-merge` + `cn` | 无 | ❌ **H1 引入** |
+| 图标 | `@hugeicons/react` + `@hugeicons/core-free-icons`（84 个不同图标，去重后口径） | lucide（155 个名字 / 940 处 `data-ico`） | ❌ **H3 换** |
+| 主题 | `themes.ts` 的 `SEEDS`：**12 亮 + 12 暗 = 24 套**（`github-*/one-*/dracula/nord/monokai/tokyo-night/catppuccin-*/night-owl[-light]/gruvbox-*/rose-pine[-dawn]/ayu-light/quiet-light/solarized-light/everforest-light/codex-*/claude-*`），每套 **19 个 seed 字段**，`buildTokens()` 展开为 **44 个 CSS token**（+ 玻璃开启时 `glassTokens()` 另出 13 个） | `--ds-*` 手写两套 + `theme-skins` 四基色派生 | ❌ **H4 换** |
+| 令牌名 | `--background/--foreground/--card/--popover/--primary/--muted/--accent/--destructive/--sidebar/--ring/--chart-1..5` + oklch | `--bg/--text/--accent/--border/…` + `--ds-*` | ❌ **H4 换**（桥接期两套共存） |
+| 半径 | 单一 `--radius: 0.625rem` → `@theme` 派生 `--radius-sm/md/lg/xl/2xl/3xl/4xl`（calc） | `--radius-base` → 手工映射八档 | 🟡 形式已在，换基准值即可 |
+| 图表 | `recharts`（`chart.tsx`） | 自绘 SVG | ❌ **H5 引入**（使用统计用） |
+| 弹层 | `sonner`（toast） | 自研 `.pw-toast` / `.d-toast` | ❌ **H2 换** |
+| 虚拟列表 | `@tanstack/react-virtual` | 自研行高测量窗口化 | ⚠️ **可选**：自研的已调好，不强制换 |
+| 拖拽 | `@dnd-kit/*` | 自研 | ⚠️ **可选**：同上 |
+
+**不抄的**：Vite（本仓是 Next.js）；`electron-vite`（已有自己的打包链）；`material-icon-theme`（与图标契约；H3 单独裁定）。
 
 ---
 
@@ -147,15 +184,21 @@
 
 | # | 能力 | FastVibe | PI NEXT | 判定 | PR |
 | --- | --- | --- | --- | --- | --- |
-| 70 | 浮岛 | `panel-frame` 透明 border 方案 | 无 | ❌ | A1 |
-| 71 | 玻璃 tokens | `glassTokens(seed)` 全量推导 + rim 渐变 + overlay | V6 有壳面 blur，无 rim/overlay | 🟡 | A2 |
-| 72 | 主题种子 | ThemeSeed → 30+ token 推导 | 无（手写两套） | ❌ | A3 |
-| 73 | 文件图标 | Material Icon Theme（彩色，SVG 协议） | lucide 单色（`FileIcons.tsx`，已登记偏离） | ⛔ 保 lucide | 备注 |
-| 74 | 供应商图标 | LobeHub Mono，14px + viewBox inset 28 | `ProviderIcon.tsx` | 🟡 | D2 |
-| 75 | diff 渲染 | 单一 DiffView + 行号解析（@@ / pi 内嵌列） | SplitPatchView / PatchTextView | 🟡 | B4 |
-| 76 | KaTeX 严格行内 | Pandoc tex_math_dollars 规则 | remark-math（严格规则待查） | 🟡 | B3b |
+| 70 | 浮岛 | `panel-frame` 透明 border 方案 | 无 | ❌ | L3 |
+| 71 | 玻璃 tokens | `glassTokens(seed)` 全量推导 + rim 渐变 + overlay | V6 有壳面 blur，无 rim/overlay | 🟡 | H4 |
+| 72 | 主题种子 | ThemeSeed → 30+ token 推导（24 套） | 无（手写两套） | ❌ | H4 |
+| 72b | **原子 CSS** | Tailwind v4.1（全量使用） | Tailwind v4.2 **已装**，但仅零星使用（约 20 处） | 🟡 | H1/H2 |
+| 72c | **组件层** | 35 个 shadcn + Base UI 原语 | 无（全自研） | ❌ | H2 |
+| 72d | **图标** | Hugeicons（131 个不同图标，JSX 直用） | lucide（155 名 / 940 处 `data-ico` 间接层） | ❌ | H3 |
+| 72e | **令牌命名** | `--background/--foreground/--card/--primary/--muted/--sidebar/…` | `--bg/--text/--accent/--ds-*` | ❌ | H4 |
+| 72f | Toast | `sonner` | 自研 `.pw-toast` / `.d-toast` | ❌ | H5 |
+| 72g | 图表 | `recharts` | 自绘 SVG | ❌ | H5 |
+| 73 | 文件图标 | Material Icon Theme（彩色，SVG 协议） | lucide 单色（`FileIcons.tsx`，已登记偏离） | ⚠️ 待裁定 | 备注 |
+| 74 | 供应商图标 | LobeHub Mono，14px + viewBox inset 28 | `ProviderIcon.tsx` | 🟡 | L9 |
+| 75 | diff 渲染 | 单一 DiffView + 行号解析（@@ / pi 内嵌列） | SplitPatchView / PatchTextView | 🟡 | L2b |
+| 76 | KaTeX 严格行内 | Pandoc tex_math_dollars 规则 | remark-math（严格规则待查） | 🟡 | L2b |
 | 77 | 滚动条 | 12px，thumb 3px 透明边框 | 有 | ✅ | — |
-| 78 | 动效令牌 | spring 280 / fade 110/90 / caret steps | 有 motion tokens | 🟡 | A1/A2 |
+| 78 | 动效令牌 | spring 280 / fade 110/90 / caret steps | 有 motion tokens | 🟡 | H4 |
 
 ### 2.6 移动端 / PWA
 
@@ -184,15 +227,152 @@
 ## 3. PR 清单
 
 > 约定：每个 PR = 一个可独立交付、可独立验证的改动单元（可以是一条或多条 commit）。量级 S（≤半天）/ M（1–2 天）/ L（3–5 天）/ XL（>1 周）。「参考」列出 FastVibe 源文件作为规格依据；PI NEXT 侧文件以执行时实际为准。
+>
+> **批次顺序（第 3 版）**：**H 先行** —— 它是所有页面的基座，H1–H3 不完成则 L 批次无法开工。H4（主题）与 L1（首样板）可并行。**A–D 批次里与本仓自有设计系统耦合的部分（画板、`d-*` 类名、字阶）已被 H/L 吸收**，剩下的条目按其内容性质保留：纯行为逻辑（如 B2 虚拟化、B7 队列语义）照旧执行，纯视觉规格（如 A1 浮岛、A2 玻璃）改为在 H/L 里用 FastVibe 原实现。
+
+### 批次 H · 技术栈换血（P0，**最先做**）
+
+> H 批次是「换地基」：本仓已有 Tailwind v4 + tw-animate-css + `data-open` 变体 + `--radius-base` 派生，所以**不是从零引**。H 的目标是把 FastVibe 那 35 个 shadcn 组件、Base UI 原语、Hugeicons、24 主题搬进来，使 L 批次能直接 `import { Button } from "@/components/ui/button"`。
+
+#### H1 — 依赖与工具链（cva / clsx / tailwind-merge / cn）
+- **目标**：装上 `class-variance-authority` / `clsx` / `tailwind-merge`，建 `lib/utils.ts` 的 `cn()`（FastVibe 用的是 `cn` 包，本仓用标准三件套等价实现即可 —— 那个包只是三件套的封装）。同时装 `@base-ui/react`、`sonner`、`recharts`、`@dnd-kit/*`、`lucide-react`（保留过渡期）。
+- **为何拆出来**：后续每个组件的 `className={cn(...)}` 都依赖它；先装完再动组件，避免边装边改。
+- **参考**：`fastvibe-main/package.json:64-95`；`components/ui/button.tsx:1-5` 的 `cn` 用法。
+- **PI NEXT**：`package.json`、新 `lib/utils.ts`、`app/globals.css`（`@import "shadcn/tailwind.css"` 的等价物 —— 本仓已有 `@import "tailwindcss"`，只需补 `@theme inline` 桥）。
+- **验收**：`cn()` 单测（合并 + 冲突覆盖）；`tsc --noEmit` 过；一个临时组件能同时吃 Tailwind 类与旧 `d-*` 类。
+- **量级**：S。依赖：无。
+
+#### H2 — shadcn 组件层（35 个）
+- **目标**：把 `fastvibe-main/src/renderer/src/components/ui/` 的 35 个组件搬进 `components/ui/`，改 import 路径（`@/components/ui/*` → 本仓别名）。这些组件用 Base UI 原语 + cva + tailwind 类，**不依赖 FastVibe 的 store / IPC**，可原样搬。
+- **清单**：`alert-dialog / alert / badge / bubble / button / card / chart / checkbox / collapsible / command / context-menu / dialog / dropdown-menu / empty / input-group / input / item / kbd / label / message-scroller / message / popover / progress / qr-code / resizable / scroll-area / select / separator / sheet / sonner / spinner / switch / tabs / textarea / tooltip`。
+- **冲突处理**：本仓已有同名自研组件（`Button` 类不存在但 `.d-btn` / `.pw-btn` 存在）—— 新组件放 `components/ui/`，**旧组件不动**，逐页迁移时再换。这是「先共存」裁定的落点。
+- **参考**：整个 `fastvibe-main/src/renderer/src/components/ui/`。
+- **PI NEXT**：新 `components/ui/*.tsx`（35 个文件）、`components.json`（shadcn CLI 配置）、`lib/utils.ts`。
+- **验收**：每个组件能在 Next.js 里渲染（无 `window is not defined`）；`command` / `dialog` / `popover` / `select` 四个重点手测；`tsc --noEmit` 过。
+- **量级**：L。依赖：H1。
+
+#### H3 — 图标：lucide → Hugeicons
+- **目标**：装 `@hugeicons/react` + `@hugeicons/core-free-icons`；建**图标映射表**（本仓 155 个图标名 → Hugeicons 组件名；FastVibe 实际用了 **84 个**不同图标，所以映射表要覆盖本仓用得比它多的那部分）；改 `components/PwIcons.tsx` 的 hydrator 或直接改组件写法。
+- **风险（这是本批次最大的一个）**：本仓图标是**「`<i data-ico="name">` + 运行时 hydrator」**模式（940 处），而 FastVibe 是**直接 JSX 组件**。两条路：① 保留 `data-ico` 间接层，把 `icons.js` 的路径数据换成 Hugeicons 的 —— 改动最小（940 处不动），但拿不到 FastVibe 的 `className="size-4"` 尺寸体系；② 逐处改写成 `<HugeiconsIcon>` —— 最接近原样，但 940 处都要动，且会与现有 CSS 的 `i[data-ico]` 选择器冲突。**建议 ② 分批做**（与 L 批次逐页一起），H3 只做：装包 + 映射表 + 改 hydrator 支持两套并存 + 先换 3 个样板组件的图标。
+- **同时处理**：`scripts/check-icons.mjs` 门禁要改成认 Hugeicons；`FileIcons.tsx` 的彩色文件图标（FastVibe 用 `material-icon-theme`）**待单独裁定** —— 与「图标全 lucide 单色」的历史契约冲突，不在本次自动换。
+- **参考**：`fastvibe-main/src/renderer/src/components/chat/composer.tsx:3,179,622,671-702`（用法样本）。
+- **PI NEXT**：`components/PwIcons.tsx`、`components/pw-icons-manual.ts`、`design/pi-web-design/assets/icons.js`、`scripts/check-icons.mjs`。
+- **验收**：两套图标能共存渲染；映射表覆盖 155/155（缺的列清单并找替代）；`npm run check:icons` 改完后仍能拦住手绘 SVG。
+- **量级**：M（H3 本体）+ L（分批换 940 处，跟 L 批次走）。依赖：H1。
+
+#### H4 — 主题体系（24 套 seed → token）
+- **目标**：搬 `themes.ts` 的 `SEEDS`（**12 亮 + 12 暗 = 24 套**，实测 `LIGHT_THEME_IDS` / `DARK_THEME_IDS` 各 12 项）+ `applyTheme()` 运行时注入；建立本仓的 `:root` 令牌映射（FastVibe 名 → 本仓名，桥接期双名共存）。
+- **每套 seed 含**：`label / source / kind / bg / fg / surface / border / muted / mutedFg / accent / accentFg / destructive / warning / success / sidebar? / sidebarMuted? / codeBg? / syntax{keyword,string,comment,number} / charts?[5]`（**共 19 个字段**，实测 `themes.ts:60-94` 的 `ThemeSeed` 类型 + `:222-240` 的 github-dark 实例）。
+- **展开规则（关键，必须照抄）**：`buildTokens()`（`themes.ts:163-219`）把 seed 展开成 **44 个 token** —— 其中几条**不是一一对应**而是有映射表：`card = surface` / `accent = **muted**`（不是 `accent`！）/ `input = border` / `ring = accent` / `info = accent` / `chart-*` 默认取 `[accent, syntax.keyword, syntax.string, syntax.number, mutedFg]`。**这个映射表是主题体系的真正逻辑，不照抄就会得到一套颜色不对的主题。** 玻璃开启时 `glassTokens()`（`:120-162`）另出 13 个（`glass-pane/overlay/rim-strong/rim-weak/sheen/edge/shade` + 半透明的 `background/card/border/…`）。
+- **令牌对照（关键）**：FastVibe `--background/--foreground/--card/--popover/--primary/--secondary/--muted/--accent/--destructive/--border/--input/--ring/--sidebar*/--chart-1..5/--code-*/--shiki-*` ↔ 本仓 `--bg/--text/--bg-panel/--text-muted/--accent/--border/--ds-*`。**必须先写一张双名共存表**，否则逐页迁移时会出现「新组件拿到 FastVibe 名、旧组件拿本仓名，两者不同步」。
+- **主题选择器**：FastVibe 是「亮暗各自选一个」（`lightTheme` / `darkTheme`），本仓现在是 light/dark/auto 三值。要改成能选 24 套里的具体一套。
+- **玻璃**：FastVibe 的 `applyTheme(theme, glass)` 会把玻璃也一并推导，本仓的 V6 毛玻璃块要按它重写（这也是「不需要搞 V6」的落点）。
+- **参考**：`src/renderer/src/lib/themes.ts:31-175,219-830`（`ThemeId` / `SEEDS` / `applyTheme`）；`index.css:28-180`（令牌定义 + `@theme inline`）。
+- **PI NEXT**：`lib/theme.ts`、`lib/theme-skins.ts`（保留还是废弃待定）、`app/globals.css`（令牌段）、`hooks/useTheme.ts`、`components/ModelsConfig.tsx` 里的主题选择器。
+- **验收**：24 套主题各自应用后正文对比度过门禁（`docs/codex-skin/check-contrast.mjs` 要改）；亮暗切换不闪白；`THEME_OPTIONS` 的三值兼容（老用户的 light/dark/auto 要能迁到默认主题）。
+- **量级**：L。依赖：H1。
+
+#### H5 — 字体、图表与杂项依赖
+- **目标**：① 字体保持 `next/font`（**不**换成 `@fontsource-variable/geist` —— Next 的字体优化更好，这是有意偏离）；② 引入 `recharts` 供使用统计（D6）；③ `sonner` 接管 toast（替换 `.pw-toast` / `.d-toast` 的调用点）；④ 评估 `@tanstack/react-virtual` 与 `@dnd-kit` 是否替换自研（**建议不换**：自研的虚拟化已经处理了行高测量这个本仓特有难题，换掉是倒退）。
+- **参考**：`fastvibe-main/package.json`；`components/ui/chart.tsx`、`components/ui/sonner.tsx`。
+- **验收**：字体渲染不变；图表能出图；toast 替换后旧调用点全清。
+- **量级**：M。依赖：H2。
+
+#### H6 — 门禁与验收体系重建
+- **目标**：用户裁定「V5/V6 画板体系与门禁整套拆掉，验收换成 FastVibe 对照」。本 PR 建立**新的验收体系**，暂不删旧的（等 L10 统一清）：① 停用 `design:v5*` / `design:v6*` 命令与 `check:design` 里的画板相关项；② 建立**对照截图流程**（跑 FastVibe dev + 本仓 dev，同尺寸截图，人工或脚本对比）；③ 旧门禁里仍有效的保留：`check-style-literals`（防内联几何）、`check-motion-tokens`、`check-material-boundaries`（防浮层挂 backdrop-filter —— FastVibe 的 §1 原则 2 同样要求）、`check-touch-targets`、`check-platform-breakpoints`；④ `docs/patches/` 补丁台账**保留**（它与设计体系无关，是 fork 维护机制）。
+- **参考**：本仓 `package.json` 的 scripts；`design/v5/LANDING.md`（要作废的落地契约）。
+- **PI NEXT**：`package.json`、`design/v5/`、`design/v6/`、`docs/patches/README.md`、`AGENTS.md`（「第〇原则：禁止截图模仿」等条款需改写）。
+- **验收**：`npm run check:design` 与新门禁全绿；旧画板命令报「已停用」而不是报错。
+- **量级**：M。依赖：无（可与 H1 并行）。
+
+### 批次 L · 逐页迁移（P1，H1–H3 完成后开工）
+
+> L 批次是「换血」的施工面：把每个页面从 `d-*`/`m-*` DOM 重写成 FastVibe 的原实现（shadcn 组件 + Tailwind 类 + Hugeicons）。**先立样板（L1–L3）再批量（L4+）**是用户裁定。
+>
+> **页面清单（桌面）**：一级页面只有 `/`（应用主壳，内含聊天/右栏/侧栏）与 `/pair`（配对）。其余全是**壳内视图**：侧栏 + 聊天 + 右栏六面板 + 设置弹窗 + 各类弹层。手机是同一批组件在 ≤639px 的 `m-*` 分支。所以「每一页」实际是 **十几个视图 × 两种形态**。
+
+#### L1 — 样板一：设置弹窗（最复杂的单页）
+- **为什么选它**：① 它本来就是弹窗，与用户「设置保留弹窗」的裁定一致；② FastVibe 的 `SettingsDialog` 是**完整参考实现**（19 分节 / 5 分组 / 左导航 + 右内容 / 窄屏折叠）；③ 它包含 `Select` / `Switch` / `ScrollArea` / `Button` / `Label` 五种基础组件，一次验证 H2 的大半。
+- **目标**：按 `settings-dialog.tsx` 重写本仓设置弹窗的**外观层**（保留现有数据与行为 —— 本仓有 16 个分节，FastVibe 有 19 个，分节集合不同但框架一致）；左导航按 5 分组（preferences / workspace / integrations / system / about）重组本仓的 16 节；行用 `SettingsGroup` / `SettingsRow`。
+- **参考**：`src/renderer/src/components/settings/settings-dialog.tsx:147-260`（布局）；`settings-sections.tsx`（分组表）；`settings-group.tsx`（行规格）。
+- **PI NEXT**：`components/SettingsPanel.tsx`、`components/pwa/settingsHub.ts`、`lib/settings-navigation.ts`。
+- **验收**：16 分节全部可达；窄屏抽屉行为与 FastVibe 一致；`SettingsPanel.boardnav.test.mjs` 之类的旧画板测试要相应改写；明暗两套截图对照。
+- **量级**：L。依赖：H1、H2。
+
+#### L2 — 样板二：聊天转录
+- **目标**：按 FastVibe 的 `message-list` / `message-row` / `tool-row` / `composer` 重写转录区。**这是整个改造里最大的一块**（FastVibe 侧 `message-list.tsx` 788 行 + `message-row.tsx` 843 行 + `composer.tsx` 916 行），且与批次 B 的行为条目高度重叠 —— **B 批次的行为改动直接在新 DOM 上做，不先改旧 DOM 再迁**。
+- **分步**：L2a 转录容器与消息行 → L2b 工具卡与折叠 → L2c Composer → L2d 队列与权限面板。
+- **参考**：`src/renderer/src/components/chat/*` 全部；`lib/chat-layout.ts`、`lib/tool-presentation.tsx`。
+- **PI NEXT**：`components/ChatWindow.tsx`、`components/MessageView.tsx`、`components/ChatInput.tsx`、`components/ProcessGroup.tsx`。
+- **验收**：长会话滚动流畅（沿用 B2 的虚拟化改动）；工具行单行摘要；明暗对照截图；`docs/patches/` 补丁台账更新（`fork:` 标记保留）。
+- **量级**：XL（拆成 4 个子 PR）。依赖：H1、H2、H3。
+
+#### L3 — 样板三：壳与侧栏（浮岛）
+- **目标**：`AppShell` 的侧栏 / 主区 / 右栏换成 FastVibe 的浮岛方案（`panel-frame` + 透明 border inset + `resizable-panel`）；侧栏行用 `sidebar-rows.tsx` 的规格；标题栏分平台处理。**注意**：本仓是 Web + 可选 Electron 壳，`HAS_TRAFFIC_LIGHTS` / `HAS_CUSTOM_TITLE_BAR` 那套要按本仓的壳能力重判断，不能直接抄。
+- **参考**：`src/renderer/src/components/layout/sidebar.tsx:476-696`、`side-pane.tsx`、`title-bar.tsx`；`index.css:181-434`（浮岛 CSS）。
+- **PI NEXT**：`components/AppShell.tsx`、`components/SessionSidebar.tsx`、`components/TabBar.tsx`。
+- **验收**：三栏可拖拽；浮岛与玻璃在明暗两套下对位；窄屏回退抽屉。
+- **量级**：L。依赖：H1–H4。
+
+#### L4 — 右栏六面板
+- **目标**：文件 / 终端 / 浏览器 / Git / 审查 / 轨迹六个面板按 FastVibe 的 `side-pane-*.tsx` 重写外壳与头部；内容层（CodeMirror / xterm / 文件树）保留本仓实现。
+- **参考**：`src/renderer/src/components/layout/side-pane-files.tsx`、`side-pane-terminal.tsx`、`side-pane-browser.tsx`、`side-pane-git.tsx`、`side-pane-changes.tsx`、`side-pane-subagent.tsx`。
+- **验收**：六面板开合与拖拽；窄屏 `.m-*` 分支同步迁移。
+- **量级**：L。依赖：L3。
+
+#### L5 — 会话列表与项目树
+- **目标**：侧栏内的项目分组 / 会话行 / 搜索 / 归档按 `sidebar-rows.tsx` 重写；本仓特有的（空间/任务两段、未读点、自研分组排序）**行为保留**，只换外观层。
+- **参考**：`src/renderer/src/components/layout/sidebar-rows.tsx`。
+- **验收**：虚拟列表行高仍可见（`fork:session-row-overlap` 那个教训：行高必须与状态无关）；明暗对照。
+- **量级**：L。依赖：L3。
+
+#### L6 — 移动端（PWA）全量迁移
+- **目标**：批次 G 的 12 个 PR 里与**外观**相关的部分（G1 玻璃外壳 / G2 列表页 / G3 会话页 / G4 Composer / G6 设置页）改为在 FastVibe 移动端规格 + 新组件层上实现；与**行为**相关的部分（G5 队列 / G7 通知 / G10 连接态 / G11 草稿 / G12 搜索入口）**照旧执行，与本批次解耦**。
+- **关键差异**：FastVibe 手机端是 Flutter（`apps/mobile_flutter`），本仓是 Web PWA —— 所以只能抄**信息结构与视觉规格**，实现仍用 React + Tailwind（这也意味着 `m-*` 类要逐步换成 Tailwind 类，PWA 的 `@media (max-width: 639px)` 分支重构）。
+- **参考**：`apps/mobile_flutter/lib/**`；`apps/mobile_flutter/AGENTS.md`。
+- **验收**：真机/仿真对照；`.m-*` 类在迁移页面上清零；触控 44px 档保留。
+- **量级**：XL（拆成 5 个子 PR）。依赖：L1–L3、G 批次行为项。
+
+#### L7 — 弹层与浮层统一
+- **目标**：本仓的菜单 / 弹窗 / 底部面板（`ContextMenuProvider`、`PortalDropdown`、`PwaSheet`、各种 `.d-pop` / `.m-sheet`）统一换成 `components/ui/` 的 `popover` / `dropdown-menu` / `context-menu` / `sheet` / `dialog`。**这是清掉 `.overlay-surface` 类旧代码的前置**。
+- **风险**：本仓的浮层体系有大量已修好的坑（`fork:context-pop-portal` 的裁切问题、`disablePointerDismissal` 防丢草稿、`useDialogA11y`）。替换时**必须逐条核对这些行为在新组件里是否仍在**，不能只看外观对了就换。
+- **验收**：Esc / 遮罩点击 / 焦点陷阱 / 防误关四类行为逐条手测；`context-pop-portal` 那个裁切 bug 不复发。
+- **量级**：L。依赖：L1、L2。
+
+#### L8 — 小页面与边缘（配对 / 错误页 / 安装提示 / 离线）
+- **目标**：`/pair`、`app/error.tsx`、`PwaUpdateBanner` / `PwaOfflineBanner` / `InstallPromptBanner`、`ErrorStates.tsx` 按 FastVibe 对应形态（`boot-recovery.tsx`、`error-boundary.tsx`、`f-loader.tsx`）重做。
+- **参考**：`src/renderer/src/components/boot-recovery.tsx`、`error-boundary.tsx`、`f-loader.tsx`。
+- **验收**：明暗对照；错误页按钮触控档。
+- **量级**：M。依赖：H1、H2。
+
+#### L9 — 模态类页面（模型配置 / 插件 / 技能 / 供应商）
+- **目标**：`ModelsConfig` / `PluginsConfig` / `SkillsConfig` / `AgentsConfig` 四个大模态按 FastVibe 的 `providers-settings.tsx` / `model-detail-dialog.tsx` / `skills-settings.tsx` / `subagents-settings.tsx` 重写。
+- **参考**：`src/renderer/src/components/settings/` 下对应文件。
+- **验收**：四个模态的功能零回归（这四个文件各自都有单测）。
+- **量级**：L。依赖：L1（共享设置行组件）。
+
+#### L10 — 旧体系统一清理（**只在 L1–L9 全部完成后执行**）
+- **目标**：删除 `design/v5/`、`design/v6/`（300M）、`design/pi-web-design/`、`app/design/`、`app/fork-ui.css`、`app/fork-mac-skeuo.css`、`app/pwa-*.css`、`app/settings.css`、`app/wallpaper.css` 里已被新实现替代的部分；删除所有 `d-*` / `m-*` / `pw-*` / `fork-*` 的**类名定义**（保留仍被引用的）；删掉所有画板测试（`*.boardnav.test.mjs` 等）。
+- **为何必须最后**：用户裁定「先共存，最后统一清」。这 PR 的安全前提是「grep 不到任何 `d-*` / `m-*` 引用」—— 一旦提前执行，回退成本极高。
+- **验收**：全仓 grep `d-` / `m-` 前缀类名零命中（注释除外）；`design/` 目录只剩仍需保留的资产（`pi-web-design/assets/icons.js` 在 H3 完成后也应退役）；包体积与 CSS 体积显著下降（预期 CSS 从 15312 行降到 2000 行量级）。
+- **量级**：L。依赖：L1–L9 全部完成。
 
 ### 批次 A · 视觉基座（P0）
 
-#### A1 — 浮岛壳（floating panes）
+> **第 3 版范围修正**：本批次制定时视觉真值还是「本仓 V5/V6 画板」，现已改为 FastVibe 原实现。所以：
+> - **A1 浮岛壳** → 并入 **L3**（在 FastVibe 的 `panel-frame` + `resizable-panel` 上做，不再自己写 CSS）。
+> - **A2 玻璃二期** → 并入 **H4**（FastVibe 的 `applyTheme(theme, glass)` 已包含 rim / overlay 推导）。
+> - **A3 主题体系 v2** → 并入 **H4**（直接搬 24 套 seed，不再「设计主题种子架构」）。
+> - **A4 字阶与字号纪律** → **保留**，但规格取自 FastVibe（`--ui-root-font-size` 变量 + `tailwind` 的字阶类），不再用本仓五档字阶 token。
+>
+> 本批次**不再新增画板**（用户裁定画板体系拆掉）。下面各条保留原文供执行时对照规格，但落点以上述为准。
+
+#### A1 — 浮岛壳（floating panes）→ 见 L3
 - **目标**：桌面（≥768px）侧栏 / 中栏 / 右栏 / 设置全部变成内缩 8px 的圆角浮岛；移动端不变（仍是抽屉/全屏）。
 - **内容**：透明 border 实现 inset（不是 margin）；外圆角 24 / 内 16；`background-clip: padding-box`；面板开合 280ms `cubic-bezier(0.22,1,0.36,1)`，动画期间子面板保持 `--panel-width`；拖拽中撤销动画；分隔条 margin 24px + 平移 ±8px；对话列顶部补 8px。
 - **参考**：`fastvibe-main/src/renderer/src/index.css:181-215,410-434`；`lib/use-resizable-panel.ts`。
 - **PI NEXT**：`components/AppShell.tsx`（`d-shell`/`d-side`/`d-main`/`d-panel` 骨架）、`app/globals.css`、`app/fork-ui.css`、`app/design/v5-forms.css`。
-- **画板**：V6 新增 `D-41-floating-panes.html`（桌面 + 折叠 + 拖拽中三帧）。
+- **画板**：**不新增**（画板体系已在 H6 停用）。验收改为与 FastVibe 对照截图。
 - **验收**：`tsc` / `npm test` / `check:design` / `verify:boards`（新 spec 对位）；真浏览器 1440×900 与 1280×800 两档截图；折叠/展开无残留 inline 值。
 - **量级**：L。依赖：无。
 
@@ -548,31 +728,41 @@
 
 ## 4. 执行纪律（每个 PR 的六件套）
 
-1. **fork 标记**：所有改动带 `fork:<slug>` 注释（本计划统一用 `fork:fastvibe-*` 前缀，如 `fork:fastvibe-floating-panes`）。
-2. **补丁台账**：`docs/patches/NNNN-*.md` + `.patch`，按现有约定（一个补丁 = 一个意图）。
-3. **画板**：新形态先画板（`design/v6/web/boards/` 新 `D-4x`），产品 DOM 照板抄；对位 spec 进 `board-diff-all`。
-4. **门禁**：`node_modules/.bin/tsc --noEmit`；`npm test`（新增/更新 `.test.mjs`）；`npm run check:design`；颜色改动跑 `npm run check:contrast`；DOM 几何改动跑 `npm run verify:boards`。
+> **第 3 版修订**：第 3 条从「先画板」改为「先对照 FastVibe 源码」；第 4 条的门禁集合换了（画板相关停用）。其余四条不变。
+
+1. **fork 标记**：所有改动带 `fork:<slug>` 注释（本计划统一用 `fork:fastvibe-*` 前缀，如 `fork:fastvibe-composer`）。
+2. **补丁台账**：`docs/patches/NNNN-*.md` + `.patch`，按现有约定（一个补丁 = 一个意图）。**保留** —— 它是 fork 维护机制，与设计体系无关。
+3. **规格来源**：打开 FastVibe 对应源文件，**先读再写**。组件能从 `components/ui/` 直接用的就直接用，不重写。DOM 结构、类名组合、间距值以 FastVibe 为准，不以本仓旧样式为准。（旧画板已作废，**不新增画板**。）
+4. **门禁**：`node_modules/.bin/tsc --noEmit`；`npm test`（新增/更新 `.test.mjs`）；`npm run check:design`（画板相关项已在 H6 停用，其余照跑）；颜色改动跑 `npm run check:contrast`；**DOM 几何改动改为与 FastVibe 对照截图**（新流程见 H6），不再跑 `verify:boards`。
 5. **真浏览器验证**：`npm run prod` 起服 → Playwright/内置浏览器验证 + 截图（不是只看代码）。
 6. **三语文案**：UI 文案进 i18n（zh-CN / zh-TW / en），不硬编码。
 
-**不要改的东西**：`design/v5/` 已落地的类只维护不新增；`app/design/tokens.css` 是令牌真值；`fork-ui.css` 永远最后加载；`lib/pi-web-preferences.ts` 是偏好唯一写入者；`lib/session-liveness.ts` 是忙碌信号唯一入口。
+**不要改的东西**：`lib/pi-web-preferences.ts` 是偏好唯一写入者；`lib/session-liveness.ts` 是忙碌信号唯一入口；`lib/path-security.ts` 是安全边界；`lib/file-tree-visibility.ts` 只看可见性不管授权。
+
+**过渡期特别提醒（L10 之前）**：`design/v5/` 与 `design/v6/` 的类只维护不新增（也不再新增画板）；`app/design/tokens.css` 与 `app/fork-ui.css` 在 H4 完成后进入「只读兼容」状态；两套令牌名共存期内**新代码只写 FastVibe 名**。
 
 ---
 
 ## 5. 里程碑与建议顺序
 
 ```
-M1「看得见」  A1 → A2 → A4 → B1 → B6 → B4 → B7 → B3 →（A3 与 B 并行）
-              交付物：打开应用 = 浮岛 + 玻璃 + 居中转录 + 单行工具 + 圆角 composer + 队列
-M2「天天用」  B2 → B5 → B8 → B9 → B10 → C1 → C3 → C2 → C4 → C5 → C6 → D1
-              G1 → G2 → G3 → G4 → G5 → G6 → G7 → G8 → G10 → G11 → G12（移动端，与 C/D 并行）
-              交付物：长会话流畅、问询不弹窗、侧栏/右栏/设置 = FastVibe 形态；手机端 = FastVibe 移动端形态 + 断线可读 + 草稿不丢 + 搜得到
-M3「补齐」    D2 → D3 → D4 → D5 → D6 → E4 → E5 → E6 → E7 → E1 → E2 → E3
-              交付物：设置同深；Goal / checkpoint / 决策 / DAG 可用
+M0「换基座」  H1 → H2 → H3 →（H4 与 H6 并行）→ H5
+              交付物：shadcn 组件层可用、Hugeicons 就位、24 主题可切；
+              此后的所有页面都建在它上面。
+M1「样板」    L1 → L2 → L3
+              交付物：设置弹窗 / 聊天转录 / 壳与侧栏 三页与 FastVibe 对照一致。
+              这三页跑通后，剩余的迁移就是「按同一套路重复」。
+M2「铺开」    L4 → L5 → L7 → L8 → L9 → L6（移动端殿后，因为要等 G 批次行为项）
+              ＋ B/C/D 批次里与外观无关的行为条目、G5/G7/G10/G11/G12
+              交付物：全部页面 = FastVibe 形态；手机端同理；断线可读 + 草稿不丢 + 搜得到
+M3「补齐」    E4 → E5 → E6 → E7 → E1 → E2 → E3（DAG / Goal / checkpoint / 决策）
+              交付物：能力与 FastVibe 同深
 M4「大件」    F1 / F2 / F3（逐个确认后再开）
+M5「清场」    L10
+              交付物：旧 CSS / 画板 / 门禁删除，CSS 体量从 15312 行降到 2000 行量级
 ```
 
-顺序理由：视觉基座（A）是后面所有 PR 的画板依据；聊天（B）是用户每天看到的；壳/栏（C）依赖 A 的浮岛；设置（D）独立；能力（E）与界面解耦，可穿插并行；大件（F）成本量级不同，单独决定。
+顺序理由：H 是地基（不完成则 L 无法开工）；L1–L3 是样板（验证整套技术栈在 Next.js 里跑得通）；L4–L9 是铺开（同一套路重复）；L10 必须最后（用户裁定「先共存，最后统一清」）；E 与视觉解耦可穿插；F 成本量级不同单独决定。
 
 ---
 
@@ -580,18 +770,20 @@ M4「大件」    F1 / F2 / F3（逐个确认后再开）
 
 | 项 | 理由 |
 | --- | --- |
-| Electron 原生窗口 chrome / vibrancy / traffic lights | PI NEXT 是 Web + 可选 Electron 壳；V6 玻璃已是等价物 |
+| Electron 原生窗口 chrome / vibrancy / traffic lights | PI NEXT 是 Web + 可选 Electron 壳；玻璃可用 `backdrop-filter` 近似（FastVibe 自己也是这个机制） |
 | 官方连接（账号 + WebRTC + TURN 中继） | 需要 FastVibe 的云端服务（fastvibe-services）才能成立；PI NEXT 已有 LAN + tunnel + PWA 三件套 |
 | Flutter 手机 App | PI NEXT 已有 PWA + Capacitor 壳 + 同步协议；重写一遍收益为负 |
 | 移动端 Keychain/Keystore 凭证与「跳到系统设置」 | 浏览器无等价物；PWA 用 IndexedDB + 页面内引导替代 |
 | mDNS「附近的电脑」发现 | 浏览器无 mDNS；用扫码 / 手输地址 /（未来）账号设备列表替代 |
 | Android APK 自更新 | PWA 由 Service Worker 更新（版本自愈已做） |
-| GlassScaffold 的 shader 级玻璃折射 | 浏览器只能 `backdrop-filter` + 描边近似（G1 的目标形态） |
-| 彩色 Material 文件图标 | 与 PI NEXT「图标全部 lucide、单色」的门禁与已登记偏离冲突；如要改，先做设计裁定（单独立项） |
-| 24 主题整套 + shadcn/Base UI 变量名 | 会引入第二套设计来源；A3 改为"主题种子架构 + 首批 12 个主题"，全部映射进现有令牌 |
+| GlassScaffold 的 shader 级玻璃折射 | 浏览器只能 `backdrop-filter` + 描边近似 |
+| Vite / electron-vite | 本仓是 Next.js，构建链不同；Tailwind 在 Next 里走 PostCSS 插件（**已接**） |
+| `@fontsource-variable/geist` | 本仓用 `next/font/google`，Next 的字体优化（预加载 / 零 CLS）优于纯 CSS 引入；**有意偏离** |
+| `@tanstack/react-virtual` 替换自研虚拟化 | 本仓自研已处理「行高测量」这个特有难题（`fork:session-row-overlap` 的教训）；换掉是倒退 |
+| `@dnd-kit/*` 替换自研拖拽 | 同上：自研已适配本仓虚拟列表与窄屏，不强制换 |
 | pi-tui 组件桥 / TUI 线渲染 | 依赖 pi-tui 的 SGR 渲染，与 Web 渲染模型冲突；PI NEXT 直接用 React 渲染 |
-| 系统通知的原生投递层 | PI NEXT 已有 Web Push + 壳内通知；只需补"开关与判定"（D5） |
-| Chromium session 级代理 | PI NEXT server 端无 Chromium；D5 只做 Node 侧代理设置，浏览器流量走系统代理 |
+| Chromium session 级代理 | PI NEXT server 端无 Chromium；只需 Node 侧代理设置 |
+| `material-icon-theme`（彩色文件图标） | 与「文件图标统一」的现有契约冲突；**待你单独裁定** —— 换成彩色会改变整个文件树的观感，不在一纸计划里顺带决定 |
 
 ---
 
@@ -599,14 +791,17 @@ M4「大件」    F1 / F2 / F3（逐个确认后再开）
 
 | 主题 | 文件 |
 | --- | --- |
-| 浮岛 / 玻璃 / 动效 / 字阶 | `src/renderer/src/index.css`；`src/renderer/src/lib/themes.ts` |
-| 聊天转录全部 | `src/renderer/src/components/chat/*`；`lib/chat-layout.ts`、`lib/turn-rail.ts`、`lib/tool-presentation.tsx`、`lib/diff.ts` |
-| 壳 / 侧栏 / 右栏 / 命令面板 | `src/renderer/src/components/layout/*`；`stores/side-pane.ts` |
-| 设置全部页面 | `src/renderer/src/components/settings/*`；`settings-group.tsx`、`settings-sections.tsx` |
+| **技术栈换血（H 批次）** | `package.json`（依赖清单）；`components/ui/*`（35 个组件的直接来源）；`src/renderer/src/index.css:1-180`（Tailwind 入口 + 令牌 + `@theme inline`）；`src/renderer/src/lib/themes.ts:31-830`（24 套主题 seed + `applyTheme`）；`components/settings/settings-sections.tsx:1-120`（图标 import 样本） |
+| 浮岛 / 玻璃 / 动效 / 字阶 | `src/renderer/src/index.css:181-434`；`src/renderer/src/lib/themes.ts` |
+| **图标映射（H3）** | `components/chat/composer.tsx:3,179,622,671-702`（Hugeicons 用法样本）；`@hugeicons/core-free-icons` 的导出清单（FastVibe 实际用了 84 个） |
+| 聊天转录全部（L2） | `src/renderer/src/components/chat/*`（`message-list.tsx` 788 行 / `message-row.tsx` 843 行 / `composer.tsx` 916 行 / `tool-row.tsx` / `tool-group.tsx` / `turn-rail.tsx`）；`lib/chat-layout.ts`、`lib/turn-rail.ts`、`lib/tool-presentation.tsx`、`lib/diff.ts` |
+| 壳 / 侧栏 / 右栏（L3–L5） | `src/renderer/src/components/layout/*`（`sidebar.tsx` 476-696、`sidebar-rows.tsx`、`side-pane*.tsx`、`title-bar.tsx`）；`stores/side-pane.ts`；`lib/use-resizable-panel.ts`、`lib/window-chrome.ts`、`lib/platform.ts` |
+| 设置全部页面（L1 / L9） | `src/renderer/src/components/settings/*`；`settings-dialog.tsx:147-260`（弹窗布局）；`settings-group.tsx`（行规格）；`settings-sections.tsx`（19 节 / 5 组） |
+| 弹层与杂项（L7–L8） | `components/ui/{popover,dropdown-menu,context-menu,sheet,dialog}.tsx`；`components/boot-recovery.tsx`、`error-boundary.tsx`、`f-loader.tsx`、`running-mark.tsx` |
 | DAG | `src/main/pi/dag-scheduler.ts`、`src/main/engine/dag-store.ts`、`src/shared/dag*.ts`、`components/dag/*` |
 | Goal / 记忆 / 决策 / checkpoint / 队列 | `resources/extensions/goal.ts`、`engine/memory*.ts`、`engine/decision/*`、`engine/checkpoint.ts`、`engine/message-queue.ts` |
 | 导入 / 统计 / 配额 / 代理 / cc-switch | `engine/import/*`、`engine/usage-*.ts`、`openai-quota.ts`、`gateway-probe.ts`、`network-proxy.ts`、`cc-switch.ts` |
 | 远程 / SSH / agent | `src/main/server/*`、`src/main/rtc/*`、`src/main/ssh/*`、`src/agent/*` |
-| 移动端 / PWA | `apps/mobile_flutter/lib/**`（screens / chat / ui / theme / session / notifications）；`apps/mobile_flutter/AGENTS.md`（材质与平台纪律） |
+| 移动端 / PWA（L6 / G） | `apps/mobile_flutter/lib/**`（screens / chat / ui / theme / session / notifications）；`apps/mobile_flutter/AGENTS.md`（材质与平台纪律） |
 | PWA 连接态 / 草稿（G10–G12） | `lib/session/connection.dart`（退避与状态四态）；`lib/chat/draft_storage.dart`（debounce 落盘）；`lib/screens/chat.dart:300-320`（从不调 `conversations.open`，只按名订阅）；`lib/chat/tool_card.dart`（输出纪律，对照用） |
 | 设计/交互约定（文字版） | `fastvibe-main/AGENTS.md`（UI / Theming / 模板章节） |
