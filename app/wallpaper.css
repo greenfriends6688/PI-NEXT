@@ -102,10 +102,18 @@ html[data-wallpaper="on"]:not([data-theme-skin="true"])[data-wallpaper-panel="bl
    决定（一层 alpha），这里的 scrim 派生值不该插手。 */
 html[data-wallpaper="on"]:not([data-theme-skin="true"]):is([data-wallpaper-panel="trans"], [data-wallpaper-panel="blur"]) .sidebar-container {
   background: color-mix(in srgb, var(--bg-panel) var(--wp-panel-alpha), transparent) !important;
+  /* fork:fastvibe-stack (L3) —— `background` **简写**会把 `background-clip` 重置成
+     `border-box`，而浮岛壳（fork-ui.css 的 L3 块）正是靠 `padding-box` 才有内圆角。
+     简写与 clip 是两条独立的声明，后者必须**写在简写之后**才不被重置。
+     这个坑很隐蔽：只写 `background-clip` 时它在计算值上确实生效，但只要这条
+     简写规则也命中同一个元素（装了壁纸时就会），clip 就被悄悄改回去。 */
+  background-clip: padding-box !important;
 }
 
 html[data-wallpaper="on"]:not([data-theme-skin="true"]):is([data-wallpaper-panel="trans"], [data-wallpaper-panel="blur"]) .right-panel-container {
   background: color-mix(in srgb, var(--bg-panel) var(--wp-panel-alpha), transparent) !important;
+  /* 同上：简写重置 clip，浮岛的内圆角靠它。 */
+  background-clip: padding-box !important;
 }
 
 /* --- Composer ------------------------------------------------------------

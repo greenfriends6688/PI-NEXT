@@ -3566,6 +3566,8 @@ body {
 .main-workspace-header,
 .d-topbar {
   background: color-mix(in srgb, var(--bg-panel) var(--wp-panel-alpha), transparent) !important;
+  /* fork:fastvibe-stack (L3) —— 简写重置 background-clip，见 wallpaper.css 同一处的注释。 */
+  background-clip: padding-box !important;
 }
 .sidebar-container,
 .right-panel-container {
@@ -3661,3 +3663,65 @@ body {
 }
 .d-navlock:hover { background: var(--bg-hover); color: var(--text); }
 .d-navlock.is-locked { color: var(--nx-accent, var(--accent)); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:fastvibe-stack (L3) —— 浮岛壳（floating panes）
+ *
+ * 规格逐条取自 `fastvibe-main/src/renderer/src/index.css:181-215`：
+ *   border: 8px solid transparent;   ← inset 用**透明边框**而不是 margin
+ *   border-radius: 24px;             ← 外圆角（= 8px 内缩 + 16px 内圆角）
+ *   background-clip: padding-box;    ← 让底色只画在 padding box 里（这才有内圆角）
+ *   box-shadow: inset 0 0 0 1px ...; ← 描边画在**里面**（被 clip 收住）
+ *   overflow: hidden;                ← 方角内容（终端、文件树）不越过圆角
+ *
+ * 为什么是透明边框而不是 margin：`margin` 会让相邻面板的**点击区**之间留下
+ * 真空（拖拽分隔条时抓不到），而 border 仍在盒内 —— 分隔条与命中区照旧。
+ *
+ * 三条与 FastVibe 的**有意差异**：
+ *   ① 圆角用本仓的 `--radius-2xl`（18px）而不是写死 24px —— 本仓的圆角真值
+ *      已统一到 FastVibe 的 10px 基准（见 globals.css），24px 是旧值；
+ *      FastVibe 那边 24px 是它自己的 `rounded-3xl` 档，两边不是同一个数。
+ *   ② 只挂 `min-width: 768px` —— 窄屏仍是抽屉/全屏（与 FastVibe 的断点一致），
+ *      本仓的窄屏那一支由 `.m-*` 接管。
+ *   ③ 用 `.d-shell` 前缀提高特异性（0,2,0）—— 旧定义在
+ *      `design/v5/web/system.css`（0,1,0），而那个文件经 `v5-forms.css` 引入，
+ *      **排在 fork-ui.css 之前**，所以同特异性时本文件本来也能赢；加前缀是为了
+ *      不依赖加载顺序（这个坑在 L1 的导航上刚踩过一次）。
+ *
+ * 对话列顶部补 8px：FastVibe 的 `[data-shell-split] main { padding-top: 8px }` ——
+ * 让转录的第一行与侧栏的第一行**落在同一条线上**（都在 8px 内缩之后）。
+ * ═════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+  .d-shell .d-side,
+  .d-shell .d-main,
+  .d-shell .d-panel {
+    border: 8px solid transparent;
+    /* 用 `--nx-radius-pane`（18px）—— 本仓语义角色，与 `--radius-2xl` 同值，
+       但那是运行时组件的合规写法（token 门禁要求）。 */
+    border-radius: var(--nx-radius-pane);
+    background-clip: padding-box;
+    overflow: hidden;
+  }
+
+  /* 侧栏：底色仍是它自己的面，描边画在里面（与 FastVibe 同） */
+  .d-shell .d-side {
+    background-color: var(--nx-sidebar);
+    box-shadow: inset 0 0 0 1px var(--nx-line);
+    border-right-color: transparent; /* 旧的右边线让位给浮岛的描边 */
+  }
+  .d-shell .d-panel {
+    background-color: var(--nx-panel);
+    box-shadow: inset 0 0 0 1px var(--nx-line);
+    border-left-color: transparent;
+  }
+  /* 中栏是画布本身（它不该再有一层自己的填充，否则浮岛之间没有「底」） */
+  .d-shell .d-main {
+    background-color: transparent;
+    box-shadow: none;
+  }
+
+  /* 转录第一行与侧栏第一行对齐（FastVibe 的 padding-top: 8px） */
+  .d-shell .d-main > *:first-child {
+    padding-top: var(--nx-sp-2);
+  }
+}
