@@ -2677,7 +2677,12 @@ export function AppShell() {
     return (
       <>
         {/* fork:ui-14b — 完整历史 / 生成标题 / 导出 / 系统提示词 / 工具定义
-            现在都是顶栏右上角的图标按钮（原来桌面上折进 ⋯ 菜单，点两次才到位）。 */}
+            现在都是顶栏右上角的图标按钮（原来桌面上折进 ⋯ 菜单，点两次才到位）。
+            fork:feature-toggles（P7 修）—— **这一枚也要受「调用轨迹」开关管**：
+            上一轮只关了右栏那张 tab，顶栏这枚还在 —— 于是用户按住开关点下去，
+            看到的界面**一点变化都没有**（那正是「我点了没啥反应」）。
+            开关的意义是「这个功能在我这儿关掉」，入口在哪儿就得关到哪儿。 */}
+        {features.tracePane && (
         <button
           type="button"
           onClick={() => {
@@ -2701,6 +2706,7 @@ export function AppShell() {
           <i data-ico="list-tree" data-size="15" aria-hidden="true"></i>
 
         </button>
+        )}
         {hasSubagentSessions && (
           <button
             type="button"

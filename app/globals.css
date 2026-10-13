@@ -2813,3 +2813,80 @@ button.process-file-chip:hover {
     inset: calc(var(--s2) * -1);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   fork:v6-glass-landing（2026-10-13）—— V6 的**材质**落进产品
+
+   只落材质，不换骨架：V6 的类名与 v5 同源（`design/v6` 本来就是 v5 的并行副本），
+   所以这一块只做两件事 ——
+
+     1. 页面底换成 V6 的**色场**（`--nx-canvas-field`，伪壁纸）；
+     2. 壳面（侧栏 / 导轨 / 顶栏）在其上**半透明 + blur(40px) saturate(150%)**，
+        开箱即玻璃。转录与卡片仍是近实底，不跟着透（正文对比度不能跟着底图漂）。
+
+   配方逐字来自 `design/v6/web/tokens.css` + `base.css` §14，来源是
+   deepseek-harness 的菜单材质（`--dsw-menu-backdrop-filter`）。
+
+   **两条与 V6 画板一致的硬约束**：
+   · blur 只挂 `::before` 绝对层，**壳面本体不挂 `backdrop-filter`** —— 它会让元素成为
+     `position: fixed` 后代的包含块，产品里的右栏浮层 / toast / 下拉都是从壳内挂出去的，
+     包含块一换、overflow 一裁就没了。`isolation: isolate` 是必须的：没有它，
+     `z-index:-1` 的伪元素会跑到 `.d-shell` 色场**后面**，整块看不见。
+   · 系统开了「降低透明度」或浏览器不支持 backdrop-filter 时**变实底**
+     （V6 画板那边同样补了这两级降级；常开的 40px ×4 层 blur 对老显卡是实打实的开销）。
+
+   与既有的 `html[data-rail-translucent]` 用户偏好**不冲突**：那条选择器更具体，
+   用户显式开过就仍然由它说了算。
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --nx-frost-blur: 40px;
+  --nx-frost-sat: 1.5;
+  /* 挂 blur 的三个壳面共用一份 70% 填充（V6 的 `--nx-glass-shell`）。 */
+  --nx-v6-shell-fill: rgb(248 249 250 / 0.70);
+  --nx-canvas-field:
+    radial-gradient(130% 95% at 4% -14%, color-mix(in srgb, #22b8e6 24%, transparent) 0%, transparent 62%),
+    radial-gradient(100% 80% at 106% -8%, color-mix(in srgb, #b45cf0 20%, transparent) 0%, transparent 64%),
+    radial-gradient(52% 130% at -12% 58%, color-mix(in srgb, #22b8e6 16%, transparent) 0%, transparent 72%),
+    var(--bg);
+}
+[data-theme="dark"] {
+  --nx-v6-shell-fill: rgb(67 69 74 / 0.62);
+  --nx-canvas-field:
+    radial-gradient(130% 95% at 4% -14%, color-mix(in srgb, #22b8e6 26%, transparent) 0%, transparent 64%),
+    radial-gradient(100% 80% at 106% -8%, color-mix(in srgb, #b45cf0 24%, transparent) 0%, transparent 66%),
+    radial-gradient(52% 130% at -12% 58%, color-mix(in srgb, #22b8e6 18%, transparent) 0%, transparent 74%),
+    var(--bg);
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root, [data-theme="dark"] { --nx-frost-blur: 0px; --nx-frost-sat: 1; --nx-v6-shell-fill: var(--bg); }
+}
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :root, [data-theme="dark"] { --nx-frost-blur: 0px; --nx-frost-sat: 1; --nx-v6-shell-fill: var(--bg); }
+}
+
+/* ① 页面底：色场。原来是实色 `--bg`，玻璃无从透起。 */
+.d-shell { background: var(--nx-canvas-field); }
+
+/* ② 壳面：fill + blur 全在 `::before`，本体保持透明。 */
+.d-rail::before,
+.d-topbar::before,
+.sidebar-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--nx-v6-shell-fill);
+  -webkit-backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
+  backdrop-filter: blur(var(--nx-frost-blur)) saturate(var(--nx-frost-sat));
+}
+.d-rail,
+.d-topbar,
+.sidebar-container {
+  position: relative;
+  isolation: isolate;
+}
+/* 壳面自己的底色让位给伪元素 —— 否则两层填充叠起来比设计深一档。 */
+.d-rail,
+.d-topbar,
+.sidebar-container { background: transparent; }
