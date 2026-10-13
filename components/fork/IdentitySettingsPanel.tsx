@@ -37,6 +37,11 @@ import {
   type AgentIdentity,
 } from "@/lib/identity";
 import { SettingsPage } from "../SettingsUi";
+// fork:fastvibe-stack (L1) —— 迁到 FastVibe 的行原语。
+// 旧形态是 `d-set-inner` › `d-set-sec` › `d-set-row` + 手写 `d-set-row-box/t/s`；
+// 新形态是 `SettingsGroup` › `SettingsRow`（逐条对应 FastVibe 的 settings-group.tsx）。
+// 两者**并存**：这一页先迁作为 L1 的样板，其余分节跟 L4+/L9 逐个走。
+import { SettingsGroup, SettingsRow } from "../settings/SettingsRow";
 
 interface IdentityResponse {
   identity?: unknown;
@@ -129,14 +134,16 @@ export function IdentitySettingsPanel() {
   if (loadError) {
     return (
       <SettingsPage title={t("settings.identity")}>
-        <div className="d-set-inner">
-          <div className="d-set-sec">
-            <div className="d-banner err">
-              <i data-ico="circle-alert" data-size="14"></i>
-              <span>{t("settings.identityLoadFailed")}: {loadError}</span>
-            </div>
-          </div>
-        </div>
+        <SettingsGroup>
+          <SettingsRow
+            title={t("settings.identity")}
+            control={(
+              <span className="text-xs text-destructive">
+                {t("settings.identityLoadFailed")}: {loadError}
+              </span>
+            )}
+          />
+        </SettingsGroup>
       </SettingsPage>
     );
   }
@@ -148,125 +155,137 @@ export function IdentitySettingsPanel() {
 
   return (
     <SettingsPage title={t("settings.identity")}>
-      <div className="d-set-inner">
+      <div className="flex flex-col gap-6">
         {saveError ? (
-          <div className="d-set-sec">
-            <div className="d-banner err">
-              <i data-ico="circle-alert" data-size="14"></i>
-              <span>{saveError}</span>
-            </div>
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {saveError}
           </div>
         ) : null}
 
-        <div className="d-set-sec">
-          <div className="d-set-row">
-            <div className="d-set-row-box">
-              {/* 左列：头像 + 两个动作。预览与聊天里的身份行读的是同一份 resolveIdentityView。 */}
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--nx-sp-3)" }}>
+        {/* 头像 + 两个动作：FastVibe 的 SettingsRow 的 title 是节点，这里把预览
+            放在 title 位（它本来就是「这一行说的是什么」）。 */}
+        <SettingsGroup>
+          <SettingsRow
+            align="start"
+            title={(
+              <span className="flex items-center gap-3">
                 {view.initialsOnly ? (
                   <span
-                    className="d-ava"
                     aria-hidden="true"
                     style={{ ...initialsStyle, display: "grid", placeItems: "center", fontWeight: 600 }}
+                    className="size-10 shrink-0 rounded-full"
                   >
                     {view.initials}
                   </span>
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element -- 头像是用户自己的 dataURL，不走优化器 */
-                  <img className="d-ava" src={view.imageUrl ?? DEFAULT_AGENT_AVATAR_URL} alt="" />
-                )}
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--nx-sp-2)" }}>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      event.target.value = "";
-                      if (file) void onPickFile(file);
-                    }}
+                  <img
+                    src={view.imageUrl ?? DEFAULT_AGENT_AVATAR_URL}
+                    alt=""
+                    className="size-10 shrink-0 rounded-full object-cover"
                   />
-                  <button
-                    type="button"
-                    className="d-btn sm ghost"
-                    disabled={busy}
-                    onClick={() => fileRef.current?.click()}
-                  >
-                    <i data-ico="upload" data-size="14"></i>
-                    {t("settings.identityChangeAvatar")}
-                  </button>
-                  <button
-                    type="button"
-                    className="d-btn sm ghost"
-                    disabled={busy || (!identity.avatar && !identity.syncWithUserProfile)}
-                    onClick={() => void save({ avatar: "", syncWithUserProfile: false })}
-                  >
-                    {t("settings.identityResetAvatar")}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+                )}
+                <span>{t("settings.identityChangeAvatar")}</span>
+              </span>
+            )}
+            control={
+              <span className="flex flex-col gap-2">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = "";
+                    if (file) void onPickFile(file);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs hover:bg-muted disabled:opacity-50"
+                  disabled={busy}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <i data-ico="upload" data-size="14"></i>
+                  {t("settings.identityChangeAvatar")}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
+                  disabled={busy || (!identity.avatar && !identity.syncWithUserProfile)}
+                  onClick={() => void save({ avatar: "", syncWithUserProfile: false })}
+                >
+                  {t("settings.identityResetAvatar")}
+                </button>
+              </span>
+            }
+          />
 
-          <div className="d-set-row">
-            <div className="d-set-row-box">
-              <div className="d-set-row-t">{t("settings.identityName")}</div>
+          <SettingsRow
+            align="start"
+            title={t("settings.identityName")}
+            description={t("settings.identityNameHint")}
+            control={
               <input
-                className="d-input"
                 value={draftName}
                 maxLength={IDENTITY_NAME_MAX_CHARS}
                 placeholder={t("settings.identityNamePlaceholder")}
                 aria-label={t("settings.identityName")}
+                className="h-7 w-56 rounded-md border border-border bg-transparent px-2 text-sm outline-none focus-visible:border-ring"
                 onChange={(event) => setDraftName(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && dirty) void save({ name: draftName.trim() });
                 }}
               />
-              <div className="d-set-row-s">{t("settings.identityNameHint")}</div>
-            </div>
-          </div>
+            }
+          />
 
-          <div className="d-set-row">
-            <div className="d-set-row-box">
-              <div className="d-set-row-t">{t("settings.identitySync")}</div>
-              <div className="d-set-row-s">
-                {userName ? t("settings.identitySyncHint", { name: userName }) : t("settings.identitySyncUnavailable")}
-              </div>
-            </div>
-            <span className="d-grow-last">
+          <SettingsRow
+            title={t("settings.identitySync")}
+            description={userName
+              ? t("settings.identitySyncHint", { name: userName })
+              : t("settings.identitySyncUnavailable")}
+            control={(
               <button
                 type="button"
                 role="switch"
                 aria-checked={identity.syncWithUserProfile}
                 aria-label={t("settings.identitySync")}
                 disabled={busy}
-                className={`d-switch${identity.syncWithUserProfile ? " on" : ""}`}
                 onClick={() => void save({ syncWithUserProfile: !identity.syncWithUserProfile })}
-              />
-            </span>
-          </div>
+                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${identity.syncWithUserProfile ? "bg-primary" : "bg-muted"}`}
+              >
+                <span
+                  className={`block size-4 rounded-full bg-white shadow transition-transform ${identity.syncWithUserProfile ? "translate-x-4.5" : "translate-x-0.5"}`}
+                />
+              </button>
+            )}
+          />
+        </SettingsGroup>
 
-          <div className="d-set-row">
-            <div className="d-set-row-box">
-              <div className="d-set-row-s">{t("settings.identityPreviewHint")}</div>
-            </div>
-            <span className="d-grow-last">
+        {/* 预览说明 + 保存。用户 2026-10-07 裁定「菜单下面那种提示文字全部去掉」，
+            所以说明留在这一行的 description 里（它解释的是这个动作，不是「这页是干嘛的」）。
+            这里**不传 title**：FastVibe 的 SettingsRow 的 title 是必填的，但那是它自己的
+            契约（每行都有个名字）；本行只有一句说明 + 一个动作钮，硬塞一个空标题
+            会多出一行空白。所以用 description 占标题位。 */}
+        <SettingsGroup>
+          <SettingsRow
+            title={t("settings.identityPreviewHint")}
+            control={(
               <button
                 type="button"
-                className="d-btn sm primary"
+                className="inline-flex h-7 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/85 disabled:opacity-50"
                 disabled={busy || !dirty}
                 onClick={() => void save({ name: draftName.trim() })}
               >
                 {t("settings.identitySave")}
               </button>
-            </span>
-          </div>
-        </div>
+            )}
+          />
+        </SettingsGroup>
 
-        <div className="d-set-sec">
-          <span className="d-t-xs d-t-faint">{t("settings.identityFooter")}</span>
-        </div>
+        <p className="px-1 text-xs text-muted-foreground">{t("settings.identityFooter")}</p>
       </div>
     </SettingsPage>
   );
