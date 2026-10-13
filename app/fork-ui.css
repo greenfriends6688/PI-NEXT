@@ -3781,3 +3781,38 @@ body {
   .d-side .d-group-title { height: 40px; }
   .d-menu-row { height: 36px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:fastvibe-stack (L7) —— 浮层入场 / 退场时长对齐 FastVibe
+ *
+ * 规格取自 `fastvibe-main/src/renderer/src/index.css:350-366`：
+ *   入场 `overlay-fade-in  110ms ease-out`
+ *   退场 `overlay-fade-out  90ms ease-in`
+ * 两者**不对称**，而且是有意的：进场稍慢（看得清它是从哪冒出来的），
+ * 退场更快（用户已经决定关掉它了，不该再等）。
+ *
+ * 本仓旧值：两个方向都用 `--motion-base`（160ms）—— 比 FastVibe 慢 45%，
+ * 而且进出同长，没有「该快的地方快」这层意思。
+ *
+ * 只改时长与曲线，**不动结构**（`.anim-popover` / `.anim-popover-down` /
+ * `.anim-dialog` 三个类名与关键帧原样保留）—— 它们有对位测试与多个调用点。
+ * ═════════════════════════════════════════════════════════════════════════ */
+.anim-popover,
+.anim-popover-down {
+  animation-duration: var(--motion-overlay-in);
+  animation-timing-function: var(--ease-out, ease-out);
+}
+.anim-dialog {
+  animation-duration: var(--motion-overlay-in);
+  animation-timing-function: var(--ease-out, ease-out);
+}
+/* 退场：本仓的浮层是「挂载/卸载」而不是 data-closed 状态机（那是 FastVibe 的
+   Base UI 写法），所以退场时长落在这里由卸载动画消费；没有消费方时这条是
+   无操作，留着是为了让两边的规格数字在代码里可对照。 */
+[data-overlay-surface][data-closed] {
+  animation: fork-fade-out var(--motion-overlay-out) var(--ease-in, ease-in) both;
+}
+@keyframes fork-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}

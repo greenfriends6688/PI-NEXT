@@ -369,6 +369,8 @@
   --motion-sheet: var(--ds-motion-sheet);
   --motion-stagger: var(--ds-motion-stagger);
   --motion-hint: var(--ds-motion-hint);
+  --motion-overlay-in: var(--ds-motion-overlay-in);
+  --motion-overlay-out: var(--ds-motion-overlay-out);
   --opacity-pending: var(--ds-opacity-pending);
 }
 

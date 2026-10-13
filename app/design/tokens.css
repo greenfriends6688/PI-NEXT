@@ -131,6 +131,9 @@
   --ds-motion-sheet:      14px;
   --ds-motion-stagger:    40ms;    /* 成组错开，最多 3 项 */
   --ds-motion-hint:       1600ms;  /* 提示类 1.6s：呼吸（持续）+ 跳转高亮（一次性） */
+  /* fork:fastvibe-stack (L7) —— 浮层入场 110ms / 退场 90ms（不对称，理由见真值文件）。 */
+  --ds-motion-overlay-in:  110ms;
+  --ds-motion-overlay-out: 90ms;
   --ds-opacity-pending:   0.5;
 
   /* ---- 12. 图标 --------------------------------------------------------- */
