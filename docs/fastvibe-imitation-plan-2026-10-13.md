@@ -22,7 +22,7 @@
 
 **本次改造 = 把 FastVibe 的形态（布局 / 信息结构 / 交互 / 视觉规格）与产品能力搬进 PI NEXT 的 Web 形态**，而不是把 Electron 搬进来。
 
-改造分 6 个批次、共 **36 个 PR**（含 1 个可选 B11），三条里程碑加一批大件：
+改造分 7 个批次、共 **44 个核心 PR**（另有 B11 / G9 两个可选），三条里程碑加一批大件（G 批次为 PWA 移动端，与 M2 并行）：
 
 - **M1「看得见」**：A1–A4（浮岛壳 / 玻璃二期 / 主题 / 字阶）+ B1/B4/B6/B7（转录滚动 / 工具行 / composer / 队列）→ 打开应用就是 FastVibe 的那个样子。
 - **M2「天天用」**：B2/B3/B5/B8–B10 + C1–C5 → 聊天、侧栏、右栏全部对齐。
@@ -156,6 +156,23 @@
 | 76 | KaTeX 严格行内 | Pandoc tex_math_dollars 规则 | remark-math（严格规则待查） | 🟡 | B3b |
 | 77 | 滚动条 | 12px，thumb 3px 透明边框 | 有 | ✅ | — |
 | 78 | 动效令牌 | spring 280 / fade 110/90 / caret steps | 有 motion tokens | 🟡 | A1/A2 |
+
+### 2.6 移动端 / PWA
+
+| # | 能力 | FastVibe 移动端（Flutter） | PI NEXT PWA 现状 | 判定 | PR |
+| --- | --- | --- | --- | --- | --- |
+| 79 | 玻璃 chrome / 内容不透明 | GlassScreen + progressive blur 顶栏 + 壁纸渐变 scrim，正文永不透明（`glass_screen.dart`） | m-* 设计系统 + V6 材质（手机端表达待收口） | 🟡 | G1 |
+| 80 | 多机设备列表 | 设备列表（收藏/分组/搜索）+ 扫码/附近/手输三种添加 + 账号设备 | 单服务器同源 PWA，无设备概念 | ⛔ 形态不同 | — |
+| 81 | 会话列表页 | 分组「等你处理 / 运行中 / 最近」+ 状态 mark 卡片 + dock 分段 + 项目过滤胶囊 | 侧栏抽屉 + 任务段 | 🟡 | G2 |
+| 82 | 会话页形态 | 反转列表 + WorkingPill 计时 + 回到最新 + 空态建议卡 + footer 自报高度 | 有（细节未对齐） | 🟡 | G3 |
+| 83 | Composer | 四态按钮 + 上下文环 + 模型/思考 sheet + 图片压缩管线 + Enter 换行 | 有 cap sheet 等（未对齐） | 🟡 | G4 |
+| 84 | 队列与提问卡 | 队列面板（暂停/状态标签）+ 提问卡占 composer 位 + 多题必答 | 队列数据层已有；提问走扩展弹窗 | 🟡 | G5 |
+| 85 | 手机设置页 | 手机专属分组 + 主题实时预览 + 减少玻璃 + 触感 + 关于/更新 | hub 16 节全量 | 🟡 | G6 |
+| 86 | 通知策略 | 三类触发 + 去重 + payload 深链 + 前台不打扰 | Web Push + 壳通知 + 在场裁决 | 🟡 | G7 |
+| 87 | PWA 落地收口 | — | `design:v5:land` M-03 95% / M-05 98% / M-09 98% 未满；safe-top 遗留 1 处 | 🟡 | G8 |
+| 88 | DAG 移动呈现 | 44pt 摘要条 + 任务图 sheet | 无（依赖 E1–E3） | ❌ | G9（可选） |
+| 89 | 手势 / 终端键盘条 / 配对 | 下拉刷新 + 侧滑返回；无终端 | `m-pull` / `m-swipe` / Termux 键盘条 / 6 位配对码已做 | ✅+ | — |
+| 90 | 原生专属（Keychain / mDNS / APK 自更新 / shader 玻璃） | 有 | 浏览器无等价物 | ⛔ | — |
 
 ---
 
@@ -405,6 +422,71 @@
 - **验收**：搜索单测（命中窗口/上限）；导入只读打开 sqlite。
 - **量级**：M。依赖：C6。
 
+### 批次 G · PWA 移动端（P0，与 M2 并行）
+
+> 移动端的目标不是照抄 Flutter，而是把 FastVibe 移动端的**信息结构 / 交互 / 视觉纪律**搬进 PI NEXT 的 PWA（`m-*` 设计系统 + Capacitor 壳）。FastVibe 的四类原生依赖（Keychain、系统设置跳转、mDNS、后台进程存活）不在范围内。
+
+#### G1 — PWA 玻璃外壳
+- **目标**：对齐 FastVibe 移动端的两条材质纪律：**玻璃只是 chrome、正文永不透明**；顶栏渐进模糊（progressive blur）+ 用壁纸自身裁切的 scrim；设置里「减少玻璃」自动降级。
+- **参考**：`apps/mobile_flutter/lib/ui/glass_screen.dart:18-60,130-190,215-305`；`lib/main.dart:104-170`（adaptiveQuality / reduceGlass）。
+- **PI NEXT**：`components/pwa/PwaPage.tsx`、`app/globals.css`（`.m-top` / `--safe-*`）、`design/v5/pwa/system.css`、V6 材质块。
+- **验收**：`prefers-reduced-transparency` 与低端机降级；桌面板零变化；真机/移动仿真截图。
+- **量级**：M。依赖：A2。
+
+#### G2 — 手机会话列表页
+- **目标**：分组「等你处理 / 运行中 / 最近」；会话卡（leading 状态 mark、标题 + 相对时间、一行预览、项目行）；底部 dock（分段「全部 / 进行中 / 待处理」+ 新会话）；项目过滤胶囊；搜索命中时用 snippet 替换预览。
+- **参考**：`lib/screens/server.dart:518-830`；`lib/ui/dock.dart:20-91`。
+- **PI NEXT**：`components/SessionSidebar.tsx`（m 分支）、`components/pwa/*`、`design/v5/pwa/boards/M-*`。
+- **验收**：状态优先级（等你 > 运行 > 项目）；空态；新会话优先回到带草稿的空会话。
+- **量级**：L。依赖：C1。
+
+#### G3 — 手机会话页形态
+- **目标**：反转列表（最新在底）；运行中浮出 WorkingPill（含毫秒计时）；滚离底部后浮出「回到最新」圆钮；空态问候 + 四条建议卡；footer 自报高度让转写底部内边距精确（键盘弹出不遮挡）；底部渐隐复核。
+- **参考**：`lib/screens/chat.dart:113-130,837-1180`；`lib/screens/transcript.dart:112-245`。
+- **PI NEXT**：`components/ChatWindow.tsx`（m 分支）、`components/ChatInput.tsx`、`app/globals.css`。
+- **验收**：键盘弹收；长列表滚动；iOS bounce 与下拉刷新不冲突（沿用 `docs/mobile-shell-plan-2026-10-05.md` 风险表）。
+- **量级**：L。依赖：B1。
+
+#### G4 — 手机 Composer v2
+- **目标**：四态动作按钮（发送 / 停止 / 继续 / spinner）；上下文环（70% / 90% 阈值）；模型 sheet（搜索 + provider rail + 最近 6 + 折叠分组）；思考档 sheet；附件压缩管线（长边 2048 / JPEG q78 / 大小上限）；缩略图行；Enter 换行。
+- **参考**：`lib/chat/composer.dart:428-830`；`lib/chat/model_picker.dart:56-213`；`lib/chat/images.dart:17-140`。
+- **PI NEXT**：`components/ChatInput.tsx`（`renderPwaComposer`）、`components/pwa/PwaComposerSheet.tsx`。
+- **验收**：四态切换；环阈值；压缩后大小；模型 <14 不折叠。
+- **量级**：L。依赖：B6。
+
+#### G5 — 手机队列与提问卡
+- **目标**：队列面板（暂停转 warning + 「继续发送」胶囊 + 每行状态标签「已提交 / 等待注入 / 下一步插入 / 本轮结束后发送」+ claimed 不可取消）；提问卡占 composer 位（confirm 双按钮 / select 编号列表 / input / questions 多题必须答满 + 「提交 {done}/{total}」）；丢确认 = `uncertain`，保留乐观行不删。
+- **参考**：`lib/chat/queue_panel.dart:20-160`；`lib/chat/prompt_card.dart:34-260`；`lib/chat/queue.dart:60-240`。
+- **PI NEXT**：`components/ChatInput.tsx`（`.m-queue`）、`hooks/useAgentSession.ts`、`lib/extension-ui-queue.ts`。
+- **验收**：revision 闸门；Stop 与 send 竞态；多题必答；后台会话阻塞提问可点亮。
+- **量级**：M。依赖：B7/B8（共享数据层）。
+
+#### G6 — 手机设置页与错误态
+- **目标**：设置 hub 按手机场景重组表达（外观：主题 + **实时预览块** + 减少玻璃 + 语言；通用：后台通知 + 触感；关于：logo/版本/检查更新/更新日志/复制诊断）；应用级与页签级错误页（68pt 图标 + 标题 + 正文 + 按钮）；三步引导空态。
+- **参考**：`lib/screens/settings.dart:178-320`；`lib/screens/server.dart:850-1010`；`lib/screens/devices.dart:227-240`。
+- **PI NEXT**：`components/SettingsPanel.tsx`（手机 hub）、`components/pwa/ErrorStates.tsx`、`components/pwa/settingsHub.ts`。
+- **验收**：与桌面分节不串味；错误页按钮走 44/48 触控档；语言就地切换。
+- **量级**：M。依赖：G1。
+
+#### G7 — 通知策略对齐
+- **目标**：三类触发（完成 / 失败 / 阻塞提问）；去重 `serverId|conversationId|seq`（上限 1000）；payload 带机器与会话 id（冷启动也能落到那条会话）；前台不打扰（与 `lib/notification-plan.ts` 的在场裁决合并）。
+- **参考**：`lib/notifications/policy.dart:40-100`；`lib/notifications/local.dart:60-120`；`lib/notifications/target.dart`。
+- **PI NEXT**：`lib/notification-plan.ts`、`lib/mobile-notify.ts`、`lib/browser-notifications.ts`、`app/api/push/*`。
+- **验收**：三场景各自触发/不触发；深链；去重；壳内与 PWA 两路共用判定。
+- **量级**：M。依赖：无。
+
+#### G8 — PWA 画板收口与门禁
+- **目标**：把 `design:v5:land` 的 PWA 未满项落完（M-03 54/57、M-05 49/50、M-09 64/65）；`app/design/v5-forms.css:305` 的 safe-top 替换为 `var(--safe-top)`；12 张 PWA 画板补几何对位 spec。
+- **参考**：`design/v5/pwa/boards/`；`docs/mobile-shell-plan-2026-10-05.md:512-545`（遗留清单）。
+- **验收**：`design:v5:land` M 系列 100%；`verify:boards` 覆盖 12 张 PWA 板且 0 差异。
+- **量级**：M。依赖：G1–G6（收口它们的新类）。
+
+#### G9 —（可选）DAG 移动端呈现
+- **目标**：会话顶部 44pt DAG 摘要条（进度 + 需关注数 / 离线）；任务图 sheet（节点详情：父子、验收、结论、证据、分页输出）。
+- **参考**：`lib/chat/dag_panel.dart:19-110`。
+- **判定**：等 E1–E3 完成后再做。
+- **量级**：M。依赖：E1–E3。
+
 ### 批次 F · 大件（P2，执行前需单独确认）
 
 #### F1 — SSH 远程主机 + headless agent
@@ -444,7 +526,8 @@
 M1「看得见」  A1 → A2 → A4 → B1 → B6 → B4 → B7 → B3 →（A3 与 B 并行）
               交付物：打开应用 = 浮岛 + 玻璃 + 居中转录 + 单行工具 + 圆角 composer + 队列
 M2「天天用」  B2 → B5 → B8 → B9 → B10 → C1 → C3 → C2 → C4 → C5 → C6 → D1
-              交付物：长会话流畅、问询不弹窗、侧栏/右栏/设置 = FastVibe 形态
+              G1 → G2 → G3 → G4 → G5 → G6 → G7 → G8（移动端，与 C/D 并行）
+              交付物：长会话流畅、问询不弹窗、侧栏/右栏/设置 = FastVibe 形态；手机端 = FastVibe 移动端形态
 M3「补齐」    D2 → D3 → D4 → D5 → D6 → E4 → E5 → E6 → E7 → E1 → E2 → E3
               交付物：设置同深；Goal / checkpoint / 决策 / DAG 可用
 M4「大件」    F1 / F2 / F3（逐个确认后再开）
@@ -461,6 +544,10 @@ M4「大件」    F1 / F2 / F3（逐个确认后再开）
 | Electron 原生窗口 chrome / vibrancy / traffic lights | PI NEXT 是 Web + 可选 Electron 壳；V6 玻璃已是等价物 |
 | 官方连接（账号 + WebRTC + TURN 中继） | 需要 FastVibe 的云端服务（fastvibe-services）才能成立；PI NEXT 已有 LAN + tunnel + PWA 三件套 |
 | Flutter 手机 App | PI NEXT 已有 PWA + Capacitor 壳 + 同步协议；重写一遍收益为负 |
+| 移动端 Keychain/Keystore 凭证与「跳到系统设置」 | 浏览器无等价物；PWA 用 IndexedDB + 页面内引导替代 |
+| mDNS「附近的电脑」发现 | 浏览器无 mDNS；用扫码 / 手输地址 /（未来）账号设备列表替代 |
+| Android APK 自更新 | PWA 由 Service Worker 更新（版本自愈已做） |
+| GlassScaffold 的 shader 级玻璃折射 | 浏览器只能 `backdrop-filter` + 描边近似（G1 的目标形态） |
 | 彩色 Material 文件图标 | 与 PI NEXT「图标全部 lucide、单色」的门禁与已登记偏离冲突；如要改，先做设计裁定（单独立项） |
 | 24 主题整套 + shadcn/Base UI 变量名 | 会引入第二套设计来源；A3 改为"主题种子架构 + 首批 12 个主题"，全部映射进现有令牌 |
 | pi-tui 组件桥 / TUI 线渲染 | 依赖 pi-tui 的 SGR 渲染，与 Web 渲染模型冲突；PI NEXT 直接用 React 渲染 |
@@ -481,4 +568,5 @@ M4「大件」    F1 / F2 / F3（逐个确认后再开）
 | Goal / 记忆 / 决策 / checkpoint / 队列 | `resources/extensions/goal.ts`、`engine/memory*.ts`、`engine/decision/*`、`engine/checkpoint.ts`、`engine/message-queue.ts` |
 | 导入 / 统计 / 配额 / 代理 / cc-switch | `engine/import/*`、`engine/usage-*.ts`、`openai-quota.ts`、`gateway-probe.ts`、`network-proxy.ts`、`cc-switch.ts` |
 | 远程 / SSH / agent | `src/main/server/*`、`src/main/rtc/*`、`src/main/ssh/*`、`src/agent/*` |
+| 移动端 / PWA | `apps/mobile_flutter/lib/**`（screens / chat / ui / theme / session / notifications）；`apps/mobile_flutter/AGENTS.md`（材质与平台纪律） |
 | 设计/交互约定（文字版） | `fastvibe-main/AGENTS.md`（UI / Theming / 模板章节） |
