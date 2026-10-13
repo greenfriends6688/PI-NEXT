@@ -3725,3 +3725,59 @@ body {
     padding-top: var(--nx-sp-2);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:fastvibe-stack (L4/L5) —— 侧栏行规格对齐 FastVibe
+ *
+ * 规格取自 `fastvibe-main/src/renderer/src/components/layout/sidebar-rows.tsx`：
+ *   项目行  `flex h-8 pointer-coarse:h-10 items-center gap-0.5 rounded-md pr-1 pl-2`
+ *   会话行  `flex h-8 pointer-coarse:h-10 items-center gap-2.5 rounded-md pr-1 pl-2 text-sm`
+ *   菜单行  `flex h-7 pointer-coarse:h-9 w-full items-center gap-2 rounded-md px-2`
+ *
+ * 与本仓旧值的差别：
+ *   · 行高 `padding: 7px 10px`（内容撑高）→ **固定 32px**。
+ *     这是 FastVibe 反复强调的纪律：行高是常数，标题字号或副行有无都不该带着它变。
+ *     本仓历史上正因「行高随状态变」出过事（`fork:session-row-overlap` 的虚拟列表
+ *     重叠事故：悬停多出一枚动作钮就把行顶高，元信息压到下一行标题上）。
+ *     固定高度之后这类漂移在物理上不可能发生。
+ *   · 横向内距 10px → 8px（左）/ 4px（右）—— 右侧留给 hover 才出现的动作钮，
+ *     行尾那几枚钮因此不再把标题挤短。
+ *   · 圆角统一到新的 control 档（10px，与 FastVibe 的 `rounded-md` 同档）。
+ *
+ * 触屏 `pointer-coarse:h-10` → 40px，与 FastVibe 一致。
+ *
+ * 选择器带 `.d-side` 前缀（0,2,0）—— 旧定义在 `design/v5/web/system.css`，
+ * 不依赖加载顺序（这个坑在 L1 导航、L3 浮岛上各踩过一次）。
+ * ═════════════════════════════════════════════════════════════════════════ */
+.d-side .d-sess {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 4px 0 8px;
+  border-radius: var(--nx-radius-control);
+}
+/* 行内两行文字（标题 + 元信息）时，行高仍是 32px —— 它们各自 overflow 收口，
+   而不是把行撑高。虚拟列表按 32 这一档量行高，撑高就会错位。 */
+.d-side .d-sess-t,
+.d-side .d-sess-m {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.d-side .d-group-title {
+  height: 32px;
+  padding: 0 4px 0 8px;
+  border-radius: var(--nx-radius-control);
+}
+/* 菜单行（会话动作 / 项目菜单）：h-7 = 28px */
+.d-menu-row {
+  height: 28px;
+  border-radius: var(--nx-radius-control);
+}
+@media (pointer: coarse) {
+  .d-side .d-sess,
+  .d-side .d-group-title { height: 40px; }
+  .d-menu-row { height: 36px; }
+}
