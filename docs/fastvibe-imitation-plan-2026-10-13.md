@@ -292,6 +292,32 @@
 > **页面清单（桌面）**：一级页面只有 `/`（应用主壳，内含聊天/右栏/侧栏）与 `/pair`（配对）。其余全是**壳内视图**：侧栏 + 聊天 + 右栏六面板 + 设置弹窗 + 各类弹层。手机是同一批组件在 ≤639px 的 `m-*` 分支。所以「每一页」实际是 **十几个视图 × 两种形态**。
 
 #### L1 — 样板一：设置弹窗（最复杂的单页）
+
+> **实测规模（开工后修正）**：L1 不是一个页面，而是 **约 18000 行** ——
+> 外壳 1632 行 + 12 个分节组件（最大的 PluginsConfig 3928 / ModelsConfig 3074 /
+> SkillsConfig 2155）。所以拆成多步：
+> 
+> - **L1（一）已落**（commit d088f942）：`components/settings/SettingsRow.tsx`
+>   （两个行原语，逐条对 FastVibe 的 `settings-group.tsx`）+ `app/globals.css`
+>   补上 24 个 shadcn 颜色名映射（不补则 35 个件的 `bg-card` 这类类名**静默不生效**）。
+> - **L1（二）待做**：外壳（弹窗 + 左导航 + 窄屏折叠）按 `settings-dialog.tsx:147-260` 重写；
+>   分组按 5 组（preferences / workspace / integrations / system / about）重组本仓的 16 节。
+> - **L1（三）+ 待做**：逐分节迁移（每个分节一个 PR，跟 L4+/L9 同节奏）。
+
+> **⚠️ 开工前必须裁定的一件事（已上报，未擅动）**：本仓有**两套圆角梯子**，
+> 而它们与 FastVibe 都不一样：
+> 
+> | 定义处 | xs | sm | md | lg | xl |
+> | --- | --- | --- | --- | --- | --- |
+> | `:root`（fork:shadcn → `--ds-radius-*`） | 3 | 4 | 4 | 6 | 6 |
+> | `:root:root`（**fork:apple-sketch，位置靠后→实际生效**） | 4 | 8 | 10 | 12 | 16 |
+> | FastVibe（`--radius: 0.625rem` 派生） | — | 6 | 8 | 10 | 14 |
+> 
+> 实测：shadcn 的 `rounded-lg` 现在拿到 **12px**（apple-sketch 那套），
+> FastVibe 同名类是 **10px**。apple-sketch 那块是 2026-10-08「Apple 接管令牌」
+> 时加的，但它服务的画板真值按本计划已停用 —— 它现在还压着圆角。
+> **改哪一套都会动全站每一个圆角**（观感变化肉眼可见），所以不自行决定。
+
 - **为什么选它**：① 它本来就是弹窗，与用户「设置保留弹窗」的裁定一致；② FastVibe 的 `SettingsDialog` 是**完整参考实现**（19 分节 / 5 分组 / 左导航 + 右内容 / 窄屏折叠）；③ 它包含 `Select` / `Switch` / `ScrollArea` / `Button` / `Label` 五种基础组件，一次验证 H2 的大半。
 - **目标**：按 `settings-dialog.tsx` 重写本仓设置弹窗的**外观层**（保留现有数据与行为 —— 本仓有 16 个分节，FastVibe 有 19 个，分节集合不同但框架一致）；左导航按 5 分组（preferences / workspace / integrations / system / about）重组本仓的 16 节；行用 `SettingsGroup` / `SettingsRow`。
 - **参考**：`src/renderer/src/components/settings/settings-dialog.tsx:147-260`（布局）；`settings-sections.tsx`（分组表）；`settings-group.tsx`（行规格）。
