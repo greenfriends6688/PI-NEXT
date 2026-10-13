@@ -8,14 +8,24 @@ import { useIsMobile } from "@/hooks/useIsMobile";
  * `.d-bars` / `.d-row` / `.d-col` primitives (画板 D-19 §用量统计) rather than
  * hand-written inline SVG.
  *
- * Why no chart library: the plan is zero-new-dependency, and these charts are simple
- * enough to own outright (a cell grid, two bar columns, a share bar). The reference
- * project uses recharts and had to add lazy loading + a local error boundary to work
- * around its Electron/Linux module init crash; a grid of design-system elements has no
- * such failure mode and contributes ~0 KB.
+ * Why no chart library: these charts are simple enough to own outright (a cell grid,
+ * two bar columns, a share bar), and a grid of design-system elements has no module-init
+ * failure mode and contributes ~0 KB.
+ *
+ * fork:fastvibe-stack (H5) —— 上面那条理由里原来还写着「the plan is
+ * zero-new-dependency」与「reference project 的 recharts 在 Electron/Linux 上
+ * 崩过，要靠 lazy + error boundary 兜」。**两句现在都不准确了，所以删掉**：
+ *   · H2/H5 已经真的引了 recharts（`components/ui/chart.tsx`），零新依赖不再成立；
+ *   · FastVibe 现在用 recharts ^3.8 且**直接 import**（它的 usage-settings.tsx 没有
+ *     lazy 也没局部 error boundary）—— 那个「崩过」的参考项目不是它，或者早已修好。
+ *
+ * **但这不影响本文件当前的选择**：这些图是自绘的、已经在跑、0 KB、无初始化风险。
+ * 要不要改成 recharts 是 **D6（使用统计 v2）** 的事，不是 H5 的（H5 只负责把依赖
+ * 备好）。到时候若改，对照 FastVibe 的 `usage-settings.tsx:236-290` 的
+ * `TrendChart`（LineChart + ChartContainer + ChartTooltip）重写即可。
  *
  * The numbers are unchanged: same max-normalised scale, same 5-step `levels()`,
- * same per-bar `title`, same `role="img"` + `aria-label`. Only the drawing changed.
+ * same per-bar `title`, same `role="img"` + `aria-label`.
  * All colours come from CSS variables so light/dark/auto keep working.
  */
 

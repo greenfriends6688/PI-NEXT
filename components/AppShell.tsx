@@ -28,6 +28,10 @@ function markAutoNameAttempted(sessionId: string): void {
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
+// fork:fastvibe-stack (H5) —— toast 换成 sonner（`components/ui/sonner.tsx` 已在根布局
+// 挂好 Toaster）。这里只引 imperative 的 `toast`；`showToast` 是对它的薄封装，
+// 8 处调用点保持不变。
+import { toast as sonnerToast } from "sonner";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 // fork:pi-1.1 —— 完成通知要知道这一轮是不是被停掉的（agent_settled.aborted）。
 import type { AgentEndInfo } from "@/hooks/useAgentSession";
@@ -397,14 +401,19 @@ export function AppShell() {
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   // fork:trace-menu —— 极简通知宿主：菜单里的系统级动作（在访达里打开项目目录）
   // 失败时必须有地方报，否则就是「点了没反应」。固定一条 `.pw-toast`，3s 自动收。
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  //
+  // fork:fastvibe-stack (H5) —— 换成 sonner（H2 已把 `components/ui/sonner.tsx` 挂进
+  // 根布局，与 FastVibe 同一条路）。
+  //
+  // 为什么换：自研那条是「固定一条、3s 自收、再来一条盖掉上一条」—— 连续两个动作
+  // 失败时后一条把前一条抢掉，而用户可能正在读第一条。sonner 自己管堆栈、
+  // 入场退场动效、hover 暂停与 swipe 关闭；它还接主题（`useTheme`）与 `data-theme`，
+  // 不需要我们再写一份配色。
+  //
+  // 对外接口保持 `showToast(message)`：8 处调用点一个字不改。
   const showToast = useCallback((message: string) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToast(message);
-    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+    sonnerToast.error(message);
   }, []);
-  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
 
   /* fork:trace-menu —— 菜单里的三条复制：成功只剩剪贴板（用户自己看不见），失败必须
    看得见。`copyText` 永远 resolve 成 {ok}，所以在这里判一次，失败弹那条 .pw-toast。
@@ -4313,26 +4322,9 @@ export function AppShell() {
         }}
       />
     )}
-    {/* fork:trace-menu —— 极简通知宿主：系统级动作（在访达里打开、改名失败）没地方报
-        就是「点了没反应」，所以这里补一条 `.pw-toast`（3s 自动收，不堆栈不排队）。 */}
-    {toast ? (
-      <div
-        role="status"
-        className={isMobile ? "m-toast" : "d-toast bad"}
-        style={{
-          position: "fixed",
-          /* fork:pwa-hit-slop-2 —— 原来只给 `var(--s5)`，standalone 下正好压在
-              iOS home indicator 上（那一条 34px 不吃点击）。取 max()：非全面屏
-             仍是最初的 `--s5`，全面屏额外让出安全区 + `--s3` 的呼吸。 */
-          bottom: "max(var(--s5), calc(var(--safe-bottom) + var(--s3)))",
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 900,
-        }}
-      >
-        {toast}
-      </div>
-    ) : null}
+    {/* fork:trace-menu —— 通知宿主已换成 sonner（H5），见 `showToast` 的定义处。
+        这里不再自绘那条 fixed 浮条（`.d-toast bad`）—— sonner 的 Toaster 挂在根布局，
+        自己管堆栈 / 动效 / hover 暂停 / 主题。 */}
 
     {/* fork:command-palette —— ⌘K / ⌘⇧P 打开的统一入口（命令 / 会话 / 文件）。
         三个域全部复用既有 API，零新后端：会话走 `/api/sessions/search`

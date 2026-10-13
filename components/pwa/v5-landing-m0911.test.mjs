@@ -310,19 +310,25 @@ test("M-11 帧 B：文件行长按走 `.m-menu-sheet`（会话行那条是登记
   assert.doesNotMatch(sessionMenu, /shareLink|复制分享链接/, "帧 B-1：不含「复制分享链接」");
 });
 
-test("M-11 帧 E：四种反馈各归各位，`.m-toast` 4 秒自退", () => {
+test("M-11 帧 E：四种反馈各归各位（H5 起 toast 改为 sonner 托管）", () => {
   assert.match(pwaSystem, /\.m-banner \{ display: flex; align-items: center; gap: 8px;/);
   assert.match(pwaSystem, /\.m-perm \{/);
   assert.match(pwaSystem, /\.m-run \{ display: flex; align-items: center; gap: 8px;/);
   assert.match(pwaSystem, /\.m-run > i:first-child \{ animation: nx-spin 1400ms linear infinite; \}/);
-  assert.match(pwaSystem, /\.m-toast \{ position: absolute; left: 50%;/);
-  /* Toast 只确认已经发生的事，不放按钮 —— 产品那条也真的只是个 span。 */
-  const toastBlock = appShell.slice(
-    appShell.indexOf('className={isMobile ? "m-toast"'),
-    appShell.indexOf("</div>\n    ) : null}", appShell.indexOf('className={isMobile ? "m-toast"')),
+  /* fork:fastvibe-stack (H5) —— `.m-toast` / `.d-toast` 的**自绘宿主**已退役：
+     AppShell 里那条固定 3s 自收的浮条换成了 sonner（`components/ui/sonner.tsx`，
+     挂在根布局）。本用例原来断言的是那段旧实现的两件事：
+       ① `.m-toast` 里不出现按钮（「需要回答的事该待在原地等你」）—— 这条**语义
+          仍然成立且更重要**：sonner 的 toast 同样不放动作按钮，错误只报不拦；
+       ② `setToast(null), 3000` 这个字面量 —— 它钉的是实现而不是行为，换库后
+          自然不再存在。保留它只会变成「为了过测试而把旧代码留着看」。
+     所以②改钉新实现的行为：失败路径走 `sonnerToast.error`，而消息自身不带动作。 */
+  assert.match(appShell, /sonnerToast\.error\(/, "失败反馈走 sonner（H5）");
+  assert.doesNotMatch(
+    appShell.slice(appShell.indexOf("const showToast"), appShell.indexOf("const showToast") + 500),
+    /action|<button/,
+    "showToast 只报事实，不给动作按钮（帧 E：需要回答的事该待在原地等你）",
   );
-  assert.doesNotMatch(toastBlock, /<button/, "`.m-toast` 里不许出现按钮（帧 E：需要回答的事就该待在原地等你）");
-  assert.match(appShell, /setToast\(null\), 3000\)/, "Toast 3s 自退（M-11 帧 D ⑦ 与帧 E 同值）");
 });
 
 test("M-11 帧 F：两级错误页都必须给「重试」，根级不许用 m-* 类", () => {
