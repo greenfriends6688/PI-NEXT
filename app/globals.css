@@ -2966,3 +2966,57 @@ button.process-file-chip:hover {
 .d-rail,
 .d-topbar,
 .sidebar-container { background: transparent; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:fastvibe-stack (H4 续) —— 圆角单一真值：FastVibe 的 10px 基准
+ * （2026-10-13 用户裁定「改成 FastVibe 那套（10px 基准）」）
+ *
+ * 本仓此前有三套圆角梯子互相盖，没人能回答「按钮圆角是多少」：
+ *   design/v5/base.css       --nx-radius-*  8 / 6 / 12 / 16 / 16 / 20
+ *   design/v5/web/tokens.css --nx-radius-*  6 / 6 / 10 / 14 / 20 / 18  ← 桌面实际生效
+ *   design/v5/pwa/tokens.css --nx-radius-* 12 /12 / 20 / 24 / 24 / 28  ← 窄屏实际生效
+ *   app/globals.css 的 :root:root（apple-sketch）--radius-* 8/10/12/16/20
+ * 实测 --nx-radius-control 读 6px，而 shadcn 的 rounded-lg 读 12px —— 同一件事两个值。
+ *
+ * FastVibe：--radius: 0.625rem（10px），七档 calc 派生 ——
+ *   sm 6 · md 8 · lg 10 · xl 14 · 2xl 18 · 3xl 22 · 4xl 26
+ * 语义槽位按「这个槽在 FastVibe 里是哪个类」对齐（实测各组件的类名）：
+ *   control（按钮/输入框/菜单项）→ rounded-lg = 10px
+ *   row（行容器/芯片）          → rounded-md = 8px
+ *   card（卡片/分组）           → rounded-xl = 14px
+ *   pane（面板/浮岛）           → rounded-2xl = 18px
+ *   popover（弹层/菜单）         → rounded-lg = 10px
+ *   sheet（底部面板）            → rounded-2xl = 18px
+ *
+ * 两处刻意不跟 FastVibe：--radius-composer: 22px（它 composer.tsx 写死的
+ * rounded-[22px]，本仓正好也有这个槽位）；--nx-radius-pill: 999px（胶囊不变）。
+ *
+ * 为什么写在文件末尾 + :root:root：`:root:root`（0,2,0）压过 design/v5/ 下的 tokens.css
+ * 的 `:root`（0,1,0），文件末尾的位置又压过本文件早先的 apple-sketch 块。
+ * 与 fork:boardui-bridge 同一套做法（同特异性 + 靠后取胜）。
+ *
+ * 圆角是几何，不随主题变 —— 所以只有一份，不在 [data-theme] 里重复。
+ * L10 清场时 design/v5/ 下的 tokens.css 会随目录一起删，届时本块可收回 `:root`，
+ * 但值不变。
+ * ═════════════════════════════════════════════════════════════════════════ */
+:root:root {
+  --radius-base: 10px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 22px;
+  --radius-4xl: 26px;
+  --radius-composer: 22px;
+  --radius-pill: 999px;
+
+  --nx-radius-control: 10px;
+  --nx-radius-row: 8px;
+  --nx-radius-card: 14px;
+  --nx-radius-pane: 18px;
+  --nx-radius-popover: 10px;
+  --nx-radius-sheet: 18px;
+  --nx-radius-pill: 999px;
+}
