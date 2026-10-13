@@ -123,11 +123,54 @@ function restoreUserWallpaper(): void {
 
 function clearSkin(): void {
   const root = document.documentElement;
-  for (const name of SKIN_VARIABLES) root.style.removeProperty(name);
+  /* fork:fastvibe-stack (H4) —— **只清皮肤写过的那几个**。
+
+     这里原来是把 `SKIN_VARIABLES`（24 个）整批 `removeProperty`。在那之前是对的：
+     那批变量全部来自 CSS（`app/globals.css` 的 `[data-theme]` 块），行内样式里
+     只有皮肤写过，所以「清掉 = 回到 CSS 的值」。
+
+     H4 之后不再成立：主题 token 现在由 `useTheme` **写在同一个元素的行内样式上**，
+     里面正好包含 `--bg` / `--text` / `--border` / `--accent` 这一族。于是默认
+     （没选皮肤）路径下的 `clearSkin()` 会把刚写好的 16 个主题变量当场抹掉 ——
+     实测表现：`--bg` 写到 `#ffffff` 后立刻被 REMOVE，界面回落到 CSS 里那份旧值，
+     不报错、图标都在，只是「主题没生效」。
+
+     现在改成：**只移除皮肤自己写过的**（`skinWrittenVariables`）。
+     它由 `writeSkin()` 每次写入时登记，所以：
+       · 没选过皮肤 → 集合为空 → 什么都不清（主题变量安然无恙）；
+       · 选过皮肤 → 只清皮肤写的那几个，主题在下一帧由 `useTheme` 重写。
+     `--radius-base` / `--skin-*` 这几个仍然无条件是皮肤专属（主题不写它们），
+     所以照旧直接清。 */
+  for (const name of SKIN_VARIABLES) {
+    if (SKIN_OWNED_ALWAYS.has(name) || skinWrittenVariables.has(name)) {
+      root.style.removeProperty(name);
+    }
+  }
+  skinWrittenVariables.clear();
   for (const name of SKIN_DATA_ATTRIBUTES) root.removeAttribute(`data-${name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`);
   document.getElementById(SKIN_CUSTOM_CSS_ELEMENT_ID)?.remove();
   restoreUserWallpaper();
 }
+
+/**
+ * 只有皮肤会写、主题不会写的变量 —— 退出时可无条件移除。
+ *
+ * 除了这三个，其余 `SKIN_VARIABLES` 都是「主题也写、皮肤只是覆盖」的槽位，
+ * 清写时必须区分（否则会抹掉主题，见 `clearSkin` 的注释）。
+ */
+const SKIN_OWNED_ALWAYS = new Set<string>([
+  "--radius-base",
+  "--skin-blur",
+  "--skin-reading-mask",
+  "--skin-panel-base",
+  "--skin-bg-base",
+  "--skin-page-alpha",
+  "--skin-panel-alpha",
+  "--skin-sidebar-alpha",
+]);
+
+/** 本进程里皮肤实际写过的变量名（`writeSkin` 登记，`clearSkin` 消费后清空）。 */
+const skinWrittenVariables = new Set<string>();
 
 function writeCustomCss(css: string): void {
   let element = document.getElementById(SKIN_CUSTOM_CSS_ELEMENT_ID) as HTMLStyleElement | null;
@@ -152,54 +195,65 @@ function writeCustomCss(css: string): void {
  */
 function writeSkin(skin: ThemeSkin): void {
   const root = document.documentElement;
+  /* fork:fastvibe-stack (H4) —— 每次写入前先清掉「上一次皮肤写过、这次不再写的」
+     槽位，否则换皮肤时会残留上一套的值（比如 A 皮肤设了 --bg-hover、B 皮肤没设，
+     切过去后 --bg-hover 还是 A 的）。清的是皮肤自己写过的，不碰主题要写的
+     （主题每帧都会重写，所以让它排在后）。 */
+  for (const name of skinWrittenVariables) root.style.removeProperty(name);
+  skinWrittenVariables.clear();
+  /** 登记这次要写的变量 —— 用 `setVar` 代替直接 `setProperty`，就不会漏记。 */
+  const setVar = (name: string, value: string): void => {
+    root.style.setProperty(name, value);
+    skinWrittenVariables.add(name);
+  };
   // fork:zn-19-variant — 取哪套变体看**应用当前的明暗**（Zeno 的 auto 语义）：
   // 皮肤没写该模式的覆盖时自动回落到共享基色，所以老皮肤行为不变。
   const activeMode: SkinMode = root.dataset.theme === "dark" ? "dark" : "light";
   const { background, panel, accent, text } = resolveSkinColors(skin, activeMode);
 
-  if (background) root.style.setProperty("--bg", background);
-  if (text) root.style.setProperty("--text", text);
+  if (background) setVar("--bg", background);
+  if (text) setVar("--text", text);
 
   // 面板/浮层/作曲器共用面板色，不透明度由「卡片透明度」决定：卡片越淡，壁纸越透。
   if (panel) {
     const card = `color-mix(in srgb, ${panel} ${skin.cardOpacity}%, transparent)`;
-    root.style.setProperty("--bg-elev", card);
-    root.style.setProperty("--bg-composer", card);
-    root.style.setProperty("--bg-panel", `color-mix(in srgb, ${panel} ${skin.sidebarOpacity}%, transparent)`);
-    root.style.setProperty("--bg-subtle", panel);
+    setVar("--bg-elev", card);
+    setVar("--bg-composer", card);
+    setVar("--bg-panel", `color-mix(in srgb, ${panel} ${skin.sidebarOpacity}%, transparent)`);
+    setVar("--bg-subtle", panel);
   }
 
   if (text) {
-    root.style.setProperty("--bg-hover", `color-mix(in srgb, ${text} 10%, transparent)`);
-    root.style.setProperty("--bg-selected", `color-mix(in srgb, ${text} 16%, transparent)`);
-    root.style.setProperty("--text-muted", `color-mix(in srgb, ${text} 62%, ${background || "transparent"})`);
-    root.style.setProperty("--text-dim", `color-mix(in srgb, ${text} 46%, ${background || "transparent"})`);
+    setVar("--bg-hover", `color-mix(in srgb, ${text} 10%, transparent)`);
+    setVar("--bg-selected", `color-mix(in srgb, ${text} 16%, transparent)`);
+    setVar("--text-muted", `color-mix(in srgb, ${text} 62%, ${background || "transparent"})`);
+    setVar("--text-dim", `color-mix(in srgb, ${text} 46%, ${background || "transparent"})`);
     const border = `color-mix(in srgb, ${text} ${skin.borderAlpha}%, transparent)`;
-    root.style.setProperty("--border", border);
-    root.style.setProperty("--border-faint", border);
-    root.style.setProperty("--border-strong", `color-mix(in srgb, ${text} ${Math.min(100, skin.borderAlpha * 1.6)}%, transparent)`);
+    setVar("--border", border);
+    setVar("--border-faint", border);
+    setVar("--border-strong", `color-mix(in srgb, ${text} ${Math.min(100, skin.borderAlpha * 1.6)}%, transparent)`);
   }
 
   if (accent) {
-    root.style.setProperty("--accent", accent);
-    root.style.setProperty("--accent-hover", `color-mix(in srgb, ${accent} 82%, ${text || "#000"})`);
-    root.style.setProperty("--accent-text", `color-mix(in srgb, ${accent} 82%, ${text || "#000"})`);
+    setVar("--accent", accent);
+    setVar("--accent-hover", `color-mix(in srgb, ${accent} 82%, ${text || "#000"})`);
+    setVar("--accent-text", `color-mix(in srgb, ${accent} 82%, ${text || "#000"})`);
   }
 
-  root.style.setProperty("--radius-base", `${skin.radius}px`);
-  root.style.setProperty("--skin-blur", `${skin.blur}px`);
+  setVar("--radius-base", `${skin.radius}px`);
+  setVar("--skin-blur", `${skin.blur}px`);
   // 阅读遮罩与三个透明度也发成变量：CSS 侧要对「渐变的两端」和「半透明面」分别取值，
   // 光靠改写 --bg / --bg-elev 表达不了（渐变需要知道百分比，不是颜色）。
   /* fork:zn-19 — **不带 alpha 的面板/画布基色**（Zeno 的 `--skin-panel-rgb`）。
      各面必须自己乘**一次**自己的透明度：如果拿已经含卡片透明度的 `--bg-elev` 再乘
      侧栏透明度，两层 alpha 会相乘（70% × 62% = 43%），侧栏就糊在壁纸上了。
      一个面一个 alpha，这是 Zeno 发基色的理由。 */
-  if (panel) root.style.setProperty("--skin-panel-base", panel);
-  if (background) root.style.setProperty("--skin-bg-base", background);
-  root.style.setProperty("--skin-reading-mask", `${skin.readingMask}%`);
-  root.style.setProperty("--skin-page-alpha", `${skin.pageOpacity}%`);
-  root.style.setProperty("--skin-panel-alpha", `${skin.cardOpacity}%`);
-  root.style.setProperty("--skin-sidebar-alpha", `${skin.sidebarOpacity}%`);
+  if (panel) setVar("--skin-panel-base", panel);
+  if (background) setVar("--skin-bg-base", background);
+  setVar("--skin-reading-mask", `${skin.readingMask}%`);
+  setVar("--skin-page-alpha", `${skin.pageOpacity}%`);
+  setVar("--skin-panel-alpha", `${skin.cardOpacity}%`);
+  setVar("--skin-sidebar-alpha", `${skin.sidebarOpacity}%`);
 
   root.dataset.themeSkin = "true";
   // fork:mac-skeuo — 皮肤 id 发成变量，材质层按它上挂自己的 CSS。
