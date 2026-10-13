@@ -60,6 +60,55 @@
   --color-tool-bg: var(--tool-bg);
   --color-bg-subtle: var(--bg-subtle);
   --font-mono-font: var(--font-mono);
+
+  /* fork:fastvibe-stack (H2/H4) —— **shadcn 那一族的颜色名**。
+
+     为什么必须有这一段：`components/ui/` 的 35 个件写的是 Tailwind 工具类
+     （`bg-card` / `text-muted-foreground` / `bg-primary` / `border-border` /
+     `ring-ring` / `bg-popover` / `bg-secondary` / `text-destructive` …），而
+     Tailwind v4 只给 `@theme` **声明过**的键生成工具类 —— 没声明的类会
+     **静默不生效**（类名在 DOM 里、样式表里没规则，不报错）。
+     这与 `--radius-*` 是同一类坑（见下面 `@theme inline` 的注释），只是范围更大：
+     不补这一段，搬进来的 35 个件会「结构对、颜色全无」。
+
+     值全部指到本仓已有的变量（`--bg-panel` / `--text-muted` / `--accent` …），
+     而那些变量现在由 `useTheme` 按当前主题（24 套里的那套）写到行内样式上，
+     所以新组件与旧组件读的是**同一份值**，切主题一起变。 */
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--bg-panel);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--bg-elev);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-contrast, #fff);
+  --color-secondary: var(--bg-selected);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--bg-subtle);
+  --color-muted-foreground: var(--text-muted);
+  /* 注意：Tailwind 的 `accent` 是「悬停/选中的填充」，FastVibe 也是这个语义
+     （`accent = seed.muted`）—— 本仓的 `--accent` 却是**品牌色**。
+     所以这里把 Tailwind 的 accent 映射到 `--bg-selected`（填充），
+     而不是 `--accent`（品牌）；否则 `hover:bg-accent` 会变成一片品牌蓝。 */
+  --color-accent: var(--bg-selected);
+  --color-accent-foreground: var(--text);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--danger-contrast, #fff);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-info: var(--info, var(--accent));
+  --color-input: var(--border);
+  --color-ring: var(--focus-ring, var(--accent));
+  --color-sidebar: var(--bg-panel);
+  --color-sidebar-foreground: var(--text);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-accent: var(--bg-selected);
+  --color-sidebar-ring: var(--focus-ring, var(--accent));
+  --color-chart-1: var(--chart-1, var(--accent));
+  --color-chart-2: var(--chart-2, var(--success));
+  --color-chart-3: var(--chart-3, var(--warning));
+  --color-chart-4: var(--chart-4, var(--accent));
+  --color-chart-5: var(--chart-5, var(--text-muted));
 }
 
 /* fork:fastvibe-stack (H2/H4) —— 把圆角接进 Tailwind，让 `rounded-md` 这类**工具类**
