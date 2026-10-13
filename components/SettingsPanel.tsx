@@ -6,6 +6,8 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
 import { useTheme } from "@/hooks/useTheme";
 import { THEME_OPTIONS } from "@/lib/theme";
+// fork:fastvibe-stack (H4) —— 24 套主题的选择器（外观 → 主题三档下面）。
+import { ThemePicker } from "./fork/ThemePicker";
 import {
   CHAT_CONTENT_WIDTH_DEFAULT,
   CHAT_CONTENT_WIDTH_MAX,
@@ -605,6 +607,13 @@ function GeneralSettings({ cwd, sessionId, onSessionReloaded, quoteSelectionEnab
               onChange={setThemePreference}
             />
           }
+        />
+        {/* fork:fastvibe-stack (H4) —— 「模式」与「哪一套」是两件事，所以两行。
+            第一行选亮/暗/跟随，这一行选那个模式下具体用哪套（24 套里选）。
+            两栏各自高亮自己那一套，「跟随系统」的用户也能同时看到并改两个阵营。 */}
+        <PwField
+          label={t("settings.themePick")}
+          control={<ThemePicker />}
         />
       </PwBlock>
 

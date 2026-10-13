@@ -714,3 +714,168 @@
 /* fork:import-toolbar（2026-10-01 孤儿清理）—— 导入页的工具栏三组（动作 ｜ 视图 ｜
    结果）已随画板 62 的 `.pw-stools` 工具栏退役，零引用，规则删除。 */
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:fastvibe-stack (H4) —— 24 套主题的选择器。
+ *
+ * 位置：设置 → 外观，紧跟在「主题」三档下面。三档选的是**模式**（亮/暗/跟随），
+ * 这里选的是「那个模式下具体用哪一套」—— 所以两栏并列，各自高亮自己那套。
+ *
+ * 为什么收起：24 项铺开是半屏，默认展开会把「主题皮肤 / 壁纸 / 侧栏 / 字体」
+ * 全推到下面，用户找原来那几项要滚动。收起态只占一行（色板 + 名字 + 来源）。
+ *
+ * 色板读的是各主题的 seed（画布/面板/强调/正文四格），**不是 tokens** ——
+ * tokens 里的 `accent` 是 seed.muted（一个填充色），当强调色显示会是一片灰，
+ * 与用户切过去之后看到的不符（详见 lib/theme-bridge.ts 的注释）。
+ * ═════════════════════════════════════════════════════════════════════════ */
+.h4-theme-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.h4-theme-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  width: 100%;
+  min-height: var(--control-h, 28px);
+  padding: var(--s1) var(--s2);
+  border: 1px solid var(--border);
+  border-radius: var(--nx-radius-control);
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: var(--type-sm, 13px);
+  text-align: left;
+  cursor: pointer;
+}
+
+.h4-theme-summary:hover {
+  background: var(--bg-hover);
+}
+
+.h4-theme-summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.h4-theme-name {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 来源（GitHub Theme / Dracula …）是次要信息，挤的时候先让它消失。 */
+.h4-theme-source {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-dim);
+  font-size: var(--type-xs, 11px);
+}
+
+.h4-theme-summary > i[data-ico] {
+  flex: 0 0 auto;
+  color: var(--text-dim);
+}
+
+.h4-theme-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  max-height: 420px;
+  overflow-y: auto;
+  padding: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: var(--nx-radius-control);
+  background: var(--bg-subtle);
+}
+
+.h4-theme-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.h4-theme-group-title {
+  color: var(--text-dim);
+  font-size: var(--type-xs, 11px);
+  font-weight: 500;
+  padding: 0 var(--s1);
+}
+
+.h4-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s1);
+}
+
+.h4-theme-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: var(--s1) var(--s2);
+  border: 1px solid transparent;
+  border-radius: var(--nx-radius-control);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--type-xs, 11px);
+  text-align: left;
+  cursor: pointer;
+}
+
+.h4-theme-item:hover {
+  background: var(--bg-hover);
+}
+
+.h4-theme-item.is-on {
+  border-color: var(--accent-border, var(--border-strong));
+  background: var(--bg-selected);
+  font-weight: 500;
+}
+
+.h4-theme-item:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.h4-theme-item > i[data-ico] {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--accent);
+}
+
+/* 四格色板：每格等高、首尾圆角 —— 读起来是「一张小图」而不是四个格子。 */
+.h4-swatches {
+  display: inline-flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--nx-radius-row);
+}
+
+.h4-swatch {
+  width: 12px;
+  height: 14px;
+  display: block;
+}
+
+.h4-theme-hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--type-xs, 11px);
+  line-height: 1.5;
+}
+
+/* 窄屏：两栏在 390px 下会挤成 3 个字宽，改成单栏。 */
+@media (max-width: 639px) {
+  .h4-theme-grid {
+    grid-template-columns: 1fr;
+  }
+  .h4-theme-list {
+    max-height: 60vh;
+  }
+}
