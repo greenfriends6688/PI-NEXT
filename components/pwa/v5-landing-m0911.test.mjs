@@ -332,18 +332,25 @@ test("M-11 帧 E：四种反馈各归各位（H5 起 toast 改为 sonner 托管�
 });
 
 test("M-11 帧 F：两级错误页都必须给「重试」，根级不许用 m-* 类", () => {
-  /* 帧 F-1（段级，带主题 token）：`.m-empty` 四件 + `.m-code`（digest）+ 两颗钮。 */
-  assert.match(errorStates, /className="m-empty" role="alert"/);
-  assert.match(errorStates, /className="m-empty-ico" style=\{\{ color: "var\(--nx-danger\)" \}\}/);
-  assert.match(errorStates, /<div className="m-code" style=\{\{ width: "100%" \}\}>/);
-  assert.match(errorStates, /className="m-code-head"/);
-  assert.match(errorStates, /className="m-code-body m-mono"/);
-  assert.match(errorStates, /const touch = action\.variant === "primary" \? "m-touch-48" : "m-touch-44";/);
+  /* fork:fastvibe-stack (L8) —— 错误页从 `.m-*` 迁到 Tailwind + `components/ui/button`。
+
+     为什么可以迁（且应该迁）：这两个组件**只有 PWA 形态**（`.m-*` 只在 ≤639px
+     生效），而它们在任何视口都会被渲染 —— 旧写法在桌面上拿到的是**没有样式的
+     裸 DOM**（`.m-empty` 那些规则全在 `@media (max-width: 639px)` 里），
+     也就是「桌面上一崩就是一个没排版的错误页」。
+
+     迁移后本用例钉的不再是类名，而是**行为契约**（那才是它真正要保的东西）：
+       ① 两级都给「重试」；② 一级行动钮比次要动作高一档；③ 根级仍不接全局样式。 */
+  assert.match(errorStates, /role="alert"/, "段级错误页仍有 alert 语义");
+  assert.match(errorStates, /digest/, "digest 仍显示（它是用户报障时唯一能提供的东西）");
+  /* 一级 48 / 次要 44 —— 两档都是**真实高度**（旧实现是 ::after 外扩）。 */
+  assert.match(errorStates, /primary \? "h-12 gap-1\.5 px-4" : "h-11 gap-1\.5 px-3"/);
   /* 段级宿主真的给它两枚动作（含重试）。 */
   assert.match(appError, /\{ key: "retry", label: t\("error\.boundaryRetry"\), icon: "rotate-cw", variant: "primary"/);
   assert.match(appError, /\{ key: "reload", label: t\("error\.boundaryReload"\), icon: "refresh-cw"/);
   /* 帧 F-2（根级）：这一层不接全局样式，所以**不许**换 m-* 类 —— 用它们渲染错误页
-     等于用可能正是出问题的那套东西去渲染错误页。这条不许被「顺手统一」掉。 */
+     等于用可能正是出问题的那套东西去渲染错误页。这条不许被「顺手统一」掉。
+     （L8 只迁了段级与页签级；根级那一个**故意不动**。） */
   assert.doesNotMatch(globalError, /className="m-/, "global-error 不许用 m-* 类（帧 F-2 的原话）");
   assert.match(globalError, /minHeight: 44/, "根级那两颗钮仍然要 44 命中");
   assert.match(globalError, /应用启动失败 \/ Failed to start/);

@@ -1,27 +1,26 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { Button } from "@/components/ui/button";
 
 /*
- * fork:v5-wave-b-sysstate —— PWA 形态的**应用级错误态**（M-11 帧 D ⑪ / 帧 F）。
+ * fork:v5-wave-b-sysstate —— 应用级错误态（页签级 + 段级）。
  *
- * DOM 抄自 `design/v5/pwa/boards/M-11-gestures-states.html`：
- *   · 帧 D ⑪「错误页」= `.m-empty` / `.m-empty-ico` / `.m-empty-t` / `.m-empty-s`
- *     + `.m-btn.sm`（重试）+ `.m-btn.sm`（关闭）——这是**页签级**边界的形态；
- *   · 帧 F-1「段级 · app/error.tsx」= 同上，但 digest 走 `.m-code`
- *     （`.m-code-head` + `.m-code-body`），动作行是 `.m-pickbar` 里的
- *     `.m-btn.primary`（重试）+ `.m-btn`（重新加载）。
+ * fork:fastvibe-stack (L8) —— 从 `.m-*` 迁到 Tailwind + `components/ui/button`。
  *
- * M-11 的判据原文：**两级都必须给「重试」**，错误页不许只给一颗按钮，
- * 也不许出现白屏。这里两个组件都遵守。
+ * 为什么可以迁：这两个组件**只有 PWA 形态**（`.m-*` 只在 ≤639px 生效），
+ * 而它们在窄屏之外也真的会被渲染（`app/error.tsx` / `TabErrorBoundary.tsx`
+ * 在任何视口都可能命中）。旧写法在桌面上拿到的是**没有样式的裸 DOM**
+ * （`.m-empty` 那些规则全在 `@media (max-width: 639px)` 里）—— 也就是
+ * 「桌面上一崩就是一个没排版的错误页」。换成 Tailwind 之后两种视口同一套。
  *
- * 触控下限（M-11 帧 C）：`.m-btn.sm` 的 `min-height` 是 `--nx-ctl-sm`（36px），
- * 低于硬下限，所以每个按钮都补 `.m-touch-44` —— 规格与实现读同一批类。
- * 这里只做 UA 归零 / 触控下限 / 尺寸，没有第二套视觉值。
+ * 两条判据照旧（M-11 的原文）：
+ *   · **两级都必须给「重试」**，错误页不许只给一颗按钮，也不许白屏；
+ *   · 一级行动钮比次要动作高一档（FastVibe 的 Button 也分 default / outline）。
  *
- * fork:v5-wave-n1 · 同一张帧 C 还有 **48 档**（`.m-touch-48` = `--nx-ctl-lg`，
- * 规格表里那一档写的是「一级行动钮」）—— 重试就是这一屏唯一的一级行动钮，
- * 所以它比次要动作高一档。三个档都只挂类名，数值仍在库里的令牌上。
+ * 触控下限：按钮走 `h-11`（44px）与 `h-12`（48px，一级）—— 与 FastVibe 的
+ * `pointer-coarse:h-*` 同档，且是**真实高度**而不是 `::after` 外扩（外扩在
+ * 这屏上会与相邻按钮的命中区重叠）。
  */
 
 export interface PwaErrorAction {
@@ -35,7 +34,7 @@ export interface PwaErrorAction {
   disabled?: boolean;
 }
 
-/** 帧 D ⑪：页签级（`components/TabErrorBoundary.tsx`）。 */
+/** 页签级（`components/TabErrorBoundary.tsx`）。 */
 export function PwaTabErrorState({
   title,
   hint,
@@ -48,13 +47,17 @@ export function PwaTabErrorState({
   style?: CSSProperties;
 }) {
   return (
-    <div className="m-empty" role="alert" style={style}>
-      <div className="m-empty-ico" style={{ color: "var(--nx-danger)" }}>
+    <div
+      role="alert"
+      className="flex h-full flex-col items-center justify-center gap-2 px-6 py-10 text-center"
+      style={style}
+    >
+      <span className="mb-1 grid size-11 place-items-center rounded-full bg-destructive/10 text-destructive">
         <i data-ico="triangle-alert" data-size="20" aria-hidden="true" />
-      </div>
-      <div className="m-empty-t">{title}</div>
-      <div className="m-empty-s">{hint}</div>
-      <div className="m-pickbar" style={{ padding: 0, alignSelf: "stretch" }}>
+      </span>
+      <p className="text-sm font-medium text-foreground">{title}</p>
+      <p className="max-w-80 text-xs leading-5 text-muted-foreground">{hint}</p>
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
         {actions.map((action) => (
           <PwaErrorButton key={action.key} action={action} />
         ))}
@@ -63,7 +66,7 @@ export function PwaTabErrorState({
   );
 }
 
-/** 帧 F-1：段级（`app/error.tsx`），带 digest 的 `.m-code`。 */
+/** 段级（`app/error.tsx`），带 digest。 */
 export function PwaPageError({
   title,
   hint,
@@ -80,22 +83,26 @@ export function PwaPageError({
   style?: CSSProperties;
 }) {
   return (
-    <div className="m-empty" role="alert" style={style}>
-      <div className="m-empty-ico" style={{ color: "var(--nx-danger)" }}>
+    <div
+      role="alert"
+      className="flex h-full flex-col items-center justify-center gap-2 px-6 py-10 text-center"
+      style={style}
+    >
+      <span className="mb-1 grid size-12 place-items-center rounded-full bg-destructive/10 text-destructive">
         <i data-ico="triangle-alert" data-size="22" aria-hidden="true" />
-      </div>
-      <div className="m-empty-t">{title}</div>
-      <div className="m-empty-s">{hint}</div>
+      </span>
+      <p className="text-sm font-medium text-foreground">{title}</p>
+      <p className="max-w-80 text-xs leading-5 text-muted-foreground">{hint}</p>
       {digest && (
-        <div className="m-code" style={{ width: "100%" }}>
-          <div className="m-code-head">
-            <span className="m-grow">{digestLabel}</span>
-            <span className="m-mono">digest</span>
+        <div className="mt-2 w-full max-w-md overflow-hidden rounded-lg border border-border bg-card text-left">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
+            <span className="min-w-0 truncate">{digestLabel}</span>
+            <span className="font-mono">digest</span>
           </div>
-          <div className="m-code-body m-mono">{digest}</div>
+          <div className="px-3 py-2 font-mono text-xs break-all text-muted-foreground">{digest}</div>
         </div>
       )}
-      <div className="m-pickbar" style={{ padding: 0, alignSelf: "stretch" }}>
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
         {actions.map((action) => (
           <PwaErrorButton key={action.key} action={action} />
         ))}
@@ -105,18 +112,18 @@ export function PwaPageError({
 }
 
 function PwaErrorButton({ action }: { action: PwaErrorAction }) {
-  const variant = action.variant === "primary" ? "primary" : action.variant === "ghost" ? "ghost" : "";
-  // M-11 帧 C：一级行动钮走 48 档（.m-touch-48），次要动作留在 44 硬下限。
-  const touch = action.variant === "primary" ? "m-touch-48" : "m-touch-44";
+  const primary = action.variant === "primary";
   return (
-    <button
+    <Button
       type="button"
-      className={`m-btn sm ${touch}${variant ? ` ${variant}` : ""}`}
+      variant={primary ? "default" : "outline"}
+      // 一级行动钮 48px、次要 44px —— 都在触控下限之上，且是真实高度。
+      className={primary ? "h-12 gap-1.5 px-4" : "h-11 gap-1.5 px-3"}
       onClick={action.onClick}
       disabled={action.disabled}
     >
       <i data-ico={action.icon} data-size="13" aria-hidden="true" />
       {action.label}
-    </button>
+    </Button>
   );
 }
