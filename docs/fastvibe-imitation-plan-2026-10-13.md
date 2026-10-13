@@ -75,7 +75,7 @@
 | 无头原语 | `@base-ui/react` ^1.8.0（Dialog/Popover/Menu/Select/Switch/Tabs/Tooltip…） | 无 | ❌ **H2 引入** |
 | 变体工具 | `class-variance-authority` + `clsx` + `tailwind-merge` + `cn` | 无 | ❌ **H1 引入** |
 | 图标 | `@hugeicons/react` + `@hugeicons/core-free-icons`（84 个不同图标，去重后口径） | lucide（155 个名字 / 940 处 `data-ico`） | ❌ **H3 换** |
-| 主题 | `themes.ts` 的 `SEEDS`：**12 亮 + 12 暗 = 24 套**（`github-*/one-*/dracula/nord/monokai/tokyo-night/catppuccin-*/night-owl[-light]/gruvbox-*/rose-pine[-dawn]/ayu-light/quiet-light/solarized-light/everforest-light/codex-*/claude-*`），每套 **19 个 seed 字段**，`buildTokens()` 展开为 **44 个 CSS token**（+ 玻璃开启时 `glassTokens()` 另出 13 个） | `--ds-*` 手写两套 + `theme-skins` 四基色派生 | ❌ **H4 换** |
+| 主题 | `themes.ts` 的 `SEEDS`：**12 亮 + 12 暗 = 24 套**（`github-*/one-*/dracula/nord/monokai/tokyo-night/catppuccin-*/night-owl[-light]/gruvbox-*/rose-pine[-dawn]/ayu-light/quiet-light/solarized-light/everforest-light/codex-*/claude-*`），每套 **19 个 seed 字段**，`buildTokens()` 展开为 **41 个 CSS token**（实测；+ 玻璃开启时 `glassTokens()` 另出 13 个） | `--ds-*` 手写两套 + `theme-skins` 四基色派生 | ❌ **H4 换** |
 | 令牌名 | `--background/--foreground/--card/--popover/--primary/--muted/--accent/--destructive/--sidebar/--ring/--chart-1..5` + oklch | `--bg/--text/--accent/--border/…` + `--ds-*` | ❌ **H4 换**（桥接期两套共存） |
 | 半径 | 单一 `--radius: 0.625rem` → `@theme` 派生 `--radius-sm/md/lg/xl/2xl/3xl/4xl`（calc） | `--radius-base` → 手工映射八档 | 🟡 形式已在，换基准值即可 |
 | 图表 | `recharts`（`chart.tsx`） | 自绘 SVG | ❌ **H5 引入**（使用统计用） |
@@ -263,7 +263,7 @@
 #### H4 — 主题体系（24 套 seed → token）
 - **目标**：搬 `themes.ts` 的 `SEEDS`（**12 亮 + 12 暗 = 24 套**，实测 `LIGHT_THEME_IDS` / `DARK_THEME_IDS` 各 12 项）+ `applyTheme()` 运行时注入；建立本仓的 `:root` 令牌映射（FastVibe 名 → 本仓名，桥接期双名共存）。
 - **每套 seed 含**：`label / source / kind / bg / fg / surface / border / muted / mutedFg / accent / accentFg / destructive / warning / success / sidebar? / sidebarMuted? / codeBg? / syntax{keyword,string,comment,number} / charts?[5]`（**共 19 个字段**，实测 `themes.ts:60-94` 的 `ThemeSeed` 类型 + `:222-240` 的 github-dark 实例）。
-- **展开规则（关键，必须照抄）**：`buildTokens()`（`themes.ts:163-219`）把 seed 展开成 **44 个 token** —— 其中几条**不是一一对应**而是有映射表：`card = surface` / `accent = **muted**`（不是 `accent`！）/ `input = border` / `ring = accent` / `info = accent` / `chart-*` 默认取 `[accent, syntax.keyword, syntax.string, syntax.number, mutedFg]`。**这个映射表是主题体系的真正逻辑，不照抄就会得到一套颜色不对的主题。** 玻璃开启时 `glassTokens()`（`:120-162`）另出 13 个（`glass-pane/overlay/rim-strong/rim-weak/sheen/edge/shade` + 半透明的 `background/card/border/…`）。
+- **展开规则（关键，必须照抄）**：`buildTokens()`（`themes.ts:163-219`）把 seed 展开成 **41 个 token**（实测） —— 其中几条**不是一一对应**而是有映射表：`card = surface` / `accent = **muted**`（不是 `accent`！）/ `input = border` / `ring = accent` / `info = accent` / `chart-*` 默认取 `[accent, syntax.keyword, syntax.string, syntax.number, mutedFg]`。**这个映射表是主题体系的真正逻辑，不照抄就会得到一套颜色不对的主题。** 玻璃开启时 `glassTokens()`（`:120-162`）另出 13 个（`glass-pane/overlay/rim-strong/rim-weak/sheen/edge/shade` + 半透明的 `background/card/border/…`）。
 - **令牌对照（关键）**：FastVibe `--background/--foreground/--card/--popover/--primary/--secondary/--muted/--accent/--destructive/--border/--input/--ring/--sidebar*/--chart-1..5/--code-*/--shiki-*` ↔ 本仓 `--bg/--text/--bg-panel/--text-muted/--accent/--border/--ds-*`。**必须先写一张双名共存表**，否则逐页迁移时会出现「新组件拿到 FastVibe 名、旧组件拿本仓名，两者不同步」。
 - **主题选择器**：FastVibe 是「亮暗各自选一个」（`lightTheme` / `darkTheme`），本仓现在是 light/dark/auto 三值。要改成能选 24 套里的具体一套。
 - **玻璃**：FastVibe 的 `applyTheme(theme, glass)` 会把玻璃也一并推导，本仓的 V6 毛玻璃块要按它重写（这也是「不需要搞 V6」的落点）。
