@@ -131,3 +131,8 @@ design/pi-web-design/.skeuo/verify-*.html
 /design/苹果设计/
 # Kun 白板/设计画布的本地产物目录（借鉴调研时被它写出来的，同 .kun-design/.kun-write 口径）
 /.kun-canvas/
+
+# fork:fastvibe-stack (H6) —— 与 FastVibe 对照的截图是**生成物**（`npm run fastvibe:shots`
+# 一次 ~1 分钟产出 7 张 2x 图），每次跑都会变。入库只会制造二进制 diff 噪音，
+# 对照动作本来也是人看当前那份。只有该目录的 README（怎么用、对照哪几个源文件）入库。
+/design/fastvibe-shots/*.png

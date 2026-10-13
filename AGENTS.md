@@ -696,7 +696,46 @@ Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 --font-mono
 ```
 
-### 设计系统：V5 是唯一真值（design/v5，2026-10-04 起）
+### 设计真值：FastVibe 原实现（2026-10-13 起，**批次 H/L 进行中**）
+
+**用户 2026-10-13 裁定**（原话：「所有页面布局、设计啥的也请你帮我按照 `/Users/yingjing/Downloads/fastvibe-main` 这个帮我调整，不需要搞 V6 啥的了，全部抄他的……每一页都抄他的」）：
+
+视觉真值从「本仓 V5/V6 画板」换成 **`fastvibe-main` 的源实现**，**连技术栈一起抄**
+（Tailwind v4 + shadcn/Base UI + Hugeicons + 它的 24 套主题）。执行台账：
+`docs/fastvibe-imitation-plan-2026-10-13.md`（批次 H 换基座 → L 逐页迁移 → L10 清场）。
+
+**新代码怎么写**（批次 L 完成前）：
+· 组件能从 `components/ui/`（35 个 shadcn 件，H2 已就绪）直接用的就直接用，不重写；
+· 图标用 `<HugeiconsIcon icon={X} />`（`lib/hugeicons-map.ts` 有 lucide 名 → Hugeicons 的映射）；
+  过渡期旧的 `<i data-ico>` 仍可用（H3 已把 hydrator 换成 Hugeicons 数据源）；
+· 类名用 Tailwind 工具类 + `cn()`（`lib/utils.ts`）；旧 `d-*`/`m-*` 共存但**不新增**；
+· DOM / 间距 / 层级照 FastVibe 对应源文件写（计划 §7 有文件索引）。
+
+**旧体系的现状（先共存、最后统一清）**：
+· `design/v5/`、`design/v6/`、`design/pi-web-design/` 的**文件仍在**，产品里 `d-*`/`m-*` 也仍在用；
+· 但 `design:v5*` / `design:v6*` / `verify:boards*` 这些命令**已停用**
+  （指向 `scripts/deprecated-board-command.mjs` 的说明桩，退出码 0，不报错）；
+· **画板不再是验收依据**，也不再新增画板；
+· 全部页面迁完后由 **L10** 删文件、删类名定义、删画板测试。
+
+**现在的验收方式**：
+· **规格** —— 打开 fastvibe-main 对应源文件，先读再写；
+· **对照截图** —— `npm run fastvibe:shots`（本仓标准视图，输出 `design/fastvibe-shots/`，
+  内含与 FastVibe 源文件的对照表）；不自动做像素 diff（两个技术栈渲染必然满屏差异，
+  那种门禁只会变成噪音）；
+· **通用门禁** —— `npm run check:design`（style-literals / motion-tokens / icons /
+  platform-breakpoints / material-boundaries / token-consumers / touch-targets）；
+· **结构守卫** —— `npm test` 里钉产品 DOM 结构的那些 `.test.mjs`。
+
+**仍然有效的不变式**（与设计体系无关，换了真值也不动）：
+· 浮层不许挂 `backdrop-filter`（会成为 fixed 后代的包含块）；
+· `lib/pi-web-preferences.ts` 是偏好唯一写入者；`lib/session-liveness.ts` 是忙碌信号唯一入口；
+  `lib/path-security.ts` 是安全边界；
+· `docs/patches/` 补丁台账机制保留（它是 fork 维护机制）。
+
+---
+
+### 【已停用】设计系统 V5 / V6（历史，批次 L10 后删除本节）
 
 **新代码只写 V5 的类**：`d-*`（Web，`design/v5/web/system.css`）与 `m-*`（PWA，`design/v5/pwa/system.css`）。
 旧的 `pw-*` / `fork-*` / `--n-*` / `--ds-*` 属于 **v1–v4 历史层**，只许维护不许新增；
@@ -718,7 +757,7 @@ Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 * **BoardUI 采纳清单**（MIT，抄规格不抄实现）在 `design/v5/DIVERGENCE.md §A`：采纳 11 组动效关键帧 +
   输入框环绕光带 + 四态思考指示器 + 行展开收起；**拒绝** Tailwind v4 / React Aria / 它的 400 令牌 —— 引入即多一套样式来源
 
-### 设计系统 V6：`design/v6/`（2026-10-12 起，毛玻璃版；**尚未落地产品**）
+### 【已停用】设计系统 V6：`design/v6/`（2026-10-12 起，毛玻璃版；已被 FastVibe 真值取代）
 
 V6 是 v5 的**并行副本**，换两件事：① 材质 —— 页面底换成内置色场 `--nx-canvas-field`，壳面（侧栏 /
 导轨 / 顶栏 / 输入框）在其上 `blur(40px) saturate(150%)` 半透明，**开箱即玻璃**；转录与卡片仍是近实底的
@@ -740,12 +779,18 @@ V6 是 v5 的**并行副本**，换两件事：① 材质 —— 页面底换成
 
 * **颜色链路**：`design/pi-web-design/assets/tokens.css`（规范真值）→ `app/design/tokens.css`（`--ds-*` 逐值副本）→ `globals.css` 末尾 `fork:boardui-bridge` 块（把 `--bg/--text/--accent` 等 Zeno 槽位指向 `--ds-*`）。**新代码写 `var(--bg)` 这类 Zeno 名**，不写 hex。
 * **CSS 引入顺序**（`app/layout.tsx`）：katex → tokens.css → `app/design/tokens.css` → globals.css → settings.css → wallpaper.css → **board.css（画板原件，刻意在产品样式之后）** → fork-ui.css（永远最后）。产品要覆盖画板用 0-2-0 双类（`.chat-input-shell.pw-composer`），并注明为什么。
-* **第〇原则：禁止截图模仿**。改组件 = 打开定义它的画板 HTML，原样复制那段 DOM（类名/层级/`<i data-ico>`），再接产品数据与事件；计划与验收协议见 `docs/design-skin-swap-plan-2026-09-29.md`（SW-00~17 批次 + 陷阱清单 + 组件矩阵）。
+* **第〇原则（已修订）**：旧版要求「禁止截图模仿，改组件 = 打开画板 HTML 抄 DOM」。
+  2026-10-13 起**参照物换成 FastVibe**：改组件 = 打开 fastvibe-main 的对应源文件，
+  照它写 DOM / 类名 / 间距，再接产品数据与事件。原画板路径（`design/v5/`）降为历史存留。
+  原计划与验收协议 `docs/design-skin-swap-plan-2026-09-29.md` 只作历史参考。
 * **判据⑦**：新 `pw-*` 类必须先进 `board.css` + 出现在至少一张画板 + 记进 `DIVERGENCE.md`；产品 CSS 不许另起同名 `pw-*` 类（fork-ui.css 里只留「UA 归零 / cursor / 窄屏 / 滚动」行为钩子，带注释）。
 * **对比度门禁**：改任何前景/背景色后跑 `node docs/codex-skin/check-contrast.mjs`（需服务在 30141）。
 * **主题只剩 light / dark / auto**；`lib/theme.ts` 的 `THEME_OPTIONS` 是唯一清单。字体 Geist + Geist Mono（`next/font/google`，中文回退 Noto Sans SC/PingFang SC）。
 * **圆角 3/4/6 三档**（`--radius-3/4/6`，板面/弹层 6），控件高度 24/28/32；字阶五档 11/12/13/15/20；动效十一项 token（`--motion-*`，唯一曲线 `--ease`）。
-* **门禁**：`npm run check:design`（style-literals + motion-tokens + icons + check-boards + check-align）；`npm run check:contrast`；`npm run verify:boards`（需 prod 起服）。改组件时同步跑。
+* **门禁**：`npm run check:design`（style-literals + motion-tokens + icons + platform-breakpoints + material-boundaries + token-consumers + touch-targets）；`npm run check:contrast`。
+  * 2026-10-13（H6）—— `check:design` 里的 `check-boards` 与 `check-align` **已移除**
+    （它们量的是旧画板真值）；`verify:boards` 已停用；DOM 几何验收改为
+    `npm run fastvibe:shots` + 人眼与 FastVibe 逐张对照。
   * **结构层才是漂移的来源**（2026-09-30 加）：颜色有对比度门禁守着，而「按钮/位置与画板不一样」全部是结构层的事。两条新闸：
     ① `check-style-literals` 新增 `inline-geometry-literal`（内联样式里写死的 `gap/width/height/margin/padding/top...` 数字）；存量 **198 处**冻结在 `scripts/style-literal-baseline.json`（**只许变少**，新增即失败，清理后跑 `--update` 收窄）。已清掉 109 处（307→198）：能等值换 token 的都换了（间距 `--s1..--s6`、控件 `--control-*`、图标 `--icon-*`），像素不变；剩下的多是面板/树列这类 token 表里没有的尺寸 —— 逐条登记在 `DIVERGENCE.md` Q 节，收敛只有两条路：固化进 `board.css` 的 `.pw-*`，或先进设计裁定出新 token，**不许留死数字**。根级错误页与独立 HTML 文档（`app/error.tsx` / `app/global-error.tsx`）是例外，那边 `var()` 可能解空。
     ② `npm run verify:boards` 的几何对位（`board-diff-all`）已进 CI（e2e job）；每次跑都打印**对位覆盖率**（现 19/30、22 份 spec、两个环境各 0 不符）与未覆盖画板 —— 对位是一板一 spec，**改到哪张画板就补哪张的 spec**。spec 需要特殊状态时用 `app.script` 自己驱动（写在 spec 里，不进共享预设表），这样多份 spec 能并行编写而不争同一个文件。
