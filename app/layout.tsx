@@ -3,6 +3,12 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { PwaRegistration } from "@/components/PwaRegistration";
 import { PwIcons } from "@/components/PwIcons";
 import { InstantTooltip } from "@/components/InstantTooltip";
+// fork:fastvibe-stack (H2) —— shadcn 组件层的第一个真实挂载点。
+// 挂在这里而不是某个页面里：`sonner` 是全局层（与 `PwIcons` / `InstantTooltip` 同级），
+// 且它必须存在于每一页，否则一个 toast 会在切页时被卸载。
+// 本 PR（H2）只**建立挂载点并验证整套技术栈在 Next.js 里跑得通**；
+// 现有 `.pw-toast` / `.d-toast` 调用点仍在，逐个换成 `toast()` 是 H5 的活。
+import { Toaster } from "@/components/ui/sonner";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "katex/dist/katex.min.css";
 /* fork:design-components —— 设计文件夹的组件代码**原样进运行时**（不复制、不改一字）：
@@ -158,6 +164,8 @@ export default function RootLayout({
             挂在 body 末尾与图标层同级：不进任何组件树，全页一个 delegated 监听。 */}
         <InstantTooltip />
         <PwaRegistration />
+        {/* fork:fastvibe-stack (H2) —— sonner 的挂载点，见文件头 import 处的注释。 */}
+        <Toaster />
       </body>
     </html>
   );

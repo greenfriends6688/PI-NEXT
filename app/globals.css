@@ -62,6 +62,33 @@
   --font-mono-font: var(--font-mono);
 }
 
+/* fork:fastvibe-stack (H2/H4) —— 把圆角接进 Tailwind，让 `rounded-md` 这类**工具类**
+   真的能解析。
+
+   为什么必须有这一段：H2 搬进来的 35 个 shadcn 组件写的是 Tailwind 工具类
+   （`rounded-md` / `rounded-lg` / `rounded-xl`），而 Tailwind v4 只给它**认识**
+   的键生成工具类 —— 本仓此前从未声明过 `--radius-*`，所以那些类会**静默解析失败**
+   （类名在 DOM 里，样式表里没有对应规则，圆角全丢，而且不报错）。
+
+   为什么是 `@theme inline` 而不是上面的 `@theme`：`@theme` 会把变量**写到 `:root`**，
+   而 `--radius-xs` 这些名字 `:root` 里已经有了 —— 写 `--radius-xs: var(--radius-xs)`
+   就变成自引用（值解析成空，圆角归零）。`inline` 的含义是「不产出 `:root` 条目，
+   直接把值内联进工具类」，于是生成的是 `.rounded-md { border-radius: var(--radius-md) }`，
+   运行时去读 `:root` 里那份真值。FastVibe 用的是同一个写法（`index.css:89`）。
+
+   值不在这一层重新定义，两边只有一个真相。
+   与 FastVibe 的差异：那边是 `--radius` 基准 + `calc()` 派生七档；本仓已有
+   `--ds-radius-{3,4,6}` 硬约束（上限 6px，设计系统的规定），**不搬它那个
+   0.625rem 基准** —— 换了会推翻已登记的圆角纪律。 */
+@theme inline {
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+}
+
 /* ---------------------------------------------------------------------------
    Design tokens —the Codex skin laid over upstream v0.9.1's six-palette
    theme system.
