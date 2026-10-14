@@ -138,6 +138,7 @@ const DENIED = new Map<string, string>([
  * coverage check instead of quietly becoming reachable from the internet.
  */
 const ALLOWED = new Set<string>([
+  Ipc.engineExportMarkdown,
   Ipc.appGetInfo,
   Ipc.appLog,
   Ipc.conversationsCreate,

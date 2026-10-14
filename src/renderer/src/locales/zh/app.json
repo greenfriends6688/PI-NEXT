@@ -107,20 +107,20 @@
   "reveal": "在访达中显示",
   "remote": "远程",
   "binding": {
-    "available": "已连接",
-    "connecting": "正在连接",
-    "preparing": "正在准备远程服务",
-    "checking": "正在检查远程 Agent",
-    "agentDownload": "正在更新远程 Agent",
-    "nodeDownload": "正在准备 Node.js",
-    "agentFetch": "正在下载 Agent",
-    "agentUpload": "正在上传 Agent",
-    "startingAgent": "正在启动远程 Agent",
-    "forwarding": "正在建立 SSH 转发",
-    "offline": "离线",
-    "authRequired": "需要登录",
-    "incompatible": "协议不兼容",
-    "missing": "远程工作区已不存在"
+   "available": "已连接",
+   "connecting": "正在连接",
+   "preparing": "正在准备远程服务",
+   "checking": "正在检查远程 Agent",
+   "agentDownload": "正在更新远程 Agent",
+   "nodeDownload": "正在准备 Node.js",
+   "agentFetch": "正在下载 Agent",
+   "agentUpload": "正在上传 Agent",
+   "startingAgent": "正在启动远程 Agent",
+   "forwarding": "正在建立 SSH 转发",
+   "offline": "离线",
+   "authRequired": "需要登录",
+   "incompatible": "协议不兼容",
+   "missing": "远程工作区已不存在"
   },
   "remove": "从列表移除",
   "emptyChats": "暂无对话",
@@ -144,7 +144,9 @@
   "archived": "已归档「{{title}}」",
   "autoArchived": "已自动归档 {{count}} 个长期未更新的对话",
   "undo": "撤销",
-  "projectRemoved": "已移除项目 {{name}}"
+  "projectRemoved": "已移除项目 {{name}}",
+  "exportMarkdown": "导出 Markdown",
+  "exportFailed": "导出失败"
  },
  "projectDialog": {
   "title": "添加项目",
@@ -171,32 +173,32 @@
   "addRemote": "添加远程项目",
   "cancel": "取消",
   "progress": {
-    "agent-download": "远程主机下载 Agent 运行包",
-    "node-download": "远程主机下载 Node.js",
-    "agent-fetch": "本机下载 Agent 运行包",
-    "agent-upload": "上传 Agent 运行包到远程主机"
+   "agent-download": "远程主机下载 Agent 运行包",
+   "node-download": "远程主机下载 Node.js",
+   "agent-fetch": "本机下载 Agent 运行包",
+   "agent-upload": "上传 Agent 运行包到远程主机"
   },
   "hostKey": {
-    "unknownTitle": "首次连接这台主机",
-    "unknownBody": "本机还没有记录这台主机的指纹。请确认下面的指纹与服务器上 ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub 的输出一致，再信任。",
-    "scan": "查看主机指纹",
-    "scanning": "读取中…",
-    "trust": "信任并连接",
-    "trustOnly": "信任此主机",
-    "file": "将写入 {{file}}",
-    "changedTitle": "主机指纹已变化",
-    "changedBody": "这台主机的指纹与已记录的不一致：可能是服务器重装了系统，也可能有人在中间拦截。确认原因后，在终端运行 ssh-keygen -R <主机> 删除旧记录再重试。",
-    "authFailed": "SSH 认证被拒绝，请检查私钥或密码。",
-    "editHost": "修改主机配置",
-    "scanFailed": "无法读取主机指纹：{{message}}",
-    "trustFailed": "无法信任主机：{{message}}"
+   "unknownTitle": "首次连接这台主机",
+   "unknownBody": "本机还没有记录这台主机的指纹。请确认下面的指纹与服务器上 ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub 的输出一致，再信任。",
+   "scan": "查看主机指纹",
+   "scanning": "读取中…",
+   "trust": "信任并连接",
+   "trustOnly": "信任此主机",
+   "file": "将写入 {{file}}",
+   "changedTitle": "主机指纹已变化",
+   "changedBody": "这台主机的指纹与已记录的不一致：可能是服务器重装了系统，也可能有人在中间拦截。确认原因后，在终端运行 ssh-keygen -R <主机> 删除旧记录再重试。",
+   "authFailed": "SSH 认证被拒绝，请检查私钥或密码。",
+   "editHost": "修改主机配置",
+   "scanFailed": "无法读取主机指纹：{{message}}",
+   "trustFailed": "无法信任主机：{{message}}"
   },
   "errors": {
-    "loadHosts": "无法读取 SSH 主机：{{message}}",
-    "connect": "无法连接远程主机：{{message}}",
-    "noServer": "连接已建立，但没有返回服务器标识，无法浏览远程目录。",
-    "readDir": "无法读取远程目录：{{message}}",
-    "addRemote": "无法添加远程项目：{{message}}"
+   "loadHosts": "无法读取 SSH 主机：{{message}}",
+   "connect": "无法连接远程主机：{{message}}",
+   "noServer": "连接已建立，但没有返回服务器标识，无法浏览远程目录。",
+   "readDir": "无法读取远程目录：{{message}}",
+   "addRemote": "无法添加远程项目：{{message}}"
   }
  },
  "titleBar": {

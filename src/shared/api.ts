@@ -287,6 +287,8 @@ export function createPinextApi(t: ApiTransport) {
       setFollowUpMode: (mode: "all" | "one-at-a-time", conversationId?: string): Promise<EngineSessionState> =>
         t.invoke(Ipc.engineSetFollowUp, { mode, conversationId }),
       exportHtml: (): Promise<string | undefined> => t.invoke(Ipc.engineExportHtml),
+      /** The same conversation as plain Markdown — the thing a person pastes into a document. */
+      exportMarkdown: (): Promise<string> => t.invoke(Ipc.engineExportMarkdown),
       /** 设置 → 导入: the other agents on this machine and their sessions. */
       importSources: (): Promise<ImportSourceStatus[]> => t.invoke(Ipc.engineImportSources),
       importCandidates: (source: ImportSourceId): Promise<ImportCandidate[]> =>

@@ -75,6 +75,8 @@ export const Ipc = {
   engineSetSteering: "engine:set-steering",
   engineSetFollowUp: "engine:set-follow-up",
   engineExportHtml: "engine:export-html",
+  /** 把当前会话导出成 Markdown（纯文本，贴进文档用）。 */
+  engineExportMarkdown: "engine:export-markdown",
   engineImportSources: "engine:import-sources",
   engineImportCandidates: "engine:import-candidates",
   engineImportSessions: "engine:import-sessions",

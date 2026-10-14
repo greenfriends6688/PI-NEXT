@@ -107,20 +107,20 @@
   "reveal": "Show in Finder",
   "remote": "Remote",
   "binding": {
-    "available": "Connected",
-    "connecting": "Connecting",
-    "preparing": "Preparing remote service",
-    "checking": "Checking remote Agent",
-    "agentDownload": "Updating remote Agent",
-    "nodeDownload": "Preparing Node.js",
-    "agentFetch": "Downloading Agent",
-    "agentUpload": "Uploading Agent",
-    "startingAgent": "Starting remote Agent",
-    "forwarding": "Establishing SSH forwarding",
-    "offline": "Offline",
-    "authRequired": "Sign-in required",
-    "incompatible": "Incompatible protocol",
-    "missing": "Remote workspace is gone"
+   "available": "Connected",
+   "connecting": "Connecting",
+   "preparing": "Preparing remote service",
+   "checking": "Checking remote Agent",
+   "agentDownload": "Updating remote Agent",
+   "nodeDownload": "Preparing Node.js",
+   "agentFetch": "Downloading Agent",
+   "agentUpload": "Uploading Agent",
+   "startingAgent": "Starting remote Agent",
+   "forwarding": "Establishing SSH forwarding",
+   "offline": "Offline",
+   "authRequired": "Sign-in required",
+   "incompatible": "Incompatible protocol",
+   "missing": "Remote workspace is gone"
   },
   "remove": "Remove from list",
   "emptyChats": "No chats yet",
@@ -144,7 +144,9 @@
   "archived": "Archived \"{{title}}\"",
   "autoArchived": "Auto-archived {{count}} chats with no recent activity",
   "undo": "Undo",
-  "projectRemoved": "Removed project {{name}}"
+  "projectRemoved": "Removed project {{name}}",
+  "exportMarkdown": "Export Markdown",
+  "exportFailed": "Could not export"
  },
  "projectDialog": {
   "title": "Add project",
@@ -171,32 +173,32 @@
   "addRemote": "Add remote project",
   "cancel": "Cancel",
   "progress": {
-    "agent-download": "Host downloading the Agent runtime",
-    "node-download": "Host downloading Node.js",
-    "agent-fetch": "Downloading the Agent runtime here",
-    "agent-upload": "Uploading the Agent runtime to the host"
+   "agent-download": "Host downloading the Agent runtime",
+   "node-download": "Host downloading Node.js",
+   "agent-fetch": "Downloading the Agent runtime here",
+   "agent-upload": "Uploading the Agent runtime to the host"
   },
   "hostKey": {
-    "unknownTitle": "First connection to this host",
-    "unknownBody": "This computer has no record of the host's key yet. Check that the fingerprint below matches ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub on the server before trusting it.",
-    "scan": "Show host fingerprint",
-    "scanning": "Reading…",
-    "trust": "Trust and connect",
-    "trustOnly": "Trust this host",
-    "file": "Will be added to {{file}}",
-    "changedTitle": "The host key has changed",
-    "changedBody": "This host presents a different key than the one on record: the server may have been reinstalled, or someone may be intercepting the connection. Once you know which, run ssh-keygen -R <host> in a terminal to remove the old entry and try again.",
-    "authFailed": "SSH authentication was refused. Check the private key or password.",
-    "editHost": "Edit host",
-    "scanFailed": "Could not read the host fingerprint: {{message}}",
-    "trustFailed": "Could not trust the host: {{message}}"
+   "unknownTitle": "First connection to this host",
+   "unknownBody": "This computer has no record of the host's key yet. Check that the fingerprint below matches ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub on the server before trusting it.",
+   "scan": "Show host fingerprint",
+   "scanning": "Reading…",
+   "trust": "Trust and connect",
+   "trustOnly": "Trust this host",
+   "file": "Will be added to {{file}}",
+   "changedTitle": "The host key has changed",
+   "changedBody": "This host presents a different key than the one on record: the server may have been reinstalled, or someone may be intercepting the connection. Once you know which, run ssh-keygen -R <host> in a terminal to remove the old entry and try again.",
+   "authFailed": "SSH authentication was refused. Check the private key or password.",
+   "editHost": "Edit host",
+   "scanFailed": "Could not read the host fingerprint: {{message}}",
+   "trustFailed": "Could not trust the host: {{message}}"
   },
   "errors": {
-    "loadHosts": "Could not load SSH hosts: {{message}}",
-    "connect": "Could not connect to the remote host: {{message}}",
-    "noServer": "Connected, but the server identity was missing, so the remote folder cannot be browsed.",
-    "readDir": "Could not read the remote directory: {{message}}",
-    "addRemote": "Could not add the remote project: {{message}}"
+   "loadHosts": "Could not load SSH hosts: {{message}}",
+   "connect": "Could not connect to the remote host: {{message}}",
+   "noServer": "Connected, but the server identity was missing, so the remote folder cannot be browsed.",
+   "readDir": "Could not read the remote directory: {{message}}",
+   "addRemote": "Could not add the remote project: {{message}}"
   }
  },
  "titleBar": {

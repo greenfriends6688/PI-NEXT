@@ -263,6 +263,8 @@ export function registerEngineIpc(engine: PiProcessManager): void {
   handle(Ipc.engineSetFollowUp, async (payload: { mode: "all" | "one-at-a-time"; conversationId?: string }) => {
     return engine.setFollowUpMode(payload.mode, payload.conversationId);
   });
+  // Markdown 只回一个字符串（HTML 那条会把文件写到运行服务端的机器上并打开它）。
+  handle(Ipc.engineExportMarkdown, async () => engine.exportMarkdown());
   handle(Ipc.engineExportHtml, async () => {
     const path = await engine.exportHtml();
     if (path) await shell.openPath(path);

@@ -664,6 +664,29 @@ export function DraggableSession({
             {t("sidebar.copyId")}
           </ContextMenuItem>
           <ContextMenuSeparator />
+          {/* 导出 Markdown：直接落盘到浏览器下载目录。HTML 那条会写在服务端的盘上，
+              所以它走的是另一条路；Markdown 只回一个字符串，客户端自己保存。 */}
+          <ContextMenuItem
+            onClick={() => {
+              void (async () => {
+                try {
+                  const markdown = await window.pinext.engine.exportMarkdown();
+                  const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+                  const url = URL.createObjectURL(blob);
+                  const anchor = document.createElement("a");
+                  anchor.href = url;
+                  anchor.download = `${(item.title || item.id).replace(/[\\/:*?"<>|]/g, "-")}.md`;
+                  anchor.click();
+                  URL.revokeObjectURL(url);
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : t("sidebar.exportFailed"));
+                }
+              })();
+            }}
+          >
+            {t("sidebar.exportMarkdown")}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuItem onClick={onArchive}>{t("sidebar.archive")}</ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
