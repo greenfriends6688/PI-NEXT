@@ -14,12 +14,12 @@ type Session = { active: () => string[]; turn: () => void; registered: string[];
 
 async function session(file: string, switchOn: () => boolean, hostless = false): Promise<Session> {
   const scope = globalThis as Record<string, unknown>;
-  for (const key of ["__fastvibeBrowserTask", "__fastvibeBrowserTaskEnabled", "__fastvibeComputerTask", "__fastvibeComputerTaskEnabled"]) delete scope[key];
+  for (const key of ["__pinextBrowserTask", "__pinextBrowserTaskEnabled", "__pinextComputerTask", "__pinextComputerTaskEnabled"]) delete scope[key];
   if (!hostless) {
-    scope.__fastvibeBrowserTask = async () => ({});
-    scope.__fastvibeBrowserTaskEnabled = switchOn;
-    scope.__fastvibeComputerTask = async () => ({});
-    scope.__fastvibeComputerTaskEnabled = switchOn;
+    scope.__pinextBrowserTask = async () => ({});
+    scope.__pinextBrowserTaskEnabled = switchOn;
+    scope.__pinextComputerTask = async () => ({});
+    scope.__pinextComputerTaskEnabled = switchOn;
   }
   const registered: string[] = [];
   let active: string[] = [];

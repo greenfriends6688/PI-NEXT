@@ -2,20 +2,20 @@ import { batchPolicy, prepareBatch, runBatch, summarizeBatch, type BatchInput, t
 import { DecisionRuntime } from "../engine/decision/runtime";
 import { readDecisionConfig } from "../engine/decision/store";
 import { DecisionTraceFile } from "../engine/decision/trace";
-import { getFastVibePaths } from "../engine/paths";
+import { getPinextPaths } from "../engine/paths";
 import { uiText } from "../engine/ui-text";
 import { backendFor, trackDecisionWork } from "./decision-task-runner";
 
 /**
  * The decision-engine scenario that is not a UI loop (docs/decision-layer.md §7.10):
  * `batch_decide` for the main agent. Its extension is a jiti module that cannot import
- * FastVibe, so it reaches Main through a global installed here, exactly like
+ * Pinext, so it reaches Main through a global installed here, exactly like
  * `browser_task`. It re-reads `decision.json` on every call, so a switch flipped in
  * 设置 → 决策引擎 lands in running sessions without a restart.
  */
 
 function config() {
-  return readDecisionConfig(getFastVibePaths().decisionFile);
+  return readDecisionConfig(getPinextPaths().decisionFile);
 }
 
 export function batchDecideEnabled(): boolean {
@@ -54,7 +54,7 @@ export async function runBatchDecide(
   const release = trackDecisionWork(stop);
   const onAbort = () => stop.abort();
   options.signal?.addEventListener("abort", onAbort, { once: true });
-  const runtime = new DecisionRuntime({ backend, trace: new DecisionTraceFile(getFastVibePaths().decisionTraceFile) });
+  const runtime = new DecisionRuntime({ backend, trace: new DecisionTraceFile(getPinextPaths().decisionTraceFile) });
   const { batch } = prepared;
   const run = runtime.startRun({
     budgetKey: `batch:${started}`,
@@ -76,9 +76,9 @@ export async function runBatchDecide(
   }
 }
 
-/** Expose the scenario to its extension, which cannot import FastVibe internals. */
+/** Expose the scenario to its extension, which cannot import Pinext internals. */
 export function installDecisionScenarioGlobals(): void {
   const scope = globalThis as Record<string, unknown>;
-  scope.__fastvibeBatchDecide = runBatchDecide;
-  scope.__fastvibeBatchDecideEnabled = batchDecideEnabled;
+  scope.__pinextBatchDecide = runBatchDecide;
+  scope.__pinextBatchDecideEnabled = batchDecideEnabled;
 }

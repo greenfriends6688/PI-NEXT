@@ -10,7 +10,7 @@ import {
 import { createOnigurumaEngine } from "shiki/engine/oniguruma";
 import { ShikiStreamTokenizer } from "@shikijs/stream";
 
-const THEME = "fastvibe";
+const THEME = "pinext";
 const MAX_CHARS = 120_000;
 type LanguageLoader = () => Promise<{ default: LanguageRegistration[] }>;
 

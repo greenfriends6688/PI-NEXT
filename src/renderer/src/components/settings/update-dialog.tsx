@@ -47,7 +47,7 @@ export function UpdateDialog({
     // Reachable without a click — the dialog checks on open — so this guard is what
     // keeps a remote client from opening it into a refusal it never asked for.
     setChecking(true);
-    void window.fastvibe.updater
+    void window.pinext.updater
       .check()
       .catch(() => undefined)
       .finally(() => setChecking(false));
@@ -133,7 +133,7 @@ export function UpdateDialog({
               </Button>
               <Button
                 onClick={() => {
-                  void window.fastvibe.updater.install();
+                  void window.pinext.updater.install();
                 }}
               >
                 <HugeiconsIcon strokeWidth={2} icon={RefreshIcon} />
@@ -147,7 +147,7 @@ export function UpdateDialog({
               </Button>
               <Button
                 onClick={() => {
-                  void window.fastvibe.updater.download();
+                  void window.pinext.updater.download();
                 }}
               >
                 <HugeiconsIcon strokeWidth={2} icon={Download01Icon} />

@@ -32,7 +32,7 @@ String modelKey(String provider, String id) => '$provider\u0000$id';
 
 const int _recentLimit = 6;
 
-String _recentsKey(String serverId) => 'fastvibe.modelRecents.v1.$serverId';
+String _recentsKey(String serverId) => 'pinext.modelRecents.v1.$serverId';
 
 Future<List<String>> loadModelRecents(String serverId) async {
   if (serverId.isEmpty) return <String>[];

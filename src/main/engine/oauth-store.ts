@@ -5,7 +5,7 @@ import type { AuthOperationOptions, Credential, CredentialInfo, CredentialStore 
 
 /**
  * Credential storage for subscription (OAuth) logins, backed by a JSON file inside
- * FastVibe's isolated runtime.
+ * Pinext's isolated runtime.
  *
  * API keys deliberately do **not** come here. They go to the engine's in-memory
  * overlay (`ModelRuntime.setRuntimeApiKey`, fed from `agent/.env`), which is what keeps

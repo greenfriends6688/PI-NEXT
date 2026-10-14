@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file:; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
-    <title>FastVibe</title>
+    <title>Pinext</title>
     <style>
       /*
         A chrome-less panel that has to read as the row the user is about to create in
@@ -111,7 +111,7 @@
     <div class="card">
       <img class="icon" src="../icon.png" alt="" />
       <div class="labels">
-        <div class="name">FastVibe</div>
+        <div class="name">Pinext</div>
         <div class="hint" id="hint"></div>
       </div>
       <div class="switch"></div>
@@ -148,13 +148,13 @@
       // list to accept the drop.
       document.addEventListener("dragstart", (event) => {
         event.preventDefault();
-        window.fastvibe?.computer?.startDrag();
+        window.pinext?.computer?.startDrag();
       });
       // A chrome-less window has no close button of its own, and abandoning the panel
       // has to abandon the whole sequence — otherwise the next pane opens over a user
       // who has already given up.
       document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") window.fastvibe?.computer?.cancelGrantFlow();
+        if (event.key === "Escape") window.pinext?.computer?.cancelGrantFlow();
       });
       document.body.setAttribute("draggable", "true");
     </script>

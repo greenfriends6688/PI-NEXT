@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { ChatAttachment, EngineModel } from "@shared/types";
 
-const DRAFT_KEY = "fastvibe.session-drafts";
+const DRAFT_KEY = "pinext.session-drafts";
 
 export type PersistedDraft = {
   draft: string;

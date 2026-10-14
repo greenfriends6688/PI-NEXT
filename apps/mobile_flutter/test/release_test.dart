@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:fastvibe_mobile/update/release.dart';
+import 'package:pinext_mobile/update/release.dart';
 
 void main() {
   Map<String, Object?> asset(String name) => {
@@ -38,11 +38,11 @@ void main() {
     final payload = {
       'assets': [
         asset('app-arm64-v8a-release.apk'),
-        asset('FastVibe.apk.sha256'),
-        asset('FastVibe.apk'),
+        asset('Pinext.apk.sha256'),
+        asset('Pinext.apk'),
       ],
     };
-    expect(releaseFromPayload('0.5.0', payload)?.apkName, 'FastVibe.apk');
+    expect(releaseFromPayload('0.5.0', payload)?.apkName, 'Pinext.apk');
     expect(
       releaseFromPayload('0.5.0', {...payload, 'prerelease': true}),
       isNull,
@@ -57,13 +57,13 @@ void main() {
   test('the published arm64 build is offered only to compatible devices', () {
     final payload = {
       'assets': [
-        asset('FastVibe-app-v0.5.0-arm64-v8a.apk'),
-        asset('FastVibe-app-v0.5.0-arm64-v8a.apk.sha256'),
+        asset('Pinext-app-v0.5.0-arm64-v8a.apk'),
+        asset('Pinext-app-v0.5.0-arm64-v8a.apk.sha256'),
       ],
     };
     expect(
       releaseFromPayload('0.5.0', payload, supportedAbis: ['arm64-v8a'])?.apkName,
-      'FastVibe-app-v0.5.0-arm64-v8a.apk',
+      'Pinext-app-v0.5.0-arm64-v8a.apk',
     );
     for (final abis in [['armeabi-v7a'], ['x86_64', 'x86']]) {
       expect(releaseFromPayload('0.5.0', payload, supportedAbis: abis), isNull);
@@ -82,9 +82,9 @@ void main() {
 
   test('an arm64 phone is offered its own package, not the universal one', () {
     expect(apkCandidates('0.5.0', ['arm64-v8a', 'armeabi-v7a']), [
-      'FastVibe-app-v0.5.0-arm64-v8a.apk',
-      'FastVibe-app-v0.5.0-armeabi-v7a.apk',
-      'FastVibe.apk',
+      'Pinext-app-v0.5.0-arm64-v8a.apk',
+      'Pinext-app-v0.5.0-armeabi-v7a.apk',
+      'Pinext.apk',
     ]);
   });
 
@@ -112,9 +112,9 @@ void main() {
     });
     final release = await findNewerRelease('0.4.0', client: client);
     expect(release?.version, '0.5.0');
-    expect(release?.apkName, 'FastVibe.apk');
+    expect(release?.apkName, 'Pinext.apk');
     expect(release?.apkSize, 42);
-    expect(release?.apkUrl, contains('/releases/download/app-v0.5.0/FastVibe.apk'));
+    expect(release?.apkUrl, contains('/releases/download/app-v0.5.0/Pinext.apk'));
     expect(asked.first, contains('info/refs'));
     expect(asked.any((url) => url.contains('api.github.com')), isFalse);
     client.close();

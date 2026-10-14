@@ -17,7 +17,7 @@ import { readDefaultModel } from "../engine/runtime-settings";
 import { currentAiLanguageDirective, currentCustomSystemPrompt } from "../engine/ai-language";
 import { uiText } from "../engine/ui-text";
 import { mapEngineMessages } from "../engine/map-messages";
-import type { FastVibePaths } from "../engine/paths";
+import type { PinextPaths } from "../engine/paths";
 import { SubagentManager } from "../engine/subagents";
 import { DAG_WORKER_TOOLS, DAG_COORDINATOR_TOOLS, dagReportExtension, dagInputAllowance, estimateDagTokens } from "./dag-node-runtime";
 import type { DagReport } from "../../shared/dag";
@@ -74,7 +74,7 @@ export type SubagentRunHost = {
   runtime: ModelRuntime | null;
   models: ModelRegistry | null;
   cwd: string;
-  paths: FastVibePaths;
+  paths: PinextPaths;
   subagentManager: SubagentManager;
   subagentControls: Map<string, SubagentControl>;
   subagentSessions: Map<string, AgentSession>;
@@ -103,7 +103,7 @@ export class SubagentTurnRunner {
   #runtime: ModelRuntime | null;
   #models: ModelRegistry | null;
   #cwd: string;
-  #paths: FastVibePaths;
+  #paths: PinextPaths;
   #subagentManager: SubagentManager;
   #subagentControls: Map<string, SubagentControl>;
   #subagentSessions: Map<string, AgentSession>;
@@ -167,7 +167,7 @@ export class SubagentTurnRunner {
    * The whole point is context isolation: the role gets its own session, its own
    * system prompt and only the tools its definition allows, and streams its
    * events back under `subagent_event` so the right pane can show the transcript.
-   * A throwaway `DefaultResourceLoader` loads no FastVibe extension (no recursion,
+   * A throwaway `DefaultResourceLoader` loads no Pinext extension (no recursion,
    * no goal) except `folder-consent`, which only primes macOS folder access.
    */
   async #runSubagent(conversationId: string, request: SubagentHostRequest): Promise<SubagentHostResponse> {

@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:fastvibe_mobile/chat/queue.dart';
-import 'package:fastvibe_mobile/i18n/core.dart';
-import 'package:fastvibe_mobile/protocol/address.dart';
-import 'package:fastvibe_mobile/protocol/client.dart';
+import 'package:pinext_mobile/chat/queue.dart';
+import 'package:pinext_mobile/i18n/core.dart';
+import 'package:pinext_mobile/protocol/address.dart';
+import 'package:pinext_mobile/protocol/client.dart';
 
 import 'support/protocol_server.dart';
 

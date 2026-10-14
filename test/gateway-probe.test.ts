@@ -200,7 +200,7 @@ test("a balance read refuses an unidentified gateway and a missing key", async (
 });
 
 test("the panel credential is stored 0600, survives a re-read, and clears on an empty token", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-gw-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-gw-"));
   const file = join(dir, "gateway-credentials.json");
   try {
     assert.deepEqual(readGatewayCredentials(file), {}, "a missing file is not an error");

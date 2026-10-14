@@ -1,6 +1,6 @@
-# FastVibe
+# PI NEXT
 
-Electron desktop client for agent work, code, office, and multi-agent cowork. The default engine is the embedded **`@earendil-works/pi-coding-agent` SDK** running in the Electron main process. Native pi state (`~/.pi`) is never used as the data root; FastVibe keeps everything under its own userData directory.
+Electron desktop client for agent work, code, office, and multi-agent cowork. The default engine is the embedded **`@earendil-works/pi-coding-agent` SDK** running in the Electron main process. Native pi state (`~/.pi`) is never used as the data root; PI NEXT keeps everything under its own userData directory.
 
 ## Architecture
 
@@ -9,7 +9,7 @@ src/main/          Electron main: window, IPC, and embedded agent lifecycle
   engine/          Isolated runtime paths, provider configuration, and shared model/file helpers
   ipc/             Transport-neutral call table and broadcast hub
   pi/              Embedded pi-coding-agent host, MCP bridge, and multi-session lifecycle
-src/preload/       Electron half of `window.fastvibe` (the shape is `src/shared/api.ts`)
+src/preload/       Electron half of `window.pinext` (the shape is `src/shared/api.ts`)
 src/renderer/      React UI (Vite renderer)
   src/components/ui/   shadcn-generated primitives only
   src/components/      product composition (chat, layout)
@@ -19,11 +19,11 @@ src/shared/        IPC channels and types used by main + renderer
 Runtime data lives under the app userData directory:
 
 ```
-~/Library/Application Support/FastVibe/
+~/Library/Application Support/PI NEXT/
   settings.json          UI prefs (theme, chat behaviour) — not localStorage
   conversations.json
   providers.json
-  account.json           FastVibe account sign-in (device token + who it is), 0600, never served
+  account.json           PI NEXT account sign-in (device token + who it is), 0600, never served
   mcp.json
   models-dev.json        models.dev snapshot refreshed hourly and from 设置 → 关于; wins over the bundled one
   runtime/engine/
@@ -42,7 +42,7 @@ Runtime data lives under the app userData directory:
 
 Paths are handed to `createAgentSession` programmatically (`agentDir`, `sessionManager`,
 `settingsManager`) rather than through environment variables. Agent IPC channels use the
-`engine:` prefix (`src/shared/ipc.ts`), exposed to the renderer as `window.fastvibe.engine`.
+`engine:` prefix (`src/shared/ipc.ts`), exposed to the renderer as `window.pinext.engine`.
 
 ### Calls and pushes
 
@@ -54,7 +54,7 @@ cannot exist on the desktop and be silently missing elsewhere.
 
 Two rules keep that true:
 
-- **One bridge, one table.** `window.fastvibe` is built by `createFastVibeApi`
+- **One bridge, one table.** `window.pinext` is built by `createPinextApi`
   (`src/shared/api.ts`) over a transport (Electron IPC in the preload). A method belongs in the
   neutral call table so the phone's App Protocol reaches it too, not in a one-off handler.
 - **Register with `handle()`, never `ipcMain.handle`.** Handlers take `(payload, ctx)`;
@@ -105,9 +105,9 @@ another conversation.
 One switch (设置 → 远程访问) opens two ways into the same call table — the one the desktop
 windows use — so that a method cannot exist on the desktop and be missing on the phone:
 
-- **官方连接** (`rtc/`): a phone signed in to the **same FastVibe account** finds this
+- **官方连接** (`rtc/`): a phone signed in to the **same PI NEXT account** finds this
   computer by itself and connects over WebRTC — directly (LAN, or across routers) when it
-  can, through FastVibe's TURN relay when it cannot. No password, no address, nothing to
+  can, through PI NEXT's TURN relay when it cannot. No password, no address, nothing to
   configure. Needs only a signed-in account. See 官方连接 below.
 - **局域网地址 + 密码** (`server/`): the `RemoteServer` listener, which a phone on the same
   network reaches by scanning a QR code (or finding the computer by name, 局域网发现 below) and
@@ -193,7 +193,7 @@ The password is exchanged once for a device token (`POST /api/login`); tokens tr
 every later connection, are stored only as hashes, and are revoked one device at a time.
 Guessing is slowed by a global exponential backoff.
 
-### 官方连接（`src/main/rtc/`，服务端见 fastvibe-services 的 `docs/cloud-service.md`）
+### 官方连接（`src/main/rtc/`，服务端见 pinext-services 的 `docs/cloud-service.md`）
 
 `OfficialConnection` (`rtc/official.ts`, Electron-free) registers this install as a device
 (`PUT /api/devices/me`, the id minted once in `rtc-device.json`), keeps the cloud's signaling
@@ -210,7 +210,7 @@ or signed out → signaling closes and every phone is dropped.
   the App Protocol session. `stop()` of the listener leaves attached connections up; they do
   not depend on it.
 - **The phone offers, this side answers.** The phone opens one data channel labelled
-  `fastvibe` (any other label is closed); signals are `{type:"offer"|"answer", sdp}` and
+  `pinext` (any other label is closed); signals are `{type:"offer"|"answer", sdp}` and
   `{type:"candidate", candidate, mid}` inside the signaling `signal` message. Signals that
   arrive while ICE servers are still being fetched are buffered and replayed in order. The
   phone's candidates are held until this side has a server-reflexive candidate of its own —
@@ -248,10 +248,10 @@ or signed out → signaling closes and every phone is dropped.
   64 KiB is not a step toward the 256 KiB both stacks negotiate: 128 was measured against 64
   on loopback (12 MB, real peers) and made no difference.
 - **The phone's side** (`apps/mobile_flutter`): the account (`lib/account/account.dart`: browser PKCE
-  sign-in through `flutter_web_auth_2`, `fastvibe://oauth/callback`, token in the Keychain/Keystore,
+  sign-in through `flutter_web_auth_2`, `pinext://oauth/callback`, token in the Keychain/Keystore,
   only ever sent to the site that issued it) and the account's computers (`official_devices.dart`),
   which live in the same saved list as manual ones with `kind: official` and origin
-  `fastvibe-official://<device id>`. `RtcDialer` (`lib/protocol/rtc_connection.dart`) does the
+  `pinext-official://<device id>`. `RtcDialer` (`lib/protocol/rtc_connection.dart`) does the
   signaling and the WebRTC offer and hands `RemoteClient` a `FrameSocket`, so the handshake, health
   checks and reconnect are the ones every other connection uses. `Connection` carries `needsAccount`
   (the way forward is signing in) next to `needsPassword`.
@@ -359,12 +359,12 @@ or signed out → signaling closes and every phone is dropped.
 
 ### 局域网发现（mDNS，`src/main/server/mdns.ts`）
 
-局域网监听在跑时（远程访问开着且设了密码），桌面端用 `bonjour-service` 广播 `_fastvibe._tcp`，
+局域网监听在跑时（远程访问开着且设了密码），桌面端用 `bonjour-service` 广播 `_pinext._tcp`，
 实例名是电脑名称（设置里的电脑名称，留空用主机名去掉 `.local`），与账号设备列表同名。手机的「添加设备」页据此列出
 「附近的电脑」，点一下就填好地址，连接名默认用这个名称。记录里只有端口和 `v=1`，不含任何凭据。
 
 - **显示名与解析名分开。** 服务实例名供人识别，但 SRV target 和 A/AAAA 记录使用这个
-  advertiser 独有的 `fastvibe-<uuid>.local`。不能让 `bonjour-service` 默认使用 `os.hostname()`：
+  advertiser 独有的 `pinext-<uuid>.local`。不能让 `bonjour-service` 默认使用 `os.hostname()`：
   它会把所有网卡的地址广播到同一个名字下，与 macOS 按网卡发布的系统记录冲突，导致系统提示
   主机名被占用、不断加 `-2` / `-3`，手机也可能拿到失效的解析记录。
 - **名称就是电脑名称。** 不再有单独的「主机名称」：`remote:set-device-name` 保存 `remoteDeviceName`，
@@ -413,14 +413,14 @@ QR icon (`QrAction`, shared with 远程访问).
   first, because a live forward to the Agent being restarted would only reconnect to nothing.
 - **The password is never stored on the desktop and never an `ssh` argument.** Only its scrypt
   hash is made (`hashPassword`, the server's own), and it travels on stdin to
-  `~/.fastvibe/remote-access.json` (0600, written beside and renamed). `RemoteServer` re-reads
+  `~/.pinext/remote-access.json` (0600, written beside and renamed). `RemoteServer` re-reads
   that file on every login, so a changed password needs no restart — and because the file is
   rewritten whole, changing it signs every phone out. Leaving the password empty on an
   already-enabled host keeps the one it has, so the port can change without that.
 - **The Agent knows two states, and the bootstrap/preflight compare them.** `--host=127.0.0.1`
   (default) or `--host=0.0.0.0` — nothing else (`agent/listen.ts`). It records `public: 0|1`
   in its state file as a *number*, because the bootstrap reads that file with `sed` and its
-  field reader only knows digits. The preflight prints `FASTVIBE_PUBLIC`, and a running Agent
+  field reader only knows digits. The preflight prints `PINEXT_PUBLIC`, and a running Agent
   that does not fit (wrong port, or `public` not matching the profile) is restarted instead of
   reused. An Agent from before the field reads as loopback.
 - **The server's rule moved, but "no password, no server" did not.** `RemoteServer.start` used
@@ -582,7 +582,7 @@ origin down through the engine to the catalog would buy only that.
 Main 每个会话一个 `AgentSession`，但引擎自己只有一个「当前会话」（`PiProcessManager.#activeId`）。
 所有跟会话有关的调用都接受一个可选的 `conversationId`，`#sessionFor(id)` 据此取 session，
 不传时才回退到 `#activeId`。**渲染层调用一律走 `src/renderer/src/lib/engine-client.ts`**，
-它把 id 默认成 store 的 `activeId`；直接 `window.fastvibe.engine.*` 只应出现在这个门面里，
+它把 id 默认成 store 的 `activeId`；直接 `window.pinext.engine.*` 只应出现在这个门面里，
 以及那些本来就不属于任何会话的调用（供应商、技能、MCP、导入…）。
 
 这条不是洁癖：`#activeId` 是**每个窗口共享**的一个值。两个窗口各看一个会话时，谁最后
@@ -616,7 +616,7 @@ Main 每个会话一个 `AgentSession`，但引擎自己只有一个「当前会
 系统通知的总开关发通知。停止只在 composer；归档一个正在
 运行的会话会 `abort` 它，侧栏行不再提供停止按钮。
 
-Provider credentials are kept in FastVibe's isolated runtime and injected into the SDK's in-memory auth storage. Do not export these variables into the user's login shell or the in-app terminal.
+Provider credentials are kept in PI NEXT's isolated runtime and injected into the SDK's in-memory auth storage. Do not export these variables into the user's login shell or the in-app terminal.
 
 ## UI: shadcn Nova
 
@@ -629,7 +629,7 @@ Provider credentials are kept in FastVibe's isolated runtime and injected into t
 
 - Do **not** hand-write files under `src/renderer/src/components/ui/`. If a primitive already exists in shadcn (Button, Input, Textarea, Badge, Message, Bubble, Empty, Item, Alert, …), add it with the CLI and compose it.
 - Product screens (chat thread, workspace chrome, tool cards) live outside `components/ui/` and **compose** shadcn primitives. Custom markup is allowed only when shadcn has no matching primitive.
-- **A group part needs its group.** `DropdownMenuLabel` / `ContextMenuLabel` / `SelectLabel` are Base UI's `Menu.GroupLabel`, which throws `MenuGroupContext is missing` when rendered outside its group; the same applies to the other group-only parts. It is a **render-time** throw, so no typecheck catches it and it does not degrade gracefully — it unmounts the whole tree. That is how the composer's model menu, whose empty state drew a bare label, took FastVibe down the instant it was opened on an install with no models. Wrap every label in `DropdownMenuGroup` / `ContextMenuGroup` / whichever group the surface has.
+- **A group part needs its group.** `DropdownMenuLabel` / `ContextMenuLabel` / `SelectLabel` are Base UI's `Menu.GroupLabel`, which throws `MenuGroupContext is missing` when rendered outside its group; the same applies to the other group-only parts. It is a **render-time** throw, so no typecheck catches it and it does not degrade gracefully — it unmounts the whole tree. That is how the composer's model menu, whose empty state drew a bare label, took PI NEXT down the instant it was opened on an install with no models. Wrap every label in `DropdownMenuGroup` / `ContextMenuGroup` / whichever group the surface has.
 - Wrap the tree with `TooltipProvider`.
 - `vite.config.ts` exists so the shadcn CLI can detect Vite. The Electron app builds through `electron.vite.config.ts`.
 
@@ -640,12 +640,12 @@ most-installed VS Code file icon pack), shared by the chat's per-turn change chi
 and the future project file tree.
 
 - `src/main/engine/file-icons.ts` reads the package's `material-icons.json` and
-  serves the SVGs under the private `fastvibe-icon://icons/<name>.svg` scheme
+  serves the SVGs under the private `pinext-icon://icons/<name>.svg` scheme
   (registered privileged before app ready, `protocol.handle` after). Names the
   manifest references but that don't ship as files fall back to `file.svg`.
 - `workspace:file-icons` hands the renderer the lookup tables once
   (`src/renderer/src/lib/file-icons.ts`, cached module-wide); `components/file-icon.tsx`
-  resolves a name to an icon through `fileIconUrl`. Add `fastvibe-icon:` to the desktop CSP
+  resolves a name to an icon through `fileIconUrl`. Add `pinext-icon:` to the desktop CSP
   `img-src` when a new surface loads these icons.
 - The right pane's **文件** tab (`components/layout/side-pane-files.tsx`) is the
   consumer: a lazily-loaded project tree (`workspace:read-dir`, hiding `.git` and
@@ -660,7 +660,7 @@ and the future project file tree.
 A built-in provider (内置供应商) is drawn with its own brand mark, and with a
 neutral glyph when there is no brand to draw — never with nothing, so a provider
 list keeps one visual rhythm. `components/provider-icon.tsx` is the only place
-that decides; it is keyed by the **SDK's** provider id, so a built-in FastVibe
+that decides; it is keyed by the **SDK's** provider id, so a built-in PI NEXT
 starts offering is already covered the day it appears.
 
 - The marks are **vendored from LobeHub's icon set** (https://lobehub.com/icons,
@@ -846,7 +846,7 @@ is only offered where there is a blur to show (`HAS_VIBRANCY`). `src/shared/glas
   paints a wallpaper, makes `#root` a floating window whose own `backdrop-filter` stands in
   for the material, and reports `simulatedVibrancy` on the bridge so `HAS_VIBRANCY` lets glass
   on — the only way a browser (or a capture) can show it. The marketing site (its own private
-  repository, `tyuan511/fastvibe-services`) loads this same page in its hero iframe and takes
+  repository, `tyuan511/pinext-services`) loads this same page in its hero iframe and takes
   its product screenshots from it; both pass `desktop=1`, and the window is concentric with
   the panes (24px radius = 8px inset + 16px pane radius), so keep the two in step.
 
@@ -886,10 +886,10 @@ is only offered where there is a blur to show (`HAS_VIBRANCY`). `src/shared/glas
 - **AI 偏好语言** (`settings.aiLanguage`) is injected on every turn by the built-in
   `output-language` extension (`before_agent_start` appends a language requirement
   to the system prompt). Main owns the wording (`src/main/engine/ai-language.ts`)
-  and writes it to `FASTVIBE_AI_LANGUAGE_PROMPT`; the extension just appends whatever
+  and writes it to `PINEXT_AI_LANGUAGE_PROMPT`; the extension just appends whatever
   it finds, re-read per turn so a settings change lands in a running session.
   Subagent sessions (`noExtensions`) get the same sentence via `appendSystemPrompt`.
-  User-facing engine/extension copy follows `FASTVIBE_UI_LANGUAGE` (`uiText` in
+  User-facing engine/extension copy follows `PINEXT_UI_LANGUAGE` (`uiText` in
   `src/main/engine/ui-text.ts`).
 
 Both values are written to `settings.json` with the other prefs. Main syncs the env
@@ -909,7 +909,7 @@ holds the line — every string in `settings.json` is capped (130 characters of 
 of English; Chinese says the same thing in ~3/4 the length), and it fails on a new
 paragraph before it is ever looked at on screen.
 
-The same pass removed copy that names a *file inside the data directory* — 「写入 FastVibe
+The same pass removed copy that names a *file inside the data directory* — 「写入 PI NEXT
 独立的数据目录，不写入你自己的 ~/.pi」, 「读取 ~/.pi、~/.claude、~/.codex 的数据」 — since
 the reader does not know where `~/.pi` is or that it matters. Say what happens, not where
 it is stored.
@@ -947,7 +947,7 @@ so the sidebar's `h-11` row is built around them: the clearance, then 收起侧�
 to inset, and a native title bar above an app that already has a top row is two bars with one of
 them empty.
 
-So on Windows and Linux FastVibe draws the whole bar itself
+So on Windows and Linux PI NEXT draws the whole bar itself
 (`components/layout/title-bar.tsx`): the brand, 后退 / 前进, and minimise / maximise / close —
 one `h-10` row above the sidebar/main split, whose single switch is `HAS_CUSTOM_TITLE_BAR`
 (`lib/platform.ts`). A bar **spanning the window**, rather than controls floated over whichever
@@ -1006,9 +1006,9 @@ and no separate 「not configured」 engine state. An install with no provider b
 ordinary engine whose model list is empty, and that empty list is the whole signal. The
 composer reads it — it goes read-only and its placeholder asks for a model — and the model
 chip's popover says 暂无模型 above the 管理模型 entry that leads to Settings → 供应商, where
-the user adds an SDK provider or any compatible endpoint of their own. The FastVibe relay
-(`fastvibe.dev`, a Sub2API deployment) is just one such endpoint; it used to be a
-code-owned built-in entry and is not any more. The FastVibe *account* (登录, below) is a
+the user adds an SDK provider or any compatible endpoint of their own. The PI NEXT relay
+(`pinext.dev`, a Sub2API deployment) is just one such endpoint; it used to be a
+code-owned built-in entry and is not any more. The PI NEXT *account* (登录, below) is a
 separate thing and does not configure a provider.
 
 A provider ships **no models** until the user connects it: configuring a provider
@@ -1044,10 +1044,10 @@ z.ai's `.../coding/paas/v4` is the endpoint path, so it is never rewritten, and 
 api's base is never rewritten either way.
 
 `providers.json` carries a `version` (`PROVIDERS_VERSION`). **v3 removed the built-in
-FastVibe provider.** A `kind: "builtin"` entry from an older file is read as a custom provider
-in place (`migrateBuiltin`): the id stays `fastvibe` and the key stays in
-`FASTVIBE_API_KEY`, so the pasted key and every conversation that recorded
-`fastvibe/<model>` keep working, and it can now be renamed, re-pointed and deleted like any
+PI NEXT provider.** A `kind: "builtin"` entry from an older file is read as a custom provider
+in place (`migrateBuiltin`): the id stays `pinext` and the key stays in
+`PINEXT_API_KEY`, so the pasted key and every conversation that recorded
+`pinext/<model>` keep working, and it can now be renamed, re-pointed and deleted like any
 other. A v1 entry's `api` was the code's default rather than a choice, so it is read as
 `openai-responses`; an entry with no models was never connected and is dropped instead of
 left as an empty row. Nothing is written until the next ordinary provider edit.
@@ -1214,16 +1214,16 @@ one reverted before the next prompt). The divider is therefore tied to the reply
 Only `models.json` is written; the `models.yml` / `config.yml` pair from the old RPC
 engine is gone because the SDK never read them.
 
-## 账号登录（FastVibe 账号，`engine/account.ts`）
+## 账号登录（PI NEXT 账号，`engine/account.ts`）
 
-桌面端可以登录 `app.fastvibe.dev` 的账号（服务端在私有仓库 `tyuan511/fastvibe-services`，
+桌面端可以登录 `app.pinext.dev` 的账号（服务端在私有仓库 `tyuan511/pinext-services`，
 `services/cloud`，设计见该仓库 `docs/cloud-service.md`）。目前登录只表明「这台电脑是谁的」，
 **不配置任何供应商**——模型转发（`/llm`）还没做，做了之后令牌才会被拿去当 API Key。
 
 流程是原生应用的浏览器授权码 + PKCE（RFC 8252 / 7636）：
 
 1. 本机在 `127.0.0.1:<空闲端口>/callback` 起一个只绑回环的监听，用系统浏览器打开站点的
-   `/authorize`，带 `client_id=fastvibe-desktop`、PKCE 挑战、随机 `state`、设备名。
+   `/authorize`，带 `client_id=pinext-desktop`、PKCE 挑战、随机 `state`、设备名。
 2. 浏览器里没登录就先走 GitHub 登录再回来；用户点「允许」，站点把浏览器重定向回监听地址并带一次性 `code`。
 3. 监听核对 `state`，用 `code` + 只存在于本进程的 verifier 向 `POST /api/oauth/token` 换设备令牌
    （`fvs_…`，90 天，用一次顺延）。浏览器标签页显示「登录成功，可以关闭」，Main 同时
@@ -1231,7 +1231,7 @@ engine is gone because the SDK never read them.
 
 - **令牌只在 Main。** 存 `account.json`（0600，临时文件 + rename），**从不经任何方法返回**：
   渲染层只拿 `AccountState`（谁登录了、头像、邮箱）。令牌记录它的签发站点，换了
-  `FASTVIBE_CLOUD_URL`（本地开发指向本地服务）就当作未登录，**不会把真令牌发到另一个站点**；
+  `PINEXT_CLOUD_URL`（本地开发指向本地服务）就当作未登录，**不会把真令牌发到另一个站点**；
   `logout` 也不会删别的站点的文件。
 - **监听只认自己的那一次。** `state` 不对（别的标签页、端口扫描）只回 400 不终止等待；`Host` 必须是
   我们给出的回环地址（挡 DNS 重绑定）；只有 `GET /callback` 有应答；5 分钟超时；用完即关。
@@ -1251,11 +1251,11 @@ engine is gone because the SDK never read them.
   （用户名、邮箱、打开控制台、退出登录），未登录是人形图标 + 登录按钮，等待浏览器时转圈并可取消。
   文案不写登录方式（现在是 GitHub，以后可能不是）。`mock.html?account=in|out|waiting|error` 预览。
 - 测试 `test/account.test.ts` 用假站点 + 一个代做「浏览器」的函数跑完整流程；服务端那一半在
-  fastvibe-services 的 `internal/httpapi/oauth_test.go`。
+  pinext-services 的 `internal/httpapi/oauth_test.go`。
 
 ## Plugins & extensions
 
-FastVibe hosts pi extensions (the SDK's plugin system) and bridges their
+PI NEXT hosts pi extensions (the SDK's plugin system) and bridges their
 terminal-only surface onto the GUI. **Built-in** extensions ship with the app
 (`resources/extensions/goal.ts`, `handoff.ts`, `todo.ts`, `question.ts`, `folder-consent.ts`, `session-title.ts`,
 `browser-use.ts`, `computer-use.ts`, `web-search.ts`, `conversation-search.ts`, `worktree.ts`,
@@ -1306,12 +1306,12 @@ conversation the composer sends to, not as a line above it.
 **内置技能是另一套东西**：`resources/skills/<name>/SKILL.md`，由 `builtinSkillPaths()`（`BUILTIN_SKILLS`，
 新增一个就要在那里加一行）列进每个会话的 `additionalSkillPaths`。它们只是提示词，不注册工具，也不需要
 `extraResources` 之外的处理（`resources/skills` 已经整目录拷到 `resourcesPath/skills`）。目前五个：
-`browser-use`、`computer-use`、`fastvibe-setup`、`skill-creator`、`find-skills`。前两个是 FastVibe 自写；
+`browser-use`、`computer-use`、`pinext-setup`、`skill-creator`、`find-skills`。前两个是 PI NEXT 自写；
 后三个是 vendored：`skill-creator` 来自 anthropics/claude-plugins-official（Apache-2.0），`find-skills` 来自
 vercel-labs/skills（MIT）——各自目录里带 `LICENSE.txt`，`SKILL.md` 的 description 都改成了中文，并加了
-「你运行在 FastVibe 里」一节纠正原文里不成立的部分（`skill-creator`：`claude -p` 子进程、评测 HTML
+「你运行在 PI NEXT 里」一节纠正原文里不成立的部分（`skill-creator`：`claude -p` 子进程、评测 HTML
 viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`：`npx skills add` 默认装到
-`~/.claude/skills` 这类目录，FastVibe 读不到，必须加 `--agent universal`）。它们不可删除：`SkillManager`
+`~/.claude/skills` 这类目录，PI NEXT 读不到，必须加 `--agent universal`）。它们不可删除：`SkillManager`
 的 `removable` 只看 `agentDir/skills`，所以内置技能在 设置 → 技能 里显示为全局且没有删除按钮。
 
 **同名技能会静默遮蔽，且用户目录胜出。** `loadSkills` 按名称去重（`addSkills`），先到先得：`additionalSkillPaths`
@@ -1320,18 +1320,18 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
 组合（用户目录里有一个 `find-skills`）。所以新增内置技能前先确认没有常用名字会被用户版本盖住；真要确认
 生效，得看 `filePath` 指向哪个目录，不能只看列表里有这一行。
 
-**人写的技能落在 `.agents/skills/`，这是 SDK 原生发现路径，不是 FastVibe 自己加的**（`package-manager.js`
+**人写的技能落在 `.agents/skills/`，这是 SDK 原生发现路径，不是 PI NEXT 自己加的**（`package-manager.js`
 的 `resolve()`：`~/.agents/skills` 恒为 user，`<cwd>/.agents/skills` 及各级祖先目录为 project——后者还要
-过项目信任，`SettingsManager.create` 默认 `projectTrusted: true`，FastVibe 不开 preTrust 那套）。所以
+过项目信任，`SettingsManager.create` 默认 `projectTrusted: true`，PI NEXT 不开 preTrust 那套）。所以
 「技能放哪」有四种答案，而 设置 → 技能 只能把前三个里的一部分标成「全局」/「项目」：
 
-| 路径 | scope | FastVibe 里可见 | 备注 |
+| 路径 | scope | PI NEXT 里可见 | 备注 |
 | --- | --- | --- | --- |
 | `~/.agents/skills/<name>/` | user | ✅ | 全局，机器上每个项目（**推荐**） |
 | `<cwd>/.agents/skills/<name>/` | project | ✅ | 只在该项目及子目录（**推荐**） |
 | `<cwd>/.pi/skills/<name>/` | project | ✅ | pi CLI 的位置；能用但没人知道，别用 |
-| `~/.pi/agent/skills/<name>/` | user | ❌ | agentDir 被指到 FastVibe 自己的目录，读不到 |
-| `runtime/engine/agent/skills/` | user | ✅ | FastVibe 私有（`paths.skillsDir`），设置里可删 |
+| `~/.pi/agent/skills/<name>/` | user | ❌ | agentDir 被指到 PI NEXT 自己的目录，读不到 |
+| `runtime/engine/agent/skills/` | user | ✅ | PI NEXT 私有（`paths.skillsDir`），设置里可删 |
 | `resources/skills/` | user | ✅ | 内置，随包发布，不可删 |
 
 祖先目录里的 `.agents/skills` 也会被扫（到 git 仓库根为止），但会盖到同项目下一堆无关子目录上，几乎总是弄错。
@@ -1339,7 +1339,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
 `skill-creator` 的「技能写到哪里」一节把这件事写成了一条硬规则：**先问用户全局还是项目，再动手写**，
 不能默认往 `.agents/` 里塞。
 
-- **Built-ins** — `goal.ts` is FastVibe's own replacement for the `pi-goal-x`
+- **Built-ins** — `goal.ts` is PI NEXT's own replacement for the `pi-goal-x`
   package (deliberately not bundled as a dependency). Only `/goal` is registered.
   There is no plan mode: the harness plans on its own.
   `todo.ts` is always on
@@ -1349,7 +1349,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
   `pi.setSessionName`. Manual sidebar renames set `titleManual` so they are not
   overwritten. Parallel runs and side chats name the session up front and are skipped.
   `output-language.ts` is always on: each `before_agent_start` appends the host's
-  AI 偏好语言 requirement (from `FASTVIBE_AI_LANGUAGE_PROMPT`) to the system prompt.
+  AI 偏好语言 requirement (from `PINEXT_AI_LANGUAGE_PROMPT`) to the system prompt.
   - **Goal** runs a long-term execution loop: every turn is instructed to compare
     progress against the objective and take on that round's tasks, and `agent_end`
     sends a continuation until the model ends with a lone `GOAL_COMPLETE` line
@@ -1410,11 +1410,11 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
       rather than sitting at `0/N` until that step closes. The completed count stays
       reachable as the badge's `title`. The tool card's row (`tool-presentation.tsx`)
       uses the same helpers, so the transcript and the panel cannot drift apart.
-- **No approvals.** FastVibe never asks the user to approve a tool call: there is no
+- **No approvals.** PI NEXT never asks the user to approve a tool call: there is no
   permission mode, no sandbox extension, no 始终允许 list and no 完全访问 warning, and a
   tool runs as soon as the model calls it. What still reaches the user is a *question*
   (`question`, `ctx.ui.select` / `input` / `confirm` from a plugin), which is the agent
-  or a plugin asking for information, not FastVibe gating an action. `folder-consent.ts`
+  or a plugin asking for information, not PI NEXT gating an action. `folder-consent.ts`
   is the one extension that hooks `tool_call`, and it never blocks or asks: it stats a
   macOS-protected folder (Desktop, Documents, iCloud…) from the main thread before a
   tool touches it, because the OS only remembers its own folder dialog when the access
@@ -1433,7 +1433,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
     `pi-coding-agent/dist/bundle` from the archive, and a second process would not
     have the in-memory provider credentials either. So delegation runs on the
     host's own engine: Main injects `runSubagent` on the extension UI context
-    (`FastVibeExtensionUIContext`, next to the `questions` bridge) and the tool
+    (`PinextExtensionUIContext`, next to the `questions` bridge) and the tool
     requires it — there is **no `spawn("pi")` fallback** (`runSingleAgent` fails
     fast when the bridge is absent). `#runSubagent` creates a throwaway
     `createAgentSession` (`SessionManager.inMemory`), with `noExtensions: true`
@@ -1523,7 +1523,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
     there). Parent cancellation releases prompts scoped to the run before awaiting abort,
     and late prompts after cancellation return their fallback. Setup and transcript-mapping
     failures still produce a terminal lifecycle and release the session/control in cleanup.
-- **Browser use** — `browser-use.ts` is the tool surface for FastVibe's own side-pane
+- **Browser use** — `browser-use.ts` is the tool surface for PI NEXT's own side-pane
   `<webview>`; it holds no browser code. Every call crosses `browser:request` /`browser:response`
   (`src/main/pi/browser-bridge.ts`, one pending map keyed by request id, 30s default budget) into
   `handleBrowserRequest` (`components/layout/side-pane-browser.tsx`), which owns the webview
@@ -1536,7 +1536,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
     (`scripts/check-injected-scripts.mjs`, wired into `typecheck` and `prebuild`) parses each one
     with its `${...}` interpolations neutralised. Add a page script → it must stay parseable.
   - **Elements are addressed explicitly.** A snapshot stamps each interactive element with a
-    `data-fv-ref` (`e0`, `e1`, …) and reports both that `ref` and a CSS `selector` (`#id`, else a
+    `data-pn-ref` (`e0`, `e1`, …) and reports both that `ref` and a CSS `selector` (`#id`, else a
     short `nth-of-type` path), so `browser_click` / `browser_type` target the element instead of
     guessing from text; a miss returns the labels that *were* on offer.
   - **Reuse, not sprawl.** `browser_open` navigates the tab already on screen (one Chromium guest
@@ -1602,8 +1602,8 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
   items. Offered only while 设置 → 决策引擎 › 批量决策 is on (re-read every turn); the scope
   rules live in the shape (`engine/decision/batch.ts`) and the prompt guidelines, and
   low-confidence items come back as `review` for the agent to judge itself. See docs/decision-layer.md §7.10.
-- **App config** — `app-config.ts` registers `fastvibe_config_get` / `fastvibe_config_apply`, the
-  agent's hands on FastVibe's *own* settings panes; the built-in skill `resources/skills/fastvibe-setup`
+- **App config** — `app-config.ts` registers `pinext_config_get` / `pinext_config_apply`, the
+  agent's hands on PI NEXT's *own* settings panes; the built-in skill `resources/skills/pinext-setup`
   is the playbook (how remote access, MCP servers and the UI settings are filled in for the user).
   The extension holds no settings code: `ctx.ui.appConfig` reaches `runAppConfig`
   (`src/main/app-config.ts`, injected with `engine.setAppConfigHost` so an SSH Agent runtime answers
@@ -1633,8 +1633,8 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
   TUI-first plugins gate on `ctx.mode`, and `"print"` makes them refuse to run;
   `rpc` also makes them fall back to string widgets / select-editor dialogs.
 - **Dialogs** — `select/confirm/input/editor` flow through `extension_ui_request`
-  / `respondPermission`, and FastVibe adds a non-SDK `questions` method to the UI
-  context (`#extensionUi` → `FastVibeExtensionUIContext`) for single-panel
+  / `respondPermission`, and PI NEXT adds a non-SDK `questions` method to the UI
+  context (`#extensionUi` → `PinextExtensionUIContext`) for single-panel
   multi-question prompts; `questions` answers ride `respondPermission.answers`.
   `confirm` (a yes / no question), `select` (pick an option), `input` (free-form answer)
   and `questions` (multi-question, paged) render as the inline `PermissionPanel` in the composer
@@ -1648,7 +1648,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
 - **Fire-and-forget UI** — `notify`, `setStatus`, `setWidget` (string lines) and
   `set_editor_text` reach the renderer store and render as toasts, a status row, a
   panel above the composer, and composer prefill (`ExtensionWidgets`,
-  `ExtensionNotices`). A status key FastVibe draws with its own chrome is listed in
+  `ExtensionNotices`). A status key PI NEXT draws with its own chrome is listed in
   `BADGE_STATUS_KEYS` (`extension-surface.tsx`) so the same sentence is not printed
   twice: `goal` is the `GoalPanel`, `goal-armed` a badge, and `handoff` the composer's
   own placeholder. A surface that knows which chat it belongs to reads a named status by
@@ -1681,7 +1681,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
   image 块变成 `ToolCallBlock.images`（data URL，单张 12M 字符、一次 4 张封顶）；手机用的摘要形态会丢掉它
   （`omitted.images`）。实时路径在 `tool_execution_end` 就带上，不用等 `agent_end` 重读转写。
 - **HTML 走独立文档，不走 `srcdoc`。** `srcdoc` 框架会继承应用的 CSP（`script-src 'self'`），脚本永远跑不起来。
-  所以 `fastvibe-media://` 也能服务本地 `.html`（`authorizeMediaMime`：请求名和真实路径必须同属“页面”或同属
+  所以 `pinext-media://` 也能服务本地 `.html`（`authorizeMediaMime`：请求名和真实路径必须同属“页面”或同属
   “媒体”，不能用 `.png` 符号链接去读页面）；`media-protocol.ts` 对 `text/html` 响应**自己**加
   `INLINE_HTML_CSP`（只允许内联代码和 https 资源，不能读本地文件、不能提交表单），远程主机来的页面也一样，
   不信上游的头。框架是 `sandbox="allow-scripts"`，**没有** `allow-same-origin`：无存储、无 cookie、碰不到应用。
@@ -1698,7 +1698,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
   画 `<video>`、是 `.html` 就画页面（`lib/markdown-media.ts`）。`react-markdown` 默认会丢掉 `file:` / `data:`，所以
   `urlTransform` 放行 `file://`、`data:image|video` 和路径链接插件的 `fvpath:`。内联项的根是 `span`（`display:block`），
   因为它会出现在 `<p>` 里。
-- **预览**：`mock.html?inline=1`（浏览器里没有 `fastvibe-media://`，HTML 框架是空的，只能看版式）。
+- **预览**：`mock.html?inline=1`（浏览器里没有 `pinext-media://`，HTML 框架是空的，只能看版式）。
 
 ### TODO: remaining TUI→GUI gaps
 
@@ -1727,7 +1727,7 @@ Deliberately deferred. Plugin authors are expected to degrade via `ctx.mode` /
 
 - **四份提示词是 Codex 原文**，放在 `resources/memories/`（`stage_one_system.md`、`stage_one_input.md`、
   `consolidation.md`、`read_path.md`，Apache-2.0，`NOTICE.md` 记着来源提交和改过的几行），运行时按路径读
-  （`memory-templates.ts`，和内置扩展/技能同一套 `FASTVIBE_RESOURCES_PATH`，打包要有 `extraResources` 那一条）。
+  （`memory-templates.ts`，和内置扩展/技能同一套 `PINEXT_RESOURCES_PATH`，打包要有 `extraResources` 那一条）。
   改它们就是改每个用户的记忆长什么样；想和上游对齐就重新抓原文，不要凭印象改写。
 - **参数是 Codex 的默认值**（`memory-plan.ts`）：对话文件安静 6 小时、不超过 10 天才读；每轮 2 个；
   整合取前 256 个；30 天没人用的丢掉。看的是转写**文件的 mtime**，不是 catalog 的 `updatedAt`（改名也会动它）。
@@ -1757,7 +1757,7 @@ Deliberately deferred. Plugin authors are expected to degrade via `ctx.mode` /
 
 MCP servers are configured in 设置 → MCP 工具 and stored in `mcp.json`. The wire protocol is
 **`@earendil-works/pi-mcp`** (the standalone library pi's own MCP support is built on): `McpClient`,
-`StdioTransport`, `StreamableHttpTransport`, `toLlmContent`. FastVibe's `McpManager` stays the owner
+`StdioTransport`, `StreamableHttpTransport`, `toLlmContent`. PI NEXT's `McpManager` stays the owner
 of connections, config and the settings pane's status.
 
 - **Not pi's built-in MCP extension, on purpose.** `createMcpExtension()` keeps its state inside the
@@ -1804,8 +1804,8 @@ of connections, config and the settings pane's status.
 
 ### 代码模式 and 工具搜索（`codemode` / `tool_search`）
 
-Two SDK tools, loaded in `#createSession` as the hidden extensions `fastvibe-codemode` and
-`fastvibe-tool-search` (the SDK loads neither in an SDK session by itself; only its CLI does).
+Two SDK tools, loaded in `#createSession` as the hidden extensions `pinext-codemode` and
+`pinext-tool-search` (the SDK loads neither in an SDK session by itself; only its CLI does).
 `codemode` takes one argument, `code` — JavaScript source, not JSON — and runs it in a QuickJS
 sandbox on a worker thread; the script calls other tools as `tools.<name>(…)` (in parallel, if it
 likes) and only what it prints reaches the model. `tool_search` finds tools that are not declared
@@ -1814,7 +1814,7 @@ and declares the matches for the next request.
 - **On by default, with a switch each** (`settings.codemode` / `settings.toolSearch`, 设置 → 偏好设置
   → 对话 — agent behaviour, and `codemode` works with no MCP server at all). The keys are read as
   *off only when `false`*, so an install that never wrote them has both; the renderer's default is
-  `true` and drops a non-boolean. Both tools are registered inactive, and `fastvibe-tool-modes`
+  `true` and drops a non-boolean. Both tools are registered inactive, and `pinext-tool-modes`
   (`engine/tool-modes.ts`) sets their place in the active set on every `session_start`, a reload
   included — the SDK's `defaultTools` setting can only add, never take away. An enabled MCP server
   whose `exposure` can only be reached through a tool keeps that tool on even with its switch off:
@@ -1874,7 +1874,7 @@ pnpm shadcn add <component> -y
 - `scripts/check-packaged-deps.cjs`（`electron-builder.yml` 的 `afterPack`）：打出来的
   `app.asar` 里每个包声明的 `dependencies` 都得能按 Node 的规则找到，缺一个就让构建失败，
   这时还没有任何安装包或 Release。也可以对已安装的应用直接跑：
-  `node scripts/check-packaged-deps.cjs /Applications/FastVibe.app/Contents/Resources/app.asar`。
+  `node scripts/check-packaged-deps.cjs /Applications/PI NEXT.app/Contents/Resources/app.asar`。
 
 升级依赖后要确认：`pnpm typecheck` 通过，并且本地 `electron-builder --dir` 的日志里没有
 `cannot find path for dependency`。
@@ -1930,7 +1930,7 @@ pnpm shadcn add <component> -y
 - Prices are not display-only. `cost` is written to `models.json`, where pi's
   `calculateCost` multiplies it by the turn's tokens; the ladder cannot be expressed
   there (pi prices a run with one rate), so `src/main/engine/pricing.ts` picks the tier
-  from the request's prompt size whenever FastVibe reports money itself — the live
+  from the request's prompt size whenever PI NEXT reports money itself — the live
   composer stat and 统计 — and `models.json` keeps the entry rate.
 - Prices are never user-editable, so `hydrateModels` back-fills `cost`/`costTiers` from
   the bundled catalog for any model that has none. Without that, a `providers.json`
@@ -1993,7 +1993,7 @@ multi-select picker of that agent's sessions; nothing is imported until the user
   pointing at `~/.claude` would destroy the user's real data. Every foreign root is opened
   read-only (Codex/opencode SQLite via `node:sqlite` `{ readOnly: true }`; the opencode DB is
   copied aside only when a live WAL refuses the read) and each session is converted into
-  FastVibe's own `runtime/engine/agent/sessions`.
+  PI NEXT's own `runtime/engine/agent/sessions`.
 - **Candidates are only as expensive as they must be.** The picker must open instantly, so
   `importCandidates` skips what it cannot get cheaply: Codex leaves `messageCount` undefined
   rather than counting 1000+ rollouts (that alone cost 4.5s), and opencode reports a message
@@ -2027,11 +2027,11 @@ multi-select picker of that agent's sessions; nothing is imported until the user
 
 ### 同步配置到全局 pi（设置 → 关于）
 
-One direction, and not a shared data root. `syncFastVibeConfigToPi`
+One direction, and not a shared data root. `syncPinextConfigToPi`
 (`src/main/engine/sync-pi-config.ts`) writes connected providers, the default model,
 thinking level and MCP into `~/.pi/agent`. The confirm offers both: merge replaces a
 shared provider or MCP server and keeps one that exists only in pi; replace drops
-those. Sessions, UI preferences and FastVibe's own runtime stay put either way. API keys are written as pi
+those. Sessions, UI preferences and PI NEXT's own runtime stay put either way. API keys are written as pi
 config literals — `escapePiConfigSecret`, because a raw `$` is interpolated and a
 leading `!` is a shell command. Existing files are copied under `backups/` before a
 real change. A file that is not valid JSON stops the sync before anything is written.
@@ -2049,7 +2049,7 @@ Settings → 使用统计 (`components/settings/usage-settings.tsx`) is fed by
   `sessionId` + entry id (`turnKey`). Retry/edit branches in place (`navigateTree`),
   keeping that key stable. Independent conversation forks (`engine:fork`,
   `engine/session-fork.ts`) instead create a new v3 transcript and session id, copying
-  only the selected branch. Inherited assistant entries carry `fastvibeUsageSessionId`
+  only the selected branch. Inherited assistant entries carry `pinextUsageSessionId`
   (preserved through repeated forks), so `parseSessionTurns` uses the original usage
   identity and never bills copied history twice. New turns use the new session id.
   Forks preserve entry ids for reasoning timing, include pending tool results at the
@@ -2485,7 +2485,7 @@ from an event payload. So it is as fresh as the last `reloadActiveState()`.
 
 ## 单窗口
 
-FastVibe 是一个窗口、一个进程：`app.requestSingleInstanceLock()` 在模块作用域取（输的那个进程
+PI NEXT 是一个窗口、一个进程：`app.requestSingleInstanceLock()` 在模块作用域取（输的那个进程
 要在开窗之前就没了），`second-instance` 把已有的窗口恢复并聚焦——再点 Dock 图标不是再开一个
 窗口，而是回到原来那个。`window:new` 同样折进已有窗口而不是 `createWindow()`：每个 push、
 每个不说「谁的」就操作「当前会话」的方法都是按一个客户端设计的。
@@ -2595,4 +2595,4 @@ markdown renderer when a feed does hand us markdown.
 
 - Code / Office / Cowork are first-class; pi-coding-agent is the default backend.
 - Office and extra ACP agents come later; keep Host adapters (RPC/ACP) decoupled from the renderer.
-- There is no built-in model provider. The user adds one (a pi built-in or any compatible endpoint, e.g. the FastVibe relay at `https://fastvibe.dev/v1`) by pasting an API key; FastVibe fetches `/models`, writes isolated `models.json`, then starts the embedded engine. Do not mention the backend runtime in the UI.
+- There is no built-in model provider. The user adds one (a pi built-in or any compatible endpoint, e.g. the PI NEXT relay at `https://pinext.dev/v1`) by pasting an API key; PI NEXT fetches `/models`, writes isolated `models.json`, then starts the embedded engine. Do not mention the backend runtime in the UI.

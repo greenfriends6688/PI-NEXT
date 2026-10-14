@@ -29,7 +29,7 @@ type Harness = {
 };
 
 async function withServer(fn: (h: Harness) => Promise<void>, options?: { loopbackToken?: string; password?: boolean; appServer?: AppServer }): Promise<void> {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-app-ws-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-app-ws-"));
   const accessFile = join(dir, "remote-access.json");
   if (options?.password !== false) setPassword(accessFile, PASSWORD);
   const dispatched: Array<{ method: string; payload: unknown }> = [];

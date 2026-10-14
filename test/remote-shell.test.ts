@@ -28,7 +28,7 @@ const unix = process.platform !== "win32";
  * in real Bash/sh; only startup-file discovery is substituted.
  */
 function fixture(t: { after(fn: () => void): void }, bash: boolean) {
-  const home = mkdtempSync(join(tmpdir(), "fv-shell-"));
+  const home = mkdtempSync(join(tmpdir(), "pn-shell-"));
   t.after(() => rmSync(home, { recursive: true, force: true }));
   const shim = (name: string, executable: string) => writeFileSync(join(home, name), [
     "#!/bin/sh",
@@ -79,8 +79,8 @@ test("all SSH control/deploy scripts select Bash before loading profiles", () =>
 test("Bash profile can use source even when the account SHELL is sh", { skip: !unix }, (t) => {
   const f = fixture(t, true);
   writeFileSync(join(f.home, ".profile"), 'source "$HOME/environment"\n');
-  writeFileSync(join(f.home, "environment"), 'export FV_ENV="from profile"\n');
-  const result = f.run(remoteShellCommand('printf "%s" "$FV_ENV"'));
+  writeFileSync(join(f.home, "environment"), 'export PN_ENV="from profile"\n');
+  const result = f.run(remoteShellCommand('printf "%s" "$PN_ENV"'));
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "from profile");
   assert.doesNotMatch(result.stderr, /source.*not found/);
@@ -89,8 +89,8 @@ test("Bash profile can use source even when the account SHELL is sh", { skip: !u
 test("without Bash the profile loads using POSIX dot", { skip: !unix }, (t) => {
   const f = fixture(t, false);
   writeFileSync(join(f.home, ".profile"), '. "$HOME/environment"\n');
-  writeFileSync(join(f.home, "environment"), 'export FV_ENV="dot fallback"\n');
-  const result = f.run(remoteShellCommand('printf "%s" "$FV_ENV"'));
+  writeFileSync(join(f.home, "environment"), 'export PN_ENV="dot fallback"\n');
+  const result = f.run(remoteShellCommand('printf "%s" "$PN_ENV"'));
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "dot fallback");
 });
@@ -107,7 +107,7 @@ for (const bash of [true, false]) {
 
 /** The `export` lines the probe printed between its markers. */
 function probedEnv(stdout: string): Map<string, string> {
-  const block = stdout.split("\n__FV_ENV__\n")[1]?.split("__FV_ENV_END__")[0] ?? "";
+  const block = stdout.split("\n__PN_ENV__\n")[1]?.split("__PN_ENV_END__")[0] ?? "";
   const env = new Map<string, string>();
   for (const line of block.split("\n")) {
     const match = /^export ([A-Za-z_][A-Za-z0-9_]*)='(.*)'$/.exec(line);
@@ -145,7 +145,7 @@ for (const bash of [true, false]) {
       "case $- in *i*) ;; *) return ;; esac",
       'export HTTPS_PROXY="http://user:secret@proxy.example:3128"',
       'export JAVA_HOME="/opt/jdk"',
-      `export FV_HOSTILE=${shellQuote(hostile)}`,
+      `export PN_HOSTILE=${shellQuote(hostile)}`,
       'export HOME="/somewhere/else"',
       'export PATH="/rc/bin:$PATH"',
     ].join("\n") + "\n");
@@ -154,7 +154,7 @@ for (const bash of [true, false]) {
     const script = [
       ...loginEnvironment(),
       "load_login_env",
-      'printf "%s|%s|%s|%s|%s|%s\\n" "$https_proxy" "$HTTPS_PROXY" "$JAVA_HOME" "$FV_HOSTILE" "$HOME" "$PATH"',
+      'printf "%s|%s|%s|%s|%s|%s\\n" "$https_proxy" "$HTTPS_PROXY" "$JAVA_HOME" "$PN_HOSTILE" "$HOME" "$PATH"',
     ].join("\n");
     const result = f.run(script);
     assert.equal(result.status, 0, result.stderr);
@@ -212,14 +212,14 @@ test("a download that cannot reach the official source falls back to the mirror,
   fakeCurl(f.home);
   const script = [
     ...downloadHelpers(),
-    'fv_download node-download "$HOME/out.tgz" "https://unreachable.example/node.tgz" "https://mirror.example/node.tgz" || exit 9',
-    'printf "source=%s size=%s\\n" "$FV_SOURCE" "$(wc -c < "$HOME/out.tgz" | tr -d " ")"',
+    'pn_download node-download "$HOME/out.tgz" "https://unreachable.example/node.tgz" "https://mirror.example/node.tgz" || exit 9',
+    'printf "source=%s size=%s\\n" "$PN_SOURCE" "$(wc -c < "$HOME/out.tgz" | tr -d " ")"',
   ].join("\n");
   const result = f.run(script, "", 15_000);
   assert.equal(result.status, 0, result.stderr + result.stdout);
   assert.match(result.stdout, /unreachable\.example 下载失败，改用镜像源 mirror\.example…/);
-  assert.match(result.stdout, /^FASTVIBE_PROGRESS node-download 1048576 2097152$/m);
-  assert.match(result.stdout, /^FASTVIBE_PROGRESS node-download 2097152 2097152$/m);
+  assert.match(result.stdout, /^PINEXT_PROGRESS node-download 1048576 2097152$/m);
+  assert.match(result.stdout, /^PINEXT_PROGRESS node-download 2097152 2097152$/m);
   assert.match(result.stdout, /source=https:\/\/mirror\.example\/node\.tgz size=2097152/);
 });
 
@@ -228,8 +228,8 @@ test("a reachable official source is used, and the mirror is never contacted", {
   fakeCurl(f.home);
   const script = [
     ...downloadHelpers(),
-    'fv_download agent-download "$HOME/out.tgz" "https://github.example/a.tgz" "https://mirror.example/a.tgz" || exit 9',
-    'echo "source=$FV_SOURCE"',
+    'pn_download agent-download "$HOME/out.tgz" "https://github.example/a.tgz" "https://mirror.example/a.tgz" || exit 9',
+    'echo "source=$PN_SOURCE"',
   ].join("\n");
   const result = f.run(script, "", 15_000);
   assert.equal(result.status, 0, result.stderr + result.stdout);

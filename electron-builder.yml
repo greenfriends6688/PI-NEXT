@@ -1,6 +1,6 @@
-appId: dev.fastvibe.desktop
-productName: FastVibe
-copyright: Copyright © 2026 FastVibe
+appId: dev.pinext.desktop
+productName: Pinext
+copyright: Copyright © 2026 Pinext
 
 directories:
   buildResources: resources
@@ -125,7 +125,7 @@ mac:
   # event (`osascript ... with administrator privileges`). A hardened app that
   # sends one without this string is killed by the OS rather than prompted.
   extendInfo:
-    NSAppleEventsUsageDescription: FastVibe 需要发送 Apple 事件来完成应用更新。
+    NSAppleEventsUsageDescription: Pinext 需要发送 Apple 事件来完成应用更新。
   # The private worker is only fetched and supported on macOS. Keep it in the
   # macOS package instead of letting the global resource list copy it to Linux.
   extraResources:
@@ -193,7 +193,7 @@ nsis:
   # Without an explicit pattern electron-builder may sanitize the generated GitHub
   # asset name differently from the manifest, making Windows updates request a
   # non-existent installer and return 404.
-  artifactName: FastVibe-Setup-${version}.${ext}
+  artifactName: Pinext-Setup-${version}.${ext}
 
 linux:
   icon: resources/icon.png
@@ -210,7 +210,7 @@ linux:
     - "!**/node_modules/@node-datachannel/linux-!(${arch}-gnu){,/**/*}"
     - "!**/node_modules/@trycua/cua-driver-{darwin,win32}-*{,/**/*}"
     - "!**/node_modules/@trycua/cua-driver-linux-!(${arch}*){,/**/*}"
-    # FastVibe does not offer computer use on Linux, so omit the SDK and its
+    # Pinext does not offer computer use on Linux, so omit the SDK and its
     # platform bindings rather than shipping the ~40 MB Linux native library.
     - "!**/node_modules/@trycua/cua-driver{,/**/*}"
     - "!**/node_modules/@trycua/cua-driver-linux-*{,/**/*}"

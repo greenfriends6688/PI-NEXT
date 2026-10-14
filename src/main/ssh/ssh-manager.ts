@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:net";
-import type { FastVibePaths } from "../engine/paths.ts";
+import type { PinextPaths } from "../engine/paths.ts";
 import { normalizePublicUrl, type PhoneAccess, type RemoteHostConnectionActivity, type RemoteHostConnectionState, type RemoteHostProfile, type RemoteHostTestResult, type RemoteTransferProgress, type SshHostKeyScan } from "../../shared/remote-host.ts";
 import { hashPassword, passwordProblem } from "../server/auth.ts";
 import { readSshHosts, redactSshHosts, removeSshHost, saveSshHost, type SecretBox, type SshHostSnapshot } from "./ssh-hosts.ts";
@@ -10,7 +10,7 @@ import { downloadHelpers, loginEnvironment, NODE_MIRROR, remoteShellCommand, she
 import { probeSshHost, runSshCommand, SshError, SshTunnel, startSshMaster, type SshMaster } from "./ssh-tunnel.ts";
 
 export type SshManagerDeps = {
-  paths: FastVibePaths;
+  paths: PinextPaths;
   onState: (state: RemoteHostConnectionState) => void;
   onPush: (channel: string, payload: unknown) => void;
   log: { info(message: string): void; warn(message: string): void };
@@ -58,7 +58,7 @@ export class SshManager {
    * Shares the profile lookup with `connect` — a host id resolves the same way in both —
    * but stops there: no Agent deploy, no tunnel, no `remoteConnections` entry, so testing
    * a host cannot disturb a connection that is already up. The login runs the read-only
-   * status half of the connect preflight, so the answer also says what of FastVibe is
+   * status half of the connect preflight, so the answer also says what of Pinext is
    * on the host.
    */
   async test(id: string): Promise<RemoteHostTestResult> {
@@ -300,12 +300,12 @@ export async function openSshAppTransport(options: {
       for (const raw of lines) {
         const line = raw.trim();
         if (!line) continue;
-        const match = /^FASTVIBE_PROGRESS (\S+) (\d+) ?(\d*)$/.exec(line);
+        const match = /^PINEXT_PROGRESS (\S+) (\d+) ?(\d*)$/.exec(line);
         if (match) {
           if (isTransferPhase(match[1])) progress.report(match[1], Number(match[2]), match[3] ? Number(match[3]) : undefined);
           continue;
         }
-        if (/^FASTVIBE_AGENT_SYNC_TOKEN=[a-f0-9]{64}$/.test(line)) continue;
+        if (/^PINEXT_AGENT_SYNC_TOKEN=[a-f0-9]{64}$/.test(line)) continue;
         onLine?.(line);
         output(line);
       }
@@ -493,7 +493,7 @@ function throwIfAborted(signal?: AbortSignal): void {
 /**
  * One round trip that tells the connect what it is dealing with.
  *
- * Prints `FASTVIBE_OS/ARCH/HOME/INSTALLED/RUNNING/PORT` unconditionally, and the sync
+ * Prints `PINEXT_OS/ARCH/HOME/INSTALLED/RUNNING/PORT` unconditionally, and the sync
  * token only when this exact runtime release and hash are installed, running, answering
  * on the port its state file names, and holding a token. Anything less prints no token,
  * and the caller deploys. Nothing here installs, downloads or stops anything.
@@ -518,7 +518,7 @@ export function agentPreflightCommand(source: AgentRuntimeSource): string {
     '  [ "$RUNNING" = "$VERSION" ] || return 0',
     '  TOKEN=$(agent_token "$pid")',
     '  [ -n "$TOKEN" ] || return 0',
-    '  printf "FASTVIBE_AGENT_SYNC_TOKEN=%s\\n" "$TOKEN"',
+    '  printf "PINEXT_AGENT_SYNC_TOKEN=%s\\n" "$TOKEN"',
     '  echo "常驻 Agent 正在运行"',
     '}',
     'resident',
@@ -527,7 +527,7 @@ export function agentPreflightCommand(source: AgentRuntimeSource): string {
 }
 
 /**
- * Report what of FastVibe is on the host, without changing any of it.
+ * Report what of Pinext is on the host, without changing any of it.
  *
  * Shared by the connect preflight and the settings pane's 测试, so both read the same
  * facts the same way. Leaves `$pid`/`$PORT` set to the running Agent, if one answers.
@@ -535,24 +535,24 @@ export function agentPreflightCommand(source: AgentRuntimeSource): string {
 function agentStatusLines(): string[] {
   return [
     ...agentPaths(),
-    'printf "FASTVIBE_OS=%s\\n" "$(uname -s)"',
-    'printf "FASTVIBE_ARCH=%s\\n" "$(uname -m)"',
-    'printf "FASTVIBE_HOME=%s\\n" "$HOME"',
+    'printf "PINEXT_OS=%s\\n" "$(uname -s)"',
+    'printf "PINEXT_ARCH=%s\\n" "$(uname -m)"',
+    'printf "PINEXT_HOME=%s\\n" "$HOME"',
     'INSTALLED=""',
     'INSTALLED_HASH=""',
     'if [ -f "$ROOT/current/manifest.json" ] && [ -f "$ROOT/current/out/main/agent.js" ]; then CURRENT=$(readlink -f "$ROOT/current" 2>/dev/null || printf "%s" "$ROOT/current"); INSTALLED=${CURRENT##*/}; INSTALLED_HASH=$(awk -F\'"\' \'/"runtimeHash"/ { print $4; exit }\' "$ROOT/current/manifest.json" 2>/dev/null); if [ -z "$INSTALLED_HASH" ]; then INSTALLED_HASH=$(awk -F\'"\' \'/"version"/ { print $4; exit }\' "$ROOT/current/manifest.json" 2>/dev/null); fi; fi',
-    'printf "FASTVIBE_INSTALLED=%s\\n" "$INSTALLED"',
-    'printf "FASTVIBE_INSTALLED_HASH=%s\\n" "$INSTALLED_HASH"',
+    'printf "PINEXT_INSTALLED=%s\\n" "$INSTALLED"',
+    'printf "PINEXT_INSTALLED_HASH=%s\\n" "$INSTALLED_HASH"',
     ...agentProcessHelpers(),
     'RUNNING=""',
     'find_agent',
     'PUBLIC=""',
-    'if [ -n "$pid" ] && agent_ready "$pid"; then RUNNING=$(tr \'\\000\' "\\n" < "/proc/$pid/cmdline" 2>/dev/null | sed -n \'s|.*/\\.fastvibe-agent/releases/\\([^/]*\\)/.*|\\1|p\' | head -n 1); PUBLIC=$(state_field public); [ -n "$PUBLIC" ] || PUBLIC=0; else pid=""; PORT=""; fi',
-    'printf "FASTVIBE_RUNNING=%s\\n" "$RUNNING"',
-    'printf "FASTVIBE_PORT=%s\\n" "$PORT"',
+    'if [ -n "$pid" ] && agent_ready "$pid"; then RUNNING=$(tr \'\\000\' "\\n" < "/proc/$pid/cmdline" 2>/dev/null | sed -n \'s|.*/\\.pinext-agent/releases/\\([^/]*\\)/.*|\\1|p\' | head -n 1); PUBLIC=$(state_field public); [ -n "$PUBLIC" ] || PUBLIC=0; else pid=""; PORT=""; fi',
+    'printf "PINEXT_RUNNING=%s\\n" "$RUNNING"',
+    'printf "PINEXT_PORT=%s\\n" "$PORT"',
     // 1 when the running Agent listens beyond loopback (phone access). An Agent from before
     // the field existed has none, which is loopback.
-    'printf "FASTVIBE_PUBLIC=%s\\n" "$PUBLIC"',
+    'printf "PINEXT_PUBLIC=%s\\n" "$PUBLIC"',
   ];
 }
 
@@ -566,15 +566,15 @@ function stopPidHelper(): string[] {
 /** Where the Agent lives on the host: its releases, and the state file it writes. */
 function agentPaths(): string[] {
   return [
-    'ROOT="$HOME/.fastvibe-agent"',
+    'ROOT="$HOME/.pinext-agent"',
     // Written by the Agent itself once listening (`src/agent/main.ts`): pid, port, version.
-    'STATE="$HOME/.fastvibe/agent.json"',
+    'STATE="$HOME/.pinext/agent.json"',
   ];
 }
 
 /** What the connect, and the settings pane, read out of `agentPreflightCommand`. */
 export function parsePreflight(output: string): { os: string; arch: string; home?: string; installed?: string; installedHash?: string; running?: string; port?: number; public?: boolean; token?: string } {
-  const field = (name: string): string => new RegExp(`^FASTVIBE_${name}=(.*)$`, "m").exec(output)?.[1]?.trim() ?? "";
+  const field = (name: string): string => new RegExp(`^PINEXT_${name}=(.*)$`, "m").exec(output)?.[1]?.trim() ?? "";
   const home = field("HOME");
   const installed = field("INSTALLED");
   const installedHash = field("INSTALLED_HASH");
@@ -615,7 +615,7 @@ export function runningAgentFits(
 /**
  * Stop the Agent this app started, and nothing else.
  *
- * The pid comes from the Agent's own state file and must still be a `~/.fastvibe-agent`
+ * The pid comes from the Agent's own state file and must still be a `~/.pinext-agent`
  * process; a recycled pid belonging to anything else is left alone. The release stays
  * installed, so the next connect only has to start it again.
  */
@@ -643,7 +643,7 @@ export function agentStopCommand(): string {
 export function phoneAccessWriteCommand(): string {
   const script = [
     'umask 077',
-    'DIR="$HOME/.fastvibe"',
+    'DIR="$HOME/.pinext"',
     'mkdir -p "$DIR"',
     'cat > "$DIR/remote-access.json.tmp" || { echo "手机连接密码写入失败" >&2; exit 1; }',
     'chmod 600 "$DIR/remote-access.json.tmp"',
@@ -662,7 +662,7 @@ export function phoneAccessClearCommand(): string {
     ...agentPaths(),
     ...agentProcessHelpers(),
     ...stopPidHelper(),
-    'rm -f "$HOME/.fastvibe/remote-access.json" "$HOME/.fastvibe/remote-access.json.tmp"',
+    'rm -f "$HOME/.pinext/remote-access.json" "$HOME/.pinext/remote-access.json.tmp"',
     'find_agent',
     'if [ -n "$pid" ] && [ "$(state_field public)" = 1 ]; then stop_pid "$pid"; rm -f "$STATE"; echo "已关闭对外监听的远程 Agent"; else echo "已关闭手机连接"; fi',
   ].join("\n");
@@ -675,19 +675,19 @@ export function phoneAccessClearCommand(): string {
  * The Agent records its pid and port in `$STATE` once it listens; that file is the only
  * way to find it, since the port is whatever the OS handed out. A stale file (the host
  * rebooted, the pid was recycled) is caught by requiring the pid to still be a process
- * running from `~/.fastvibe-agent`. The token is read by the process's own Node, because
+ * running from `~/.pinext-agent`. The token is read by the process's own Node, because
  * a shell variable cannot hold the NUL bytes in environ.
  */
 function agentProcessHelpers(): string[] {
   return [
     'state_field() { sed -n "s/^ *\\"$1\\": *\\([0-9][0-9]*\\).*/\\1/p" "$STATE" 2>/dev/null | head -n 1; }',
-    'is_agent() { [ -n "$1" ] && [ -r "/proc/$1/cmdline" ] && tr "\\000" " " < "/proc/$1/cmdline" 2>/dev/null | grep -qF "/.fastvibe-agent/"; }',
+    'is_agent() { [ -n "$1" ] && [ -r "/proc/$1/cmdline" ] && tr "\\000" " " < "/proc/$1/cmdline" 2>/dev/null | grep -qF "/.pinext-agent/"; }',
     // Sets globals rather than printing, so the caller gets both values without a subshell.
     'find_agent() { pid=""; PORT=""; p=$(state_field pid); q=$(state_field port); if is_agent "$p" && [ -n "$q" ]; then pid=$p; PORT=$q; fi; }',
     'agent_token() {',
     '  exe=$(readlink "/proc/$1/exe" 2>/dev/null || true)',
     '  [ -n "$exe" ] || return 0',
-    `  "$exe" -e 'const fs=require("fs");const b=fs.readFileSync(process.argv[1]);const k="FASTVIBE_AGENT_SYNC_TOKEN=";const i=b.indexOf(k);if(i<0)process.exit(0);const s=b.slice(i+k.length);const z=s.indexOf(0);process.stdout.write(z<0?s:s.slice(0,z))' "/proc/$1/environ" 2>/dev/null || true`,
+    `  "$exe" -e 'const fs=require("fs");const b=fs.readFileSync(process.argv[1]);const k="PINEXT_AGENT_SYNC_TOKEN=";const i=b.indexOf(k);if(i<0)process.exit(0);const s=b.slice(i+k.length);const z=s.indexOf(0);process.stdout.write(z<0?s:s.slice(0,z))' "/proc/$1/environ" 2>/dev/null || true`,
     '}',
     'agent_ready() {',
     '  exe=$(readlink "/proc/$1/exe" 2>/dev/null || true)',
@@ -703,8 +703,8 @@ function agentProcessHelpers(): string[] {
  * One resident Agent per remote user. It listens on `--port=0` — whatever free port the
  * OS hands out, so no fixed port can collide with another user or program — unless the
  * profile pins `servicePort`. Either way the Agent writes the port to its state file,
- * and this prints it back as `FASTVIBE_PORT=`. A running Agent of this runtime release
- * with the right token is reused; any other FastVibe Agent is stopped first.
+ * and this prints it back as `PINEXT_PORT=`. A running Agent of this runtime release
+ * with the right token is reused; any other Pinext Agent is stopped first.
  */
 export function buildAgentBootstrapCommand(
   port: number | undefined,
@@ -739,10 +739,10 @@ export function buildAgentBootstrapCommand(
     'TOKEN_CREATED=0',
     'umask 077',
     'if [ -s "$SYNC_TOKEN_FILE" ]; then SYNC_TOKEN=$(cat "$SYNC_TOKEN_FILE"); elif [ -n "$SYNC_TOKEN_INPUT" ]; then printf "%s\\n" "$SYNC_TOKEN_INPUT" > "$SYNC_TOKEN_FILE"; SYNC_TOKEN="$SYNC_TOKEN_INPUT"; TOKEN_CREATED=1; fi',
-    'if [ ! -f "$MAIN" ]; then echo "FastVibe Agent runtime upload is incomplete" >&2; exit 127; fi',
+    'if [ ! -f "$MAIN" ]; then echo "Pinext Agent runtime upload is incomplete" >&2; exit 127; fi',
     'INSTALLED_RUNTIME_HASH=$(awk -F\'"\' \'/"runtimeHash"/ { print $4; exit }\' "$ROOT/releases/$VERSION/manifest.json" 2>/dev/null)',
     'if [ -z "$INSTALLED_RUNTIME_HASH" ]; then INSTALLED_RUNTIME_HASH=$(awk -F\'"\' \'/"version"/ { print $4; exit }\' "$ROOT/releases/$VERSION/manifest.json" 2>/dev/null); fi',
-    '[ "$INSTALLED_RUNTIME_HASH" = "$EXPECTED_RUNTIME_HASH" ] || { echo "FastVibe Agent runtime hash mismatch" >&2; exit 127; }',
+    '[ "$INSTALLED_RUNTIME_HASH" = "$EXPECTED_RUNTIME_HASH" ] || { echo "Pinext Agent runtime hash mismatch" >&2; exit 127; }',
     ...sha256Helper(),
     ...downloadHelpers(),
     "node_version() { awk -F'\"' '/\"node\"/ { print $4; exit }' \"$ROOT/releases/$VERSION/manifest.json\"; }",
@@ -778,13 +778,13 @@ export function buildAgentBootstrapCommand(
     `    NODE_OFFICIAL="https://nodejs.org/dist/v\${NODE_VERSION}"`,
     `    NODE_MIRROR=${shellQuote(NODE_MIRROR)}"/v\${NODE_VERSION}"`,
     // nodejs.org first; npmmirror only when that fails or crawls (see `downloadHelpers`).
-    '    fv_download node-download "$TMP/node.tar.gz" "$NODE_OFFICIAL/$NODE_FILE" "$NODE_MIRROR/$NODE_FILE" || { echo "Node.js 下载失败" >&2; rm -rf "$TMP"; exit 127; }',
+    '    pn_download node-download "$TMP/node.tar.gz" "$NODE_OFFICIAL/$NODE_FILE" "$NODE_MIRROR/$NODE_FILE" || { echo "Node.js 下载失败" >&2; rm -rf "$TMP"; exit 127; }',
     // Checked against SHASUMS256.txt before anything is unpacked, so a truncated download
     // or a proxy's error page cannot become the Agent's runtime. The sums come from the
     // source that served the archive, falling back to the other one.
-    '    NODE_USED="${FV_SOURCE%/*}"',
+    '    NODE_USED="${PN_SOURCE%/*}"',
     '    if [ "$NODE_USED" = "$NODE_OFFICIAL" ]; then NODE_OTHER="$NODE_MIRROR"; else NODE_OTHER="$NODE_OFFICIAL"; fi',
-    '    fv_download node-sums "$TMP/SHASUMS256.txt" "$NODE_USED/SHASUMS256.txt" "$NODE_OTHER/SHASUMS256.txt" >/dev/null || { echo "Node.js 校验和下载失败" >&2; rm -rf "$TMP"; exit 127; }',
+    '    pn_download node-sums "$TMP/SHASUMS256.txt" "$NODE_USED/SHASUMS256.txt" "$NODE_OTHER/SHASUMS256.txt" >/dev/null || { echo "Node.js 校验和下载失败" >&2; rm -rf "$TMP"; exit 127; }',
     '    SUMS=$(cat "$TMP/SHASUMS256.txt")',
     '    WANT=$(printf "%s\\n" "$SUMS" | awk -v f="node-v${NODE_VERSION}-${TARGET}.tar.gz" \'$2 == f { print $1; exit }\')',
     '    GOT=$(sha256_of "$TMP/node.tar.gz")',
@@ -826,35 +826,35 @@ export function buildAgentBootstrapCommand(
     'find_agent',
     'if [ -n "$pid" ]; then',
     '  case "$(paths_for "$pid" || true)" in',
-    '    *"/.fastvibe-agent/releases/$VERSION/"*)',
+    '    *"/.pinext-agent/releases/$VERSION/"*)',
     '      RUNNING_TOKEN=$(agent_token "$pid")',
     '      RUNNING_PUBLIC=$(state_field public); [ -n "$RUNNING_PUBLIC" ] || RUNNING_PUBLIC=0',
     '      if [ "$TOKEN_CREATED" = "0" ] && [ -n "$SYNC_TOKEN" ] && [ "$RUNNING_TOKEN" = "$SYNC_TOKEN" ] && { [ "$REQUESTED_PORT" = 0 ] || [ "$REQUESTED_PORT" = "$PORT" ]; } && [ "$RUNNING_PUBLIC" = "$WANT_PUBLIC" ] && wait_for_agent "$pid"; then',
-    '        echo "FastVibe Agent $VERSION is already running"',
-    '        printf "FASTVIBE_PORT=%s\\n" "$PORT"',
-    '        printf "FASTVIBE_AGENT_SYNC_TOKEN=%s\\n" "$SYNC_TOKEN"',
+    '        echo "Pinext Agent $VERSION is already running"',
+    '        printf "PINEXT_PORT=%s\\n" "$PORT"',
+    '        printf "PINEXT_AGENT_SYNC_TOKEN=%s\\n" "$SYNC_TOKEN"',
     '        prune',
     '        exit 0',
     '      fi',
-    '      echo "Restarting FastVibe Agent to refresh config sync (pid $pid)" ;;',
-    '    *) echo "Restarting FastVibe Agent (pid $pid)" ;;',
+    '      echo "Restarting Pinext Agent to refresh config sync (pid $pid)" ;;',
+    '    *) echo "Restarting Pinext Agent (pid $pid)" ;;',
     '  esac',
     '  stop_pid "$pid"',
     'fi',
     'if [ "$REQUESTED_PORT" != 0 ] && port_busy "$REQUESTED_PORT"; then echo "Port $REQUESTED_PORT is already in use" >&2; exit 1; fi',
     'rm -f "$STATE"',
-    'FASTVIBE_VERSION="$VERSION" FASTVIBE_AGENT_SYNC_TOKEN="$SYNC_TOKEN" nohup "$NODE" "$MAIN" --headless --port=$REQUESTED_PORT --host=$LISTEN_HOST --state-file="$STATE" >"$LOG" 2>&1 </dev/null &',
+    'PINEXT_VERSION="$VERSION" PINEXT_AGENT_SYNC_TOKEN="$SYNC_TOKEN" nohup "$NODE" "$MAIN" --headless --port=$REQUESTED_PORT --host=$LISTEN_HOST --state-file="$STATE" >"$LOG" 2>&1 </dev/null &',
     'AGENT_PID=$!',
-    'echo "FastVibe Agent started in the background"',
+    'echo "Pinext Agent started in the background"',
     'echo "正在等待远程 Agent 就绪…"',
     'if ! wait_for_agent "$AGENT_PID"; then echo "远程 Agent 启动失败" >&2; tail -n 20 "$LOG" >&2 || true; exit 1; fi',
     // An Agent from before `--host` ignores it and listens on loopback, which the next connect
     // would read as "not what the profile asks for" and restart again, forever. Say so once.
     'if [ "$WANT_PUBLIC" = 1 ] && [ "$(state_field public)" != 1 ]; then echo "远程 Agent 版本过旧，不支持对外监听" >&2; stop_pid "$AGENT_PID"; rm -f "$STATE"; exit 1; fi',
     'if [ "$WANT_PUBLIC" = 1 ]; then echo "远程 Agent 已就绪（对外监听，端口 $PORT）"; else echo "远程 Agent 已就绪（端口 $PORT）"; fi',
-    'printf "FASTVIBE_PORT=%s\\n" "$PORT"',
+    'printf "PINEXT_PORT=%s\\n" "$PORT"',
     'prune',
-    'if [ -n "$SYNC_TOKEN" ]; then printf "FASTVIBE_AGENT_SYNC_TOKEN=%s\\n" "$SYNC_TOKEN"; fi',
+    'if [ -n "$SYNC_TOKEN" ]; then printf "PINEXT_AGENT_SYNC_TOKEN=%s\\n" "$SYNC_TOKEN"; fi',
   ].join("\n");
   return remoteShellCommand(script);
 }
@@ -899,7 +899,7 @@ export function transferProgress(emit: ((progress: RemoteTransferProgress | null
 }
 
 function extractSyncToken(output: string): string | undefined {
-  return /^FASTVIBE_AGENT_SYNC_TOKEN=([a-f0-9]{64})$/m.exec(output)?.[1];
+  return /^PINEXT_AGENT_SYNC_TOKEN=([a-f0-9]{64})$/m.exec(output)?.[1];
 }
 
 function formatBytes(bytes: number): string {

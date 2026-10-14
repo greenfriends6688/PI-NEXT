@@ -14,7 +14,7 @@ export function remoteMediaTarget(endpoint: RemoteMediaEndpoint, localPath: stri
 /**
  * Proxy one media request to the machine that has the file.
  *
- * The renderer only ever sees `fastvibe-media://`. When that path is a remote ref, main
+ * The renderer only ever sees `pinext-media://`. When that path is a remote ref, main
  * reads it through the SSH forward as an HTTP byte stream and passes the response on,
  * range headers included, so a video can still seek.
  */

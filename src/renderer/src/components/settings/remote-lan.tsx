@@ -51,7 +51,7 @@ export function RemoteLan({
 
   async function refreshDevices(): Promise<void> {
     try {
-      setDevices(await window.fastvibe.remote.listDevices());
+      setDevices(await window.pinext.remote.listDevices());
     } catch {
       setDevices([]);
     }
@@ -69,7 +69,7 @@ export function RemoteLan({
       toast.error(t("remote.passwordMismatch"));
       return;
     }
-    const next = await run(() => window.fastvibe.remote.setPassword(password));
+    const next = await run(() => window.pinext.remote.setPassword(password));
     if (next) {
       onState(next);
       setPassword("");
@@ -79,7 +79,7 @@ export function RemoteLan({
   }
 
   async function turnOff(): Promise<void> {
-    const next = await run(() => window.fastvibe.remote.clearPassword());
+    const next = await run(() => window.pinext.remote.clearPassword());
     if (next) {
       onState(next);
       setDevices([]);
@@ -87,7 +87,7 @@ export function RemoteLan({
   }
 
   async function revoke(id: string): Promise<void> {
-    const next = await run(() => window.fastvibe.remote.revokeDevice(id));
+    const next = await run(() => window.pinext.remote.revokeDevice(id));
     if (next) setDevices(next);
   }
 

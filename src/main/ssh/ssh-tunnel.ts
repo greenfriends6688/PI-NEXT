@@ -168,7 +168,7 @@ async function waitForMasterForward(port: number, timeoutMs: number, signal?: Ab
 
 /**
  * Owns one SSH forwarding process. It is intentionally unaware of Electron and of the
- * remote FastVibe protocol: the tunnel is only a transport, so it can later be reused by
+ * remote Pinext protocol: the tunnel is only a transport, so it can later be reused by
  * the desktop client and by tests without pulling the renderer or the engine into it.
  */
 export class SshTunnel {
@@ -209,8 +209,8 @@ export class SshTunnel {
       this.#askpassFile = createAskpass();
       env.SSH_ASKPASS = this.#askpassFile;
       env.SSH_ASKPASS_REQUIRE = "force";
-      env.DISPLAY ||= "fastvibe-ssh";
-      env.FASTVIBE_SSH_PASSWORD = this.#options.password;
+      env.DISPLAY ||= "pinext-ssh";
+      env.PINEXT_SSH_PASSWORD = this.#options.password;
     }
     const child = spawn(binary, args, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -374,7 +374,7 @@ export function sshDestination(host: SshHostProfile): string {
   return user ? `${user}@${host.host.trim()}` : host.host.trim();
 }
 
-/** `-p` / `-i` / known-hosts options FastVibe adds on top of the user's own ssh config. */
+/** `-p` / `-i` / known-hosts options Pinext adds on top of the user's own ssh config. */
 export function explicitHostArgs(host: SshHostProfile): string[] {
   const args: string[] = [];
   if (!fromSshConfig(host)) {
@@ -458,8 +458,8 @@ export async function runSshCommand(options: SshCommandOptions): Promise<string>
     askpassFile = createAskpass();
     env.SSH_ASKPASS = askpassFile;
     env.SSH_ASKPASS_REQUIRE = "force";
-    env.DISPLAY ||= "fastvibe-ssh";
-    env.FASTVIBE_SSH_PASSWORD = options.password;
+    env.DISPLAY ||= "pinext-ssh";
+    env.PINEXT_SSH_PASSWORD = options.password;
   }
   const child = spawn(binary, args, { stdio: ["pipe", "pipe", "pipe"], env, windowsHide: true });
   let output = "";
@@ -552,8 +552,8 @@ function writeInput(stdin: NodeJS.WritableStream | null, input: Buffer, onProgre
 }
 
 function createAskpass(): string {
-  const file = join(tmpdir(), `fastvibe-ssh-askpass-${process.pid}-${randomUUID()}.sh`);
-  writeFileSync(file, '#!/bin/sh\nprintf \'%s\\n\' "$FASTVIBE_SSH_PASSWORD"\n', { mode: 0o700 });
+  const file = join(tmpdir(), `pinext-ssh-askpass-${process.pid}-${randomUUID()}.sh`);
+  writeFileSync(file, '#!/bin/sh\nprintf \'%s\\n\' "$PINEXT_SSH_PASSWORD"\n', { mode: 0o700 });
   chmodSync(file, 0o700);
   return file;
 }
@@ -585,7 +585,7 @@ export async function startSshMaster(options: {
   const destination = sshDestination(host);
   // OpenSSH rejects a control socket whose path exceeds the platform's sun_path, and macOS
   // tmpdir is already most of that budget. /tmp keeps it short.
-  const socket = `/tmp/fv-${process.pid}-${randomUUID().slice(0, 8)}`;
+  const socket = `/tmp/pn-${process.pid}-${randomUUID().slice(0, 8)}`;
   const args = [
     "-M", "-S", socket, "-N", "-T",
     "-o", "ControlPersist=no",
@@ -605,8 +605,8 @@ export async function startSshMaster(options: {
     askpassFile = createAskpass();
     env.SSH_ASKPASS = askpassFile;
     env.SSH_ASKPASS_REQUIRE = "force";
-    env.DISPLAY ||= "fastvibe-ssh";
-    env.FASTVIBE_SSH_PASSWORD = options.password;
+    env.DISPLAY ||= "pinext-ssh";
+    env.PINEXT_SSH_PASSWORD = options.password;
   }
   const child = spawn(options.sshBinary?.trim() || "ssh", args, { stdio: ["ignore", "pipe", "pipe"], env, windowsHide: true });
   let stderr = "";

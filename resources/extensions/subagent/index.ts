@@ -31,7 +31,7 @@ const COLLAPSED_ITEM_COUNT = 10;
 const PER_TASK_OUTPUT_CAP = 50 * 1024;
 
 /**
- * FastVibe's in-process subagent runner.
+ * Pinext's in-process subagent runner.
  *
  * Delegation runs on the host's own embedded engine: there is no `pi` binary to
  * spawn (the SDK bundle is excluded from the app archive) and no second process
@@ -73,7 +73,7 @@ type HostSubagentResponse = {
 	errorMessage?: string;
 };
 
-type FastVibeUIContext = {
+type PinextUIContext = {
 	runSubagent?: (request: HostSubagentRequest) => Promise<HostSubagentResponse>;
 };
 
@@ -295,7 +295,7 @@ async function runSingleAgent(
 	signal: AbortSignal | undefined,
 	onUpdate: OnUpdateCallback | undefined,
 	makeDetails: (results: SingleResult[]) => SubagentDetails,
-	host: FastVibeUIContext,
+	host: PinextUIContext,
 	subagentId: string,
 ): Promise<SingleResult> {
 	const agent = agents.find((a) => a.name === agentName);
@@ -462,7 +462,7 @@ export default function (pi: ExtensionAPI) {
 
 		async execute(toolCallId, params, signal, onUpdate, ctx) {
 			const agentScope: AgentScope = params.agentScope ?? "user";
-			const host = ctx.ui as unknown as FastVibeUIContext;
+			const host = ctx.ui as unknown as PinextUIContext;
 			if (!host.runSubagent) {
 				return {
 					content: [{ type: "text", text: "当前宿主不支持子 Agent：缺少进程内 runner。" }],

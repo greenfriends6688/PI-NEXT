@@ -9,7 +9,7 @@ export function useAccount(): AccountState | null {
   const [state, setState] = useState<AccountState | null>(null);
 
   useEffect(() => {
-    const api = window.fastvibe?.account;
+    const api = window.pinext?.account;
     if (!api) return;
     void api.getState().then(setState).catch(() => undefined);
     return api.onState(setState);

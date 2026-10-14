@@ -82,7 +82,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
               if (error.errorCode == MobileScannerErrorCode.permissionDenied) {
                 _returningFromSettings = true;
                 final opened = await const MethodChannel(
-                  'dev.fastvibe.mobile/device',
+                  'dev.pinext.mobile/device',
                 ).invokeMethod<bool>('openSettings');
                 if (opened != true) {
                   _returningFromSettings = false;

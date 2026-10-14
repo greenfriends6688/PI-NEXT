@@ -23,10 +23,10 @@ class I18n extends ChangeNotifier {
 
   static final I18n instance = I18n._();
 
-  static const String _key = 'fastvibe.language.v1';
+  static const String _key = 'pinext.language.v1';
 
   /// The device list's storage key — its presence marks an install from before i18n.
-  static const String _serversKey = 'fastvibe.servers.v1';
+  static const String _serversKey = 'pinext.servers.v1';
 
   LanguagePreference _preference = LanguagePreference.system;
   AppLanguage _current = systemLanguage();

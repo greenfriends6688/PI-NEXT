@@ -81,7 +81,7 @@ async function runHandoff(options: {
   editor?: (prefill?: string) => string | undefined;
   input?: () => string | undefined;
 }) {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-handoff-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-handoff-"));
   const notices: string[] = [];
   const statuses: string[] = [];
   let request = "";

@@ -4,7 +4,7 @@ import { priceUsage, selectCost, type TokenUsage } from "../src/main/engine/pric
 import { defaultContextWindow } from "../src/main/engine/context-window.ts";
 
 /**
- * The price ladder is the one place FastVibe bills money itself, and it exists because
+ * The price ladder is the one place Pinext bills money itself, and it exists because
  * pi prices a run with a single flat rate. A model that charges more past a context
  * threshold therefore has to be billed per request — and getting the threshold wrong
  * (measuring only uncached input, or picking the first step that matches) is a silent

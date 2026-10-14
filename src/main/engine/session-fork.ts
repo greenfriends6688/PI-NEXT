@@ -4,8 +4,8 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import type { SessionEntry, SessionHeader } from "@earendil-works/pi-coding-agent";
 import { uiText } from "./ui-text.ts";
 
-/** Metadata private to FastVibe; the SDK deliberately preserves unknown JSON fields. */
-export const FORK_USAGE_SESSION_FIELD = "fastvibeUsageSessionId";
+/** Metadata private to Pinext; the SDK deliberately preserves unknown JSON fields. */
+export const FORK_USAGE_SESSION_FIELD = "pinextUsageSessionId";
 
 export class SessionForkError extends Error {
   readonly code: "empty" | "not-on-branch" | "not-assistant" | "invalid-tools";
@@ -18,7 +18,7 @@ export class SessionForkError extends Error {
 }
 
 export type ForkSessionHeader = SessionHeader & {
-  fastvibeFork?: {
+  pinextFork?: {
     sourceSessionId: string;
     /** Last inherited entry. New entries appended by the SDK are outside this boundary. */
     inheritedThroughEntryId: string | null;
@@ -149,7 +149,7 @@ export function writeForkSession(options: {
     timestamp,
     cwd: options.cwd,
     ...(options.sourceSessionFile ? { parentSession: options.sourceSessionFile } : {}),
-    fastvibeFork: {
+    pinextFork: {
       sourceSessionId: options.sourceSessionId,
       inheritedThroughEntryId: inherited.at(-1)?.id ?? null,
     },

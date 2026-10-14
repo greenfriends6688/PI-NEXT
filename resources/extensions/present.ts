@@ -17,7 +17,7 @@ const TOOL = "present";
 const MAX_ITEMS = 8;
 
 const T = (zh: string, en: string): string =>
-  process.env.FASTVIBE_UI_LANGUAGE === "en" ? en : zh;
+  process.env.PINEXT_UI_LANGUAGE === "en" ? en : zh;
 
 export const PRESENTABLE_FILE_EXTENSIONS = [
   ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp",

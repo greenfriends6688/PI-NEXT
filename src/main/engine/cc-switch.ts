@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { CcSwitchCandidate, CcSwitchScan, ProviderApi, ProviderModel } from "@shared/types";
 import { enrichModel, loadModelsDev } from "./models-dev";
-import type { FastVibePaths } from "./paths";
+import type { PinextPaths } from "./paths";
 import {
   addProvider,
   fetchProviderModels,
@@ -41,11 +41,11 @@ type Draft = {
 };
 
 /**
- * Providers CC Switch has stored that FastVibe can actually use: a base URL, an
+ * Providers CC Switch has stored that Pinext can actually use: a base URL, an
  * API key, and a protocol we speak. Official OAuth logins and empty presets are
  * dropped; keys never leave the main process.
  */
-export async function scanCcSwitch(paths: FastVibePaths): Promise<CcSwitchScan> {
+export async function scanCcSwitch(paths: PinextPaths): Promise<CcSwitchScan> {
   if (!existsSync(DB_PATH)) return { found: false, path: DB_PATH, candidates: [] };
   const drafts = readDrafts();
   const taken = await existingFingerprints(paths);
@@ -59,7 +59,7 @@ export async function scanCcSwitch(paths: FastVibePaths): Promise<CcSwitchScan> 
   return { found: true, path: DB_PATH, candidates };
 }
 
-export async function importCcSwitch(paths: FastVibePaths, ids: string[]): Promise<number> {
+export async function importCcSwitch(paths: PinextPaths, ids: string[]): Promise<number> {
   const wanted = new Set(ids);
   const taken = await existingFingerprints(paths);
   let imported = 0;
@@ -250,7 +250,7 @@ async function resolveModels(draft: Draft): Promise<ProviderModel[]> {
   return models;
 }
 
-async function existingFingerprints(paths: FastVibePaths): Promise<Set<string>> {
+async function existingFingerprints(paths: PinextPaths): Promise<Set<string>> {
   const keys = await loadProviderKeys(paths);
   const taken = new Set<string>();
   for (const provider of listProviderConfigs(paths, keys)) {
@@ -302,7 +302,7 @@ function normalizeUrl(url: string): string {
   try {
     const parsed = new URL(stripSlash(url));
     const host = parsed.host.toLowerCase();
-    if (host === "fastvibe.dev" || host.endsWith(".fastvibe.dev")) {
+    if (host === "pinext.dev" || host.endsWith(".pinext.dev")) {
       return `${parsed.protocol}//${host}`;
     }
     const path = parsed.pathname.replace(/\/+$/, "") || "";

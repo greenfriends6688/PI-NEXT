@@ -3,7 +3,7 @@ import { join, basename } from "node:path";
 import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { THINKING_EFFORT_LEVELS, type SubagentConfig, type SubagentDraft, type ThinkingLevel } from "@shared/types";
 import { BUILTIN_AGENTS, builtinExtensionFile } from "../pi/extension-manager";
-import type { FastVibePaths } from "./paths";
+import type { PinextPaths } from "./paths";
 import { uiText } from "./ui-text";
 
 type Frontmatter = {
@@ -80,10 +80,10 @@ function safeThinkingLevel(value: unknown): ThinkingLevel | undefined {
 }
 
 export class SubagentManager {
-  readonly #paths: FastVibePaths;
+  readonly #paths: PinextPaths;
   readonly #customDir: string;
 
-  constructor(paths: FastVibePaths) {
+  constructor(paths: PinextPaths) {
     this.#paths = paths;
     this.#customDir = join(paths.agentDir, "agents");
     mkdirSync(this.#customDir, { recursive: true });

@@ -1,7 +1,7 @@
 import type { EngineModel } from "./types.ts";
 
 /**
- * Long-term memory, after Codex's: one switch. On, FastVibe distills finished conversations
+ * Long-term memory, after Codex's: one switch. On, Pinext distills finished conversations
  * into a small set of files and puts the summary in front of the agent; off, there is
  * no memory at all. Nothing else is configurable on purpose — see `docs/memory.md`.
  */

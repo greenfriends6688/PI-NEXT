@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { hashRuntimeDirectory } from "../scripts/agent-runtime-hash.mjs";
 
 function fixture(): string {
-  const root = mkdtempSync(join(tmpdir(), "fastvibe-agent-hash-"));
+  const root = mkdtempSync(join(tmpdir(), "pinext-agent-hash-"));
   mkdirSync(join(root, "out", "main"), { recursive: true });
   writeFileSync(join(root, "out", "main", "agent.js"), "console.log('agent');\n");
   writeFileSync(join(root, "package.json"), '{"version":"0.0.0"}\n');

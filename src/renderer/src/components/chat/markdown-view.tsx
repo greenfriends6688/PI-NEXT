@@ -139,7 +139,7 @@ function resolvedMarkdownPath(path: string): string {
 }
 
 async function revealMarkdownPath(path: string, missing: string): Promise<void> {
-  const result = await window.fastvibe.workspace.reveal(path);
+  const result = await window.pinext.workspace.reveal(path);
   if (result && result.ok === false) toast.error(missing);
 }
 

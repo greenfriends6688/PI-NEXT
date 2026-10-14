@@ -2,7 +2,7 @@ import { existsSync, readFileSync, statSync, unlinkSync, writeFileSync } from "n
 import { nativeTheme, type BrowserWindow } from "electron";
 import { THINKING_EFFORT_LEVELS, type ComputerSettings, type EngineModel, type ProjectModelDefault, type ThinkingLevel } from "@shared/types";
 import { isGlassEnabled } from "@shared/glass";
-import type { FastVibePaths } from "./paths";
+import type { PinextPaths } from "./paths";
 
 const VERSION = 1;
 
@@ -27,7 +27,7 @@ export type PersistedSettings = Record<string, unknown>;
  */
 let cache: { mtimeMs: number; size: number; settings: PersistedSettings } | null = null;
 
-export function readAppSettings(paths: FastVibePaths): PersistedSettings {
+export function readAppSettings(paths: PinextPaths): PersistedSettings {
   try {
     const stat = statSync(paths.settingsFile);
     if (cache && cache.mtimeMs === stat.mtimeMs && cache.size === stat.size) return cache.settings;
@@ -49,7 +49,7 @@ export function readAppSettings(paths: FastVibePaths): PersistedSettings {
  * `AgentSession.setModel` rewrites those to the last used model on every switch, so
  * they can never hold a preference.
  */
-export function readDefaultModel(paths: FastVibePaths): EngineModel | undefined {
+export function readDefaultModel(paths: PinextPaths): EngineModel | undefined {
   return readPreferredModelSettings(paths).model;
 }
 
@@ -57,7 +57,7 @@ export function readDefaultModel(paths: FastVibePaths): EngineModel | undefined 
  * Resolve the model and reasoning defaults for a new conversation. A project pin
  * overrides the global default, while a missing or malformed pin falls back cleanly.
  */
-export function readPreferredModelSettings(paths: FastVibePaths, project?: string): {
+export function readPreferredModelSettings(paths: PinextPaths, project?: string): {
   model?: EngineModel;
   thinkingLevel?: ThinkingLevel | "auto";
 } {
@@ -99,7 +99,7 @@ function isProjectModelDefault(value: unknown): value is ProjectModelDefault {
  * a run that is already going instead of only the next one. `readAppSettings` is itself
  * stat-cached, so this stays cheap enough to sit in front of every desktop action.
  */
-export function readComputerSettings(paths: FastVibePaths): ComputerSettings {
+export function readComputerSettings(paths: PinextPaths): ComputerSettings {
   const settings = readAppSettings(paths);
   return {
     // Defaults match the renderer's: a machine whose settings file has not been written
@@ -110,7 +110,7 @@ export function readComputerSettings(paths: FastVibePaths): ComputerSettings {
   };
 }
 
-export function writeAppSettings(paths: FastVibePaths, settings: PersistedSettings): void {
+export function writeAppSettings(paths: PinextPaths, settings: PersistedSettings): void {
   const payload: SettingsFile = { version: VERSION, settings };
   writeFileSync(paths.settingsFile, `${JSON.stringify(payload, null, 2)}\n`);
   // A write within the same millisecond as the cached stat would otherwise be
@@ -118,7 +118,7 @@ export function writeAppSettings(paths: FastVibePaths, settings: PersistedSettin
   cache = null;
 }
 
-export function clearAppSettings(paths: FastVibePaths): void {
+export function clearAppSettings(paths: PinextPaths): void {
   cache = null;
   if (existsSync(paths.settingsFile)) unlinkSync(paths.settingsFile);
 }

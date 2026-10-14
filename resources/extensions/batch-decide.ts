@@ -14,7 +14,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const TOOL = "batch_decide";
 
-const T = (zh: string, en: string): string => (process.env.FASTVIBE_UI_LANGUAGE === "en" ? en : zh);
+const T = (zh: string, en: string): string => (process.env.PINEXT_UI_LANGUAGE === "en" ? en : zh);
 
 type BatchRunner = (
   input: unknown,
@@ -26,8 +26,8 @@ type BatchRunner = (
 
 function batchRunner(): { run: BatchRunner; enabled: () => boolean } | undefined {
   const scope = globalThis as Record<string, unknown>;
-  const runner = scope.__fastvibeBatchDecide;
-  const enabled = scope.__fastvibeBatchDecideEnabled;
+  const runner = scope.__pinextBatchDecide;
+  const enabled = scope.__pinextBatchDecideEnabled;
   if (typeof runner !== "function" || typeof enabled !== "function") return undefined;
   return {
     run: runner as BatchRunner,

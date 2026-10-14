@@ -22,7 +22,7 @@ function profile(id: string): RemoteHostProfile {
 
 function handshake(serverInstanceId: string, capabilities: AppCapability[] = ["engine"]): AppHandshake {
   return {
-    protocol: "fastvibe.app",
+    protocol: "pinext.app",
     protocolVersion: 1,
     server: { serverInstanceId, version: "0.0.0", platform: "linux" },
     capabilities,

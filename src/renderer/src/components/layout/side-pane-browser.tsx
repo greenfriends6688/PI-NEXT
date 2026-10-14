@@ -260,7 +260,7 @@ export function SidePaneBrowser({
 
   async function loadProfiles(): Promise<void> {
     try {
-      setProfiles(await window.fastvibe.browser.listProfiles());
+      setProfiles(await window.pinext.browser.listProfiles());
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
@@ -269,7 +269,7 @@ export function SidePaneBrowser({
   async function importProfile(profile: BrowserProfileInfo): Promise<void> {
     setImporting(true);
     try {
-      const result: BrowserImportResult = await window.fastvibe.browser.importProfile(profile);
+      const result: BrowserImportResult = await window.pinext.browser.importProfile(profile);
       toast.success(t("browser.importDone", { browser: result.browser, profile: result.profile }), {
         description: result.message,
       });
@@ -432,7 +432,7 @@ export function SidePaneBrowser({
   async function clearData(): Promise<void> {
     if (!window.confirm(t("browser.clearConfirm"))) return;
     try {
-      await window.fastvibe.browser.clearData();
+      await window.pinext.browser.clearData();
       guest.current?.reload();
       toast.success(t("browser.cleared"));
     } catch (error) {

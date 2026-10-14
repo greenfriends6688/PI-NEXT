@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import type { ImportSourceId } from "@shared/types";
 
 /**
- * Brand marks for the agents FastVibe can import sessions from, so the 导入
+ * Brand marks for the agents Pinext can import sessions from, so the 导入
  * pane reads as four products rather than four rows of text.
  *
  * Vendored from LobeHub's icon set (https://lobehub.com/icons, MIT) as `currentColor`

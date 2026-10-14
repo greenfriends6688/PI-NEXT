@@ -14,8 +14,8 @@
   "sidebarChecking": "Checking",
   "sidebarDownloading": "Downloading",
   "sidebarRestart": "Restart",
-  "sidebarUpdateTitle": "Update to FastVibe {{version}}",
-  "sidebarRestartTitle": "Restart to finish updating to FastVibe {{version}}"
+  "sidebarUpdateTitle": "Update to PI NEXT {{version}}",
+  "sidebarRestartTitle": "Restart to finish updating to PI NEXT {{version}}"
  },
  "errors": {
   "cannotStart": "Could not start a chat. Please try again shortly.",
@@ -160,7 +160,7 @@
   "connect": "Connect SSH",
   "connecting": "Connecting…",
   "initializing": "Initializing…",
-  "initializingDescription": "Uploading, installing, and starting the remote FastVibe Agent over SSH.",
+  "initializingDescription": "Uploading, installing, and starting the remote PI NEXT Agent over SSH.",
   "noHosts": "No SSH hosts are configured yet.",
   "addHost": "Add one in Settings",
   "manageHosts": "No SSH host? Add one in Settings",
@@ -216,7 +216,7 @@
   "sectionRunning": "Running",
   "sectionRecent": "Recent",
   "waiting": "Waiting",
-  "placeholder": "Message FastVibe",
+  "placeholder": "Message PI NEXT",
   "placeholderQueue": "Queue a message for when this turn ends",
   "needModel": "No model is available yet — add one on the desktop",
   "send": "Send",
@@ -259,7 +259,7 @@
  },
  "account": {
   "signIn": "Sign in",
-  "signedOutTitle": "Sign in to FastVibe",
+  "signedOutTitle": "Sign in to PI NEXT",
   "signedOutDesc": "Sign in from your browser.",
   "waiting": "Finish signing in in your browser.",
   "cancel": "Cancel sign-in",

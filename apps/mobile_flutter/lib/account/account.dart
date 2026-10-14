@@ -14,15 +14,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../i18n/core.dart';
 
 /// Where the phone signs in; overridden for local development with
-/// `--dart-define=FASTVIBE_CLOUD_URL=http://192.168.x.x:9088`.
+/// `--dart-define=PINEXT_CLOUD_URL=http://192.168.x.x:9088`.
 const String defaultAccountOrigin = String.fromEnvironment(
-  'FASTVIBE_CLOUD_URL',
-  defaultValue: 'https://app.fastvibe.dev',
+  'PINEXT_CLOUD_URL',
+  defaultValue: 'https://app.pinext.dev',
 );
 
-const String _clientId = 'fastvibe-mobile';
-const String _redirectUri = 'fastvibe://oauth/callback';
-const String _callbackScheme = 'fastvibe';
+const String _clientId = 'pinext-mobile';
+const String _redirectUri = 'pinext://oauth/callback';
+const String _callbackScheme = 'pinext';
 const Duration _requestTimeout = Duration(seconds: 15);
 
 class AccountUser {
@@ -81,8 +81,8 @@ class SecureAccountStorage implements AccountStorage {
   const SecureAccountStorage();
 
   static const FlutterSecureStorage _secure = FlutterSecureStorage();
-  static const String _tokenKey = 'fv.account.token';
-  static const String _metaKey = 'fastvibe.account.v1';
+  static const String _tokenKey = 'pn.account.token';
+  static const String _metaKey = 'pinext.account.v1';
 
   @override
   Future<StoredAccount?> read() async {
@@ -145,12 +145,12 @@ class LoginFailure implements Exception {
   String toString() => message;
 }
 
-/// The FastVibe account this phone is signed in to (app.fastvibe.dev): the browser
+/// The Pinext account this phone is signed in to (app.pinext.dev): the browser
 /// authorization-code flow for native apps (RFC 8252) with PKCE (RFC 7636).
 ///
 /// The phone opens the site's `/authorize` page in a system browser session with a PKCE
 /// challenge and a random `state`; the person confirms there; the browser is sent to
-/// `fastvibe://oauth/callback?code=…`, which the OS hands back to this app. The code is
+/// `pinext://oauth/callback?code=…`, which the OS hands back to this app. The code is
 /// useless without the verifier, which never leaves this process, so another app that
 /// registered the same scheme and saw the redirect holds a code it cannot trade.
 class AccountService extends ChangeNotifier {
@@ -379,5 +379,5 @@ Future<String> _defaultDeviceName() async {
   } catch (_) {
     // The name is only a label in the account's device list.
   }
-  return 'FastVibe';
+  return 'Pinext';
 }

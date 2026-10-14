@@ -29,13 +29,13 @@ Then after the skill is done (but again, the order is flexible), you can also ru
 
 Cool? Cool.
 
-## 你运行在 FastVibe 里（读这一节，它改写了原文里的几处说法）
+## 你运行在 Pinext 里（读这一节，它改写了原文里的几处说法）
 
-This skill was written for Claude Code / Claude.ai. FastVibe is neither, so map the words above onto what actually exists here before you act on them.
+This skill was written for Claude Code / Claude.ai. Pinext is neither, so map the words above onto what actually exists here before you act on them.
 
 - **这是一个多轮流程，不是能扫一眼就放下的说明。** 上游把它写成一轮里有六步、还配一个 HTML 审阅界的流水线，而这里没有那个界面，所以流程要落到**对话**里：把产出直接贴在消息里（文件就存到磁盘上，告诉用户路径），然后**停下**问用户「这个怎么样，要改哪里」。用户回了话再进下一轮。不要一路跑到最后才让用户看见中间结果。
-- **"Claude" 指的就是你**，当前这个会话说的是 pi 引擎的模型。原文里 `claude -p` 那种命令行写法只在装了 Claude Code CLI 的机器上才有意义；在 FastVibe 里跑子任务用的是 `subagent` 工具（角色 `worker` / `explorer` / `reviewer` / `planner`），它**继承主会话的模型和供应商**——这是唯一能保证跑得通的方式，别去调一个用户没配过的供应商。
-- **原文里那些以 `agents/` 开头的文件是它自己的子 Agent 指令，FastVibe 里用不上。** 需要评测产物时，要么自己读、要么派一个 `reviewer` 子 Agent 过去，用 `subagent` 工具；不要试图加载 `agents/grader.md` 这套东西。
+- **"Claude" 指的就是你**，当前这个会话说的是 pi 引擎的模型。原文里 `claude -p` 那种命令行写法只在装了 Claude Code CLI 的机器上才有意义；在 Pinext 里跑子任务用的是 `subagent` 工具（角色 `worker` / `explorer` / `reviewer` / `planner`），它**继承主会话的模型和供应商**——这是唯一能保证跑得通的方式，别去调一个用户没配过的供应商。
+- **原文里那些以 `agents/` 开头的文件是它自己的子 Agent 指令，Pinext 里用不上。** 需要评测产物时，要么自己读、要么派一个 `reviewer` 子 Agent 过去，用 `subagent` 工具；不要试图加载 `agents/grader.md` 这套东西。
 - **这里没有 `present_files` 工具，也没有浏览器。** 凡是以它为条件的段落（打包成 `.skill`、`eval-viewer/generate_review.py` 起本地服务）都跳过；`scripts/` 下那些脚本仍然可以用，但用它们的 `--static` / 输出文件形态，把 HTML 写到磁盘上再告诉用户路径。"Cowork" 那一节可以当成「没有浏览器和显示的宿主」来读，条款和这里一致。
 - **Python 不一定装了，也可能没有 `yaml` 模块。** `scripts/*.py` 是锦上添花，不是必经之路：没装就跳过脚本那部分，用文件读写和对话把同一件事做完，并告诉用户少做了什么。作者、打包和改写技能这些核心工作不需要 Python。
 - **一次只推进一小步。** 把待办写进 todo 列表再动手；用户如果中途说「先这样」，就按他说的停。
@@ -45,30 +45,30 @@ This skill was written for Claude Code / Claude.ai. FastVibe is neither, so map 
 
 ## 技能写到哪里：**先问用户，再动手写**  ← 这一节优先于原文里所有关于路径的假设
 
-**不要默认写进 `.agents/`，也不要自己替用户选。** 原文里技能一律扔进 `~/.claude/skills/` 那种写法在 FastVibe 里不成立。FastVibe 能加载的技能落在**四个地方**，前三个人写的、第四个是随应用发布的：
+**不要默认写进 `.agents/`，也不要自己替用户选。** 原文里技能一律扔进 `~/.claude/skills/` 那种写法在 Pinext 里不成立。Pinext 能加载的技能落在**四个地方**，前三个人写的、第四个是随应用发布的：
 
 | 落点 | 路径 | 谁能用 | 设置 → 技能 里的标签 | 删除 |
 | --- | --- | --- | --- | --- |
 | **全局** | `~/.agents/skills/<name>/` | 这台机器上的**每一个**项目 | 全局 | 能 |
 | **项目** | `<项目>/.agents/skills/<name>/` | 只在这个项目（及其子目录）里 | 项目 | 能 |
-| FastVibe 私有 | `~/Library/Application Support/FastVibe/runtime/engine/agent/skills/`（macOS；Windows `%APPDATA%\FastVibe\...`，Linux `~/.config/FastVibe/...`） | 这台机器上的每一个项目 | 全局 | 能 |
+| Pinext 私有 | `~/Library/Application Support/Pinext/runtime/engine/agent/skills/`（macOS；Windows `%APPDATA%\Pinext\...`，Linux `~/.config/Pinext/...`） | 这台机器上的每一个项目 | 全局 | 能 |
 | 内置 | 安装包旁的 `resources/skills/` | 每个项目，但升级时被覆盖 | 全局 | 不能 |
 
 注意“全局”有两个目录都能放，而**设置 → 技能 里的标签分不出来**（都显示“全局”）——所以选哪个要跟用户说清楚。
 
 ### 流程
 
-1. **先判断候选**。如果当前会话绑定了一个项目（工作目录不是 FastVibe 的 scratch 目录、能看到 `.git`），项目级是可选方案；如果没绑项目（就是日常聊天那种），**只有全局可用**，直接把这一点告诉用户，不要给一个写不了的选择。
+1. **先判断候选**。如果当前会话绑定了一个项目（工作目录不是 Pinext 的 scratch 目录、能看到 `.git`），项目级是可选方案；如果没绑项目（就是日常聊天那种），**只有全局可用**，直接把这一点告诉用户，不要给一个写不了的选择。
 2. **问用户**。用 `question` 工具问（两个选项）；没有这个工具就直接在消息里问——用两个选项列出来，并由用户明确回答，不要自己替用户定。选项就两个：
    - **全局** —— 每个项目都能用。适合跟具体代码库无关的能力，比如“写 release note”、“处理我给的数据表”。
    - **项目** —— 只在这个仓库里用，而且**通常会跟代码一起提交**，团队里其他人克隆下去就都有了。适合贴着这个项目走的东西，比如“本仓库的组件怎么写”、“本仓库的发版流程”。这个区别就是让用户选的全部意义：选项目很大程度就是在说「这个要进仓库」。
 3. **写之前再确认一次路径和名字**，尤其是项目级：写成用户以为的那个仓库根目录下，不要写到某个子目录或祖先目录里（祖先目录里的 `.agents/skills` 也会被加载，但会盖到同项目的一堆无关子目录上，几乎总是弄错）。
 4. **写的时候附带目录**。技能是 `SKILL.md` 加它旁边的 `scripts/` `references/` `assets/`，一起放进 `<落点>/<name>/`，相对路径引用按技能目录解析。
-5. **写完之后用 `fastvibe_config_get({ action: "overview" })` 的读动作或 `engine:list-skills` 确认它真的被加载了**，并把落点、完整路径、以及上面那条“需要新会话”一起告诉用户。
+5. **写完之后用 `pinext_config_get({ action: "overview" })` 的读动作或 `engine:list-skills` 确认它真的被加载了**，并把落点、完整路径、以及上面那条“需要新会话”一起告诉用户。
 
 ### 几条硬约束
 
-- **不要写进 `~/.pi/agent/skills/`。** 那是 pi CLI 自己的全局位置，FastVibe 把 agentDir 指向自己的数据目录，**不会读它**。`.agents/skills` 才是双方都认的那个。项目里的 `<项目>/.pi/skills/` 倒是能加载（但它只被 pi 那套惦记，优先用 `.agents/skills`，一份配置不要铺两处）。
+- **不要写进 `~/.pi/agent/skills/`。** 那是 pi CLI 自己的全局位置，Pinext 把 agentDir 指向自己的数据目录，**不会读它**。`.agents/skills` 才是双方都认的那个。项目里的 `<项目>/.pi/skills/` 倒是能加载（但它只被 pi 那套惦记，优先用 `.agents/skills`，一份配置不要铺两处）。
 - **不要写进 `resources/skills/`（内置目录）。** 那是应用包的一部分，升级就被覆盖，而且 `skill-creator` 自己就在那儿。用它的加载路径反推“应用目录”会搞错。
 - **如果用户改的是既有的技能，先看它落在哪再决定。** 用户技能就直接改；改内置技能要告诉用户“这个会随升级丢失”，并把改好的内容另存一份到全局或项目里去。
 

@@ -43,7 +43,7 @@ import type {
  * Four sibling coding agents can be read from disk, and this pane is a list of them:
  * mark, name, and a 导入 button. Nothing is imported until the user picks sessions in
  * the dialog and confirms, because these are somebody else's transcripts — every scan
- * is read-only, and an import *copies* the converted session into FastVibe's own
+ * is read-only, and an import *copies* the converted session into Pinext's own
  * runtime rather than linking to the original (deleting a chat would otherwise unlink
  * the user's real data).
  *
@@ -63,7 +63,7 @@ export function ImportSettings({
   const refresh = useCallback(async (): Promise<void> => {
     setScanning(true);
     try {
-      setSources(await window.fastvibe.engine.importSources());
+      setSources(await window.pinext.engine.importSources());
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("import.scanFailed"));
       setSources([]);
@@ -112,7 +112,7 @@ export function ImportSettings({
 
 
           {/* 
-            * The list is only drawn when it has rows: every source FastVibe knows about
+            * The list is only drawn when it has rows: every source Pinext knows about
             * is absent — or the scan is still running — and an empty bordered box would
             * read as a rendering bug. `sources === null` (still scanning) and `[]` (nothing
             * installed) therefore both fall through to a message of their own.
@@ -213,7 +213,7 @@ function ImportPickerDialog({
 
   useEffect(() => {
     let cancelled = false;
-    void window.fastvibe.engine
+    void window.pinext.engine
       .importCandidates(source.id)
       .then((list) => {
         if (!cancelled) setCandidates(list);
@@ -284,7 +284,7 @@ function ImportPickerDialog({
     if (selected.size === 0) return;
     setRunning(true);
     try {
-      const result = await window.fastvibe.engine.importSessions(source.id, [...selected]);
+      const result = await window.pinext.engine.importSessions(source.id, [...selected]);
       setOutcomes(result.outcomes);
       setSelected(new Set());
       setCandidates((current) =>

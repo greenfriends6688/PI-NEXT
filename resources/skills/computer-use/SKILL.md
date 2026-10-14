@@ -1,6 +1,6 @@
 ---
 name: computer-use
-description: 通过 Cua Driver 操作本机桌面上的原生应用与窗口；需要在 FastVibe 之外的应用里点击、输入或读取界面时使用 computer_* 工具。
+description: 通过 Cua Driver 操作本机桌面上的原生应用与窗口；需要在 Pinext 之外的应用里点击、输入或读取界面时使用 computer_* 工具。
 ---
 
 # Computer use

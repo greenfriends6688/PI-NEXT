@@ -184,7 +184,7 @@ test("a malformed question set throws instead of spending a request", async () =
 });
 
 test("the trace file is append-only, 0600, and trimmed to the newest records", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-decision-trace-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-decision-trace-"));
   try {
     const file = join(dir, "decision-trace.jsonl");
     const sink = new DecisionTraceFile(file, 4);

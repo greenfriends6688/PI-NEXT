@@ -95,7 +95,7 @@ class _PendingSubscription {
   bool resumed;
 }
 
-/// One remote FastVibe: password once, then a device token on the socket.
+/// One remote Pinext: password once, then a device token on the socket.
 ///
 /// The first frame is the legacy `{ type: "auth" }` the server still requires.
 /// Everything after that is App Protocol v1, the same envelope the web client uses.
@@ -340,7 +340,7 @@ class RemoteClient {
         socket.add(jsonEncode(<String, Object?>{
           'kind': 'hello',
           'hello': <String, Object?>{
-            'protocol': 'fastvibe.app',
+            'protocol': 'pinext.app',
             'protocolVersion': 1,
             'client': <String, Object?>{'kind': 'mobile', 'version': _version},
             'features': <String, Object?>{

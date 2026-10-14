@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
-import 'package:fastvibe_mobile/account/account.dart';
-import 'package:fastvibe_mobile/protocol/client.dart';
-import 'package:fastvibe_mobile/protocol/frame_socket.dart';
+import 'package:pinext_mobile/account/account.dart';
+import 'package:pinext_mobile/protocol/client.dart';
+import 'package:pinext_mobile/protocol/frame_socket.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -22,7 +22,7 @@ class MemoryStorage implements AccountStorage {
   Future<void> clear() async => kept = null;
 }
 
-const String origin = 'https://app.fastvibe.dev';
+const String origin = 'https://app.pinext.dev';
 
 http.Response json(Object body, [int status = 200]) =>
     http.Response(jsonEncode(body), status, headers: <String, String>{'content-type': 'application/json'});
@@ -57,7 +57,7 @@ void main() {
       authenticate: (url) async {
         opened = Uri.parse(url);
         final state = opened!.queryParameters['state'];
-        return 'fastvibe://oauth/callback?code=abc123&state=$state';
+        return 'pinext://oauth/callback?code=abc123&state=$state';
       },
       client: MockClient((request) async {
         expect(request.url.path, '/api/oauth/token');
@@ -75,8 +75,8 @@ void main() {
 
     final query = opened!.queryParameters;
     expect(opened!.path, '/authorize');
-    expect(query['client_id'], 'fastvibe-mobile');
-    expect(query['redirect_uri'], 'fastvibe://oauth/callback');
+    expect(query['client_id'], 'pinext-mobile');
+    expect(query['redirect_uri'], 'pinext://oauth/callback');
     expect(query['code_challenge_method'], 'S256');
     expect(query['device_name'], "Ada's iPhone");
     expect(query['platform'], 'ios');
@@ -87,14 +87,14 @@ void main() {
     expect(query['code_challenge'], expected);
     expect(exchanged!['grant_type'], 'authorization_code');
     expect(exchanged!['code'], 'abc123');
-    expect(exchanged!['client_id'], 'fastvibe-mobile');
-    expect(exchanged!['redirect_uri'], 'fastvibe://oauth/callback');
+    expect(exchanged!['client_id'], 'pinext-mobile');
+    expect(exchanged!['redirect_uri'], 'pinext://oauth/callback');
   });
 
   test('a redirect carrying someone else\'s state is refused', () async {
     var tokenRequests = 0;
     final account = service(
-      authenticate: (url) async => 'fastvibe://oauth/callback?code=abc&state=not-ours',
+      authenticate: (url) async => 'pinext://oauth/callback?code=abc&state=not-ours',
       client: MockClient((request) async {
         tokenRequests += 1;
         return json(tokenReply());
@@ -118,7 +118,7 @@ void main() {
     final denied = service(
       authenticate: (url) async {
         final state = Uri.parse(url).queryParameters['state'];
-        return 'fastvibe://oauth/callback?error=access_denied&state=$state';
+        return 'pinext://oauth/callback?error=access_denied&state=$state';
       },
       client: MockClient((request) async => json(tokenReply())),
     );
@@ -131,7 +131,7 @@ void main() {
     final account = service(
       authenticate: (url) async {
         final state = Uri.parse(url).queryParameters['state'];
-        return 'fastvibe://oauth/callback?code=abc&state=$state';
+        return 'pinext://oauth/callback?code=abc&state=$state';
       },
       client: MockClient((request) async => json(<String, Object?>{'error': <String, Object?>{'code': 'invalid_grant'}}, 400)),
     );

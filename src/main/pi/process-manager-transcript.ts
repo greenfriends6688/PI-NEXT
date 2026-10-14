@@ -23,7 +23,7 @@ export type TranscriptProjectionDeps = {
 /**
  * Project an SDK branch into the transcript the renderer reads.
  *
- * The SDK's context projection, FastVibe's persisted reasoning timings and the
+ * The SDK's context projection, Pinext's persisted reasoning timings and the
  * in-flight cards all meet here. Keeping this pure projection outside the process
  * manager leaves session lifecycle and transcript shaping as separate concerns.
  */

@@ -8,13 +8,13 @@ import type { RemoteLanAddressFamily } from "../../shared/ipc.ts";
  * Announce the remote server on the local network (mDNS / Bonjour), so the phone's 添加设备
  * page can list this machine instead of asking for an IP address that DHCP will change.
  *
- * The service is `_fastvibe._tcp` and its instance name defaults to the machine's host name — that
+ * The service is `_pinext._tcp` and its instance name defaults to the machine's host name — that
  * is the name the phone shows and saves the connection under. Nothing secret travels: the
  * password is still what lets a device in, and the record only says «something on this
- * port speaks FastVibe».
+ * port speaks Pinext».
  */
 
-export const MDNS_SERVICE_TYPE = "fastvibe";
+export const MDNS_SERVICE_TYPE = "pinext";
 
 /** What a phone needs to find out from the record before it asks for a password. */
 export const MDNS_TXT = { v: "1" } as const;
@@ -29,7 +29,7 @@ export const MDNS_TXT = { v: "1" } as const;
  */
 export function mdnsInstanceName(host: string = hostname()): string {
   const name = host.trim().replace(/\.local\.?$/i, "").replace(/[.\\\x00-\x1f\x7f]/g, "-");
-  return discoveryNameWithSuffix(name || "FastVibe");
+  return discoveryNameWithSuffix(name || "Pinext");
 }
 
 type PublishedService = {
@@ -82,9 +82,9 @@ export class MdnsAdvertiser {
   #probeTimer: ReturnType<typeof setTimeout> | null = null;
   // Never claim os.hostname()'s A/AAAA records: macOS already owns those and advertises
   // different addresses on each interface. Publishing all interfaces under that same
-  // name makes mDNSResponder rename the computer. This target belongs only to FastVibe;
+  // name makes mDNSResponder rename the computer. This target belongs only to Pinext;
   // the human-facing service name still comes from the computer's name.
-  #host = `fastvibe-${randomUUID()}.local`;
+  #host = `pinext-${randomUUID()}.local`;
 
   constructor(deps: MdnsAdvertiserDeps) {
     this.#deps = deps;

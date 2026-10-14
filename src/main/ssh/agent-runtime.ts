@@ -20,7 +20,7 @@ export type AgentRuntimeArtifact = {
 export type AgentRuntimeSource = {
   release: string;
   targets: Partial<Record<AgentRuntimeTarget, AgentRuntimeArtifact>>;
-  /** Optional local directory containing fastvibe-agent-<target>.tar.gz. */
+  /** Optional local directory containing pinext-agent-<target>.tar.gz. */
   artifactDirectory?: string;
   /** Cache downloaded archives so reconnecting does not hit GitHub again. */
   cacheDirectory?: string;
@@ -63,7 +63,7 @@ export function agentRuntimeTarget(uname: string, machine: string): AgentRuntime
 }
 
 export function agentRuntimeFilename(target: AgentRuntimeTarget): string {
-  return `fastvibe-agent-${target}.tar.gz`;
+  return `pinext-agent-${target}.tar.gz`;
 }
 
 function artifactFor(source: AgentRuntimeSource, target: AgentRuntimeTarget): AgentRuntimeArtifact {
@@ -99,8 +99,8 @@ export function agentRuntimeRemoteDownloadCommand(source: AgentRuntimeSource, ta
     ...loginEnvironment(),
     "load_login_env",
     ...downloadHelpers(),
-    `echo "正在由远程主机直接下载 Agent 运行包：${agentRuntimeFilename(target)}（$(fv_host \"$URL\")）"`,
-    'fv_download agent-download "$TMP/agent.tar.gz" "$URL" "$MIRROR_URL" || { echo "Agent 运行包下载失败" >&2; exit 127; }',
+    `echo "正在由远程主机直接下载 Agent 运行包：${agentRuntimeFilename(target)}（$(pn_host \"$URL\")）"`,
+    'pn_download agent-download "$TMP/agent.tar.gz" "$URL" "$MIRROR_URL" || { echo "Agent 运行包下载失败" >&2; exit 127; }',
     ...installStagedArchive("远程主机已直接下载并部署 Agent"),
   ].join("\n");
   return remoteShellCommand(script);
@@ -131,7 +131,7 @@ function stagingPrelude(source: AgentRuntimeSource, target: AgentRuntimeTarget):
     `EXPECTED_ARCHIVE_SHA=${shellQuote(artifact.archiveSha256 ?? "")}`,
     `EXPECTED_TARGET=${shellQuote(target)}`,
     'command -v tar >/dev/null 2>&1 || { echo "远程主机缺少 tar，无法解压 Agent 运行包" >&2; exit 127; }',
-    'ROOT="$HOME/.fastvibe-agent"',
+    'ROOT="$HOME/.pinext-agent"',
     'RELEASE="$ROOT/releases/$VERSION"',
     'TMP="$ROOT/.download-$$"',
     'umask 077',

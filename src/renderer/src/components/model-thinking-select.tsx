@@ -23,7 +23,7 @@ import {
   DEFAULT_THINKING_LEVELS,
   THINKING_LEVELS,
   type EngineModel,
-  type FastVibeModel,
+  type PinextModel,
   type ThinkingLevel,
 } from "@shared/types";
 
@@ -31,7 +31,7 @@ function modelKey(model: { provider: string; id: string }): string {
   return `${model.provider}/${model.id}`;
 }
 
-function providerLabel(model: FastVibeModel): string {
+function providerLabel(model: PinextModel): string {
   return model.providerName || model.provider.replace(/^custom-/, "");
 }
 
@@ -53,7 +53,7 @@ export function ModelThinkingSelect({
   className,
   ariaLabel,
 }: {
-  models: FastVibeModel[];
+  models: PinextModel[];
   model?: EngineModel;
   thinkingLevel?: ThinkingLevel | "auto" | string;
   fallbackThinkingLevels?: ThinkingLevel[];
@@ -98,7 +98,7 @@ export function ModelThinkingSelect({
         ? t("composer.noModels")
         : inheritModelLabel ?? emptyModelLabel ?? (models.length === 0 ? t("composer.addModel") : t("composer.pickModel"));
   const groups = useMemo(() => {
-    const result: { id: string; name: string; models: FastVibeModel[] }[] = [];
+    const result: { id: string; name: string; models: PinextModel[] }[] = [];
     const index = new Map<string, number>();
     for (const item of models) {
       const existing = index.get(item.provider);

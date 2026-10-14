@@ -125,8 +125,8 @@ const EMPTY_SCOPE: SidePaneScopeState = { tabs: [], activeTabId: null, maximized
  */
 export const DRAFT_SCOPE = "";
 
-const WIDTH_KEY = "fastvibe.side-pane.width";
-const COLLAPSED_KEY = "fastvibe.side-pane.collapsed";
+const WIDTH_KEY = "pinext.side-pane.width";
+const COLLAPSED_KEY = "pinext.side-pane.collapsed";
 const MIN_WIDTH = 280;
 const DEFAULT_WIDTH = 380;
 

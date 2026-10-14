@@ -24,7 +24,7 @@ test("a long paste is named from its first 32 graphemes", () => {
 });
 
 test("a long paste stays model-visible but is hidden behind a file-style chip", () => {
-  const content = "第一行\n第二行\n</fastvibe-pasted-text> 也只是正文";
+  const content = "第一行\n第二行\n</pinext-pasted-text> 也只是正文";
   const suffix = attachmentPromptSuffix([{
     id: "paste-1",
     kind: "file",
@@ -62,9 +62,9 @@ test("real file chips are still rebuilt from the persisted prompt suffix", () =>
   const text = [
     "请查看附件",
     "",
-    "<fastvibe-attachments>",
+    "<pinext-attachments>",
     "- /tmp/one/notes.md",
-    "</fastvibe-attachments>",
+    "</pinext-attachments>",
   ].join("\n");
 
   assert.deepEqual(extractPromptAttachments(text), [{
@@ -76,7 +76,7 @@ test("real file chips are still rebuilt from the persisted prompt suffix", () =>
 });
 
 test("attachment-looking text in the middle of a prompt is not stripped", () => {
-  const text = "<fastvibe-attachments>\n- /tmp/not-real.txt\n</fastvibe-attachments>\nkeep going";
+  const text = "<pinext-attachments>\n- /tmp/not-real.txt\n</pinext-attachments>\nkeep going";
   assert.equal(stripAttachmentBlock(text), text);
 });
 

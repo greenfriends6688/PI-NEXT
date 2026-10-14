@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { readSshConfig } from "../src/main/ssh/ssh-config.ts";
 
 test("readSshConfig returns concrete host aliases and ignores pattern blocks", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-ssh-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-ssh-"));
   const file = join(dir, "config");
   writeFileSync(file, `
 Host dev staging
@@ -47,7 +47,7 @@ Host !bastion *.internal
 });
 
 test("readSshConfig follows absolute Include directives", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-ssh-include-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-ssh-include-"));
   const file = join(dir, "config");
   const included = join(dir, "config.new");
   writeFileSync(included, `
@@ -87,7 +87,7 @@ Host direct
 });
 
 test("readSshConfig expands relative Include globs and stops include cycles", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-ssh-include-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-ssh-include-"));
   const fragments = join(dir, "config.d");
   const file = join(dir, "config");
   mkdirSync(fragments);
@@ -106,11 +106,11 @@ Host second
 });
 
 test("readSshConfig returns an empty list for a missing file", () => {
-  assert.deepEqual(readSshConfig("/definitely/missing/fastvibe-ssh-config"), []);
+  assert.deepEqual(readSshConfig("/definitely/missing/pinext-ssh-config"), []);
 });
 
 test("readSshConfig ends a Host block at Match and keeps the first value, like OpenSSH", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-ssh-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-ssh-"));
   const file = join(dir, "config");
   writeFileSync(file, `
 Host foo

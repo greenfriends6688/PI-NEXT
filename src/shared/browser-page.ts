@@ -23,7 +23,7 @@ export const PAGE_HELPERS = `
   const label = (el) => clean((secret(el) ? '' : el.innerText || el.value) || el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || el.getAttribute('name') || '');
   const TARGETS = 'a,button,summary,label,[role="button"],[role="link"],[role="tab"],[role="menuitem"],[role="option"],[role="checkbox"],[role="switch"],[contenteditable="true"],input:not([type="hidden"]),textarea,select';
   const resolve = () => {
-    if (ref) { const hit = document.querySelector('[data-fv-ref="' + ref + '"]'); if (hit) return hit; }
+    if (ref) { const hit = document.querySelector('[data-pn-ref="' + ref + '"]'); if (hit) return hit; }
     if (selector) { try { const hit = document.querySelector(selector); if (hit) return hit; } catch (error) { throw new Error('invalid selector: ' + selector); } }
     const needle = clean(text).toLowerCase();
     if (!needle) return null;
@@ -37,7 +37,7 @@ export const PAGE_HELPERS = `
 `;
 
 /**
- * The snapshot. Elements carry a `ref` (stamped as `data-fv-ref`, so a click can
+ * The snapshot. Elements carry a `ref` (stamped as `data-pn-ref`, so a click can
  * address the exact element even after the page mutates) and a `selector`, and a
  * miss is data, never a throw.
  */
@@ -63,11 +63,11 @@ export const SNAPSHOT_BODY = `
   const secret = (el) => el.tagName === 'INPUT' && /^(password|file)$/i.test(el.type || '');
   // Refs from an earlier snapshot must not survive it: resolve() takes the first match
   // in document order, which could otherwise be a stale element that reused the name.
-  for (const stale of document.querySelectorAll('[data-fv-ref]')) stale.removeAttribute('data-fv-ref');
+  for (const stale of document.querySelectorAll('[data-pn-ref]')) stale.removeAttribute('data-pn-ref');
   const all = [...document.querySelectorAll(TARGETS)].filter(visible);
   const elements = all.slice(0, ${SNAPSHOT_ELEMENT_LIMIT}).map((el, index) => {
     const ref = 'e' + index;
-    try { el.setAttribute('data-fv-ref', ref); } catch (error) { void error; }
+    try { el.setAttribute('data-pn-ref', ref); } catch (error) { void error; }
     const tag = el.tagName.toLowerCase();
     return {
       ref,

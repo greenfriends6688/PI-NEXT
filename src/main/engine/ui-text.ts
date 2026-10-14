@@ -5,7 +5,7 @@ import { UI_LANGUAGE_ENV } from "./ai-language.ts";
  *
  * Main owns text the user ends up reading — IPC error toasts, native dialogs,
  * notifications, and the per-session labels of the 导入 pane. The language reaches
- * the process through `FASTVIBE_UI_LANGUAGE`, which is synced from `settings.json`
+ * the process through `PINEXT_UI_LANGUAGE`, which is synced from `settings.json`
  * on every settings write (see `applyLanguages`), so the renderer and Main never
  * disagree about which language is active.
  *

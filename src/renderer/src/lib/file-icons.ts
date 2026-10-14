@@ -4,7 +4,7 @@ import type { FileIconMapping } from "@shared/types";
 /**
  * Material Icon Theme lookups. The association table is fetched once from Main
  * and cached for the whole renderer; the icons themselves are served under the
- * `fastvibe-icon` scheme, so a chip or a file-tree row only needs the icon name.
+ * `pinext-icon` scheme, so a chip or a file-tree row only needs the icon name.
  */
 let cache: FileIconMapping | null = null;
 let pending: Promise<FileIconMapping> | null = null;
@@ -12,7 +12,7 @@ let resolved: Map<string, string> | null = null;
 
 export function loadFileIcons(): Promise<FileIconMapping> {
   if (!pending) {
-    pending = window.fastvibe.workspace.fileIcons().then((mapping) => {
+    pending = window.pinext.workspace.fileIcons().then((mapping) => {
       cache = mapping;
       return mapping;
     });
@@ -65,9 +65,9 @@ export function resolveFileIcon(mapping: FileIconMapping, name: string, kind: "f
 }
 
 /**
- * Where to fetch one icon: `fastvibe-icon://` is a `protocol.handle` registered in Main, which
+ * Where to fetch one icon: `pinext-icon://` is a `protocol.handle` registered in Main, which
  * serves the icon theme's directory to the window.
  */
 export function fileIconUrl(icon: string): string {
-  return `fastvibe-icon://icons/${icon}.svg`;
+  return `pinext-icon://icons/${icon}.svg`;
 }

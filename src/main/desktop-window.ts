@@ -2,7 +2,7 @@ import { app, BrowserWindow, nativeImage, screen, shell } from "electron";
 import { join } from "node:path";
 import { Ipc } from "@shared/ipc";
 import { readAppSettings, WINDOW_BUTTON_POSITION, windowBackgroundColor, windowIsGlass, windowVibrancy } from "./engine/app-settings";
-import { getFastVibePaths } from "./engine/paths";
+import { getPinextPaths } from "./engine/paths";
 import { log } from "./engine/logger";
 import { readWindowState, writeWindowState } from "./engine/window-state";
 import { attachBrowserRenderer } from "./pi/browser-bridge";
@@ -36,7 +36,7 @@ const MIN_WINDOW_SIZE = { width: 920, height: 640 } as const;
 const WINDOW_STATE_SAVE_DELAY_MS = 250;
 
 export function createDesktopWindow(windows: Set<BrowserWindow>): void {
-  const paths = getFastVibePaths();
+  const paths = getPinextPaths();
   const restored = readWindowState(paths.windowStateFile);
   const workArea = screen.getPrimaryDisplay().workAreaSize;
   const width = clampWindowDimension(restored?.width ?? DEFAULT_WINDOW_SIZE.width, MIN_WINDOW_SIZE.width, workArea.width);
@@ -47,7 +47,7 @@ export function createDesktopWindow(windows: Set<BrowserWindow>): void {
     height,
     minWidth: MIN_WINDOW_SIZE.width,
     minHeight: MIN_WINDOW_SIZE.height,
-    title: "FastVibe",
+    title: "Pinext",
     icon: resolveAppIcon(),
     backgroundColor: windowBackgroundColor(glass),
     vibrancy: windowVibrancy(glass),

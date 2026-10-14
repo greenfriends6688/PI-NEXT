@@ -7,7 +7,7 @@ const MAX_QUERY_CHARS = 500;
 const MAX_TOOL_TEXT_CHARS = 40_000;
 
 const T = (zh: string, en: string): string =>
-  process.env.FASTVIBE_UI_LANGUAGE === "en" ? en : zh;
+  process.env.PINEXT_UI_LANGUAGE === "en" ? en : zh;
 
 type SearchLine = {
   entryId: string;

@@ -75,11 +75,11 @@ export function SidePaneChat({
   useEffect(() => {
     if (tab.conversationId || !parentId) return;
     let cancelled = false;
-    void window.fastvibe.conversations
+    void window.pinext.conversations
       .createSide({ parentId, title: tab.title })
       .then((result) => {
         if (cancelled) {
-          void window.fastvibe.conversations.delete(result.conversation.id).catch(() => undefined);
+          void window.pinext.conversations.delete(result.conversation.id).catch(() => undefined);
           return;
         }
         patchTab(tab.id, { conversationId: result.conversation.id, messages: result.messages });

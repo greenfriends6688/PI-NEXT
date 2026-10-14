@@ -450,7 +450,7 @@ function upnpArgs(external: number, internal: number, client: string, lease: num
     ["NewInternalPort", internal],
     ["NewInternalClient", client],
     ["NewEnabled", 1],
-    ["NewPortMappingDescription", "FastVibe"],
+    ["NewPortMappingDescription", "Pinext"],
     ["NewLeaseDuration", lease],
   ];
 }

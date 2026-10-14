@@ -46,7 +46,7 @@ export function ComputerSettings(): JSX.Element {
     // button flicker between "open System Settings" and "checking…".
     if (lastStatus === null) setChecking(true);
     try {
-      const next = await window.fastvibe.computer.permissions();
+      const next = await window.pinext.computer.permissions();
       lastStatus = next;
       setStatus(next);
     } catch {
@@ -120,7 +120,7 @@ export function ComputerSettings(): JSX.Element {
 /**
  * The grant state, and the two ways out of it.
  *
- * `请求授权` shows the system prompts, which is what *registers* FastVibe in the Privacy
+ * `请求授权` shows the system prompts, which is what *registers* Pinext in the Privacy
  * & Security list — an app that has never asked does not appear there at all, so the
  * drag target below is useless until this has been pressed at least once.
  */
@@ -144,8 +144,8 @@ function PermissionCard({
   // Read once as well as subscribed: the broadcast only fires when a step changes, so a
   // pane opened in the middle of a sequence would otherwise show the idle state.
   useEffect(() => {
-    void window.fastvibe.computer.getGrantFlow().then(setFlow);
-    return window.fastvibe.computer.onGrantFlowState((next) => {
+    void window.pinext.computer.getGrantFlow().then(setFlow);
+    return window.pinext.computer.onGrantFlowState((next) => {
       setFlow(next);
       void onRefresh();
     });
@@ -183,7 +183,7 @@ function PermissionCard({
   const start = async (): Promise<void> => {
     setStarting(true);
     try {
-      setFlow(await window.fastvibe.computer.startGrantFlow());
+      setFlow(await window.pinext.computer.startGrantFlow());
     } finally {
       setStarting(false);
       await onRefresh();
@@ -212,7 +212,7 @@ function PermissionCard({
               <div className="flex items-center gap-2">
                 {flow.active ? (
                   <>
-                    <Button size="sm" variant="outline" onClick={() => void window.fastvibe.computer.cancelGrantFlow()}>
+                    <Button size="sm" variant="outline" onClick={() => void window.pinext.computer.cancelGrantFlow()}>
                       {t("computer.cancelFlow")}
                     </Button>
                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground">

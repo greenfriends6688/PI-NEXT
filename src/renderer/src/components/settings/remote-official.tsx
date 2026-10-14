@@ -9,7 +9,7 @@ import { SettingsGroup, SettingsRow } from "./settings-group";
 
 /**
  * 已连接设备: the phones connected to this computer right now, and how — directly, or
- * through FastVibe's relay, which is the one case that costs the account something and so
+ * through Pinext's relay, which is the one case that costs the account something and so
  * the one worth telling the person about.
  *
  * Nothing here is configured: it follows the 远程访问 switch and needs only an account. So
@@ -41,11 +41,11 @@ export function RemoteOfficial({
     status = {
       description: signingIn ? t("remote.official.signingIn") : t("remote.official.signedOut"),
       control: signingIn ? (
-        <Button size="sm" variant="ghost" onClick={() => void window.fastvibe.account.cancelLogin()}>
+        <Button size="sm" variant="ghost" onClick={() => void window.pinext.account.cancelLogin()}>
           {t("remote.cancel")}
         </Button>
       ) : (
-        <Button size="sm" onClick={() => void window.fastvibe.account.login()}>
+        <Button size="sm" onClick={() => void window.pinext.account.login()}>
           {t("remote.official.login")}
         </Button>
       ),

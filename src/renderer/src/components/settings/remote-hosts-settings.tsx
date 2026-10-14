@@ -35,7 +35,7 @@ const EMPTY: Form = {
   id: "", label: "", host: "", user: "", port: "", servicePort: "", authMethod: "default-key", identityFile: "", password: "",
   phoneEnabled: false, phonePassword: "", phonePort: "", phonePublicUrl: "",
 };
-/** Suggested the first time phone access is switched on. The same port FastVibe's own server defaults to. */
+/** Suggested the first time phone access is switched on. The same port Pinext's own server defaults to. */
 const DEFAULT_PHONE_PORT = "7777";
 
 export function RemoteHostsSettings(): JSX.Element {
@@ -59,7 +59,7 @@ export function RemoteHostsSettings(): JSX.Element {
 
   async function load(): Promise<void> {
     try {
-      const next = await window.fastvibe.ssh.hosts();
+      const next = await window.pinext.ssh.hosts();
       setSaved(next.saved);
       setDiscovered(next.discovered);
     } catch (err) {
@@ -83,7 +83,7 @@ export function RemoteHostsSettings(): JSX.Element {
   async function testHost(host: RemoteHostProfile): Promise<void> {
     setTestingId(host.id);
     try {
-      const result = await window.fastvibe.ssh.test(host.id);
+      const result = await window.pinext.ssh.test(host.id);
       const target = result.target || host.label;
       if (result.ok) {
         toast.success(t("remoteHosts.testOk", { target }), { description: describeAgent(result.agent) });
@@ -122,11 +122,11 @@ export function RemoteHostsSettings(): JSX.Element {
     setStartingId(host.id);
     const title = t("remoteHosts.startingAgent", { target: host.label });
     const toastId = toast.loading(title);
-    const stop = window.fastvibe.ssh.onAgentProgress((progress) => {
+    const stop = window.pinext.ssh.onAgentProgress((progress) => {
       if (progress.hostId === host.id) toast.loading(title, { id: toastId, description: progress.text });
     });
     try {
-      const message = await window.fastvibe.ssh.startAgent(host.id);
+      const message = await window.pinext.ssh.startAgent(host.id);
       toast.success(message || t("remoteHosts.startAgent"), { id: toastId, description: undefined });
     } catch (err) {
       toast.error(t("remoteHosts.startAgentFailed"), { id: toastId, description: cleanError(err) });
@@ -140,7 +140,7 @@ export function RemoteHostsSettings(): JSX.Element {
   async function stopAgent(host: RemoteHostProfile): Promise<void> {
     setStoppingId(host.id);
     try {
-      const message = await window.fastvibe.ssh.stopAgent(host.id);
+      const message = await window.pinext.ssh.stopAgent(host.id);
       toast.success(message || t("remoteHosts.stopAgent"));
     } catch (err) {
       toast.error(t("remoteHosts.stopAgentFailed"), { description: cleanError(err) });
@@ -213,7 +213,7 @@ export function RemoteHostsSettings(): JSX.Element {
     // profile instead of creating a second one for the same machine.
     const hostId = form.id.trim() || `manual:${randomUUID()}`;
     try {
-      const next = await window.fastvibe.ssh.saveHost({
+      const next = await window.pinext.ssh.saveHost({
         ...kept,
         // A fresh id per new profile: two entries for one machine (another user, another
         // port) must not overwrite each other.
@@ -239,11 +239,11 @@ export function RemoteHostsSettings(): JSX.Element {
       if (phoneChanged) {
         setApplyingPhone(true);
         setPhoneProgress("");
-        const stopProgress = window.fastvibe.ssh.onAgentProgress((progress) => {
+        const stopProgress = window.pinext.ssh.onAgentProgress((progress) => {
           if (progress.hostId === hostId) setPhoneProgress(progress.text);
         });
         try {
-          const applied = await window.fastvibe.ssh.setPhoneAccess(form.phoneEnabled
+          const applied = await window.pinext.ssh.setPhoneAccess(form.phoneEnabled
             ? { hostId, enabled: true, port: phonePort!, ...(form.phonePassword ? { password: form.phonePassword } : {}), publicUrl }
             : { hostId, enabled: false });
           setSaved(applied.saved);
@@ -275,7 +275,7 @@ export function RemoteHostsSettings(): JSX.Element {
   async function remove(hostId: string): Promise<void> {
     setBusy(true);
     try {
-      const next = await window.fastvibe.ssh.removeHost(hostId);
+      const next = await window.pinext.ssh.removeHost(hostId);
       setSaved(next.saved);
       setDiscovered(next.discovered);
     } catch (err) {
@@ -427,7 +427,7 @@ export function RemoteHostsSettings(): JSX.Element {
                   title={form.identityFile || t("remoteHosts.identityFilePath")}
                   aria-label={t("remoteHosts.identityFile")}
                   onClick={() => {
-                    void window.fastvibe.ssh.pickIdentityFile().then((path) => {
+                    void window.pinext.ssh.pickIdentityFile().then((path) => {
                       if (path) setForm((current) => ({ ...current, identityFile: path }));
                     }).catch((err) => toast.error(cleanError(err)));
                   }}

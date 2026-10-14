@@ -104,8 +104,8 @@ export function commonPathDirs(
   return [local];
 }
 
-const SHELL_PATH_START = "__FASTVIBE_PATH_START__";
-const SHELL_PATH_END = "__FASTVIBE_PATH_END__";
+const SHELL_PATH_START = "__PINEXT_PATH_START__";
+const SHELL_PATH_END = "__PINEXT_PATH_END__";
 const SHELL_PATH_TIMEOUT_MS = 1_500;
 
 function shellPathEntries(

@@ -1,8 +1,8 @@
-import type { FastVibeApi } from "@shared/api";
+import type { PinextApi } from "@shared/api";
 
 declare global {
   interface Window {
-    fastvibe: FastVibeApi;
+    pinext: PinextApi;
   }
 }
 

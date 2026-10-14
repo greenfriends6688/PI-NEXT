@@ -581,30 +581,30 @@ html[data-glass="true"] .overlay-surface {
 
    The wrapper owns the size (callers pass `size-*`); the mark fills it and the
    halo bleeds past its edges. */
-.fv-loader {
+.pn-loader {
   position: relative;
   display: grid;
   place-items: center;
 }
 
-.fv-loader-glow {
+.pn-loader-glow {
   position: absolute;
   inset: -18%;
   border-radius: 9999px;
   background: radial-gradient(circle, rgba(109, 124, 255, 0.45), rgba(109, 124, 255, 0) 68%);
   filter: blur(6px);
-  animation: fv-loader-halo 3.6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  animation: pn-loader-halo 3.6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
 }
 
-.fv-loader-mark {
+.pn-loader-mark {
   position: relative;
   display: block;
   width: 100%;
   height: 100%;
-  animation: fv-loader-breathe 3.6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  animation: pn-loader-breathe 3.6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
 }
 
-@keyframes fv-loader-breathe {
+@keyframes pn-loader-breathe {
   0%,
   100% {
     transform: scale(0.95);
@@ -614,7 +614,7 @@ html[data-glass="true"] .overlay-surface {
   }
 }
 
-@keyframes fv-loader-halo {
+@keyframes pn-loader-halo {
   0%,
   100% {
     opacity: 0.4;
@@ -627,8 +627,8 @@ html[data-glass="true"] .overlay-surface {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fv-loader-mark,
-  .fv-loader-glow {
+  .pn-loader-mark,
+  .pn-loader-glow {
     animation: none;
   }
 }

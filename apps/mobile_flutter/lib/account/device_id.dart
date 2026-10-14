@@ -7,8 +7,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const MethodChannel _channel = MethodChannel('dev.fastvibe.mobile/device');
-const String _fallbackKey = 'fastvibe.deviceId.v1';
+const MethodChannel _channel = MethodChannel('dev.pinext.mobile/device');
+const String _fallbackKey = 'pinext.deviceId.v1';
 
 String? _cached;
 
@@ -24,7 +24,7 @@ Future<String> stableDeviceId() async {
   final cached = _cached;
   if (cached != null) return cached;
   final raw = await _platformId() ?? await _fallbackId();
-  return _cached = sha256.convert(utf8.encode('fastvibe-device:$raw')).toString().substring(0, 32);
+  return _cached = sha256.convert(utf8.encode('pinext-device:$raw')).toString().substring(0, 32);
 }
 
 Future<String?> _platformId() async {

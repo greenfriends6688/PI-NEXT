@@ -32,7 +32,7 @@ import { setTranscriptDisplay } from "@/lib/transcript-display";
 /**
  * Browser preview harness.
  *
- * `mock.html` loads this before `main.tsx` so the Electron-only `window.fastvibe`
+ * `mock.html` loads this before `main.tsx` so the Electron-only `window.pinext`
  * bridge exists, then the real renderer mounts against these fixtures. It exists
  * so the UI can be rendered (and screenshotted) in a plain browser with
  * representative content — it is not part of the shipped app, and nothing here is
@@ -82,13 +82,13 @@ setTranscriptDisplay({
 // Reset persisted UI state so the harness always starts from the same layout.
 try {
   for (const key of [
-    "fastvibe.settings",
-    "fastvibe.sidebar.collapsed",
-    "fastvibe.sidebar.pinned",
-    "fastvibe.side-pane.collapsed",
-    "fastvibe.side-pane.width",
-    "fastvibe.archived",
-    "fastvibe.session-drafts",
+    "pinext.settings",
+    "pinext.sidebar.collapsed",
+    "pinext.sidebar.pinned",
+    "pinext.side-pane.collapsed",
+    "pinext.side-pane.width",
+    "pinext.archived",
+    "pinext.session-drafts",
   ]) {
     localStorage.removeItem(key);
   }
@@ -261,8 +261,8 @@ const status: EngineStatus = { state: "ready", cwd: fixtureCwd };
 const APP_INFO: AppInfo = {
   version: "0.1.0",
   engineVersion: "1.1.0",
-  userData: "/Users/dev/Library/Application Support/FastVibe",
-  runtimeRoot: "/Users/dev/Library/Application Support/FastVibe/runtime/engine",
+  userData: "/Users/dev/Library/Application Support/Pinext",
+  runtimeRoot: "/Users/dev/Library/Application Support/Pinext/runtime/engine",
   platform,
   modelsDev: { models: 1_284, aliases: 3_910, generatedAt: Date.now() - 36 * 60 * 60 * 1000, path: "resources/models-dev/index.json" },
 };
@@ -306,16 +306,16 @@ async function loadIconMapping() {
 }
 
 /**
- * The real app serves icons through a private `fastvibe-icon://` scheme in the desktop
+ * The real app serves icons through a private `pinext-icon://` scheme in the desktop
  * window, which this harness does not have, so it is rewritten to the package's SVGs that
  * the Vite dev server exposes.
  */
 function rewriteIcons(scope: ParentNode): void {
   scope
-    .querySelectorAll<HTMLImageElement>('img[src^="fastvibe-icon://"]')
+    .querySelectorAll<HTMLImageElement>('img[src^="pinext-icon://"]')
     .forEach((image) => {
     const name = (image.getAttribute("src") ?? "")
-      .replace("fastvibe-icon://icons/", "")
+      .replace("pinext-icon://icons/", "")
       .replace(/\.svg$/, "");
     image.onerror = () => {
       image.onerror = null;
@@ -326,15 +326,15 @@ function rewriteIcons(scope: ParentNode): void {
 }
 
 function iconNameOf(src: string): string {
-  return src.replace("fastvibe-icon://icons/", "").replace(/\.svg$/, "");
+  return src.replace("pinext-icon://icons/", "").replace(/\.svg$/, "");
 }
 
 function installIconRewrite(): void {
   // React sets `src` through setAttribute, so rewriting there means the unreachable
-  // `fastvibe-icon://` URL is never requested (the observer below only fixes it afterwards).
+  // `pinext-icon://` URL is never requested (the observer below only fixes it afterwards).
   const setAttribute = HTMLImageElement.prototype.setAttribute;
   HTMLImageElement.prototype.setAttribute = function (name: string, value: string): void {
-    if (name === "src" && (value.startsWith("fastvibe-icon://"))) {
+    if (name === "src" && (value.startsWith("pinext-icon://"))) {
       value = `${ICONS_BASE}${iconNameOf(value)}.svg`;
     }
     setAttribute.call(this, name, value);
@@ -391,8 +391,8 @@ const dagApi = {
   onChanged: () => () => undefined,
 };
 
-function accountMock(): typeof window.fastvibe.account {
-  const origin = "https://app.fastvibe.dev";
+function accountMock(): typeof window.pinext.account {
+  const origin = "https://app.pinext.dev";
   const user = { id: "u1", login: "octocat", avatarUrl: null, email: "octocat@example.com", role: "user" as const };
   const listeners = new Set<(state: import("@shared/account").AccountState) => void>();
   const scene = params.get("account") ?? "in";
@@ -485,7 +485,7 @@ const api = {
     }),
     syncPiConfig: async () => ({
       agentDir: "/Users/dev/.pi/agent",
-      providersWritten: ["fastvibe"],
+      providersWritten: ["pinext"],
       providersKept: ["yunwu"],
       providersSkipped: [],
       authWritten: [],
@@ -702,7 +702,7 @@ const api = {
     simulatedVibrancy: desktop,
     getInfo: async () => APP_INFO,
     log: () => undefined,
-    exportLogs: async () => "/Users/dev/Downloads/fastvibe-logs-preview.zip",
+    exportLogs: async () => "/Users/dev/Downloads/pinext-logs-preview.zip",
     // 关于's metadata refresh: the preview has no upstream to fetch, so it reports the
     // same fixture catalog with a fresh date.
     updateModelsDev: async () => ({ ...APP_INFO.modelsDev!, generatedAt: Date.now() }),
@@ -778,7 +778,7 @@ const api = {
         const host = store.find((item) => item.id === payload.hostId);
         if (!host) throw new Error("SSH 主机不存在");
         if (payload.enabled) {
-          await play(payload.hostId, ["已设置手机连接密码", "Restarting FastVibe Agent (pid 2333480)", "远程 Agent 已就绪（对外监听，端口 " + payload.port + "）"]);
+          await play(payload.hostId, ["已设置手机连接密码", "Restarting Pinext Agent (pid 2333480)", "远程 Agent 已就绪（对外监听，端口 " + payload.port + "）"]);
           host.phoneAccess = { port: payload.port ?? 7777, ...(payload.publicUrl ? { publicUrl: payload.publicUrl } : {}) };
         } else {
           delete host.phoneAccess;
@@ -812,7 +812,7 @@ const api = {
       pending: mode === "ready" ? 2 : 0,
       ready: mode === "ready",
       ...(mode === "ready" ? { lastRunAt: Date.now() - 3_600_000 } : {}),
-      folder: "/Users/you/Library/Application Support/FastVibe/runtime/engine/memories",
+      folder: "/Users/you/Library/Application Support/Pinext/runtime/engine/memories",
     };
     const emit = (next: MemoryState): MemoryState => {
       state = next;
@@ -929,7 +929,7 @@ function computerStatus(): {
  * as an invitation rather than as a failure.
  *
  * - `?remote=online`: switched on, signed in, a phone connected directly, LAN password set.
- * - `?remote=relay`: the same, with the phone going through FastVibe's relay.
+ * - `?remote=relay`: the same, with the phone going through Pinext's relay.
  * - `?remote=signedout`: switched on, but nobody is signed in, so phones cannot find it.
  * - `?remote=error`: switched on and the cloud refused the device.
  * - `?remote=lan`: switched on with a LAN password and both IPv4 and IPv6, so the QR code has two to switch between.
@@ -1021,7 +1021,7 @@ const REMOTE_DEVICES = REMOTE_STATE.configured
   ? [{ id: "device-1", label: "iPhone", createdAt: Date.now() - 86_400_000, lastSeenAt: Date.now() - 120_000 }]
   : [];
 
-window.fastvibe = api as unknown as typeof window.fastvibe;
+window.pinext = api as unknown as typeof window.pinext;
 
 installIconRewrite();
 
@@ -1043,7 +1043,7 @@ if (website) {
   window.addEventListener("message", (event) => {
     if (event.origin !== window.location.origin) return;
     const data = event.data as { type?: string; theme?: string } | null;
-    if (data?.type !== "fastvibe-website-theme" || (data.theme !== "light" && data.theme !== "dark")) return;
+    if (data?.type !== "pinext-website-theme" || (data.theme !== "light" && data.theme !== "dark")) return;
     const themeMode = data.theme;
     void import("@/stores/settings").then(({ useSettingsStore }) => useSettingsStore.getState().update({ themeMode }));
   });
@@ -1065,7 +1065,7 @@ if (website) {
 // The marketing site draws the same wallpaper and a skeleton window at this inset while
 // the frame loads (`.preview-window` / `.preview-skeleton` in its `app/globals.css`), so
 // the swap to the real page does not move anything — keep the inset and the gradient in
-// step. The site lives in tyuan511/fastvibe-services; only this fixture page is ours.
+// step. The site lives in a private services repository; only this fixture page is ours.
 const DESKTOP_INSET = { x: 20, y: 16 };
 if (desktop) {
   document.documentElement.dataset.desktop = "";
@@ -1147,7 +1147,7 @@ if (websiteData) {
     document.body.dataset.websiteSceneReady = websiteScene;
     // The marketing page keeps its own placeholder up until the app has really drawn.
     if (window.parent !== window) {
-      window.setTimeout(() => window.parent.postMessage({ type: "fastvibe-website-ready" }, window.location.origin), 150);
+      window.setTimeout(() => window.parent.postMessage({ type: "pinext-website-ready" }, window.location.origin), 150);
     }
   };
   /** React, not a fixed delay on a cold Vite build, is what the setup waits for. */

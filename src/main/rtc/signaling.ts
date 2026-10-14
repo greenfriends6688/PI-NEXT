@@ -53,7 +53,7 @@ export type SignalingEvents = {
 };
 
 export type SignalingDeps = {
-  /** The site, e.g. `https://app.fastvibe.dev`. */
+  /** The site, e.g. `https://app.pinext.dev`. */
   origin: string;
   /** Read at each connect: the token can change under a long-lived process. */
   token: () => string | null;

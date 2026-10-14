@@ -3,7 +3,7 @@ import type { RemoteServerState } from "@shared/ipc";
 import type { OfficialState } from "@shared/official";
 import { broadcast, subscribe } from "./ipc/broadcast";
 import { dispatch, handle, handlerChannels } from "./ipc/registry";
-import { getFastVibePaths } from "./engine/paths";
+import { getPinextPaths } from "./engine/paths";
 import { log } from "./engine/logger";
 import { readAppSettings, writeAppSettings } from "./engine/app-settings";
 import { passwordProblem } from "./server/auth";
@@ -24,7 +24,7 @@ import { OfficialConnection } from "./rtc/official";
 /**
  * Where remote access meets the desktop app.
  *
- * One switch turns on two ways in. Phones signed in to the same FastVibe account reach
+ * One switch turns on two ways in. Phones signed in to the same Pinext account reach
  * this computer through `rtc/official.ts`: signaling introduces two sessions of the
  * account and a WebRTC data channel carries the App Protocol, with no address and no
  * password. And once a password is set, phones on the local network use the listener
@@ -51,7 +51,7 @@ const DEFAULT_PORT = 7777;
 
 function instance(): RemoteServer {
   return (server ??= new RemoteServer({
-    accessFile: getFastVibePaths().remoteAccessFile,
+    accessFile: getPinextPaths().remoteAccessFile,
     appServer: getAppServer(),
     channels: () => handlerChannels(),
     dispatch: (method, payload, clientId) =>
@@ -98,7 +98,7 @@ function syncDiscovery(): void {
 }
 
 function readPort(): number {
-  const value = readAppSettings(getFastVibePaths()).remotePort;
+  const value = readAppSettings(getPinextPaths()).remotePort;
   return typeof value === "number" && Number.isInteger(value) && value > 0 && value < 65_536
     ? value
     : DEFAULT_PORT;
@@ -122,7 +122,7 @@ async function startListener(port: number): Promise<void> {
 
 /** The name chosen in settings; empty follows the computer's own name. */
 function readChosenName(): string {
-  const settings = readAppSettings(getFastVibePaths());
+  const settings = readAppSettings(getPinextPaths());
   // `remoteDiscoveryName` is what this was called while it named the computer on the LAN.
   return deviceNameSetting(settings.remoteDeviceName ?? settings.remoteDiscoveryName);
 }
@@ -145,7 +145,7 @@ function deviceName(): string {
  * the switch turning itself off, so the pane can say what is missing.
  */
 function readEnabled(): boolean {
-  return readAppSettings(getFastVibePaths()).remoteEnabled === true;
+  return readAppSettings(getPinextPaths()).remoteEnabled === true;
 }
 
 /**
@@ -154,7 +154,7 @@ function readEnabled(): boolean {
  * would be lost with it.
  */
 function writeRemoteSettings(patch: { remoteEnabled?: boolean; remotePort?: number }): void {
-  const paths = getFastVibePaths();
+  const paths = getPinextPaths();
   writeAppSettings(paths, { ...readAppSettings(paths), ...patch });
 }
 
@@ -212,7 +212,7 @@ function announceFromServer(): void {
  * missing. A listener that cannot bind (the port is taken) is one: that throws.
  */
 async function bringUp(): Promise<RemoteServerState> {
-  if (isConfigured(getFastVibePaths().remoteAccessFile)) await startListener(readPort());
+  if (isConfigured(getPinextPaths().remoteAccessFile)) await startListener(readPort());
   official?.setEnabled(true);
   return announce();
 }
@@ -221,7 +221,7 @@ export function registerRemoteIpc(queueSettingsWrite: (task: () => Promise<void>
   official = new OfficialConnection({
     account: { token: () => account.token(), origin: () => account.origin() },
     attach: (socket, peer) => instance().attachTransport(socket, peer),
-    installFile: getFastVibePaths().rtcDeviceFile,
+    installFile: getPinextPaths().rtcDeviceFile,
     deviceName,
     platform: process.platform,
     onChange: () => announceFromServer(),
@@ -240,7 +240,7 @@ export function registerRemoteIpc(queueSettingsWrite: (task: () => Promise<void>
     const password = typeof payload?.password === "string" ? payload.password : "";
     const problem = passwordProblem(password);
     if (problem) throw new Error(problem);
-    setPassword(getFastVibePaths().remoteAccessFile, password);
+    setPassword(getPinextPaths().remoteAccessFile, password);
     // Every previously issued token stopped working with the old password, so any client
     // still connected is now holding one that no longer resolves. With the switch already
     // on, the password is the last thing the listener was waiting for.
@@ -262,7 +262,7 @@ export function registerRemoteIpc(queueSettingsWrite: (task: () => Promise<void>
    */
   handle(Ipc.remoteClearPassword, async () => {
     await instance().stop();
-    clearRemoteAccess(getFastVibePaths().remoteAccessFile);
+    clearRemoteAccess(getPinextPaths().remoteAccessFile);
     return announce();
   });
 
@@ -288,7 +288,7 @@ export function registerRemoteIpc(queueSettingsWrite: (task: () => Promise<void>
       "名称过长，请缩短后重试（最多 64 个字符）", "Name is too long; shorten it and try again (64 characters maximum)",
     ));
     await queueSettingsWrite(async () => {
-      const paths = getFastVibePaths();
+      const paths = getPinextPaths();
       const { remoteDiscoveryName: _legacy, ...rest } = readAppSettings(paths) as Record<string, unknown>;
       const settings = { ...rest, remoteDeviceName: name };
       writeAppSettings(paths, settings);
@@ -306,18 +306,18 @@ export function registerRemoteIpc(queueSettingsWrite: (task: () => Promise<void>
     return announce();
   });
 
-  handle(Ipc.remoteListDevices, () => listDevices(getFastVibePaths().remoteAccessFile));
+  handle(Ipc.remoteListDevices, () => listDevices(getPinextPaths().remoteAccessFile));
 
   handle(Ipc.remoteRevokeDevice, (payload: { id: string }) => {
     const id = typeof payload?.id === "string" ? payload.id : "";
     if (!id) throw new Error("设备无效");
-    revokeDevice(getFastVibePaths().remoteAccessFile, id);
+    revokeDevice(getPinextPaths().remoteAccessFile, id);
     // Revoking is something a user does about a device they no longer trust, so the
     // connection it already holds has to go with the token — otherwise the socket that
     // is open right now keeps working until it happens to drop.
     instance().disconnectDevice(id);
     announce();
-    return listDevices(getFastVibePaths().remoteAccessFile);
+    return listDevices(getPinextPaths().remoteAccessFile);
   });
 
   /** Drop every phone connected through the account, leaving the connection itself up. */
@@ -334,7 +334,7 @@ export function registerRemoteIpc(queueSettingsWrite: (task: () => Promise<void>
  * launching, and must not stop the official connection from coming up either.
  */
 export async function restoreRemoteServer(): Promise<void> {
-  if (readAppSettings(getFastVibePaths()).remoteEnabled !== true) return;
+  if (readAppSettings(getPinextPaths()).remoteEnabled !== true) return;
   try {
     await bringUp();
   } catch (error) {

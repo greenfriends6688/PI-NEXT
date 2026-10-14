@@ -1,5 +1,5 @@
 /**
- * The name this computer goes by on the FastVibe account: what the console's device list
+ * The name this computer goes by on the Pinext account: what the console's device list
  * and the phone's list of computers show. The cloud keeps at most 64 characters.
  */
 export const DEVICE_NAME_MAX_LENGTH = 64;
@@ -18,5 +18,5 @@ export function deviceNameSetting(value: unknown): string {
 
 /** The computer's own name (`Yuans-MacBook-Pro.local` → `Yuans-MacBook-Pro`), used until one is chosen. */
 export function defaultDeviceName(hostName: string): string {
-  return hostName.trim().replace(/\.local\.?$/i, "") || "FastVibe";
+  return hostName.trim().replace(/\.local\.?$/i, "") || "Pinext";
 }

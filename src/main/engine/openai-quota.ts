@@ -18,7 +18,7 @@ type OpenAIQuotaCredential = {
  *
  * URLs are fixed here rather than supplied by the renderer. The call is safe to expose
  * to a remote client: it can only read the allowance attached to a credential already
- * stored on this FastVibe host, and never returns that credential.
+ * stored on this Pinext host, and never returns that credential.
  */
 export async function fetchOpenAIAccountQuota(
   providerId: "openai" | "openai-codex",
@@ -34,7 +34,7 @@ export async function fetchOpenAIAccountQuota(
     // The endpoint is ChatGPT-internal and currently expects the same identifying
     // headers as the Codex Responses transport.
     headers.originator = "pi";
-    headers["User-Agent"] = "FastVibe";
+    headers["User-Agent"] = "Pinext";
   }
   if (providerId === "openai-codex" && credential.accountId) {
     headers["ChatGPT-Account-Id"] = credential.accountId;

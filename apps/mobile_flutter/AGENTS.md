@@ -1,7 +1,7 @@
-# FastVibe mobile (Flutter)
+# Pinext mobile (Flutter)
 
-The shipping iOS / Android phone client, in `apps/mobile_flutter` (`fastvibe_mobile`).
-It connects to saved FastVibe machines using App Protocol v1. Flutter owns the native
+The shipping iOS / Android phone client, in `apps/mobile_flutter` (`pinext_mobile`).
+It connects to saved Pinext machines using App Protocol v1. Flutter owns the native
 client; the browser's `mobile.html` remains a separate web entry.
 
 ## Flutter is newer than your training data
@@ -204,7 +204,7 @@ late error on whichever test happens to be running.
 
 ## Android and iOS
 
-- Package `dev.fastvibe.mobile` on both — the same identifier the Expo client ships under,
+- Package `dev.pinext.mobile` on both — the same identifier the Expo client ships under,
   which is what lets the self-updater's APK install over it (Android refuses a package
   signed with a different key).
 - `minSdk 24`; **core library desugaring is required** by `flutter_local_notifications`
@@ -228,7 +228,7 @@ The Flutter SDK is pinned by `environment.flutter` in `pubspec.yaml`.
   The build must be at least `MAJOR * 10000 + MINOR * 100 + PATCH` to remain compatible
   with existing installations. `check_release.sh` enforces that floor and the tag.
   The tag dispatches the existing `mobile-android.yml` onto main for reusable caches;
-  it builds the tag's commit, signs with the existing `FASTVIBE_ANDROID_*` secrets,
+  it builds the tag's commit, signs with the existing `PINEXT_ANDROID_*` secrets,
   verifies the signature, and publishes one arm64 APK plus SHA-256 checksum. No AAB.
 - iOS: `mobile-ios.yml` archives Flutter's `Runner` unsigned and signs at export with
   the existing App Store Connect key. `github.run_number.github.run_attempt` is passed

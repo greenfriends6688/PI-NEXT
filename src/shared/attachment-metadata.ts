@@ -1,7 +1,7 @@
 import type { ChatAttachment } from "./types.ts";
 
-const FILE_BLOCK = /\n{2,}<fastvibe-attachments>\n([\s\S]*?)\n<\/fastvibe-attachments>(?=\n{2,}<fastvibe-pasted-text>|\s*$)/;
-const PASTED_TEXT_BLOCK = /\n{2,}<fastvibe-pasted-text>\n([\s\S]*)\n<\/fastvibe-pasted-text>\s*$/;
+const FILE_BLOCK = /\n{2,}<pinext-attachments>\n([\s\S]*?)\n<\/pinext-attachments>(?=\n{2,}<pinext-pasted-text>|\s*$)/;
+const PASTED_TEXT_BLOCK = /\n{2,}<pinext-pasted-text>\n([\s\S]*)\n<\/pinext-pasted-text>\s*$/;
 
 function fileName(path: string): string {
   return path.split(/[\\/]/).at(-1) || path;

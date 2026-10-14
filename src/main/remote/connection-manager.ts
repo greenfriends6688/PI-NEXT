@@ -459,7 +459,7 @@ export class RemoteConnectionManager {
     if (this.#deps.createClient) return this.#deps.createClient(transport);
     const mod = await loadAppClient();
     return new mod.AppClient(transport, {
-      client: { kind: "fastvibe-desktop", version: this.#desktopVersion() },
+      client: { kind: "pinext-desktop", version: this.#desktopVersion() },
       log: this.#deps.log,
       callTimeoutMs: CALL_TIMEOUT_MS,
       eventBatch: true,
@@ -487,7 +487,7 @@ export class RemoteConnectionManager {
   }
 
   #desktopVersion(): string {
-    return process.env.FASTVIBE_VERSION ?? "0.0.0";
+    return process.env.PINEXT_VERSION ?? "0.0.0";
   }
 }
 

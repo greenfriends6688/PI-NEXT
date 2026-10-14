@@ -43,7 +43,7 @@ export function TitleBar(): JSX.Element {
       <div className="no-drag flex min-w-0 items-center gap-3">
         <div className="flex shrink-0 items-center gap-2">
           <AppLogo className="size-5 shrink-0 rounded-md" />
-          <span className="truncate text-sm font-semibold tracking-tight">FastVibe</span>
+          <span className="truncate text-sm font-semibold tracking-tight">Pinext</span>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <IconButton
@@ -94,14 +94,14 @@ function WindowControls(): JSX.Element {
 
   useEffect(() => {
     let alive = true;
-    void window.fastvibe.window
+    void window.pinext.window
       .isMaximized()
       .then((value) => {
         if (alive) setMaximized(value);
       })
       .catch(() => undefined);
     // Main owns this because the OS can maximise the window too.
-    const off = window.fastvibe.window.onState((state) => setMaximized(state.maximized));
+    const off = window.pinext.window.onState((state) => setMaximized(state.maximized));
     return () => {
       alive = false;
       off();
@@ -117,7 +117,7 @@ function WindowControls(): JSX.Element {
         className={cn(CONTROL_CLASS, "hover:bg-sidebar-accent hover:text-foreground")}
         aria-label={t("titleBar.minimize")}
         title={t("titleBar.minimize")}
-        onClick={() => void window.fastvibe.window.minimize()}
+        onClick={() => void window.pinext.window.minimize()}
       >
         <svg viewBox="0 0 10 10" className="size-2.5" aria-hidden="true">
           <path d="M0 5h10v1H0z" fill="currentColor" shapeRendering="crispEdges" />
@@ -128,7 +128,7 @@ function WindowControls(): JSX.Element {
         className={cn(CONTROL_CLASS, "hover:bg-sidebar-accent hover:text-foreground")}
         aria-label={label}
         title={label}
-        onClick={() => void window.fastvibe.window.toggleMaximize()}
+        onClick={() => void window.pinext.window.toggleMaximize()}
       >
         {maximized ? (
           <svg viewBox="0 0 10 10" className="size-2.5" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1" shapeRendering="crispEdges">
@@ -146,7 +146,7 @@ function WindowControls(): JSX.Element {
         className={cn(CONTROL_CLASS, "hover:bg-destructive hover:text-destructive-foreground")}
         aria-label={t("titleBar.close")}
         title={t("titleBar.close")}
-        onClick={() => void window.fastvibe.window.close()}
+        onClick={() => void window.pinext.window.close()}
       >
         <svg viewBox="0 0 10 10" className="size-2.5" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1" shapeRendering="crispEdges">
           <path d="M.5.5l9 9M9.5.5l-9 9" />

@@ -34,7 +34,7 @@ const run: Run = (binary, args) => new Promise((resolve) => {
 export async function captureHostKey(host: SshHostProfile, options?: { sshBinary?: string; run?: Run }): Promise<CapturedHostKey> {
   const exec = options?.run ?? run;
   const ssh = options?.sshBinary?.trim() || "ssh";
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-hostkey-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-hostkey-"));
   const scratch = join(dir, "known_hosts");
   try {
     // `-o` options are first-wins, so ours precede the profile's own known-hosts file.

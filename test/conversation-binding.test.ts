@@ -3,8 +3,8 @@ import test from "node:test";
 import { bindBrowserConversation, bindComputerConversation } from "../src/main/pi/conversation-binding.ts";
 
 const globals = globalThis as Record<string, unknown>;
-const browserKey = "__fastvibeBrowserConversationId";
-const computerKey = "__fastvibeComputerConversationId";
+const browserKey = "__pinextBrowserConversationId";
+const computerKey = "__pinextComputerConversationId";
 
 test("concurrent extension reloads capture their own browser and computer conversation", async () => {
   const beforeBrowser = globals[browserKey];

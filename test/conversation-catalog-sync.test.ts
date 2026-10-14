@@ -21,7 +21,7 @@ import type { WorkspaceSnapshot } from "../src/shared/types.ts";
  */
 
 function catalog(): { catalog: ConversationCatalog; file: string; seen: WorkspaceSnapshot[] } {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-catalog-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-catalog-"));
   const file = join(dir, "conversations.json");
   const instance = new ConversationCatalog(file, join(dir, "scratch"));
   const seen: WorkspaceSnapshot[] = [];

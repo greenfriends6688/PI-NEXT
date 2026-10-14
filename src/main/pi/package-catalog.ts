@@ -43,7 +43,7 @@ export async function fetchPackageCatalog(query: MarketPackageQuery = {}): Promi
       signal: controller.signal,
       headers: {
         accept: "text/html",
-        "user-agent": "FastVibe",
+        "user-agent": "Pinext",
       },
     });
     if (!response.ok) throw new PackageCatalogError(`插件市场返回 ${response.status}`);

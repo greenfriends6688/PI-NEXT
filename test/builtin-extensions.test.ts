@@ -8,8 +8,8 @@ import {
 } from "../src/main/pi/extension-manager.ts";
 
 test("development resolves every built-in extension from the source resources directory", () => {
-  const previous = process.env.FASTVIBE_RESOURCES_PATH;
-  delete process.env.FASTVIBE_RESOURCES_PATH;
+  const previous = process.env.PINEXT_RESOURCES_PATH;
+  delete process.env.PINEXT_RESOURCES_PATH;
   try {
     const paths = builtinExtensionPaths();
     assert.equal(paths.length, BUILTIN_EXTENSIONS.length);
@@ -19,7 +19,7 @@ test("development resolves every built-in extension from the source resources di
     );
     assert.equal(paths.every((path) => existsSync(path)), true);
   } finally {
-    if (previous === undefined) delete process.env.FASTVIBE_RESOURCES_PATH;
-    else process.env.FASTVIBE_RESOURCES_PATH = previous;
+    if (previous === undefined) delete process.env.PINEXT_RESOURCES_PATH;
+    else process.env.PINEXT_RESOURCES_PATH = previous;
   }
 });

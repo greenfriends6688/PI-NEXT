@@ -32,7 +32,7 @@ export function SshHostKeyNotice({ hostId, code, onTrusted, trustLabel, onEditHo
     setBusy(true);
     setError(null);
     try {
-      setScan(await window.fastvibe.ssh.scanHostKey(hostId));
+      setScan(await window.pinext.ssh.scanHostKey(hostId));
     } catch (err) {
       setError(t("projectDialog.hostKey.scanFailed", { message: cleanError(err) }));
     } finally {
@@ -45,7 +45,7 @@ export function SshHostKeyNotice({ hostId, code, onTrusted, trustLabel, onEditHo
     setBusy(true);
     setError(null);
     try {
-      await window.fastvibe.ssh.trustHostKey(hostId, scan.keys.map((key) => key.fingerprint));
+      await window.pinext.ssh.trustHostKey(hostId, scan.keys.map((key) => key.fingerprint));
       onTrusted();
     } catch (err) {
       setError(t("projectDialog.hostKey.trustFailed", { message: cleanError(err) }));

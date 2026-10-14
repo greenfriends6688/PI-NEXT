@@ -8,7 +8,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 
 /**
- * FastVibe's built-in goal mode — a lean replacement for `pi-goal-x`.
+ * Pinext's built-in goal mode — a lean replacement for `pi-goal-x`.
  *
  *   /goal <objective>   start pursuing a long-term objective
  *   /goal pause         stop the execution loop
@@ -33,7 +33,7 @@ const STATUS_KEY = "goal";
 const ARMED_STATUS_KEY = "goal-armed";
 const COMPLETE_MARKER = "GOAL_COMPLETE";
 /** Session entry type the objective is persisted under (one per change). */
-const ENTRY_TYPE = "fastvibe-goal";
+const ENTRY_TYPE = "pinext-goal";
 /**
  * Rounds a goal may run before it pauses itself and waits for the user.
  *
@@ -45,7 +45,7 @@ const ENTRY_TYPE = "fastvibe-goal";
  */
 const ROUND_CAP = 100;
 const OFF = new Set(["clear", "off", "none", "reset"]);
-const T = (zh: string, en: string): string => (process.env.FASTVIBE_UI_LANGUAGE === "en" ? en : zh);
+const T = (zh: string, en: string): string => (process.env.PINEXT_UI_LANGUAGE === "en" ? en : zh);
 
 type GoalState = "running" | "paused" | "complete";
 

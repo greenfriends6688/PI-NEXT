@@ -37,7 +37,7 @@ const MAC_INSTALL_SCRIPT = [
   'app="$3"',
   'while kill -0 "$pid" 2>/dev/null; do sleep 0.2; done',
   "sleep 0.4",
-  'tmp="$(mktemp -d -t fastvibe-update)"',
+  'tmp="$(mktemp -d -t pinext-update)"',
   'trap \'rm -rf "$tmp"\' EXIT',
   'ditto -x -k "$zip" "$tmp"',
   'new_app=""',
@@ -106,7 +106,7 @@ function notifyDownloaded(version: string): void {
   presentNotification(
     {
       setting: "notifyUpdate",
-      title: "FastVibe",
+      title: "Pinext",
       body: uiText(`版本 ${version} 已下载，重启即可更新。`, `Version ${version} is downloaded. Restart to update.`),
     },
     { windows, createWindow },
@@ -135,7 +135,7 @@ function canReplaceMacApp(): { ok: true; bundle: string } | { ok: false; error: 
   const bundle = macAppBundle();
   if (!bundle) return { ok: false, error: "当前不是可更新的打包应用" };
   if (bundle.startsWith("/Volumes/")) {
-    return { ok: false, error: "请先将 FastVibe 拖到「应用程序」文件夹，再安装更新" };
+    return { ok: false, error: "请先将 Pinext 拖到「应用程序」文件夹，再安装更新" };
   }
   try {
     accessSync(bundle, constants.W_OK);
@@ -147,7 +147,7 @@ function canReplaceMacApp(): { ok: true; bundle: string } | { ok: false; error: 
 
 function spawnMacInstaller(zipPath: string, appBundle: string): void {
   if (!existsSync(zipPath)) return;
-  spawn("/bin/bash", ["-c", MAC_INSTALL_SCRIPT, "fastvibe-update", String(process.pid), zipPath, appBundle], {
+  spawn("/bin/bash", ["-c", MAC_INSTALL_SCRIPT, "pinext-update", String(process.pid), zipPath, appBundle], {
     detached: true,
     stdio: "ignore",
   }).unref();

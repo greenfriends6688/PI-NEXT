@@ -15,7 +15,7 @@ import { existsSync } from "node:fs";
  */
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-checkpoint-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-checkpoint-"));
   try {
     return await fn(dir);
   } finally {

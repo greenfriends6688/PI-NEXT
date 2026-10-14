@@ -81,7 +81,7 @@ export default function worktreeExtension(pi: ExtensionAPI): void {
     description: [
       "为当前会话创建一个 git worktree，并把整个 agent 工作区绑定到该目录。",
       "调用前必须先征得用户同意：在回复里说明为什么想开、建在哪个路径，然后停下来等用户确认，同意后再调用。",
-      "默认创建在 ~/.fastvibe/worktree/<project-name>/ 下。",
+      "默认创建在 ~/.pinext/worktree/<project-name>/ 下。",
       "可指定 branch（新分支名）或 path（自定义路径）。",
     ].join(""),
     promptSnippet: "Create a git worktree and bind this conversation to it",
@@ -89,12 +89,12 @@ export default function worktreeExtension(pi: ExtensionAPI): void {
       "Ask first, then stop: explain why a worktree would help and where it would live, end your reply, and wait for the user to agree. Only call this tool after they do.",
       "Never create a worktree on your own initiative — a new checkout is a change to the user's machine they did not ask for.",
       "Suggest one (and say why) when the task would dirty the project's main checkout: parallel work, a risky edit, or an isolated branch. Then let the user decide.",
-      "Default path is ~/.fastvibe/worktree/<project-name>/<slug>. Pass path only to override.",
+      "Default path is ~/.pinext/worktree/<project-name>/<slug>. Pass path only to override.",
       "The session cwd switches to the worktree; subsequent read/edit/bash calls run there.",
     ],
     parameters: Type.Object({
       branch: Type.Optional(Type.String({ description: "Branch to create or check out in the worktree" })),
-      path: Type.Optional(Type.String({ description: "Absolute path for the worktree; default ~/.fastvibe/worktree/<project-name>/<slug>" })),
+      path: Type.Optional(Type.String({ description: "Absolute path for the worktree; default ~/.pinext/worktree/<project-name>/<slug>" })),
       label: Type.Optional(Type.String({ description: "Short label used in the default folder name" })),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
@@ -149,10 +149,10 @@ export default function worktreeExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "worktree_unbind",
     label: "解除 Worktree",
-    description: "解除当前会话与 worktree 的绑定，工作区回到项目目录。默认保留磁盘上的 worktree；remove: true 时删除 FastVibe 创建的 worktree。",
+    description: "解除当前会话与 worktree 的绑定，工作区回到项目目录。默认保留磁盘上的 worktree；remove: true 时删除 Pinext 创建的 worktree。",
     promptSnippet: "Unbind this conversation from its git worktree",
     parameters: Type.Object({
-      remove: Type.Optional(Type.Boolean({ description: "Also delete a FastVibe-created worktree from disk" })),
+      remove: Type.Optional(Type.Boolean({ description: "Also delete a Pinext-created worktree from disk" })),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
       const host = hostOf(ctx);

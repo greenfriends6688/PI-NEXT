@@ -9,10 +9,10 @@
  * The host Main runs on, from the bridge.
  *
  * The user-agent fallback only exists for the browser preview harness, which installs a
- * fixture `window.fastvibe` of its own.
+ * fixture `window.pinext` of its own.
  */
 function detectPlatform(): string {
-  const fromShell = window.fastvibe?.app?.platform;
+  const fromShell = window.pinext?.app?.platform;
   if (typeof fromShell === "string" && fromShell.length > 0) return fromShell;
   return platformFromAgent();
 }
@@ -48,7 +48,7 @@ export const HAS_TRAFFIC_LIGHTS = APP_PLATFORM === "darwin";
 export const HAS_VIBRANCY =
   HAS_TRAFFIC_LIGHTS &&
   (/Electron\//.test(navigator.userAgent) ||
-    (window.fastvibe?.app as { simulatedVibrancy?: boolean } | undefined)?.simulatedVibrancy === true);
+    (window.pinext?.app as { simulatedVibrancy?: boolean } | undefined)?.simulatedVibrancy === true);
 
 /**
  * Windows and Linux have no traffic lights to inset, and a native title bar above

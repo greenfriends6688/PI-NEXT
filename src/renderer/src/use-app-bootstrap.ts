@@ -79,11 +79,11 @@ export function useAppBootstrap(args: AppBootstrapArgs): boolean {
     });
     // A fresh window has no run history: ask the engine which conversations are
     // still working so their spinners survive a reload.
-    void window.fastvibe.engine
+    void window.pinext.engine
       .getRunning()
       .then((ids) => useSessionStore.getState().setRunningConversations(ids))
       .catch(() => undefined);
-    void window.fastvibe.conversations.list().then((snapshot) => {
+    void window.pinext.conversations.list().then((snapshot) => {
       if (disposed) return;
       applyList(snapshot);
       const pending = conversationIdFromHash() ?? snapshot.activeId;
@@ -113,7 +113,7 @@ export function useAppBootstrap(args: AppBootstrapArgs): boolean {
      * conversation is followed separately below, because adopting it is a *navigation*
      * and has to go through the same path a click does.
      */
-    const offWorkspace = window.fastvibe.conversations.onChanged((snapshot) => {
+    const offWorkspace = window.pinext.conversations.onChanged((snapshot) => {
       applyList(snapshot);
       const next = snapshot.activeId ?? null;
       // A remote catalog change republishes the same local active id. Nothing

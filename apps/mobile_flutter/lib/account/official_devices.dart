@@ -10,7 +10,7 @@ import '../protocol/rtc_connection.dart';
 import '../storage/servers.dart';
 import 'account.dart';
 
-const String officialScheme = 'fastvibe-official';
+const String officialScheme = 'pinext-official';
 
 String officialOrigin(String deviceId) => '$officialScheme://$deviceId';
 

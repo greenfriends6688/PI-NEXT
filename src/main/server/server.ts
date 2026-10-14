@@ -416,7 +416,7 @@ export class RemoteServer {
     // Nothing else is served: the phone app speaks `/api/login` and `/ws`, and a browser
     // has no page here. The answer says what this port is for rather than leaving a
     // blank error for someone who typed the address into one.
-    this.#json(response, 404, { error: "not found", hint: "This is a FastVibe remote access endpoint; open it from the FastVibe app." });
+    this.#json(response, 404, { error: "not found", hint: "This is a Pinext remote access endpoint; open it from the Pinext app." });
   }
 
   async #handleLogin(request: IncomingMessage, response: ServerResponse): Promise<void> {

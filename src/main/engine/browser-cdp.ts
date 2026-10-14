@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { readAppSettings } from "./app-settings";
-import { getFastVibePaths } from "./paths";
+import { getPinextPaths } from "./paths";
 import { clickBody, pageProgram, pressBody, SNAPSHOT_BODY, typeBody } from "@shared/browser-page";
 import type { BrowserRequest } from "@shared/types";
 import { uiText } from "./ui-text";
@@ -15,7 +15,7 @@ import { uiText } from "./ui-text";
  *
  * The side pane's webview cannot be the system browser: a Chrome the user already
  * has open is not listening for anyone. So this launches one itself, on loopback,
- * with a profile FastVibe owns — the user's default profile is locked for as long
+ * with a profile Pinext owns — the user's default profile is locked for as long
  * as their own Chrome is running, and a second process pointed at it exits. Login
  * state reaches that profile through the existing cookie import, not by borrowing
  * the live one.
@@ -28,7 +28,7 @@ const SEARCH = "https://www.google.com/search?q=";
 
 /** The profile browser-use launches, so an import and a later run share one login state. */
 export function browserProfileDir(): string {
-  return join(getFastVibePaths().runtimeRoot, "browser-profile");
+  return join(getPinextPaths().runtimeRoot, "browser-profile");
 }
 
 type Target = { id: string; type: string; url: string; title: string; webSocketDebuggerUrl: string };
@@ -93,7 +93,7 @@ function installedPath(entry: BrowserCandidate): string | undefined {
 
 function browserChoice(): BrowserChoice {
   try {
-    const value = readAppSettings(getFastVibePaths()).browserEngine;
+    const value = readAppSettings(getPinextPaths()).browserEngine;
     if (value === "chrome" || value === "edge" || value === "brave" || value === "chromium" || value === "arc" || value === "opera") return value;
   } catch { /* an unreadable settings file is the same as no preference */ }
   return "auto";
@@ -147,7 +147,7 @@ async function endpointUp(): Promise<boolean> {
 }
 
 /**
- * A port already answering is a Chrome FastVibe started earlier and that outlived
+ * A port already answering is a Chrome Pinext started earlier and that outlived
  * the app (a crash, a quit that did not reach the child). Reuse it: launching a
  * second one against the same profile fails, and killing whatever answers would
  * close a browser the user may be looking at.
@@ -424,7 +424,7 @@ export async function runBrowserCdp(request: BrowserRequest, profileDir: string)
   }
 }
 
-/** The browser FastVibe launched, and nothing else. A reused one is left alone. */
+/** The browser Pinext launched, and nothing else. A reused one is left alone. */
 export function stopBrowserCdp(): void {
   for (const session of sessions.values()) {
     try { session.socket.close(); } catch { /* already gone */ }
@@ -450,7 +450,7 @@ async function waitUntilDown(deadlineMs: number): Promise<boolean> {
 }
 
 /**
- * Close the browser FastVibe launched so its profile can be written.
+ * Close the browser Pinext launched so its profile can be written.
  * A port that keeps answering is a browser this app did not start — killing it
  * would close a window the user may be looking at — so the caller is told to wait.
  */
@@ -487,12 +487,12 @@ export type ProfileCookie = {
 export async function importIntoBrowserProfile(profileDir: string, cookies: ProfileCookie[]): Promise<number> {
   await releaseBrowserProfile();
   await mkdir(profileDir, { recursive: true });
-  const extension = await mkdtemp(join(tmpdir(), "fastvibe-cookie-import-"));
+  const extension = await mkdtemp(join(tmpdir(), "pinext-cookie-import-"));
   const { server, port, done } = await importSignal();
   try {
     await writeFile(join(extension, "manifest.json"), JSON.stringify({
       manifest_version: 3,
-      name: "FastVibe cookies",
+      name: "Pinext cookies",
       version: "1.0.0",
       permissions: ["cookies"],
       host_permissions: ["http://127.0.0.1/*"],

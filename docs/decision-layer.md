@@ -1,6 +1,6 @@
 # 决策层：协议、配置与产品形态设计
 
-> 目标：给 FastVibe 加一个**统一的可配置决策层**。第一版只服务 browser use：用答案空间受代码约束的决策模型，替代主模型逐步判断“下一步做什么、操作哪个元素”；后续再服务子 agent 角色选择和 agent team 协作调度。
+> 目标：给 PI NEXT 加一个**统一的可配置决策层**。第一版只服务 browser use：用答案空间受代码约束的决策模型，替代主模型逐步判断“下一步做什么、操作哪个元素”；后续再服务子 agent 角色选择和 agent team 协作调度。
 >
 > 代码基线 `973f375`（v0.9.0），调研日期 2026-09-22；2026-09-23 按 `cebc1cb`（v0.10.2）复核现有 browser 实现、权限沙箱与 App Server 能力分类，并按 TypeSafe API 参考核对线格式（§3.7、§7.1.1–7.1.4、§10 切片 0）。协议形状来自 TypeSafe 的 System One / Jev（`docs.typesafe.ai`，`browser-use/jev-ultrafast` 为参考实现）；交接机制补充参考 `shitianfang/jev-use@358819d`。以下均为设计，未实现或实测的能力不作产品承诺。
 
@@ -312,7 +312,7 @@ type DecisionRuntimeContext = {
 - `budgetKey`、`signal`、conversation/tab/owner 只用于运行路由、取消、预算、trace 和权限，不进入模型 state，也不进入决策语义；
 - runtime 可以按 `budgetKey` 保存短生命周期计数，但不能把会话历史变成决策层的隐式输入。
 
-这既保留了未来跨会话调度的能力，也符合 FastVibe 现有 browser bridge 的路由要求：browser 请求仍然需要 `conversationId`、`tabId` 和 owner，但这些不是模型判断的内容。
+这既保留了未来跨会话调度的能力，也符合 PI NEXT 现有 browser bridge 的路由要求：browser 请求仍然需要 `conversationId`、`tabId` 和 owner，但这些不是模型判断的内容。
 
 **不允许决策层组合业务决策。** dispatch 可以依据 binding 注册的策略给出 handoff，但不选择接管者、不启动大模型；consumer 决定接管、串行、任务重做或结束。runtime 负责网络重试、缓存、预算和未来显式 backend fallback，这些不改变业务动作。
 
@@ -427,7 +427,7 @@ IPC 继续通过 `handle()` 注册；Jev 还需要 `decision:set-key`，它只�
 
 ### 6.1 凭证：复用 `paths.agentEnv`，但不能让用户指定变量名
 
-Jev key 可以继续写入现成的 `<userData>/runtime/engine/agent/.env`（0600），但不应把通用的 `apiKeyEnv` 暴露在配置文件里。第一版由 Main 固定使用内部变量名，例如 `FASTVIBE_JEV_API_KEY`，并通过专用 API 读取：
+Jev key 可以继续写入现成的 `<userData>/runtime/engine/agent/.env`（0600），但不应把通用的 `apiKeyEnv` 暴露在配置文件里。第一版由 Main 固定使用内部变量名，例如 `PINEXT_JEV_API_KEY`，并通过专用 API 读取：
 
 ```ts
 loadDecisionCredential(paths, "jev")
@@ -519,7 +519,7 @@ type DecisionBackend =
 
 ### 7.5 动作权限
 
-FastVibe 没有审批：`browser_task` 和 `computer_task` 在一次工具调用里执行的动作都直接执行，不再逐次确认，也没有高风险按钮的词表判定。任务的边界只有开关（设置 → 决策引擎、设置 → 电脑操控）、macOS 授权、预算和用户随时可按的停止。
+PI NEXT 没有审批：`browser_task` 和 `computer_task` 在一次工具调用里执行的动作都直接执行，不再逐次确认，也没有高风险按钮的词表判定。任务的边界只有开关（设置 → 决策引擎、设置 → 电脑操控）、macOS 授权、预算和用户随时可按的停止。
 
 ### 7.6 原差距表（§7.1.1 旧版）的去向
 
@@ -531,7 +531,7 @@ computer use 和 browser use 是同一类任务：每一步都从窗口里一组
 
 - **观察**：`computer-observation.ts` 把 Cua Driver 的 `window_state` 映射成同一种观察格式。按钮、链接、复选框、菜单项，以及带 AXPress 的元素是可点击目标；文本框、搜索框是可输入目标；安全文本框（密码框）整体排除。复选框的状态取自 value 和 selected，静态文本作为“可见文字”，窗口里有滚动区域时提供滚动控制项。为此 `window_state` 的输出补上了 `actions`、`selected` 和无 token 的静态文本 `texts`。
 - **执行**：全部通过 `requestComputer`，所以“电脑操控”开关、macOS 授权和驱动自己的审批照常生效。token 只对一次读取有效，所以每个动作前都会重新读取窗口，内容确认没变后，用这次读取的 token 执行。输入的做法是先点击字段，再全选（cmd/ctrl+A），然后输入。
-- **现状**：映射逻辑有单测，控制层和工具只经过类型检查，**还没有在真实桌面上运行过**。开发会话没有 macOS 辅助功能和录屏授权，也没有下载驱动二进制；需要在已授权的 FastVibe 里实测。
+- **现状**：映射逻辑有单测，控制层和工具只经过类型检查，**还没有在真实桌面上运行过**。开发会话没有 macOS 辅助功能和录屏授权，也没有下载驱动二进制；需要在已授权的 PI NEXT 里实测。
 
 ### 7.10 批量决策：`batch_decide`
 
@@ -541,7 +541,7 @@ computer use 和 browser use 是同一类任务：每一步都从窗口里一组
 - **每条一个请求**，`state = { item, context? }`：一条的内容不会影响另一条的答案，一条失败不拖累整批。8 路并发，整批 5 分钟截止。
 - **置信度下限**（默认 0.7，可由调用方调）：低于下限的条目以 `review` 返回，带最佳猜测；主 agent 只需复核这些。score 若没有报告置信度则直接采纳（它是期望值，没有可估的分布）。
 - **提示词约束**写在工具的 `promptGuidelines`：何时用、何时不用、`review` 必须自己复核、不得仅凭结果做不可逆操作、条目里不放凭证。
-- 代码：`resources/extensions/batch-decide.ts`（工具面，按回合读开关）→ `__fastvibeBatchDecide` → `src/main/pi/decision-scenarios.ts`。
+- 代码：`resources/extensions/batch-decide.ts`（工具面，按回合读开关）→ `__pinextBatchDecide` → `src/main/pi/decision-scenarios.ts`。
 
 ### 7.7 `subagent.role`（未来）
 
@@ -558,12 +558,12 @@ computer use 和 browser use 是同一类任务：每一步都从窗口里一组
 ## 8. 安全、远程与 i18n（硬规则）
 
 1. **所有新 IPC 方法必须同时进两层分类。** 一是 `src/shared/remote-policy.ts`：`assertPolicyCoverage` 会在方法既不在 `DENIED` 也不在 `ALLOWED` 时拒绝启动服务器。二是 v0.10 新增的 `src/main/app-server/capabilities.ts`：`capabilityOf()` 按前缀映射能力，未识别的前缀会让 `assertCapabilityCoverage` 失败。`decision:*` 需新增一条映射，建议归入 `settings`（配置读写）；`decision:test` 会从本机发起网络请求，即使能力匹配也由 remote-policy 拒绝。新增 `handle()` 不等于自动可远程。
-1a. **只在桌面 Main 内运行的会话提供 `browser_task`。** Headless App Server 的能力集不含 `browser`（`HEADLESS_CAPABILITIES`），SSH 远程 Agent 也没有 `__fastvibeBrowserRequest` 桥；这两类会话不注册该工具，也不显示“Browser use 优化”为已生效。
+1a. **只在桌面 Main 内运行的会话提供 `browser_task`。** Headless App Server 的能力集不含 `browser`（`HEADLESS_CAPABILITIES`），SSH 远程 Agent 也没有 `__pinextBrowserRequest` 桥；这两类会话不注册该工具，也不显示“Browser use 优化”为已生效。
 2. **决策配置管理只允许本机。** `decision:save-config`、`decision:set-key`、`decision:test` v1 均拒绝远程调用；远程 renderer 不显示可提交的设置表单，只显示“决策引擎只能在本机管理”。
 3. **决策 key 不从 Main 读回或广播到 renderer。** 用户录入时 renderer 暂时持有输入值，提交后清空；不进入 localStorage、日志、模型 state、trace 或设置快照。
 4. **v1 不接受任意 endpoint。** Jev adapter 固定 endpoint；未来自建 endpoint 需要 HTTPS、固定 allowlist、禁止未经确认的重定向、禁止从 renderer 传入 headers/代理/credential 名称，并由 Main 发起请求。
 5. **state 出网 = 数据出境，必须显式告知。** browser state 是用户正在看的网页正文与控件值摘要；启用远端 Jev 前必须确认，且 password/file/hidden 永远不进入 state。
-6. **决策引擎不授予权限。** v1 不开放 `permission.*` binding；FastVibe 本身也不做审批，决策模型不能替代开关与系统授权。
+6. **决策引擎不授予权限。** v1 不开放 `permission.*` binding；PI NEXT 本身也不做审批，决策模型不能替代开关与系统授权。
 7. **所有用户文案走 i18n。** 设置页、配置错误、交接/降级通知、远程拒绝和隐私告知分别进入 `settings` / `app` / `chat` locale；`binding`、backend id、模型 id 不是直接展示给用户的文案。
 8. **交接不扩大权限或数据范围。** 大模型审议仍走同一过滤器、动作权限和取消链；网页内容、partialAnswers、供应商错误文案都是不可信数据，不能用作修改系统规则的指令。取消不得转换成 unreachable 后继续请求另一个模型。
 
@@ -636,7 +636,7 @@ computer use 和 browser use 是同一类任务：每一步都从窗口里一组
 | 中文单独达到上述标准 | 中文站点同样启用；否则设置页说明中文效果有限，或中文页面直接走现有路径 |
 | 英文也达不到，或延迟优势在交接计入后消失 | no-go：保留本协议文档作为未来其他后端的设计，不接 Jev |
 
-#### 10.1.1 试点结果（2026-09-23，jev-1.13.0，对照模型 fastvibe/deepseek-flash）
+#### 10.1.1 试点结果（2026-09-23，jev-1.13.0，对照模型 pinext/deepseek-flash）
 
 规模远小于上面建议的数据集：单步决策 33 个页面、端到端任务两组、每种配置只跑 1 次，因此只能指明方向，**不能作为 go / no-go 结论**。页面由无头 Electron 加载，快照使用产品的 `SNAPSHOT_BODY`，问题由 `browser-questions.ts` 构造。
 
@@ -735,8 +735,8 @@ computer use 和 browser use 是同一类任务：每一步都从窗口里一组
 - `judge.ts`：答案与是否值得执行分离。我们仍保留更严格的响应校验、按已选依赖筛查和端到端取消，不照搬整批 verdict 的 escalated 聚合。
 - `bench/examples/collab.mjs`：结果不符时携带地理编码证据回交大模型；其选择器/流程是站点专用示例，不证明通用 browser runner 的可靠性。
 - `src/backends/`：Jev 可通过不同网关协议接入，confidence 和 usage 的位置各异；v1 仍只配置 TypeSafe 直连，渠道扩展以后再做。
-- 不照搬权限 hook：其故障时让位给宿主权限流程，不能充当 FastVibe 的最终安全闸。也不照搬缺失外部 AbortSignal、较宽松响应转换与简易 token 估算。
-- `bench/RESULTS.md` 的性能是作者单一环境报告，非 FastVibe 验证。公平配置下的延迟优势约 3 倍而非演示直观的十几倍；报告也披露有示例在 escalate 后仍使用答案，真实有限交接必须计入额外时间/费用。阈值和速度都不能直接移植。
+- 不照搬权限 hook：其故障时让位给宿主权限流程，不能充当 PI NEXT 的最终安全闸。也不照搬缺失外部 AbortSignal、较宽松响应转换与简易 token 估算。
+- `bench/RESULTS.md` 的性能是作者单一环境报告，非 PI NEXT 验证。公平配置下的延迟优势约 3 倍而非演示直观的十几倍；报告也披露有示例在 escalate 后仍使用答案，真实有限交接必须计入额外时间/费用。阈值和速度都不能直接移植。
 
 本次补充不增加 v1 场景或用户配置项；只扩充两个已配置模型如何合作的契约，以及相应 trace/计量/验收。
 

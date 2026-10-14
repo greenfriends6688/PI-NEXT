@@ -24,7 +24,7 @@ import { providerLabel } from "@/lib/provider-label";
 import { cn } from "@/lib/utils";
 import { useIsNarrowViewport } from "@/lib/sidebar-visibility";
 import { ProviderIcon } from "@/components/provider-icon";
-import { PROVIDER_APIS, type CcSwitchCandidate, type CcSwitchScan, type EngineModel, type FastVibeModel, type GatewayKind, type Project, type ProjectModelDefault, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel } from "@shared/types";
+import { PROVIDER_APIS, type CcSwitchCandidate, type CcSwitchScan, type EngineModel, type PinextModel, type GatewayKind, type Project, type ProjectModelDefault, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel } from "@shared/types";
 import { ModelDetailDialog, type ModelDetailTarget } from "./model-detail-dialog";
 import { ModelThinkingSelect } from "@/components/model-thinking-select";
 import { OAuthLoginDialog, type OAuthTarget } from "./oauth-login-dialog";
@@ -37,7 +37,7 @@ import { ProviderDetail } from "./provider-detail";
 import { CcSwitchImportDialog } from "./cc-switch-import-dialog";
 import { AddProviderDialog, ModelPickDialog } from "./add-provider-dialog";
 
-export function ProvidersSettings({ onChanged, models = [] }: { onChanged: () => void; models?: FastVibeModel[] }): JSX.Element {
+export function ProvidersSettings({ onChanged, models = [] }: { onChanged: () => void; models?: PinextModel[] }): JSX.Element {
   const { t } = useTranslation("settings");
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.update);
@@ -69,13 +69,13 @@ export function ProvidersSettings({ onChanged, models = [] }: { onChanged: () =>
   const [gatewayCredentialFor, setGatewayCredentialFor] = useState<ProviderConfig | null>(null);
 
   async function refresh(): Promise<ProviderConfig[]> {
-    const next = await window.fastvibe.providers.list();
+    const next = await window.pinext.providers.list();
     setProviders(next);
     return next;
   }
 
   useEffect(() => {
-    void Promise.all([refresh(), window.fastvibe.providers.native().then(setNatives)])
+    void Promise.all([refresh(), window.pinext.providers.native().then(setNatives)])
       .then(([next]) => {
         setSelectedId((current) => current ?? next[0]?.id ?? null);
       })
@@ -99,7 +99,7 @@ export function ProvidersSettings({ onChanged, models = [] }: { onChanged: () =>
     const provider = providers.find((item) => item.id === detail?.providerId);
     if (!provider) throw new Error(t("providers.missing"));
     await mutate(() =>
-      window.fastvibe.providers.update({
+      window.pinext.providers.update({
         id: provider.id,
         models: provider.models.map((item) => (item.id === next.id ? next : item)),
       }),

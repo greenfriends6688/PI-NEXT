@@ -760,7 +760,7 @@ class _ChatScreenState extends State<ChatScreen> {
           )
           .map(
             (message) =>
-                '${message.role == 'user' ? t('common.me') : 'FastVibe'}:\n${stripImageDimensionNote(message.text).trim()}',
+                '${message.role == 'user' ? t('common.me') : 'Pinext'}:\n${stripImageDimensionNote(message.text).trim()}',
           )
           .join('\n\n');
       await copyToClipboard(transcript);

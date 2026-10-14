@@ -1,12 +1,12 @@
 # App Server 协议
 
-本文描述 FastVibe App Server v1 的公开接入协议。第三方桌面端、移动端或自动化客户端可以按本文直接连接正在运行的 FastVibe；不需要 Electron，也不需要加载 FastVibe 的网页客户端。
+本文描述 PI NEXT App Server v1 的公开接入协议。第三方桌面端、移动端或自动化客户端可以按本文直接连接正在运行的 PI NEXT；不需要 Electron，也不需要加载 PI NEXT 的网页客户端。
 
-> 当前协议版本：`fastvibe.app` / `1`。线协议定义位于 `src/shared/app-protocol.ts`。IPC 方法名和 payload 类型位于 `src/shared/ipc.ts`、`src/shared/api.ts` 及对应 handler 中。
+> 当前协议版本：`pinext.app` / `1`。线协议定义位于 `src/shared/app-protocol.ts`。IPC 方法名和 payload 类型位于 `src/shared/ipc.ts`、`src/shared/api.ts` 及对应 handler 中。
 
 ## 1. 连接流程
 
-1. FastVibe 在「远程访问」中启用服务，并设置密码。
+1. PI NEXT 在「远程访问」中启用服务，并设置密码。
 2. 客户端向 `POST /api/login` 提交密码，取得设备 token。
 3. 客户端建立 `ws://host:port/ws` 或 `wss://host/ws` WebSocket。
 4. WebSocket 建立后先发送旧式鉴权帧 `{ type: "auth", token }`。
@@ -101,7 +101,7 @@ wss://example.com/ws
 
 ### 浏览器客户端注意事项
 
-服务端不提供跨域 CORS。浏览器页面应由 FastVibe 同源提供，或由自己的后端代理 `/api/login` 和 `/ws`。一个任意第三方网页不能仅靠浏览器 `fetch` 直接跨域登录 FastVibe；WebSocket 的 `Origin` 也会被服务端校验。
+服务端不提供跨域 CORS。浏览器页面应由 PI NEXT 同源提供，或由自己的后端代理 `/api/login` 和 `/ws`。一个任意第三方网页不能仅靠浏览器 `fetch` 直接跨域登录 PI NEXT；WebSocket 的 `Origin` 也会被服务端校验。
 
 ## 4. App Protocol v1
 
@@ -113,7 +113,7 @@ wss://example.com/ws
 {
   "kind": "hello",
   "hello": {
-    "protocol": "fastvibe.app",
+    "protocol": "pinext.app",
     "protocolVersion": 1,
     "client": {
       "kind": "third-party-mobile",
@@ -136,7 +136,7 @@ wss://example.com/ws
 {
   "kind": "welcome",
   "handshake": {
-    "protocol": "fastvibe.app",
+    "protocol": "pinext.app",
     "protocolVersion": 1,
     "server": {
       "serverInstanceId": "srv_xxx",
@@ -479,7 +479,7 @@ Agent 可能通过 `engine:event` 发出 `extension_ui_request`，客户端应�
 
 声明并从 `welcome.features.binaryAttachments` 得到确认后，可以先发送一个二进制 WebSocket 帧，再在 JSON payload 中使用 `attachmentId`：
 
-- 二进制帧格式：`fastvibe-attachment-v1:<id>\n<raw bytes>`；
+- 二进制帧格式：`pinext-attachment-v1:<id>\n<raw bytes>`；
 - `id` 形如 `att_` 加 8–80 个字母、数字、`_` 或 `-`；
 - JSON 图片改为 `{ "type": "image", "mimeType": "image/jpeg", "attachmentId": "att_xxx" }`；
 - 二进制帧必须先于引用它的 `call` 到达；
@@ -489,7 +489,7 @@ Agent 可能通过 `engine:event` 发出 `extension_ui_request`，客户端应�
 
 ## 7. 远程权限与方法目录
 
-App Protocol 只规定 envelope；具体方法沿用 FastVibe 的 transport-neutral IPC 表面。远程客户端可调用的方法由 `src/shared/remote-policy.ts` 明确列出，未列出的方法默认拒绝。服务端启动时还会检查方法覆盖，新增方法不会自动暴露到网络。
+App Protocol 只规定 envelope；具体方法沿用 PI NEXT 的 transport-neutral IPC 表面。远程客户端可调用的方法由 `src/shared/remote-policy.ts` 明确列出，未列出的方法默认拒绝。服务端启动时还会检查方法覆盖，新增方法不会自动暴露到网络。
 
 主要方法族：
 

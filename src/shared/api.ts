@@ -11,7 +11,7 @@ import type {
   ConversationHistoryPage,
   ConversationReadyEvent,
   DirEntry,
-  FastVibeModel,
+  PinextModel,
   SessionStats,
   EngineSessionState,
   EngineStatus,
@@ -69,7 +69,7 @@ import type {
 } from "@shared/ipc";
 
 /**
- * `window.fastvibe`, defined once for every transport that can carry it.
+ * `window.pinext`, defined once for every transport that can carry it.
  *
  * The desktop preload reaches Main over Electron IPC; the web client reaches the same
  * Main over a WebSocket. Both hand the renderer an object of exactly this shape, and it
@@ -114,7 +114,7 @@ export type ApiTransport = {
 };
 
 /** Build the bridge object for one transport. */
-export function createFastVibeApi(t: ApiTransport) {
+export function createPinextApi(t: ApiTransport) {
   const api = {
     engine: {
       submitPrompt: (payload: SubmitPromptRequest): Promise<ConversationQueueState | null> =>
@@ -217,7 +217,7 @@ export function createFastVibeApi(t: ApiTransport) {
       getRunning: (): Promise<string[]> => t.invoke(Ipc.engineGetRunning),
       /** Every parked extension prompt across conversations, as its request event. */
       getPendingUi: (): Promise<Array<Record<string, unknown>>> => t.invoke(Ipc.engineGetPendingUi),
-      getModels: (conversationId?: string): Promise<FastVibeModel[]> =>
+      getModels: (conversationId?: string): Promise<PinextModel[]> =>
         t.invoke(Ipc.engineGetModels, { conversationId }),
       setModel: (provider: string, modelId: string, conversationId?: string): Promise<EngineSessionState> =>
         t.invoke(Ipc.engineSetModel, { provider, modelId, conversationId }),
@@ -483,7 +483,7 @@ export function createFastVibeApi(t: ApiTransport) {
       onState: (listener: (state: WindowChromeState) => void): (() => void) => t.subscribe(Ipc.windowState, listener),
     },
     /**
-     * The FastVibe account (app.fastvibe.dev). `login` returns as soon as the browser is
+     * The Pinext account (app.pinext.dev). `login` returns as soon as the browser is
      * open; the outcome arrives through `onState`, because a person completes it elsewhere.
      */
     account: {
@@ -632,4 +632,4 @@ export function createFastVibeApi(t: ApiTransport) {
   return api;
 }
 
-export type FastVibeApi = ReturnType<typeof createFastVibeApi>;
+export type PinextApi = ReturnType<typeof createPinextApi>;

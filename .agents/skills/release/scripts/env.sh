@@ -3,7 +3,7 @@
 #
 #   . .agents/skills/release/scripts/env.sh
 #
-# FastVibe's agent shell starts from a minimal PATH (`/usr/bin:/bin:...`), so
+# Pinext's agent shell starts from a minimal PATH (`/usr/bin:/bin:...`), so
 # node / pnpm / gh — the three tools a release needs — are not on it. Each bash
 # call is a fresh shell, so an export does not survive between calls: prefix
 # every release command with the line above instead of exporting once.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create FastVibe's Android release key and hand it to CI.
+# Create Pinext's Android release key and hand it to CI.
 #
 # Run this yourself, in a terminal: it asks for the password, writes the keystore
 # outside the repository, and sets the four GitHub secrets the Mobile Android APK
@@ -14,9 +14,9 @@
 #   bash apps/mobile_flutter/tool/create-release-keystore.sh [output.jks]
 set -euo pipefail
 
-out="${1:-$HOME/env/keystore/fastvibe-release.jks}"
-alias_name="fastvibe"
-repo="tyuan511/fastvibe"
+out="${1:-$HOME/env/keystore/pinext-release.jks}"
+alias_name="pinext"
+repo="YOUR_GITHUB_OWNER/pinext"
 
 command -v keytool >/dev/null || { echo "keytool not found (install a JDK)" >&2; exit 1; }
 command -v gh >/dev/null || { echo "gh not found" >&2; exit 1; }
@@ -33,22 +33,22 @@ read -r -s -p "Repeat it: " again; echo
 
 mkdir -p "$(dirname "$out")"
 # PKCS12 keys its entry with the store password, so there is one password, not two.
-export FASTVIBE_KEYSTORE_PASSWORD="$password"
+export PINEXT_KEYSTORE_PASSWORD="$password"
 keytool -genkeypair -v \
   -storetype PKCS12 \
   -keystore "$out" \
   -alias "$alias_name" \
   -keyalg RSA -keysize 4096 -validity 10000 \
-  -dname "CN=FastVibe, O=FastVibe" \
-  -storepass:env FASTVIBE_KEYSTORE_PASSWORD \
-  -keypass:env FASTVIBE_KEYSTORE_PASSWORD >/dev/null
+  -dname "CN=Pinext, O=Pinext" \
+  -storepass:env PINEXT_KEYSTORE_PASSWORD \
+  -keypass:env PINEXT_KEYSTORE_PASSWORD >/dev/null
 chmod 600 "$out"
 
-base64 < "$out" | tr -d '\n' | gh secret set FASTVIBE_ANDROID_KEYSTORE_BASE64 --repo "$repo"
-printf '%s' "$alias_name" | gh secret set FASTVIBE_ANDROID_KEY_ALIAS --repo "$repo"
-printf '%s' "$password" | gh secret set FASTVIBE_ANDROID_STORE_PASSWORD --repo "$repo"
-printf '%s' "$password" | gh secret set FASTVIBE_ANDROID_KEY_PASSWORD --repo "$repo"
-unset password again FASTVIBE_KEYSTORE_PASSWORD
+base64 < "$out" | tr -d '\n' | gh secret set PINEXT_ANDROID_KEYSTORE_BASE64 --repo "$repo"
+printf '%s' "$alias_name" | gh secret set PINEXT_ANDROID_KEY_ALIAS --repo "$repo"
+printf '%s' "$password" | gh secret set PINEXT_ANDROID_STORE_PASSWORD --repo "$repo"
+printf '%s' "$password" | gh secret set PINEXT_ANDROID_KEY_PASSWORD --repo "$repo"
+unset password again PINEXT_KEYSTORE_PASSWORD
 
 echo
 echo "Keystore: $out (alias: $alias_name)"

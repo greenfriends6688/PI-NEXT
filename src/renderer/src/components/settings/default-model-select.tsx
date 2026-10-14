@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { ProviderIcon } from "@/components/provider-icon";
 import { providerLabel } from "@/lib/provider-label";
 import { cn } from "@/lib/utils";
-import type { EngineModel, FastVibeModel } from "@shared/types";
+import type { EngineModel, PinextModel } from "@shared/types";
 
 function modelKey(model: EngineModel): string {
   return `${model.provider}/${model.id}`;
@@ -40,7 +40,7 @@ export function DefaultModelSelect({
   wrapLabel,
   required,
 }: {
-  models: FastVibeModel[];
+  models: PinextModel[];
   value?: EngineModel;
   onChange: (model: EngineModel | undefined) => void;
   /** Label for an unpinned value when the caller has a different fallback semantic. */
@@ -54,7 +54,7 @@ export function DefaultModelSelect({
 }): JSX.Element {
   const { t } = useTranslation("settings");
   const groups = useMemo(() => {
-    const index = new Map<string, { id: string; name: string; models: FastVibeModel[] }>();
+    const index = new Map<string, { id: string; name: string; models: PinextModel[] }>();
     for (const item of models) {
       const group = index.get(item.provider);
       if (group) {

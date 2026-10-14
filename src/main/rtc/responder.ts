@@ -9,7 +9,7 @@ import type { RemoteSocket } from "../server/server.ts";
 import type { PeerInfo } from "./signaling.ts";
 
 /** The one data channel label the phone opens. Anything else is not ours. */
-export const CHANNEL_LABEL = "fastvibe";
+export const CHANNEL_LABEL = "pinext";
 
 const MAX_BUFFERED_SIGNALS = 64;
 const MAX_SDP_CHARS = 64 * 1024;

@@ -25,7 +25,7 @@ import { WORKSPACE_DIFF_FILE, consolidationPrompt, readPathPrompt, stage1Input, 
 import { hasSubstance, renderRollout } from "./memory-transcript.ts";
 import { changesBetween, readBaseline, readTree, removeSymlinks, renderWorkspaceDiff, validateArtifacts, writeBaseline } from "./memory-workspace.ts";
 
-/** Where the memory lives; `index.ts` derives it from `FastVibePaths`. */
+/** Where the memory lives; `index.ts` derives it from `PinextPaths`. */
 export type MemoryFiles = { memoryFile: string; memoriesDir: string; memoriesBaselineDir: string; memoryStateFile: string };
 
 const SUMMARY_FILE = "memory_summary.md";

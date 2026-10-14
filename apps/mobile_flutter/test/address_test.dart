@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fastvibe_mobile/protocol/address.dart';
+import 'package:pinext_mobile/protocol/address.dart';
 
 /// The same cases `test/mobile-address.test.ts` pins for the Expo client. A change here
 /// is a change to which machine a QR code connects to, so both clients are held to the
@@ -71,7 +71,7 @@ void main() {
     expect(parsed.kind, AddressKind.lan);
   });
 
-  test('a typed LAN host without a port uses FastVibe\'s default', () {
+  test('a typed LAN host without a port uses Pinext\'s default', () {
     final parsed = parseServerAddress('10.0.0.8')!;
     expect(parsed.origin, 'http://10.0.0.8:7777');
     expect(parsed.kind, AddressKind.lan);

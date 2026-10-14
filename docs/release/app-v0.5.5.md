@@ -7,4 +7,4 @@
 
 - **The update dialog's button says "Installing…"** instead of the longer "Opening the installer…".
 
-**Full Changelog**: https://github.com/tyuan511/fastvibe/compare/app-v0.5.4...app-v0.5.5
+**Full Changelog**: https://github.com/tyuan511/pinext/compare/app-v0.5.4...app-v0.5.5

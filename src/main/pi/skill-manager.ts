@@ -34,7 +34,7 @@ export class SkillManager {
       baseDir: skill.baseDir,
       // Built-ins are passed through the SDK's additionalSkillPaths API, which
       // marks them as temporary CLI resources. That describes the loader
-      // lifetime, not where the skill comes from in FastVibe's UI.
+      // lifetime, not where the skill comes from in Pinext's UI.
       scope: skill.sourceInfo.scope === "temporary" ? "system" : skill.sourceInfo.scope,
       source: skill.sourceInfo.source,
       removable: isManagedSkill(this.#skillsDir, skill.baseDir),
@@ -76,7 +76,7 @@ export class SkillManager {
     const skills = await this.list(cwd);
     const skill = skills.find((item) => item.name === name);
     if (!skill) throw new Error("技能不存在");
-    if (!skill.removable) throw new Error("只能删除 FastVibe 中添加的技能");
+    if (!skill.removable) throw new Error("只能删除 Pinext 中添加的技能");
     await rm(skill.baseDir, { recursive: true, force: true });
     return this.list(cwd);
   }

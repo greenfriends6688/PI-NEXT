@@ -3,7 +3,7 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 
 /**
- * FastVibe's built-in todo list — Claude Code's TodoWrite, as a pi tool.
+ * Pinext's built-in todo list — Claude Code's TodoWrite, as a pi tool.
  *
  * The model replaces the entire list on every call (`pending` / `in_progress` /
  * `completed` / `cancelled`). State lives in tool-result `details`, so branching

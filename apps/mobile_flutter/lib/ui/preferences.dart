@@ -12,7 +12,7 @@ class Preferences extends ChangeNotifier {
 
   static final Preferences instance = Preferences._();
 
-  static const String _key = 'fastvibe.preferences.v1';
+  static const String _key = 'pinext.preferences.v1';
 
   ThemePreference _theme = ThemePreference.system;
   bool _haptics = true;

@@ -6,13 +6,13 @@ plugins {
 
 // Reuse the shipping mobile key when supplied by CI. Local builds remain installable
 // test builds; they cannot replace a production installation signed with another key.
-val releaseStoreFile = System.getenv("FASTVIBE_ANDROID_STORE_FILE")
-val releaseStorePassword = System.getenv("FASTVIBE_ANDROID_STORE_PASSWORD")
-val releaseKeyAlias = System.getenv("FASTVIBE_ANDROID_KEY_ALIAS")
-val releaseKeyPassword = System.getenv("FASTVIBE_ANDROID_KEY_PASSWORD") ?: releaseStorePassword
+val releaseStoreFile = System.getenv("PINEXT_ANDROID_STORE_FILE")
+val releaseStorePassword = System.getenv("PINEXT_ANDROID_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("PINEXT_ANDROID_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("PINEXT_ANDROID_KEY_PASSWORD") ?: releaseStorePassword
 val releaseSigning = listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword)
 require(releaseSigning.all { it.isNullOrBlank() } || releaseSigning.none { it.isNullOrBlank() }) {
-    "All FASTVIBE_ANDROID signing settings must be supplied together"
+    "All PINEXT_ANDROID signing settings must be supplied together"
 }
 
 android {
@@ -26,7 +26,7 @@ android {
             }
         }
     }
-    namespace = "dev.fastvibe.fastvibe_mobile"
+    namespace = "dev.pinext.pinext_mobile"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -42,7 +42,7 @@ android {
     defaultConfig {
         // Keep the shipping package ID so a release signed with the same key can
         // upgrade an existing installation.
-        applicationId = "dev.fastvibe.mobile"
+        applicationId = "dev.pinext.mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // mobile_scanner's ML Kit and flutter_local_notifications both need 21+, and the

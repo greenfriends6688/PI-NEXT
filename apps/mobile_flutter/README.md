@@ -1,6 +1,6 @@
-# FastVibe for Flutter
+# Pinext for Flutter
 
-A native iOS / Android client for FastVibe machines, using the same App Protocol v1
+A native iOS / Android client for Pinext machines, using the same App Protocol v1
 as the desktop and web clients. Flutter owns its visual design: soft light
 and dark backgrounds, pinned liquid-glass navigation, floating composer, glass
 sheets and dialogs. Transcripts and dense content stay readable and opaque.
@@ -85,10 +85,10 @@ itself, so another checkout cannot silently supply this app's text.
 
 ## Distribution
 
-Both platforms use `dev.fastvibe.mobile`. Local Android release builds use the debug
+Both platforms use `dev.pinext.mobile`. Local Android release builds use the debug
 key for installation/testing. To upgrade the shipping app, supply its existing
-signing key through `FASTVIBE_ANDROID_STORE_FILE`, `FASTVIBE_ANDROID_STORE_PASSWORD`,
-`FASTVIBE_ANDROID_KEY_ALIAS` and `FASTVIBE_ANDROID_KEY_PASSWORD` (defaults to the store
+signing key through `PINEXT_ANDROID_STORE_FILE`, `PINEXT_ANDROID_STORE_PASSWORD`,
+`PINEXT_ANDROID_KEY_ALIAS` and `PINEXT_ANDROID_KEY_PASSWORD` (defaults to the store
 password). An incomplete signing configuration fails immediately. Never publish a
 locally debug-signed APK as an upgrade to the production app.
 
@@ -109,19 +109,19 @@ Strings live in `tool/i18n/{zh,en}.json`. Edit those files, then run
   translation checks on pull requests and pushes to main that change the mobile client.
 - **Mobile Android APK** keeps the `app-v*` tag and manual-run entry points. Tag pushes
   dispatch a build on main, checking out the tagged commit so caches can be reused.
-  It publishes `FastVibe-app-v<version>-arm64-v8a.apk` and its `.sha256` checksum, with
+  It publishes `Pinext-app-v<version>-arm64-v8a.apk` and its `.sha256` checksum, with
   `docs/release/app-v<version>.md` as the release body; a tag without that note fails
   before building. The app renders the same body as its changelog.
   The ABI stays in the name so the updater can reject incompatible devices.
   A manual run without a tag only uploads build artifacts. It reuses the existing
-  `FASTVIBE_ANDROID_KEYSTORE_BASE64`, `FASTVIBE_ANDROID_STORE_PASSWORD`,
-  `FASTVIBE_ANDROID_KEY_ALIAS` and `FASTVIBE_ANDROID_KEY_PASSWORD` secrets.
+  `PINEXT_ANDROID_KEYSTORE_BASE64`, `PINEXT_ANDROID_STORE_PASSWORD`,
+  `PINEXT_ANDROID_KEY_ALIAS` and `PINEXT_ANDROID_KEY_PASSWORD` secrets.
 - **Mobile iOS TestFlight** archives the Flutter `Runner` app, then automatically signs
   and exports it with `APPLE_API_KEY_P8`, `APPLE_API_KEY_ID` and `APPLE_API_ISSUER`.
   `APPLE_TEAM_ID` overrides the team. `TESTFLIGHT_AUTO=true` enables uploads on `app-v*`
   tags; a manual run with `upload` off exports an IPA artifact. The build number is
   `github.run_number.github.run_attempt`, including reruns. The App Store Connect app
-  record must already exist for `dev.fastvibe.mobile`.
+  record must already exist for `dev.pinext.mobile`.
 
 Both release workflows analyze and test the app before building. All three workflows
 read the Flutter SDK version from `environment.flutter` in `pubspec.yaml`.
@@ -130,10 +130,10 @@ read the Flutter SDK version from `environment.flutter` in `pubspec.yaml`.
 
 - `flutter analyze`: zero issues; `flutter test`: 106 passed.
 - Android arm64 release build passed. APK inspection confirms only `arm64-v8a` native
-  libraries, package `dev.fastvibe.mobile`, version `0.4.2`, build 402, about 18.6 MB.
+  libraries, package `dev.pinext.mobile`, version `0.4.2`, build 402, about 18.6 MB.
   The local APK uses the debug key; production CI supplies the existing release key.
 - `flutter build ipa --release --no-codesign --build-number 402.1` passed and produced
-  `build/ios/archive/Runner.xcarchive`. Its bundle ID is `dev.fastvibe.mobile`, version
+  `build/ios/archive/Runner.xcarchive`. Its bundle ID is `dev.pinext.mobile`, version
   `0.4.2`, build `402.1`.
 - All three mobile workflows passed `actionlint`; translation checks, shell syntax,
   TypeScript checking and frozen-lockfile installation passed.

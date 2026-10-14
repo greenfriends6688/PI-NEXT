@@ -25,7 +25,7 @@ const EFFORT_ORDER = ["minimal", "low", "medium", "high", "xhigh", "max"];
  */
 export async function downloadCatalog(url = SOURCE_URL) {
   const response = await fetch(url, {
-    headers: { "User-Agent": "fastvibe-sync-models-dev" },
+    headers: { "User-Agent": "pinext-sync-models-dev" },
     signal: AbortSignal.timeout(60_000),
   });
   if (!response.ok) throw new Error(`models.dev ${response.status} ${response.statusText}`);

@@ -14,8 +14,8 @@ test("published APK names retain their ABI for the mobile updater", { skip: !pos
   const assignment = workflow.match(/^\s+apk="[^"\n]+"/m)?.[0];
   assert.ok(assignment, "APK naming step must be present");
   for (const [tag, expected] of [
-    ["app-v0.5.0", "FastVibe-app-v0.5.0-arm64-v8a.apk"],
-    ["", "FastVibe-main-1234567-arm64-v8a.apk"],
+    ["app-v0.5.0", "Pinext-app-v0.5.0-arm64-v8a.apk"],
+    ["", "Pinext-main-1234567-arm64-v8a.apk"],
   ]) {
     const result = spawnSync("bash", ["-c", `${assignment}\nprintf '%s' "$apk"`], {
       encoding: "utf8", env: { ...process.env, RELEASE_TAG: tag, GITHUB_SHA: "1234567890abcdef" },
@@ -26,7 +26,7 @@ test("published APK names retain their ABI for the mobile updater", { skip: !pos
 });
 
 function check(version: string, tag = "") {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-flutter-release-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-flutter-release-"));
   try {
     const pubspec = join(dir, "pubspec.yaml");
     writeFileSync(pubspec, `version: ${version}\n`);

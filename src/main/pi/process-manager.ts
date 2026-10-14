@@ -39,7 +39,7 @@ import type {
   QueuedPromptPreview,
   ExtensionInfo,
   ExtensionPackage,
-  FastVibeModel,
+  PinextModel,
   EngineModel,
   EngineSessionState,
   EngineStatus,
@@ -136,7 +136,7 @@ import { hasOAuthCredential, OAuthCredentialStore, readOrCreateDeviceId } from "
 import { priceUsage } from "../engine/pricing";
 import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-quota";
 import { fetchGatewayBalance, gatewayTargets, probeGateway, readGatewayCredentials, writeGatewayCredentials } from "../engine/gateway-probe";
-import { ensureScratchWorkspace, getFastVibePaths, scratchWorkspace, type FastVibePaths } from "../engine/paths";
+import { ensureScratchWorkspace, getPinextPaths, scratchWorkspace, type PinextPaths } from "../engine/paths";
 import { DisabledMemoryHost, type MemoryHost } from "../engine/memory-host";
 import { SubagentManager } from "../engine/subagents";
 import { reduceSubagent } from "@shared/subagent-state";
@@ -200,8 +200,8 @@ function lastAssistantText(messages: unknown[]): string {
 }
 
 type ManagedSession = { conversationId: string; cwd: string; session: AgentSession; extensions: LoadExtensionsResult; unsubscribe: () => void };
-/** SDK UI context plus FastVibe's single-panel multi-question prompt. */
-type FastVibeExtensionUIContext = ExtensionUIContext & {
+/** SDK UI context plus Pinext's single-panel multi-question prompt. */
+type PinextExtensionUIContext = ExtensionUIContext & {
   /** The catalog id of the conversation this context serves — what `conversation_search` takes. */
   conversationId: string;
   questions(title: string, questions: PermissionQuestion[], opts?: { timeout?: number }): Promise<Array<string | null> | undefined>;
@@ -216,7 +216,7 @@ type FastVibeExtensionUIContext = ExtensionUIContext & {
   bindWorktree(path: string): Promise<WorktreeHostResult>;
   unbindWorktree(options?: { remove?: boolean }): Promise<{ cwd: string }>;
   listWorktrees(): Promise<GitWorktreeInfo[]>;
-  /** FastVibe's own settings, for the built-in `app-config` extension (`src/main/app-config.ts`). */
+  /** Pinext's own settings, for the built-in `app-config` extension (`src/main/app-config.ts`). */
   appConfig(request: AppConfigHostRequest): Promise<AppConfigHostResult>;
   /** The DAG of sub-agent tasks, for the built-in `dag` extension (`src/main/dag-tools.ts`). */
   dag(request: DagHostRequest, signal?: AbortSignal): Promise<DagHostResult>;
@@ -334,7 +334,7 @@ export type StreamWatch = {
 
 /** Host adapter backed by pi-coding-agent. It keeps one AgentSession per conversation in one Node process. */
 export class PiProcessManager {
-  #paths: FastVibePaths;
+  #paths: PinextPaths;
   #catalog: ConversationCatalog;
   #sessions = new Map<string, ManagedSession>();
   /** Last time each resident session was opened or asked for, for the idle sweep. */
@@ -356,7 +356,7 @@ export class PiProcessManager {
   #readyListeners = new Set<(payload: ConversationReadyEvent) => void>();
   #runtime: ModelRuntime | null = null;
   #models: ModelRegistry | null = null;
-  #modelsCache: FastVibeModel[] | null = null;
+  #modelsCache: PinextModel[] | null = null;
   /** Account quota is remote data; keep it warm for five minutes per provider. */
   #openAIQuotaCache = new Map<string, { quota: OpenAIAccountQuota; expiresAt: number }>();
   #gatewayBalanceCache = new Map<string, { result: GatewayBalanceResult; expiresAt: number }>();
@@ -577,7 +577,7 @@ export class PiProcessManager {
    */
   #stoppedSubagents = new Set<string>();
 
-  constructor(paths: FastVibePaths = getFastVibePaths(), memory: MemoryHost = new DisabledMemoryHost()) {
+  constructor(paths: PinextPaths = getPinextPaths(), memory: MemoryHost = new DisabledMemoryHost()) {
     this.#paths = paths;
     this.#memory = memory;
     this.#catalog = new ConversationCatalog(this.#paths.conversationsFile, this.#paths.scratchDir);
@@ -617,7 +617,7 @@ export class PiProcessManager {
         return { workspace, provider: model?.provider };
       },
     });
-    // The extension API's getAgentDir() is environment-based, while FastVibe passes
+    // The extension API's getAgentDir() is environment-based, while Pinext passes
     // the isolated directory programmatically to createAgentSession. Keep the role
     // discovery path on that same private root as well.
     process.env.PI_CODING_AGENT_DIR = this.#paths.agentDir;
@@ -896,7 +896,7 @@ export class PiProcessManager {
     }
   }
   /**
-   * Where the `fastvibe_config_*` tools land. Injected rather than imported because the
+   * Where the `pinext_config_*` tools land. Injected rather than imported because the
    * actions dispatch into the desktop's call table, which an SSH Agent runtime (the same
    * engine, no Electron) does not have — there the tools answer "not available".
    */
@@ -942,7 +942,7 @@ export class PiProcessManager {
       this.#modelsCache = applied;
       this.#prices = modelPriceIndex(this.#paths);
       // Credentials are split by kind. API keys live in an in-memory overlay so keys
-      // are never written to the SDK's own auth file; `models.json` (which FastVibe
+      // are never written to the SDK's own auth file; `models.json` (which Pinext
       // owns) is the only file the runtime reads, and dynamic catalogs stay in memory
       // too. A subscription (OAuth) token is the exception: its refresh token has to
       // survive a restart, so it is persisted under the isolated agentDir instead.
@@ -1198,7 +1198,7 @@ export class PiProcessManager {
     await session.steer(message, images);
   }
   /**
-   * Rebuild the engine's steering queue from the items FastVibe still wants
+   * Rebuild the engine's steering queue from the items Pinext still wants
    * injected. Used when the user 撤回 / 删除 a 发送中 row: the SDK has no
    * per-message cancel, so we clear and re-steer the survivors.
    */
@@ -1513,7 +1513,7 @@ export class PiProcessManager {
    * `agent.continue()` delivers it the moment the transcript ends on an assistant
    * message — which is exactly the shape an aborted turn has. That delivery is a real
    * prompt (the row shows up in the transcript) but it never crosses the adapter's
-   * claim boundary, so FastVibe's queue row stays on screen over a message that has
+   * claim boundary, so Pinext's queue row stays on screen over a message that has
    * already been sent. The resumed run skips one read of each queue instead; the rows
    * stay pending and only leave when the user resumes the queue (立即 / 继续发送).
    */
@@ -1802,11 +1802,11 @@ export class PiProcessManager {
   async removeSkill(name: string): Promise<SkillInfo[]> { const skills = await this.#skills.remove(this.#cwd, name); await this.#reloadSkills(); return skills; }
 
   /**
-   * Other agents on this machine that FastVibe can pull sessions from (设置 → 导入).
+   * Other agents on this machine that Pinext can pull sessions from (设置 → 导入).
    *
    * Scanning happens per pane open and is read-only throughout: the other agents' data
    * directories are never written to, and every import is a *copy* of the converted
-   * transcript into FastVibe's own sessions directory — see
+   * transcript into Pinext's own sessions directory — see
    * `docs/import-from-other-agents.md`.
    */
   async importSources(): Promise<ImportSourceStatus[]> { return scanImportSources(); }
@@ -2271,7 +2271,7 @@ export class PiProcessManager {
    * The models this install can chat with. An unconfigured engine has none, which is an
    * answer rather than an error — the composer's model menu is how the user connects one.
    */
-  async getAvailableModels(): Promise<FastVibeModel[]> {
+  async getAvailableModels(): Promise<PinextModel[]> {
     if (this.#modelsCache) return this.#modelsCache;
     await this.#ensureReady();
     return this.#modelsCache ?? [];
@@ -2370,7 +2370,7 @@ export class PiProcessManager {
       groupBudget: Math.min(36_000, Math.max(6_000, Math.floor(directBudget * 0.7))),
       maxGroups: 8,
     });
-    const language = process.env.FASTVIBE_AI_LANGUAGE_PROMPT?.trim();
+    const language = process.env.PINEXT_AI_LANGUAGE_PROMPT?.trim();
     const complete = async (prompt: string, maxTokens: number): Promise<{ text: string; stopReason: string }> => {
       const response = await registry.complete(
         model,
@@ -2519,7 +2519,7 @@ export class PiProcessManager {
   async setFollowUpMode(mode: "all" | "one-at-a-time", conversationId?: string): Promise<EngineSessionState> { (await this.#sessionFor(conversationId)).session.setFollowUpMode(mode); return this.getState(conversationId); }
   async exportHtml(): Promise<string | undefined> { return (await this.#active()).exportToHtml(); }
   async setAutoCompaction(enabled: boolean, conversationId?: string): Promise<EngineSessionState> {
-    // The preference is already in FastVibe's settings (`settings.json`), and every new
+    // The preference is already in Pinext's settings (`settings.json`), and every new
     // session reads it there, so on the empty hero there is nothing to apply it to yet.
     const session = conversationId ? (await this.#sessionFor(conversationId)).session : await this.#activeSession();
     if (!session) return this.#draftState();
@@ -2672,7 +2672,7 @@ export class PiProcessManager {
     if (!force && cached && cached.expiresAt > Date.now()) return cached.result;
     const provider = listProviderConfigs(this.#paths, await loadProviderKeys(this.#paths)).find((item) => item.id === id);
     if (!provider) throw new Error(uiText("供应商不存在", "This provider does not exist."));
-    // The gateway is what decides this, not the provider's kind: the FastVibe
+    // The gateway is what decides this, not the provider's kind: the Pinext
     // endpoint is a Sub2API deployment and reads its balance the same way a custom one
     // does. A provider whose upstream was never identified has no endpoint to call.
     if (!provider.gateway) throw new Error(uiText("未识别该站点的类型，无法读取余额", "This site was not identified, so its balance cannot be read."));
@@ -2930,7 +2930,7 @@ export class PiProcessManager {
   /**
    * Session replacement requested by an extension command (`ctx.newSession`).
    *
-   * FastVibe hands the SDK a prepared SessionManager so the extension's `setup`
+   * Pinext hands the SDK a prepared SessionManager so the extension's `setup`
    * can seed the new session before anything binds, then creates a fresh
    * conversation, activates it, tells the renderer to follow, and only then runs
    * `withSession` against the replacement. The source session is left intact so a
@@ -3314,7 +3314,7 @@ export class PiProcessManager {
       mark = now;
     };
     const settingsManager = SettingsManager.create(cwd, this.#paths.agentDir);
-    // A loader we own lets us splice in FastVibe's built-in extensions
+    // A loader we own lets us splice in Pinext's built-in extensions
     // (`goal`, `todo`, session-title, web-search) alongside whatever the user installed. `createAgentSession`
     // only auto-reloads a loader it creates, so reload ours before handing it over.
     const resourceLoader = new DefaultResourceLoader({
@@ -3324,14 +3324,14 @@ export class PiProcessManager {
       additionalExtensionPaths: builtinExtensionPaths(),
       additionalSkillPaths: builtinSkillPaths(),
       extensionFactories: [{
-        name: "fastvibe-memory",
+        name: "pinext-memory",
         hidden: true,
         factory: this.#memory.extension(),
       }, {
         // MCP tools are registered through an extension factory rather than the
         // SDK's one-shot `customTools` option. That lets session.reload() rebuild
         // the registry after MCP settings change without replacing the session.
-        name: "fastvibe-mcp",
+        name: "pinext-mcp",
         hidden: true,
         factory: async (pi) => {
           for (const tool of await this.#mcp.tools()) pi.registerTool(tool as ToolDefinition);
@@ -3340,18 +3340,18 @@ export class PiProcessManager {
         // `codemode` (the model writes a script that calls other tools) and `tool_search`
         // (find and load tools that are not declared). The SDK registers both inactive and
         // loads neither in an SDK session by itself, unlike its CLI.
-        name: "fastvibe-codemode",
+        name: "pinext-codemode",
         hidden: true,
         factory: createCodemodeExtension(),
       }, {
-        name: "fastvibe-tool-search",
+        name: "pinext-tool-search",
         hidden: true,
         factory: createToolSearchExtension(),
       }, {
         // Switches codemode, tool_search and the dag_* tools on or off from the settings
         // as they are at `session_start`, which a reload emits again — the SDK's
         // `defaultTools` setting can only add.
-        name: "fastvibe-tool-modes",
+        name: "pinext-tool-modes",
         hidden: true,
         factory: (pi) => {
           pi.on("session_start", () => {
@@ -3380,7 +3380,7 @@ export class PiProcessManager {
     lap("session");
     this.#promptPreparations.install(conversation.id, result.session);
     await result.session.bindExtensions({
-      // Extensions see `rpc`, not the default `print`: FastVibe bridges dialogs,
+      // Extensions see `rpc`, not the default `print`: Pinext bridges dialogs,
       // status, widgets and session replacement, so TUI-aware plugins
       // take their non-terminal code paths instead of refusing to run.
       mode: "rpc",
@@ -3391,7 +3391,7 @@ export class PiProcessManager {
         // plugin that takes that for 「done」 would poke a session mid-run.
         waitForIdle: () => result.session.waitForIdle(),
         newSession: (options) => this.#extensionNewSession(conversation.id, options),
-        // FastVibe branches in place (`navigateTree`); a separate fork file is not
+        // Pinext branches in place (`navigateTree`); a separate fork file is not
         // tracked by the catalog, so report cancellation rather than half-create one.
         fork: async () => ({ cancelled: true }),
         navigateTree: async (entryId) => {
@@ -3660,7 +3660,7 @@ export class PiProcessManager {
     this.#sessions.set(conversation.id, managed);
     this.#touchSession(conversation.id);
     // 自动压缩 is always on for a new session. The engine keeps the flag in its own
-    // settings file, which FastVibe does not own, so it is pinned here where every
+    // settings file, which Pinext does not own, so it is pinned here where every
     // conversation passes. Skipped when it already matches, since writing touches the file.
     if (!result.session.autoCompactionEnabled) result.session.setAutoCompactionEnabled(true);
     // A conversation with no history yet starts on the user's pinned 默认模型.
@@ -4661,7 +4661,7 @@ export class PiProcessManager {
   }
 
   /**
-   * FastVibe extends the SDK's UI context with a single-panel multi-question
+   * Pinext extends the SDK's UI context with a single-panel multi-question
    * prompt. The built-in `question` tool feature-detects it and falls back to
    * sequential `select`/`input` on hosts that do not provide it (real pi/TUI).
    */
@@ -4688,7 +4688,7 @@ export class PiProcessManager {
     }).run(conversationId, request);
   }
 
-  #extensionUi(conversationId: string, owner: string = conversationId): FastVibeExtensionUIContext {
+  #extensionUi(conversationId: string, owner: string = conversationId): PinextExtensionUIContext {
     // Keep the editor mirror per extension session. This is useful to plugins that
     // compose a prompt in several calls, while the renderer remains the source of
     // truth for normal composer typing.
@@ -4733,7 +4733,7 @@ export class PiProcessManager {
       unbindWorktree: (options) => this.#hostUnbindWorktree(conversationId, options),
       listWorktrees: () => this.#listGitWorktrees(conversationId),
       appConfig: (request) =>
-        this.#appConfigHost ? this.#appConfigHost(request) : Promise.resolve({ ok: false, error: uiText("当前宿主不支持修改 FastVibe 设置", "This host cannot change FastVibe settings") }),
+        this.#appConfigHost ? this.#appConfigHost(request) : Promise.resolve({ ok: false, error: uiText("当前宿主不支持修改 Pinext 设置", "This host cannot change Pinext settings") }),
       dag: async (request, signal) => {
         const model = this.#sessions.get(conversationId)?.session.model;
         if (model) this.#dagParentModel.set(conversationId, `${model.provider}/${model.id}`);
@@ -4807,7 +4807,7 @@ export class PiProcessManager {
       setHeader: () => undefined,
       setTitle: (title) => { this.#emit({ type: "extension_ui_request", id: randomUUID(), conversationId, method: "setTitle", title }); },
       custom: async <T>() => {
-        throw new Error("FastVibe 不支持 ctx.ui.custom()；请使用 ctx.ui.select()、confirm()、input()、editor() 或 questions()");
+        throw new Error("Pinext 不支持 ctx.ui.custom()；请使用 ctx.ui.select()、confirm()、input()、editor() 或 questions()");
       },
       pasteToEditor: (text) => { editorText = text; this.#emit({ type: "extension_ui_request", id: randomUUID(), conversationId, method: "set_editor_text", text }); },
       setEditorText: (text) => { editorText = text; this.#emit({ type: "extension_ui_request", id: randomUUID(), conversationId, method: "set_editor_text", text }); },
@@ -5156,7 +5156,7 @@ export class PiProcessManager {
    * Apply the model and thinking level a brand-new conversation should start on: the
    * pick the user made while none existed, else the pinned 「默认模型」.
    *
-   * The preference lives in FastVibe's own settings file: the SDK's
+   * The preference lives in Pinext's own settings file: the SDK's
    * `defaultProvider`/`defaultModel` keys cannot hold it, because `AgentSession.setModel`
    * rewrites them to the last used model on every switch. Best effort by design — a
    * pin whose provider was removed or whose key is gone leaves the engine default in

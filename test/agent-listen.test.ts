@@ -25,7 +25,7 @@ test("the Agent listens on loopback unless it is asked, in exactly one way, not 
 });
 
 async function withAccessFile<T>(withPassword: boolean, fn: (accessFile: string) => Promise<T>): Promise<T> {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-listen-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-listen-"));
   const accessFile = join(dir, "remote-access.json");
   if (withPassword) setPassword(accessFile, PASSWORD);
   try {

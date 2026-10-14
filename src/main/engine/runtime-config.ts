@@ -1,9 +1,9 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { AGENT_CONFIG_FILES, type AgentConfigFile, type AgentConfigSnapshot } from "../../shared/agent-config.ts";
-import type { FastVibePaths } from "./paths";
+import type { PinextPaths } from "./paths";
 
-function filePaths(paths: FastVibePaths): Record<AgentConfigFile, string> {
+function filePaths(paths: PinextPaths): Record<AgentConfigFile, string> {
   return {
     settings: paths.settingsFile,
     providers: paths.providersFile,
@@ -18,7 +18,7 @@ function filePaths(paths: FastVibePaths): Record<AgentConfigFile, string> {
 }
 
 /** Read the desktop's engine configuration for an SSH Agent. */
-export function readAgentConfig(paths: FastVibePaths): AgentConfigSnapshot {
+export function readAgentConfig(paths: PinextPaths): AgentConfigSnapshot {
   const result: AgentConfigSnapshot = {};
   const pathsByKey = filePaths(paths);
   for (const key of AGENT_CONFIG_FILES) {
@@ -29,7 +29,7 @@ export function readAgentConfig(paths: FastVibePaths): AgentConfigSnapshot {
 }
 
 /** Replace the Agent's configuration, validating every file before writing any of it. */
-export function writeAgentConfig(paths: FastVibePaths, snapshot: AgentConfigSnapshot): void {
+export function writeAgentConfig(paths: PinextPaths, snapshot: AgentConfigSnapshot): void {
   const pathsByKey = filePaths(paths);
   validateSnapshot(snapshot);
   for (const key of AGENT_CONFIG_FILES) {

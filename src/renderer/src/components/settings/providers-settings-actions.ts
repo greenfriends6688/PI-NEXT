@@ -19,7 +19,7 @@ export async function startAddModels(
     busy: true,
   });
   try {
-    const models = await window.fastvibe.providers.refresh(provider.id);
+    const models = await window.pinext.providers.refresh(provider.id);
     const kept = new Set(provider.models.map((item) => item.id));
     setPicker({
         providerId: provider.id,
@@ -81,8 +81,8 @@ export async function fetchAddCandidates(
     // than one after the other — the probe is what lets the dialog say which product
     // this is, and a relay's panel answers as fast as its model list.
     const [models, gateway] = await Promise.all([
-      window.fastvibe.providers.fetch(add.baseUrl, add.apiKey, add.api),
-      window.fastvibe.providers.probeGateway(add.baseUrl).catch(() => undefined),
+      window.pinext.providers.fetch(add.baseUrl, add.apiKey, add.api),
+      window.pinext.providers.probeGateway(add.baseUrl).catch(() => undefined),
     ]);
     setAdd({
       ...add,
@@ -116,8 +116,8 @@ export async function saveAdd(
   try {
     const next =
       add.mode === "native"
-        ? await window.fastvibe.providers.addNative({ id: add.nativeId!, apiKey: add.apiKey.trim(), models })
-        : await window.fastvibe.providers.add({
+        ? await window.pinext.providers.addNative({ id: add.nativeId!, apiKey: add.apiKey.trim(), models })
+        : await window.pinext.providers.add({
           name: add.name.trim(),
           baseUrl: add.baseUrl.trim(),
           apiKey: add.apiKey.trim(),
@@ -140,7 +140,7 @@ export async function logout(
   onChanged: () => void,
 ): Promise<void> {
   try {
-    setProviders(await window.fastvibe.providers.logout(provider.id));
+    setProviders(await window.pinext.providers.logout(provider.id));
     onChanged();
   } catch (err) {
     toast.error(cleanError(err));
@@ -184,7 +184,7 @@ export async function savePicker(
   });
   setPicker((current) => (current ? { ...current, busy: true } : current));
   try {
-    await mutate(() => window.fastvibe.providers.update({ id: picker.providerId, models: nextModels }));
+    await mutate(() => window.pinext.providers.update({ id: picker.providerId, models: nextModels }));
     setPicker(null);
   } catch (err) {
     toast.error(cleanError(err));

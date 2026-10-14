@@ -4,7 +4,7 @@ import type { McpServerConfig, McpServerStatus } from "../shared/types.ts";
 import { APP_CONFIG_CATALOG, isAppConfigAction, type AppConfigAction, type AppConfigHostRequest, type AppConfigHostResult } from "../shared/app-config.ts";
 
 /**
- * What the agent may do to FastVibe's own configuration (the `fastvibe_config_*` tools).
+ * What the agent may do to Pinext's own configuration (the `pinext_config_*` tools).
  *
  * The point is that a setup like an MCP server is a dozen fields in a pane on this
  * machine: the agent works out the values with its ordinary tools, and this is the part
@@ -107,13 +107,13 @@ const ACTIONS: Record<AppConfigAction, Run> = {
   },
 };
 
-/** The host side of the `fastvibe_config_*` tools. Never throws: errors are data for the agent. */
+/** The host side of the `pinext_config_*` tools. Never throws: errors are data for the agent. */
 export async function runAppConfig(request: AppConfigHostRequest): Promise<AppConfigHostResult> {
   if (!isAppConfigAction(request.action)) {
     return { ok: false, error: `未知动作：${request.action}。可用动作：\n${JSON.stringify(APP_CONFIG_CATALOG, null, 2)}` };
   }
   if (APP_CONFIG_CATALOG[request.action].kind === "write" && !request.write) {
-    return { ok: false, error: `${request.action} 是写入动作，请用 fastvibe_config_apply` };
+    return { ok: false, error: `${request.action} 是写入动作，请用 pinext_config_apply` };
   }
   try {
     return { ok: true, value: await ACTIONS[request.action](request.input ?? {}) };

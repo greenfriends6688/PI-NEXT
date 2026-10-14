@@ -305,7 +305,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 Text(
-                                  'FastVibe',
+                                  'Pinext',
                                   style: TextStyle(
                                     color: palette.text,
                                     fontSize: 17,
@@ -434,7 +434,7 @@ class _AppearancePreview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'FastVibe',
+          'Pinext',
           style: TextStyle(
             color: palette.text,
             fontSize: 11,

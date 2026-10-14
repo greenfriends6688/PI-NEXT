@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-export type FastVibePaths = {
+export type PinextPaths = {
   userData: string;
   logs: string;
   runtimeRoot: string;
@@ -62,7 +62,7 @@ export type FastVibePaths = {
    */
   remoteAccessFile: string;
   /**
-   * The signed-in FastVibe account: the device token and who it belongs to. 0600, and
+   * The signed-in Pinext account: the device token and who it belongs to. 0600, and
    * never served by any method — the renderer is only told who is signed in.
    */
   accountFile: string;
@@ -116,7 +116,7 @@ export function ensureScratchWorkspace(scratchDir: string, conversationId: strin
   return dir;
 }
 
-let cached: FastVibePaths | null = null;
+let cached: PinextPaths | null = null;
 let configuredUserData: string | undefined;
 
 /**
@@ -126,20 +126,20 @@ let configuredUserData: string | undefined;
  * from its own service configuration. Keeping the path provider free of Electron is
  * what lets the same engine runtime load in a plain Linux Node process.
  */
-export function configureFastVibeUserData(userData: string): void {
+export function configurePinextUserData(userData: string): void {
   const root = userData.trim();
-  if (!root) throw new Error("FastVibe 数据目录不能为空");
+  if (!root) throw new Error("Pinext 数据目录不能为空");
   configuredUserData = root;
   cached = null;
 }
 
-export function getFastVibePaths(): FastVibePaths {
-  return (cached ??= buildFastVibePaths());
+export function getPinextPaths(): PinextPaths {
+  return (cached ??= buildPinextPaths());
 }
 
-function buildFastVibePaths(): FastVibePaths {
-  const userData = configuredUserData ?? process.env.FASTVIBE_USER_DATA;
-  if (!userData) throw new Error("FastVibe 数据目录尚未配置");
+function buildPinextPaths(): PinextPaths {
+  const userData = configuredUserData ?? process.env.PINEXT_USER_DATA;
+  if (!userData) throw new Error("Pinext 数据目录尚未配置");
   const logs = join(userData, "logs");
   const runtimeRoot = join(userData, "runtime", "engine");
   const agentDir = join(runtimeRoot, "agent");

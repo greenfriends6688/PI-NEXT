@@ -4,10 +4,11 @@ import appIconDark from "@/assets/app-icon-dark.png";
 import { cn } from "@/lib/utils";
 
 /**
- * The FastVibe mark on its rounded blue tile. The asset is self-contained
- * (white F on the brand gradient), so the same file reads on light and dark;
- * the `dark` class swap is kept so a future theme-specific tile can land
- * without touching call sites.
+ * The PI NEXT mark — the same gradient N the app icon is built from.
+ *
+ * The asset here is the **transparent cut**, not the white tile the packaged icon uses,
+ * because this one is drawn on the app's own surfaces. The `dark` swap is kept so a
+ * theme-specific tile can land later without touching call sites.
  */
 export function AppLogo({ className }: { className?: string }): JSX.Element {
   return (

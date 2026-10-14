@@ -47,11 +47,11 @@ export function AboutSettings(): JSX.Element {
     // A refresh that lands before getInfo returns would otherwise be overwritten by
     // the snapshot the page asked for a moment earlier.
     let live: AppInfo["modelsDev"];
-    const off = window.fastvibe.app.onModelsDev((modelsDev) => {
+    const off = window.pinext.app.onModelsDev((modelsDev) => {
       live = modelsDev;
       if (!cancelled) setInfo((prev) => (prev ? { ...prev, modelsDev } : prev));
     });
-    void window.fastvibe.app
+    void window.pinext.app
       .getInfo()
       .then((next) => {
         if (!cancelled) setInfo(live ? { ...next, modelsDev: live } : next);
@@ -66,7 +66,7 @@ export function AboutSettings(): JSX.Element {
   async function updateModelsDev(): Promise<void> {
     setUpdating(true);
     try {
-      const modelsDev = await window.fastvibe.app.updateModelsDev();
+      const modelsDev = await window.pinext.app.updateModelsDev();
       setInfo((prev) => (prev ? { ...prev, modelsDev } : prev));
       toast.success(t("about.updated"));
     } catch (err) {
@@ -80,7 +80,7 @@ export function AboutSettings(): JSX.Element {
     // The zip lands in the host's downloads, where a remote caller cannot get at it.
     setExporting(true);
     try {
-      const path = await window.fastvibe.app.exportLogs();
+      const path = await window.pinext.app.exportLogs();
       if (path) setExportedPath(path);
     } catch (err) {
       toast.error(cleanError(err) || t("about.exportFailed"));
@@ -93,7 +93,7 @@ export function AboutSettings(): JSX.Element {
 
   function syncConfig(mode: "merge" | "replace"): void {
     setSyncing(mode);
-    void window.fastvibe.engine
+    void window.pinext.engine
       .syncPiConfig(mode)
       .then((report) => {
         setConfirmSync(false);
@@ -112,7 +112,7 @@ export function AboutSettings(): JSX.Element {
         <AppLogo className="size-14 shrink-0" />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-semibold tracking-tight">FastVibe</h3>
+            <h3 className="text-lg font-semibold tracking-tight">Pinext</h3>
             <Badge variant="secondary" className="font-mono">
               v{info?.version ?? "—"}
             </Badge>
@@ -201,7 +201,7 @@ export function AboutSettings(): JSX.Element {
                 size="xs"
                 variant="outline"
                 onClick={() => {
-                  void window.fastvibe.workspace.reveal(info.userData);
+                  void window.pinext.workspace.reveal(info.userData);
                 }}
               >
                 {t("about.open")}

@@ -111,10 +111,10 @@ export function OAuthLoginDialog({
     setPrompt(null);
     setValue("");
     setError(null);
-    const off = window.fastvibe.providers.onOAuthEvent((payload) => {
+    const off = window.pinext.providers.onOAuthEvent((payload) => {
       if (payload.id === providerId && run === runId.current) apply(payload.event);
     });
-    void window.fastvibe.providers
+    void window.pinext.providers
       .oauthLogin(providerId)
       .then((result) => {
         if (run !== runId.current) return;
@@ -140,7 +140,7 @@ export function OAuthLoginDialog({
       off();
       // Closing the dialog abandons the login. Harmless once it has resolved: the
       // engine drops the session before the promise settles.
-      void window.fastvibe.providers.oauthCancel(providerId);
+      void window.pinext.providers.oauthCancel(providerId);
     };
   }, [providerId, attempt, apply]);
 
@@ -149,7 +149,7 @@ export function OAuthLoginDialog({
     setBusy(true);
     setError(null);
     try {
-      await window.fastvibe.providers.oauthAnswer({ id: providerId, promptId: prompt.id, value: option ?? value });
+      await window.pinext.providers.oauthAnswer({ id: providerId, promptId: prompt.id, value: option ?? value });
       setPrompt(null);
       setValue("");
     } catch (err) {
@@ -175,7 +175,7 @@ export function OAuthLoginDialog({
   }
 
   async function cancel(): Promise<void> {
-    if (providerId) await window.fastvibe.providers.oauthCancel(providerId);
+    if (providerId) await window.pinext.providers.oauthCancel(providerId);
     handlers.current.close();
   }
 

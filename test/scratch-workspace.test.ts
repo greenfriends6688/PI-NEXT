@@ -9,7 +9,7 @@ import { writeImportedSession } from "../src/main/engine/import/writer.ts";
 import type { ImportedSession } from "../src/main/engine/import/types.ts";
 
 function setup(): { dir: string; scratch: string; file: string } {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-scratch-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-scratch-"));
   const scratch = join(dir, "scratch");
   mkdirSync(scratch);
   return { dir, scratch, file: join(dir, "conversations.json") };

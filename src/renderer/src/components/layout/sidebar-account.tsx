@@ -35,7 +35,7 @@ function Avatar({ user, className }: { user: AccountUser; className?: string }):
 }
 
 /**
- * The FastVibe account, at the right end of the sidebar's footer row.
+ * The Pinext account, at the right end of the sidebar's footer row.
  *
  * Signed in, it is the person's avatar and a popover with who they are, a link to the
  * console and 退出登录. Signed out it is a plain person glyph that starts the browser
@@ -113,7 +113,7 @@ function SignedIn({ account, user }: { account: AccountState; user: AccountUser 
         variant="ghost"
         size="sm"
         className="justify-start gap-2"
-        onClick={() => void window.fastvibe.account.logout()}
+        onClick={() => void window.pinext.account.logout()}
       >
         <HugeiconsIcon strokeWidth={2} icon={Logout01Icon} className="size-3.5 text-muted-foreground" />
         {t("account.signOut")}
@@ -139,11 +139,11 @@ function SignedOut({ account }: { account: AccountState }): JSX.Element {
         </p>
       ) : null}
       {waiting ? (
-        <Button variant="outline" size="sm" onClick={() => void window.fastvibe.account.cancelLogin()}>
+        <Button variant="outline" size="sm" onClick={() => void window.pinext.account.cancelLogin()}>
           {t("account.cancel")}
         </Button>
       ) : (
-        <Button size="sm" className="gap-2" onClick={() => void window.fastvibe.account.login()}>
+        <Button size="sm" className="gap-2" onClick={() => void window.pinext.account.login()}>
           <HugeiconsIcon strokeWidth={2} icon={Login01Icon} className="size-3.5" />
           {t("account.signIn")}
         </Button>

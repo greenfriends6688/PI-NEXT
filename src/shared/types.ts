@@ -346,15 +346,15 @@ export type ExtensionInfo = {
 };
 
 /**
- * A pi package installed into FastVibe's isolated agentDir (see ExtensionManager).
+ * A pi package installed into Pinext's isolated agentDir (see ExtensionManager).
  * `source` is the pi package spec (`npm:<name>`, `git:<url>`, …) as written to the
- * SDK's own settings.json — never FastVibe's `settings.json`.
+ * SDK's own settings.json — never Pinext's `settings.json`.
  */
 export type ExtensionPackage = {
   source: string;
   scope: "user" | "project";
   installedPath?: string;
-  /** Bundled with FastVibe and auto-installed on first launch. */
+  /** Bundled with Pinext and auto-installed on first launch. */
   builtin: boolean;
   /** True while a configured package's extension files load in the active session. */
   loaded?: boolean;
@@ -397,7 +397,7 @@ export type MarketPackagePage = {
 
 /**
  * Lookup tables from the Material Icon Theme package: names/extensions map to an
- * icon name served under the `fastvibe-icon` scheme. `file`/`folder` are fallbacks.
+ * icon name served under the `pinext-icon` scheme. `file`/`folder` are fallbacks.
  */
 /** One entry in a directory listing for the right-hand file tree. */
 export type DirEntry = {
@@ -444,10 +444,10 @@ export type SkillInfo = {
   description: string;
   filePath: string;
   baseDir: string;
-  /** User/project skills are discovered by scope; bundled FastVibe skills are system skills. */
+  /** User/project skills are discovered by scope; bundled Pinext skills are system skills. */
   scope: "user" | "project" | "system";
   source: string;
-  /** True when the skill lives under FastVibe's isolated agentDir/skills. */
+  /** True when the skill lives under Pinext's isolated agentDir/skills. */
   removable: boolean;
 };
 
@@ -484,7 +484,7 @@ export type BrowserProfileInfo = {
  * new field has to be added here once — a copy that lags behind is what made
  * `ref` / `newTab` reach the renderer untyped.
  *
- * `ref` is stamped by a snapshot (`data-fv-ref`), `newTab` forces a second tab
+ * `ref` is stamped by a snapshot (`data-pn-ref`), `newTab` forces a second tab
  * instead of navigating the one on screen, and `timeoutMs` is the main-process
  * bridge's budget for the whole round trip.
  * `conversationId` is stamped by the host so a background chat's `browser_open`
@@ -588,7 +588,7 @@ export type ComputerError = {
 };
 
 /**
- * Whether this machine will let FastVibe drive it.
+ * Whether this machine will let Pinext drive it.
  *
  * `ready` is the only field a caller should branch on; the two booleans exist so the UI
  * can name the toggle that is still off rather than saying "permission denied".
@@ -694,7 +694,7 @@ export type ExtensionWidget = {
   placement?: string;
 };
 
-/** One entry of a `questions` prompt (FastVibe's single-panel multi-question UI). */
+/** One entry of a `questions` prompt (Pinext's single-panel multi-question UI). */
 export type PermissionQuestion = {
   question: string;
   header?: string;
@@ -813,7 +813,7 @@ export const PROVIDER_APIS = ["openai-completions", "openai-responses", "anthrop
 export type ProviderApi = (typeof PROVIDER_APIS)[number];
 
 /**
- * `builtin` is FastVibe's own endpoint, `native` is a pi-coding-agent built-in
+ * `builtin` is Pinext's own endpoint, `native` is a pi-coding-agent built-in
  * provider configured with an API key, and `custom` is a user-typed endpoint.
  *
  * The distinction matters to the engine: native providers' models come from the SDK
@@ -893,7 +893,7 @@ export type OpenAIAccountQuota =
       nextExpiry?: number;
     };
 
-/** A provider CC Switch can hand FastVibe. Keys stay in Main. */
+/** A provider CC Switch can hand Pinext. Keys stay in Main. */
 export type CcSwitchCandidate = {
   id: string;
   name: string;
@@ -945,7 +945,7 @@ export type GatewayBalanceResult = {
 /**
  * The subscription (OAuth) login a pi-coding-agent built-in provider advertises.
  * Everything here comes from the SDK's own provider definition, so an SDK upgrade
- * that adds or renames a login reaches the UI without a change in FastVibe.
+ * that adds or renames a login reaches the UI without a change in Pinext.
  */
 export type NativeProviderOAuth = {
   /** e.g. `Anthropic (Claude Pro/Max)`. */
@@ -986,7 +986,7 @@ export type NativeProviderConfig = {
 
 /**
  * One line of an in-flight OAuth login, mirroring pi-ai's `AuthEvent` plus the
- * prompt round-trip FastVibe has to carry across IPC.
+ * prompt round-trip Pinext has to carry across IPC.
  *
  * `auth_url` / `device_code` are the two «send the user to the provider» shapes;
  * a flow can use either, and the host opens the URL in the system browser as well
@@ -1056,9 +1056,9 @@ export type ModelPrice = {
   costTiers?: CostTier[];
 };
 
-export type FastVibeModel = {
+export type PinextModel = {
   provider: string;
-  /** Display name of the provider, e.g. `FastVibe` / `Packy`. */
+  /** Display name of the provider, e.g. `Pinext` / `Packy`. */
   providerName: string;
   id: string;
   name: string;
@@ -1076,7 +1076,7 @@ export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
 
 /**
  * The levels a model can actually be tuned for, i.e. everything but `off`. `off` is
- * deliberately not among them: FastVibe never asks a provider to *disable* thinking.
+ * deliberately not among them: Pinext never asks a provider to *disable* thinking.
  * A model that thinks by default 400s on `reasoning: false` / `thinking: disabled`,
  * and the engine's own default already covers "the model decides", so the option is
  * not stored per model, not mapped in `models.json` and not offered in any menu.
@@ -1324,7 +1324,7 @@ export type UsageTotals = UsageMetrics & {
 };
 
 export type UsageModelBreakdown = UsageMetrics & {
-  /** Provider id, e.g. `fastvibe` / `custom-provider`. What the transcript recorded. */
+  /** Provider id, e.g. `pinext` / `custom-provider`. What the transcript recorded. */
   provider: string;
   /**
    * The provider's display name, resolved from `providers.json` at read time.
@@ -1356,7 +1356,7 @@ export type UsageStats = {
 };
 
 /**
- * The other agents FastVibe can pull sessions from. Deliberately a closed list:
+ * The other agents Pinext can pull sessions from. Deliberately a closed list:
  * each id has a hand-written adapter, and the 导入 pane names them by product
  * (Claude Code, Codex, …) rather than by file format.
  */
@@ -1403,7 +1403,7 @@ export type ImportCandidate = {
   /** Transcript size on disk. Absent for opencode, whose payload size cannot be summed
    * without reading every part blob — a cost the settings list must not pay. */
   bytes?: number;
-  /** Already imported into FastVibe once. */
+  /** Already imported into Pinext once. */
   imported: boolean;
   /** Hidden by its source agent (Codex 归档, opencode time_archived). Folded away in
    * the picker unless 显示已归档 is on. */

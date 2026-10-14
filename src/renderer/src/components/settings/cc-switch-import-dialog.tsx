@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { cleanError } from "@/lib/ipc-error";
 import { cn } from "@/lib/utils";
-import { PROVIDER_APIS, type CcSwitchCandidate, type CcSwitchScan, type EngineModel, type FastVibeModel, type GatewayKind, type Project, type ProjectModelDefault, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel } from "@shared/types";
+import { PROVIDER_APIS, type CcSwitchCandidate, type CcSwitchScan, type EngineModel, type PinextModel, type GatewayKind, type Project, type ProjectModelDefault, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel } from "@shared/types";
 
 export function CcSwitchImportDialog({
   open,
@@ -52,7 +52,7 @@ export function CcSwitchImportDialog({
     let cancelled = false;
     setLoading(true);
     setScan(null);
-    void window.fastvibe.providers
+    void window.pinext.providers
       .scanCcSwitch()
       .then((next) => {
         if (cancelled) return;
@@ -87,7 +87,7 @@ export function CcSwitchImportDialog({
     if (chosen.length === 0) return;
     setBusy(true);
     try {
-      await onImported(await window.fastvibe.providers.importCcSwitch(chosen.map((item) => item.id)));
+      await onImported(await window.pinext.providers.importCcSwitch(chosen.map((item) => item.id)));
     } catch (err) {
       toast.error(cleanError(err));
     } finally {

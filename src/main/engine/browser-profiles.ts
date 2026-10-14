@@ -156,7 +156,7 @@ function sameSite(value: number | undefined): "unspecified" | "no_restriction" |
 /** Import cookies into the isolated Electron session used by the built-in webview. */
 export async function importBrowserProfile(profile: BrowserProfileInfo, setCookie: (cookie: { url: string; name: string; value: string; domain?: string; path?: string; secure?: boolean; httpOnly?: boolean; expirationDate?: number; sameSite?: "unspecified" | "no_restriction" | "lax" | "strict" }) => Promise<void>): Promise<BrowserImportResult> {
   const key = await chromeSafeStorageKey(profile.browser);
-  const temp = await mkdtemp(join(tmpdir(), "fastvibe-browser-"));
+  const temp = await mkdtemp(join(tmpdir(), "pinext-browser-"));
   const copy = join(temp, basename(profile.cookiePath));
   try {
     await copyFile(profile.cookiePath, copy);

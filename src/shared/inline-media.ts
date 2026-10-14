@@ -16,7 +16,7 @@ import type { ToolCallBlock } from "./types.ts";
  *    Only this source is heuristic, so only it gives up silently when the file will not load.
  *
  * Nothing here reads the disk: a preview is a reference, and the renderer loads it the way the
- * file preview does (`fastvibe-media://`). That keeps the list recomputable from the transcript.
+ * file preview does (`pinext-media://`). That keeps the list recomputable from the transcript.
  */
 
 export type InlineMediaKind = "image" | "video" | "html";

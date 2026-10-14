@@ -19,7 +19,7 @@ import { FakeChannelPair } from "./rtc-fake-channel.ts";
 const silent = { info: () => undefined, warn: () => undefined, error: () => undefined };
 
 async function withServer(fn: (h: { server: RemoteServer; dispatched: string[]; changes: () => number }) => Promise<void>) {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-rtc-attach-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-rtc-attach-"));
   const dispatched: string[] = [];
   let changes = 0;
   const server = new RemoteServer({

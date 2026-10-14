@@ -39,7 +39,7 @@ import {
 import { providerLabel } from "@/lib/provider-label";
 import { cn } from "@/lib/utils";
 import { ProviderIcon } from "@/components/provider-icon";
-import { PROVIDER_APIS, type CcSwitchCandidate, type CcSwitchScan, type EngineModel, type FastVibeModel, type GatewayKind, type Project, type ProjectModelDefault, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel } from "@shared/types";
+import { PROVIDER_APIS, type CcSwitchCandidate, type CcSwitchScan, type EngineModel, type PinextModel, type GatewayKind, type Project, type ProjectModelDefault, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel } from "@shared/types";
 import { ModelPicker } from "./model-picker";
 import { EMPTY_ADD, PROVIDER_API_ITEMS, PROVIDER_API_SHORT, type AddMode, type AddState, type PickerState } from "./providers-settings-types";
 import { Field } from "./provider-field";

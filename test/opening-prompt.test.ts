@@ -58,7 +58,7 @@ function deferred() {
 }
 
 async function fixture(t: Parameters<Parameters<typeof test>[1]>[0], options: { reject?: boolean; handled?: boolean } = {}) {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-opening-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-opening-"));
   const memory = deferred();
   const enteredMemory = deferred();
   const reply = deferred();

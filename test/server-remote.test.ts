@@ -37,7 +37,7 @@ async function withServer(
   fn: (h: Harness) => Promise<void>,
   options: { heartbeatMs?: number } = {},
 ): Promise<void> {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-remote-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-remote-"));
   // The credential file is all this directory holds; the server serves no files.
   const accessFile = join(dir, "remote-access.json");
   setPassword(accessFile, PASSWORD);
@@ -171,7 +171,7 @@ async function loginToken(port: number): Promise<string> {
 test("a server with no password refuses to start", async () => {
   // A reachable server that asks for nothing is the one mistake that cannot be undone
   // after the fact, so it is made impossible rather than warned about.
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-remote-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-remote-"));
   const server = new RemoteServer({
     accessFile: join(dir, "remote-access.json"),
     channels: () => [],
@@ -377,7 +377,7 @@ test("the server hands a browser no page at all, and no file through any path", 
 });
 
 test("the credential file is not world readable", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-remote-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-remote-"));
   const file = join(dir, "remote-access.json");
   setPassword(file, PASSWORD);
   const mode = statSync(file).mode & 0o777;

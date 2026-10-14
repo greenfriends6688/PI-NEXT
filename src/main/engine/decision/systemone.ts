@@ -1,7 +1,7 @@
 import { readDecisionConfig } from "./store";
 import { loadProviderKeys, readProviders } from "../providers";
 import { trimBaseUrl } from "../provider-url";
-import type { FastVibePaths } from "../paths";
+import type { PinextPaths } from "../paths";
 
 /** A model speaks System One when its own protocol says so, or it inherits the provider's. */
 export function isSystemOneModel(providerApi: string, modelApi?: string): boolean {
@@ -34,7 +34,7 @@ export type ResolvedSystemOne = {
  * System One, or the provider has no key. Callers that also need a scenario switch
  * (增强记忆) check that themselves.
  */
-export async function resolveSystemOne(paths: FastVibePaths): Promise<ResolvedSystemOne | undefined> {
+export async function resolveSystemOne(paths: PinextPaths): Promise<ResolvedSystemOne | undefined> {
   const selected = readDecisionConfig(paths.decisionFile);
   if (selected.kind !== "jev" || !selected.model) return undefined;
   const provider = readProviders(paths).find((item) => item.id === selected.model?.provider && item.enabled);

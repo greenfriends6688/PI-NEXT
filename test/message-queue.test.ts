@@ -109,7 +109,7 @@ test("id reorder is conversation-scoped, keeps claimed positions, and cannot dro
 });
 
 test("a corrupt durable queue is not silently treated as empty", () => {
-  const directory = mkdtempSync(join(tmpdir(), "fastvibe-queue-"));
+  const directory = mkdtempSync(join(tmpdir(), "pinext-queue-"));
   const file = join(directory, "message-queue.json");
   writeFileSync(file, "{not-json", "utf8");
   try {

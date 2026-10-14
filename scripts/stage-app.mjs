@@ -3,7 +3,7 @@
  * Build a two-package.json staging dir for electron-builder.
  *
  * electron-builder's `files` allowlist is not a real allowlist: ignore-only
- * globs re-add a catch-all, and a leftover `fastvibe-*.tgz` / `src` / `docs`
+ * globs re-add a catch-all, and a leftover `pinext-*.tgz` / `src` / `docs`
  * from the repo root still lands in the asar. Staging copies only the built
  * app (`package.json` + `out/`) into `build/app`, which electron-builder then
  * treats as `directories.app`. Production node_modules are still collected

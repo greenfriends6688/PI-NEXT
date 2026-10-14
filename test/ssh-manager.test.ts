@@ -20,21 +20,21 @@ const runtime: AgentRuntimeSource = {
   },
 };
 
-test("bootstrap lets the remote OS pick the port and records it in ~/.fastvibe", () => {
+test("bootstrap lets the remote OS pick the port and records it in ~/.pinext", () => {
   const command = buildAgentBootstrapCommand(undefined, runtime);
   assert.match(command, /REQUESTED_PORT=0/);
   assert.match(command, /--port=\$REQUESTED_PORT --host=\$LISTEN_HOST --state-file="\$STATE"/);
   // Loopback unless phone access asks otherwise.
   assert.match(command, /WANT_PUBLIC=0/);
   assert.match(command, /LISTEN_HOST=127\.0\.0\.1/);
-  assert.match(command, /STATE="\$HOME\/.fastvibe\/agent\.json"/);
-  assert.match(command, /FASTVIBE_PORT=%s/);
+  assert.match(command, /STATE="\$HOME\/.pinext\/agent\.json"/);
+  assert.match(command, /PINEXT_PORT=%s/);
   assert.equal(/--port \d/.test(command), false);
   assert.match(command, /\[ "\$\(state_field pid\)" = "\$1" \]/);
   assert.match(command, /agent-\*\.pid/);
   assert.match(command, /releases\/\$VERSION/);
   assert.match(command, /runtime hash mismatch/);
-  assert.match(command, /Restarting FastVibe Agent/);
+  assert.match(command, /Restarting Pinext Agent/);
   assert.match(command, /nodejs|Node\.js/);
   assert.match(command, /nodejs\.org\/dist/);
   assert.doesNotMatch(command, /pkill/);
@@ -46,9 +46,9 @@ test("bootstrap loads the login shell's rc environment before looking for Node",
   assert.match(command, /"\$PROBE_SHELL" -ilc/);
   assert.match(command, /\.bashrc/);
   assert.doesNotMatch(command, /\.zshrc/);
-  assert.match(command, /__FV_ENV__/);
+  assert.match(command, /__PN_ENV__/);
   assert.match(command, /-lt 100/);
-  assert.match(command, /kill "\$FV_ENV_PID"/);
+  assert.match(command, /kill "\$PN_ENV_PID"/);
   assert.equal(command.indexOf("\nload_login_env\n") > 0, true);
   assert.equal(command.indexOf("\nload_login_env\n") < command.indexOf("SYSTEM_NODE=$(command -v node"), true);
   assert.match(command, /\.nvm\/versions\/node\/\*\/bin\/node/);
@@ -60,7 +60,7 @@ test("bootstrap passes the config sync token and waits for the Agent to listen",
   const token = "a".repeat(64);
   const command = buildAgentBootstrapCommand(undefined, runtime, "linux-x64", token);
   assert.equal(command.includes(token), true);
-  assert.equal(command.includes('FASTVIBE_VERSION="$VERSION" FASTVIBE_AGENT_SYNC_TOKEN="$SYNC_TOKEN" nohup "$NODE" "$MAIN"'), true);
+  assert.equal(command.includes('PINEXT_VERSION="$VERSION" PINEXT_AGENT_SYNC_TOKEN="$SYNC_TOKEN" nohup "$NODE" "$MAIN"'), true);
   assert.match(command, /wait_for_agent "\$AGENT_PID"/);
   assert.match(command, /远程 Agent 已就绪/);
   assert.match(command, /tail -n 20 "\$LOG"/);
@@ -71,10 +71,10 @@ test("resident probe reuses a running Agent without deploying or restarting", ()
   assert.match(command, /releases\/\$VERSION\/out\/main\/agent\.js/);
   assert.match(command, /INSTALLED_HASH/);
   assert.match(command, /runtimeHash/);
-  assert.match(command, /\.fastvibe\/agent\.json/);
+  assert.match(command, /\.pinext\/agent\.json/);
   assert.match(command, /agent_token/);
   assert.match(command, /agent_ready "\$pid"/);
-  assert.match(command, /FASTVIBE_AGENT_SYNC_TOKEN=%s/);
+  assert.match(command, /PINEXT_AGENT_SYNC_TOKEN=%s/);
   assert.doesNotMatch(command, /nodejs\.org/);
   assert.doesNotMatch(command, /tar -x/);
   assert.doesNotMatch(command, /kill/);
@@ -96,19 +96,19 @@ test("openSshAppTransport refuses to deploy when already cancelled", async () =>
 
 test("one preflight round trip reports platform, install, home and the resident token", () => {
   const command = agentPreflightCommand(runtime);
-  for (const field of ["OS", "ARCH", "HOME", "INSTALLED", "INSTALLED_HASH", "RUNNING", "PORT"]) assert.match(command, new RegExp(`FASTVIBE_${field}=`));
+  for (const field of ["OS", "ARCH", "HOME", "INSTALLED", "INSTALLED_HASH", "RUNNING", "PORT"]) assert.match(command, new RegExp(`PINEXT_${field}=`));
   const token = "e".repeat(64);
   assert.deepEqual(parsePreflight([
-    "FASTVIBE_OS=Linux",
-    "FASTVIBE_ARCH=x86_64",
-    "FASTVIBE_HOME=/home/dev",
-    "FASTVIBE_INSTALLED=agent-runtime-v12",
-    `FASTVIBE_INSTALLED_HASH=${HASH_X64}`,
-    "FASTVIBE_RUNNING=agent-runtime-v12",
-    "FASTVIBE_PORT=41234",
-    `FASTVIBE_AGENT_SYNC_TOKEN=${token}`,
+    "PINEXT_OS=Linux",
+    "PINEXT_ARCH=x86_64",
+    "PINEXT_HOME=/home/dev",
+    "PINEXT_INSTALLED=agent-runtime-v12",
+    `PINEXT_INSTALLED_HASH=${HASH_X64}`,
+    "PINEXT_RUNNING=agent-runtime-v12",
+    "PINEXT_PORT=41234",
+    `PINEXT_AGENT_SYNC_TOKEN=${token}`,
   ].join("\n")), { os: "Linux", arch: "x86_64", home: "/home/dev", installed: "agent-runtime-v12", installedHash: HASH_X64, running: "agent-runtime-v12", port: 41234, token });
-  assert.deepEqual(parsePreflight("Welcome!\nFASTVIBE_OS=Linux\nFASTVIBE_ARCH=aarch64\nFASTVIBE_HOME=/root\nFASTVIBE_INSTALLED=\nFASTVIBE_INSTALLED_HASH=\nFASTVIBE_RUNNING=\n"), { os: "Linux", arch: "aarch64", home: "/root" });
+  assert.deepEqual(parsePreflight("Welcome!\nPINEXT_OS=Linux\nPINEXT_ARCH=aarch64\nPINEXT_HOME=/root\nPINEXT_INSTALLED=\nPINEXT_INSTALLED_HASH=\nPINEXT_RUNNING=\n"), { os: "Linux", arch: "aarch64", home: "/root" });
 });
 
 test("bootstrap verifies the Node download and prunes releases nothing runs from", () => {
@@ -120,10 +120,10 @@ test("bootstrap verifies the Node download and prunes releases nothing runs from
   assert.match(command, /LOG="\$ROOT\/agent\.log"/);
 });
 
-test("stopping the Agent only ever kills a FastVibe process", () => {
+test("stopping the Agent only ever kills a Pinext process", () => {
   const command = agentStopCommand();
   assert.match(command, /is_agent "\$p"/);
-  assert.match(command, /grep -qF "\/\.fastvibe-agent\/"/);
+  assert.match(command, /grep -qF "\/\.pinext-agent\/"/);
 });
 
 test("a pinned servicePort is passed through; anything invalid falls back to a random port", () => {
@@ -151,7 +151,7 @@ test("transfer progress reports a speed and at most four events a second", () =>
 
 test("the bootstrap downloads Node from nodejs.org first and npmmirror only as a fallback", () => {
   const command = buildAgentBootstrapCommand(undefined, runtime);
-  assert.match(command, /fv_download node-download "\$TMP\/node\.tar\.gz" "\$NODE_OFFICIAL\/\$NODE_FILE" "\$NODE_MIRROR\/\$NODE_FILE"/);
+  assert.match(command, /pn_download node-download "\$TMP\/node\.tar\.gz" "\$NODE_OFFICIAL\/\$NODE_FILE" "\$NODE_MIRROR\/\$NODE_FILE"/);
   assert.match(command, /https:\/\/nodejs\.org\/dist/);
   assert.match(command, /https:\/\/cdn\.npmmirror\.com\/binaries\/node/);
 });
@@ -175,12 +175,12 @@ test("an Agent too old to listen beyond loopback is reported, not restarted on e
 
 test("the preflight reports whether the running Agent listens beyond loopback", () => {
   const preflight = agentPreflightCommand(runtime);
-  assert.match(preflight, /FASTVIBE_PUBLIC=%s/);
+  assert.match(preflight, /PINEXT_PUBLIC=%s/);
   assert.match(preflight, /PUBLIC=\$\(state_field public\)/);
-  assert.equal(parsePreflight("FASTVIBE_OS=Linux\nFASTVIBE_ARCH=x86_64\nFASTVIBE_PORT=7777\nFASTVIBE_PUBLIC=1\n").public, true);
-  assert.equal(parsePreflight("FASTVIBE_OS=Linux\nFASTVIBE_ARCH=x86_64\nFASTVIBE_PORT=7777\nFASTVIBE_PUBLIC=0\n").public, false);
+  assert.equal(parsePreflight("PINEXT_OS=Linux\nPINEXT_ARCH=x86_64\nPINEXT_PORT=7777\nPINEXT_PUBLIC=1\n").public, true);
+  assert.equal(parsePreflight("PINEXT_OS=Linux\nPINEXT_ARCH=x86_64\nPINEXT_PORT=7777\nPINEXT_PUBLIC=0\n").public, false);
   // No Agent running, or one from before the field existed: nothing is claimed.
-  assert.equal("public" in parsePreflight("FASTVIBE_OS=Linux\nFASTVIBE_ARCH=x86_64\nFASTVIBE_PUBLIC=\n"), false);
+  assert.equal("public" in parsePreflight("PINEXT_OS=Linux\nPINEXT_ARCH=x86_64\nPINEXT_PUBLIC=\n"), false);
 });
 
 test("a running Agent is reused only if it listens the way the profile asks", () => {
@@ -226,7 +226,7 @@ test("a public URL is an http(s) origin and nothing the phone would silently dro
 const posix = process.platform !== "win32";
 
 test("the password file is written whole, 0600, and replaces the old one", { skip: !posix }, () => {
-  const home = mkdtempSync(join(tmpdir(), "fastvibe-phone-"));
+  const home = mkdtempSync(join(tmpdir(), "pinext-phone-"));
   try {
     const run = (password: string) => execFileSync("sh", ["-c", phoneAccessWriteCommand()], {
       input: `${JSON.stringify({ version: 1, password: hashPassword(password), devices: [] }, null, 2)}\n`,
@@ -234,7 +234,7 @@ test("the password file is written whole, 0600, and replaces the old one", { ski
       encoding: "utf8",
     });
     run("correct horse battery");
-    const file = join(home, ".fastvibe", "remote-access.json");
+    const file = join(home, ".pinext", "remote-access.json");
     assert.equal((statSync(file).mode & 0o777).toString(8), "600");
     assert.equal(existsSync(`${file}.tmp`), false, "no temporary file is left beside it");
     // Read back with the server's own reader, so the format cannot drift from what it accepts.
@@ -252,13 +252,13 @@ test("turning phone access off deletes the password file and stops only an expos
   const command = phoneAccessClearCommand();
   // Only an Agent that listens beyond loopback is stopped; a loopback one is the desktop's.
   assert.match(command, /\[ "\$\(state_field public\)" = 1 \]/);
-  assert.match(command, /is_agent "\$p"/, "and only ever a FastVibe process");
-  const home = mkdtempSync(join(tmpdir(), "fastvibe-phone-"));
+  assert.match(command, /is_agent "\$p"/, "and only ever a Pinext process");
+  const home = mkdtempSync(join(tmpdir(), "pinext-phone-"));
   try {
-    mkdirSync(join(home, ".fastvibe"), { recursive: true });
-    writeFileSync(join(home, ".fastvibe", "remote-access.json"), "{}");
+    mkdirSync(join(home, ".pinext"), { recursive: true });
+    writeFileSync(join(home, ".pinext", "remote-access.json"), "{}");
     execFileSync("sh", ["-c", command], { env: { ...process.env, HOME: home }, encoding: "utf8" });
-    assert.equal(existsSync(join(home, ".fastvibe", "remote-access.json")), false);
+    assert.equal(existsSync(join(home, ".pinext", "remote-access.json")), false);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }

@@ -38,7 +38,7 @@ export type SdkQueueAdapter = {
    * `agent.continue()` starts a fresh run when the transcript ends on an assistant
    * message, and that run drains both pending queues before it ever looks at the
    * transcript. Those objects were steered while the interrupted run was live and
-   * are still owned by FastVibe's queue, so a resume must not deliver them. The
+   * are still owned by Pinext's queue, so a resume must not deliver them. The
    * suppression is one read only: a steer that arrives after the resumed run has
    * started is a new decision and has to be delivered normally.
    */

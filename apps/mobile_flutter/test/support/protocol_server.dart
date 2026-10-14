@@ -141,7 +141,7 @@ class ProtocolServer {
     return switch (method) {
       'conversations:list' => {
         'projects': [
-          {'cwd': '/workspace', 'name': 'FastVibe'},
+          {'cwd': '/workspace', 'name': 'Pinext'},
         ],
         'conversations': conversations,
       },

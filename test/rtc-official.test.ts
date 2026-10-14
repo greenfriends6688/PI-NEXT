@@ -47,7 +47,7 @@ type Rig = {
 };
 
 async function withRig(fn: (rig: Rig) => Promise<void>, over: Partial<OfficialDeps> = {}, Peer: new () => FakePeer = FakePeer): Promise<void> {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-official-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-official-"));
   const cloud = await startFakeCloud();
   const peers: FakePeer[] = [];
   const attached: Array<{ id: string; label: string }> = [];
@@ -263,7 +263,7 @@ test("a call: answers the offer, relays the answer and candidates, and attaches 
     await until(() => phone.messages.some((m) => m.type === "signal" && (m.data as { type: string }).type === "candidate"), "our candidate");
 
     const { a } = FakeChannelPair.create();
-    (a as unknown as { getLabel(): string }).getLabel = () => "fastvibe";
+    (a as unknown as { getLabel(): string }).getLabel = () => "pinext";
     (a as unknown as { onOpen(cb: () => void): void }).onOpen = (cb) => cb();
     peers[0].path = "relay";
     peers[0].channel?.(a as unknown as PeerChannel);
@@ -279,7 +279,7 @@ test("a phone that reconnects is listed once, as its newest connection", async (
     await until(() => official.state().status === "online", "online");
     const open = async (index: number): Promise<void> => {
       const { a } = FakeChannelPair.create();
-      (a as unknown as { getLabel(): string }).getLabel = () => "fastvibe";
+      (a as unknown as { getLabel(): string }).getLabel = () => "pinext";
       (a as unknown as { onOpen(cb: () => void): void }).onOpen = (cb) => cb();
       peers[index].channel?.(a as unknown as PeerChannel);
     };
@@ -303,7 +303,7 @@ test("a phone that calls again with the same id replaces its old connection", as
     await until(() => official.state().status === "online", "online");
     const open = (index: number): void => {
       const { a } = FakeChannelPair.create();
-      (a as unknown as { getLabel(): string }).getLabel = () => "fastvibe";
+      (a as unknown as { getLabel(): string }).getLabel = () => "pinext";
       (a as unknown as { onOpen(cb: () => void): void }).onOpen = (cb) => cb();
       peers[index].channel?.(a as unknown as PeerChannel);
     };
@@ -333,7 +333,7 @@ test("a phone renewing its relay credential does not lose the connection it is r
     await until(() => official.state().status === "online", "online");
     const open = (index: number): void => {
       const { a } = FakeChannelPair.create();
-      (a as unknown as { getLabel(): string }).getLabel = () => "fastvibe";
+      (a as unknown as { getLabel(): string }).getLabel = () => "pinext";
       (a as unknown as { onOpen(cb: () => void): void }).onOpen = (cb) => cb();
       peers[index].channel?.(a as unknown as PeerChannel);
     };
@@ -565,7 +565,7 @@ test("the phone hanging up before the channel opens ends the call; after, it doe
     const late = await phone.connect(official.state().deviceId!);
     await until(() => peers.length === 2, "a second peer");
     const { a } = FakeChannelPair.create();
-    (a as unknown as { getLabel(): string }).getLabel = () => "fastvibe";
+    (a as unknown as { getLabel(): string }).getLabel = () => "pinext";
     peers[1].channel?.(a as unknown as PeerChannel);
     phone.hangup(late);
     await new Promise((settle) => setTimeout(settle, 80));

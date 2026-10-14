@@ -1,7 +1,7 @@
 import { useSessionStore } from "@/stores/session";
 import type { ChatMessage, ConversationOpenResult, EngineSessionState, PromptImage, SessionStats, TranscriptTail } from "@shared/types";
 
-type FastVibeEngine = typeof window.fastvibe.engine;
+type PinextEngine = typeof window.pinext.engine;
 
 /**
  * The engine's per-conversation calls, addressed to the chat this window has open.
@@ -29,122 +29,122 @@ function activeId(): string | undefined {
 export const engine = {
   getMessagesPage: (beforeEntryId: string, conversationId = activeId(), turnLimit?: number) => {
     if (!conversationId) return Promise.reject(new Error("No conversation selected"));
-    return window.fastvibe.engine.getMessagesPage({ conversationId, beforeEntryId, turnLimit });
+    return window.pinext.engine.getMessagesPage({ conversationId, beforeEntryId, turnLimit });
   },
-  submitPrompt: (payload: Omit<Parameters<FastVibeEngine["submitPrompt"]>[0], "conversationId"> & { conversationId?: string }) => {
+  submitPrompt: (payload: Omit<Parameters<PinextEngine["submitPrompt"]>[0], "conversationId"> & { conversationId?: string }) => {
     const conversationId = payload.conversationId ?? activeId();
     if (!conversationId) return Promise.reject(new Error("No conversation selected"));
-    return window.fastvibe.engine.submitPrompt({ ...payload, conversationId });
+    return window.pinext.engine.submitPrompt({ ...payload, conversationId });
   },
   prompt: (
     message: string,
     options?: { streamingBehavior?: "steer" | "followUp"; images?: PromptImage[]; conversationId?: string },
   ): Promise<void> =>
-    window.fastvibe.engine.prompt(message, {
+    window.pinext.engine.prompt(message, {
       streamingBehavior: options?.streamingBehavior,
       images: options?.images,
       conversationId: options?.conversationId ?? activeId(),
     }),
 
   steer: (message: string, images?: PromptImage[], conversationId?: string): Promise<void> =>
-    window.fastvibe.engine.steer(message, images, conversationId ?? activeId()),
+    window.pinext.engine.steer(message, images, conversationId ?? activeId()),
 
   followUp: (message: string, images?: PromptImage[], conversationId?: string): Promise<void> =>
-    window.fastvibe.engine.followUp(message, images, conversationId ?? activeId()),
+    window.pinext.engine.followUp(message, images, conversationId ?? activeId()),
 
   /** Stop one chat. Called with no id it stops the one on screen (the composer, Escape). */
   abort: (conversationId?: string): Promise<void> =>
-    window.fastvibe.engine.abort(conversationId ?? activeId()),
+    window.pinext.engine.abort(conversationId ?? activeId()),
 
   continue: (conversationId?: string): Promise<void> =>
-    window.fastvibe.engine.continue(conversationId ?? activeId()),
+    window.pinext.engine.continue(conversationId ?? activeId()),
 
   clearQueue: (conversationId?: string): Promise<{ steering: string[]; followUp: string[] }> =>
-    window.fastvibe.engine.clearQueue(conversationId ?? activeId()),
+    window.pinext.engine.clearQueue(conversationId ?? activeId()),
 
   replaceSteering: (
     items: Array<{ text: string; images?: PromptImage[] }>,
     conversationId?: string,
-  ): Promise<void> => window.fastvibe.engine.replaceSteering(items, conversationId ?? activeId()),
+  ): Promise<void> => window.pinext.engine.replaceSteering(items, conversationId ?? activeId()),
 
   compact: (customInstructions?: string, conversationId?: string): Promise<EngineSessionState> =>
-    window.fastvibe.engine.compact(customInstructions, conversationId ?? activeId()),
+    window.pinext.engine.compact(customInstructions, conversationId ?? activeId()),
 
   branch: (entryId: string, conversationId?: string): Promise<ChatMessage[]> =>
-    window.fastvibe.engine.branch(entryId, conversationId ?? activeId()),
+    window.pinext.engine.branch(entryId, conversationId ?? activeId()),
 
   /** Copy a chat at an entry (or its current tip) without rewinding the source chat. */
   fork: (entryId?: string, conversationId?: string): Promise<ConversationOpenResult> =>
-    window.fastvibe.engine.fork(entryId, conversationId ?? activeId()),
+    window.pinext.engine.fork(entryId, conversationId ?? activeId()),
 
   getMessages: (conversationId?: string): Promise<ChatMessage[]> =>
-    window.fastvibe.engine.getMessages(conversationId ?? activeId()),
+    window.pinext.engine.getMessages(conversationId ?? activeId()),
 
   getMessagesSince: (anchorEntryId: string, conversationId?: string): Promise<TranscriptTail> =>
-    window.fastvibe.engine.getMessagesSince(anchorEntryId, conversationId ?? activeId()),
+    window.pinext.engine.getMessagesSince(anchorEntryId, conversationId ?? activeId()),
 
   getStats: (conversationId?: string): Promise<SessionStats> =>
-    window.fastvibe.engine.getStats(conversationId ?? activeId()),
+    window.pinext.engine.getStats(conversationId ?? activeId()),
 
   getState: (conversationId?: string): Promise<EngineSessionState> =>
-    window.fastvibe.engine.getState(conversationId ?? activeId()),
+    window.pinext.engine.getState(conversationId ?? activeId()),
 
   setModel: (provider: string, modelId: string, conversationId?: string): Promise<EngineSessionState> =>
-    window.fastvibe.engine.setModel(provider, modelId, conversationId ?? activeId()),
+    window.pinext.engine.setModel(provider, modelId, conversationId ?? activeId()),
 
   setThinking: (level: string, conversationId?: string): Promise<EngineSessionState> =>
-    window.fastvibe.engine.setThinking(level, conversationId ?? activeId()),
+    window.pinext.engine.setThinking(level, conversationId ?? activeId()),
 };
 
 /**
  * The calls that carry no conversation: they are about the install, not a chat.
  *
  * Wrapped rather than destructured at module scope. A module-scope `const { x } =
- * window.fastvibe.engine` runs the moment this file is imported — before React mounts,
+ * window.pinext.engine` runs the moment this file is imported — before React mounts,
  * and therefore outside any error boundary — so a build where the preload bridge is not
  * up yet would throw during module evaluation and leave a blank window with nothing to
  * catch it. Reading the bridge per call moves that failure inside the tree.
  */
-export const onEvent: FastVibeEngine["onEvent"] = (...args) => window.fastvibe.engine.onEvent(...args);
-export const onStatus: FastVibeEngine["onStatus"] = (...args) => window.fastvibe.engine.onStatus(...args);
-export const onConversationReady: FastVibeEngine["onConversationReady"] = (...args) =>
-  window.fastvibe.engine.onConversationReady(...args);
-export const respondPermission: FastVibeEngine["respondPermission"] = (...args) =>
-  window.fastvibe.engine.respondPermission(...args);
+export const onEvent: PinextEngine["onEvent"] = (...args) => window.pinext.engine.onEvent(...args);
+export const onStatus: PinextEngine["onStatus"] = (...args) => window.pinext.engine.onStatus(...args);
+export const onConversationReady: PinextEngine["onConversationReady"] = (...args) =>
+  window.pinext.engine.onConversationReady(...args);
+export const respondPermission: PinextEngine["respondPermission"] = (...args) =>
+  window.pinext.engine.respondPermission(...args);
 /**
  * Newly session-scoped (parent must route by `conversationId`, including a namespaced
  * remote id): `getCommands`, `getModels`, `getSubagents`, `getSubagentMessages`,
  * `abortSubagent`. Previously they hit whichever engine was active on this machine.
  */
-export const getCommands: FastVibeEngine["getCommands"] = (conversationId) =>
-  window.fastvibe.engine.getCommands(conversationId ?? activeId());
-export const getModels: FastVibeEngine["getModels"] = (conversationId) =>
-  window.fastvibe.engine.getModels(conversationId ?? activeId());
-export const getStatus: FastVibeEngine["getStatus"] = (...args) => window.fastvibe.engine.getStatus(...args);
-export const start: FastVibeEngine["start"] = (...args) => window.fastvibe.engine.start(...args);
-export const stop: FastVibeEngine["stop"] = (...args) => window.fastvibe.engine.stop(...args);
-export const setInterruptMode: FastVibeEngine["setInterruptMode"] = (mode, conversationId) =>
-  window.fastvibe.engine.setInterruptMode(mode, conversationId ?? activeId());
-export const setAutoCompaction: FastVibeEngine["setAutoCompaction"] = (enabled, conversationId) =>
-  window.fastvibe.engine.setAutoCompaction(enabled, conversationId ?? activeId());
-export const setSteeringMode: FastVibeEngine["setSteeringMode"] = (mode, conversationId) =>
-  window.fastvibe.engine.setSteeringMode(mode, conversationId ?? activeId());
-export const setFollowUpMode: FastVibeEngine["setFollowUpMode"] = (mode, conversationId) =>
-  window.fastvibe.engine.setFollowUpMode(mode, conversationId ?? activeId());
-export const exportHtml: FastVibeEngine["exportHtml"] = (...args) => window.fastvibe.engine.exportHtml(...args);
-export const abortSubagent: FastVibeEngine["abortSubagent"] = (subagentId, conversationId) =>
-  window.fastvibe.engine.abortSubagent(subagentId, conversationId ?? activeId());
-export const getSubagents: FastVibeEngine["getSubagents"] = (conversationId) =>
-  window.fastvibe.engine.getSubagents(conversationId ?? activeId());
-export const getSubagentMessages: FastVibeEngine["getSubagentMessages"] = (subagentId, conversationId) =>
-  window.fastvibe.engine.getSubagentMessages(subagentId, conversationId ?? activeId());
-export const getCheckpoint: FastVibeEngine["getCheckpoint"] = (conversationId) =>
-  window.fastvibe.engine.getCheckpoint(conversationId);
-export const restoreCheckpoint: FastVibeEngine["restoreCheckpoint"] = (conversationId) =>
-  window.fastvibe.engine.restoreCheckpoint(conversationId);
-export const newSession: FastVibeEngine["newSession"] = (...args) => window.fastvibe.engine.newSession(...args);
-export const getRunning: FastVibeEngine["getRunning"] = (...args) => window.fastvibe.engine.getRunning(...args);
-export const promptConversation: FastVibeEngine["promptConversation"] = (...args) =>
-  window.fastvibe.engine.promptConversation(...args);
-export const getConversationMessages: FastVibeEngine["getConversationMessages"] = (...args) =>
-  window.fastvibe.engine.getConversationMessages(...args);
+export const getCommands: PinextEngine["getCommands"] = (conversationId) =>
+  window.pinext.engine.getCommands(conversationId ?? activeId());
+export const getModels: PinextEngine["getModels"] = (conversationId) =>
+  window.pinext.engine.getModels(conversationId ?? activeId());
+export const getStatus: PinextEngine["getStatus"] = (...args) => window.pinext.engine.getStatus(...args);
+export const start: PinextEngine["start"] = (...args) => window.pinext.engine.start(...args);
+export const stop: PinextEngine["stop"] = (...args) => window.pinext.engine.stop(...args);
+export const setInterruptMode: PinextEngine["setInterruptMode"] = (mode, conversationId) =>
+  window.pinext.engine.setInterruptMode(mode, conversationId ?? activeId());
+export const setAutoCompaction: PinextEngine["setAutoCompaction"] = (enabled, conversationId) =>
+  window.pinext.engine.setAutoCompaction(enabled, conversationId ?? activeId());
+export const setSteeringMode: PinextEngine["setSteeringMode"] = (mode, conversationId) =>
+  window.pinext.engine.setSteeringMode(mode, conversationId ?? activeId());
+export const setFollowUpMode: PinextEngine["setFollowUpMode"] = (mode, conversationId) =>
+  window.pinext.engine.setFollowUpMode(mode, conversationId ?? activeId());
+export const exportHtml: PinextEngine["exportHtml"] = (...args) => window.pinext.engine.exportHtml(...args);
+export const abortSubagent: PinextEngine["abortSubagent"] = (subagentId, conversationId) =>
+  window.pinext.engine.abortSubagent(subagentId, conversationId ?? activeId());
+export const getSubagents: PinextEngine["getSubagents"] = (conversationId) =>
+  window.pinext.engine.getSubagents(conversationId ?? activeId());
+export const getSubagentMessages: PinextEngine["getSubagentMessages"] = (subagentId, conversationId) =>
+  window.pinext.engine.getSubagentMessages(subagentId, conversationId ?? activeId());
+export const getCheckpoint: PinextEngine["getCheckpoint"] = (conversationId) =>
+  window.pinext.engine.getCheckpoint(conversationId);
+export const restoreCheckpoint: PinextEngine["restoreCheckpoint"] = (conversationId) =>
+  window.pinext.engine.restoreCheckpoint(conversationId);
+export const newSession: PinextEngine["newSession"] = (...args) => window.pinext.engine.newSession(...args);
+export const getRunning: PinextEngine["getRunning"] = (...args) => window.pinext.engine.getRunning(...args);
+export const promptConversation: PinextEngine["promptConversation"] = (...args) =>
+  window.pinext.engine.promptConversation(...args);
+export const getConversationMessages: PinextEngine["getConversationMessages"] = (...args) =>
+  window.pinext.engine.getConversationMessages(...args);

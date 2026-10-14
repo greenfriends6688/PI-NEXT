@@ -10,25 +10,25 @@
  *
  * Three different things travel through it:
  *
- * - `FASTVIBE_UI_LANGUAGE` is the *value* (`zh` | `en`) of 界面语言. Extensions that
+ * - `PINEXT_UI_LANGUAGE` is the *value* (`zh` | `en`) of 界面语言. Extensions that
  *   render their own UI text (status widgets, notices) map it to their
  *   own copy.
- * - `FASTVIBE_AI_LANGUAGE` is the value of AI 偏好语言, for the few extension strings
+ * - `PINEXT_AI_LANGUAGE` is the value of AI 偏好语言, for the few extension strings
  *   the *model* reads (a blocked tool's reason, a continuation nudge).
- * - `FASTVIBE_AI_LANGUAGE_PROMPT` is the finished *sentence* for AI 偏好语言. Main
+ * - `PINEXT_AI_LANGUAGE_PROMPT` is the finished *sentence* for AI 偏好语言. Main
  *   owns the wording so the prompt cannot drift between the extension that injects
  *   it every turn and the subagent runner that puts it on a delegated role's system
  *   prompt; the extension just appends whatever it finds.
- * - `FASTVIBE_CUSTOM_SYSTEM_PROMPT` carries the user's personalization text. It is
+ * - `PINEXT_CUSTOM_SYSTEM_PROMPT` carries the user's personalization text. It is
  *   kept separate from the language directive so changing either setting takes effect
  *   without rebuilding existing sessions.
  */
 
-export const UI_LANGUAGE_ENV = "FASTVIBE_UI_LANGUAGE";
-export const AI_LANGUAGE_ENV = "FASTVIBE_AI_LANGUAGE";
-export const AI_LANGUAGE_PROMPT_ENV = "FASTVIBE_AI_LANGUAGE_PROMPT";
+export const UI_LANGUAGE_ENV = "PINEXT_UI_LANGUAGE";
+export const AI_LANGUAGE_ENV = "PINEXT_AI_LANGUAGE";
+export const AI_LANGUAGE_PROMPT_ENV = "PINEXT_AI_LANGUAGE_PROMPT";
 /** Environment variable read by the standalone output-language extension. */
-export const CUSTOM_SYSTEM_PROMPT_ENV = "FASTVIBE_CUSTOM_SYSTEM_PROMPT";
+export const CUSTOM_SYSTEM_PROMPT_ENV = "PINEXT_CUSTOM_SYSTEM_PROMPT";
 
 export type UiLanguage = "zh" | "en";
 

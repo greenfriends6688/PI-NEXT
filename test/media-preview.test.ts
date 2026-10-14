@@ -22,7 +22,7 @@ const TOKEN = "a".repeat(64);
 const silent = { info: () => undefined, warn: () => undefined, error: () => undefined };
 
 async function withDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-media-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-media-"));
   try {
     return await fn(dir);
   } finally {

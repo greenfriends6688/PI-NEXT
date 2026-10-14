@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { THINKING_EFFORT_LEVELS, type EngineModel, type ProjectModelDefault, type ThinkingLevel } from "@shared/types";
-import type { FastVibePaths } from "./paths";
+import type { PinextPaths } from "./paths";
 
 /** Settings that are safe to read from both Electron Main and a headless Agent. */
 export type PersistedSettings = Record<string, unknown>;
@@ -13,7 +13,7 @@ type SettingsFile = {
 const VERSION = 1;
 let cache: { file: string; mtimeMs: number; size: number; settings: PersistedSettings } | null = null;
 
-export function readAppSettings(paths: FastVibePaths): PersistedSettings {
+export function readAppSettings(paths: PinextPaths): PersistedSettings {
   try {
     const stat = statSync(paths.settingsFile);
     if (cache && cache.file === paths.settingsFile && cache.mtimeMs === stat.mtimeMs && cache.size === stat.size) {
@@ -28,7 +28,7 @@ export function readAppSettings(paths: FastVibePaths): PersistedSettings {
   }
 }
 
-export function readDefaultModel(paths: FastVibePaths): EngineModel | undefined {
+export function readDefaultModel(paths: PinextPaths): EngineModel | undefined {
   return readPreferredModelSettings(paths).model;
 }
 
@@ -36,7 +36,7 @@ export function readDefaultModel(paths: FastVibePaths): EngineModel | undefined 
  * Resolve the model and reasoning defaults for a new conversation. A project pin
  * overrides the global default, while a missing or malformed pin falls back cleanly.
  */
-export function readPreferredModelSettings(paths: FastVibePaths, project?: string): {
+export function readPreferredModelSettings(paths: PinextPaths, project?: string): {
   model?: EngineModel;
   thinkingLevel?: ThinkingLevel | "auto";
 } {
@@ -71,12 +71,12 @@ function isProjectModelDefault(value: unknown): value is ProjectModelDefault {
   return Boolean(readEngineModel(candidate.model)) && readThinkingLevel(candidate.thinkingLevel) !== undefined;
 }
 
-export function writeAppSettings(paths: FastVibePaths, settings: PersistedSettings): void {
+export function writeAppSettings(paths: PinextPaths, settings: PersistedSettings): void {
   writeFileSync(paths.settingsFile, `${JSON.stringify({ version: VERSION, settings }, null, 2)}\n`);
   cache = null;
 }
 
-export function clearAppSettings(paths: FastVibePaths): void {
+export function clearAppSettings(paths: PinextPaths): void {
   cache = null;
   try {
     if (existsSync(paths.settingsFile)) unlinkSync(paths.settingsFile);
@@ -90,6 +90,6 @@ export function invalidateAppSettingsCache(): void {
 }
 
 /** Keep this module's import graph free of Electron for the headless runtime. */
-export function settingsFileExists(paths: FastVibePaths): boolean {
+export function settingsFileExists(paths: PinextPaths): boolean {
   return existsSync(paths.settingsFile);
 }

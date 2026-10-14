@@ -6,7 +6,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
  *
  * The agent writes the graph itself, as it works: each node is a sub-agent with a profile
  * the agent invents for that node (a name, its own instructions, the tools it may use), a
- * task, and the nodes it depends on. FastVibe then runs the graph on its own — a node starts
+ * task, and the nodes it depends on. Pinext then runs the graph on its own — a node starts
  * when everything it depends on has finished, independent nodes run in parallel, a failure
  * skips only what depended on it — and the side pane draws the graph and every node's state.
  *
@@ -20,7 +20,7 @@ type DagHost = {
   dag?(request: { action: string; input?: Record<string, unknown> }, signal?: AbortSignal): Promise<DagResult>;
 };
 
-const T = (zh: string, en: string): string => (process.env.FASTVIBE_UI_LANGUAGE === "en" ? en : zh);
+const T = (zh: string, en: string): string => (process.env.PINEXT_UI_LANGUAGE === "en" ? en : zh);
 
 async function call(ctx: ExtensionContext, action: string, input: Record<string, unknown>, signal?: AbortSignal) {
   const host = ctx.ui as unknown as DagHost;

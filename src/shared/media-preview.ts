@@ -20,7 +20,7 @@ function isAbsolute(filePath: string): boolean {
  * file uses the same URL: main proxies it as a binary stream, so the preview JSON
  * never carries a base64 copy.
  */
-export const MEDIA_SCHEME = "fastvibe-media";
+export const MEDIA_SCHEME = "pinext-media";
 
 const MEDIA_MIME: Record<string, string> = {
   ".png": "image/png",

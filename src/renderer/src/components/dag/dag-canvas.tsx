@@ -198,7 +198,7 @@ export function DagSummary({
               variant="ghost"
               size="xs"
               className="text-muted-foreground"
-              onClick={() => void window.fastvibe.dag.cancel(conversationId).catch(failure)}
+              onClick={() => void window.pinext.dag.cancel(conversationId).catch(failure)}
             >
               <HugeiconsIcon strokeWidth={2} icon={StopIcon} data-icon="inline-start" />
               {t("dag.cancelAll")}
@@ -206,7 +206,7 @@ export function DagSummary({
           ) : null}
           {state === "stopped" ? (
             // Stopped, not lost: what finished stays finished, and this carries on from there.
-            <Button type="button" size="xs" onClick={() => void window.fastvibe.dag.resume(conversationId).catch(failure)}>
+            <Button type="button" size="xs" onClick={() => void window.pinext.dag.resume(conversationId).catch(failure)}>
               <HugeiconsIcon strokeWidth={2} icon={PlayIcon} data-icon="inline-start" />
               {t("dag.resume")}
             </Button>

@@ -9,7 +9,7 @@ import { join, relative } from "node:path";
  */
 export function hashRuntimeDirectory(root, { target, node, ignore = () => false }) {
   const hash = createHash("sha256");
-  hash.update(`fastvibe-agent-runtime-v1\0${target}\0${node}\0`);
+  hash.update(`pinext-agent-runtime-v1\0${target}\0${node}\0`);
   visit(root);
   return hash.digest("hex");
 

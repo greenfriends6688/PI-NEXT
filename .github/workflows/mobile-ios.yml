@@ -44,7 +44,7 @@ jobs:
       TEAM_ID: ${{ vars.APPLE_TEAM_ID || 'J24Y9W38D8' }}
       # TestFlight orders uploads of one version by build number, so it has to rise on
       # every run, including a rerun of the same workflow. Flutter writes it to Info.plist.
-      FASTVIBE_IOS_BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
+      PINEXT_IOS_BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
       APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
       APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
       APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -111,7 +111,7 @@ jobs:
       # the export step signs with.
       - name: Archive Flutter app
         working-directory: apps/mobile_flutter
-        run: flutter build ipa --release --no-codesign --build-number "$FASTVIBE_IOS_BUILD_NUMBER"
+        run: flutter build ipa --release --no-codesign --build-number "$PINEXT_IOS_BUILD_NUMBER"
 
       - name: Export and sign
         run: |
@@ -145,7 +145,7 @@ jobs:
         if: env.UPLOAD != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: FastVibe-ios-${{ env.RELEASE_TAG || github.sha }}
+          name: Pinext-ios-${{ env.RELEASE_TAG || github.sha }}
           path: ${{ runner.temp }}/export/*.ipa
           if-no-files-found: error
           retention-days: 7

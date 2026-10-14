@@ -15,7 +15,7 @@ import { resolveTheme, systemPrefersDark } from "@/lib/themes";
 /**
  * shadcn's sonner, with the theme wired to this app's own.
  *
- * The generated component reads `next-themes`, which FastVibe does not use: appearance
+ * The generated component reads `next-themes`, which Pinext does not use: appearance
  * lives in `lib/themes.ts`, which writes a theme's tokens onto `<html>` and toggles the
  * `dark` class (twenty-odd named themes, not two). Outside a `ThemeProvider`
  * `useTheme()` reports "system", so a window pinned to 亮色 while the OS is dark would

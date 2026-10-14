@@ -155,7 +155,7 @@ export function McpSettings(): JSX.Element {
 
   async function refresh(): Promise<void> {
     try {
-      setServers(await window.fastvibe.engine.listMcpServers());
+      setServers(await window.pinext.engine.listMcpServers());
     } catch {
       setServers([]);
     }
@@ -170,7 +170,7 @@ export function McpSettings(): JSX.Element {
   async function save(next: McpServerConfig[]): Promise<boolean> {
     setSaving(true);
     try {
-      setServers(await window.fastvibe.engine.saveMcpServers(next.map(toConfig)));
+      setServers(await window.pinext.engine.saveMcpServers(next.map(toConfig)));
       return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("mcp.saveFailed"));

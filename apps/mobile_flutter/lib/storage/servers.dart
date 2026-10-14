@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../protocol/address.dart';
 
-const String _listKey = 'fastvibe.servers.v1';
+const String _listKey = 'pinext.servers.v1';
 
 /// One saved machine. `origin` is the identity: a tunnel and its LAN address stay two
 /// devices, and re-adding the same origin updates the row instead of duplicating it.
@@ -90,7 +90,7 @@ class SavedServer {
 const FlutterSecureStorage _secure = FlutterSecureStorage();
 
 /// Device token (Keychain / Keystore). The only secret this app holds.
-String tokenKey(String id) => 'fv.token.$id';
+String tokenKey(String id) => 'pn.token.$id';
 
 Future<String?> readToken(String id) => _secure.read(key: tokenKey(id));
 

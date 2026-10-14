@@ -8,10 +8,10 @@
     <!-- WebRTC (the account connection) watches the network to move a connection when the
          phone changes between Wi-Fi and mobile data. -->
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
-    <!-- FastVibe listens on plain http on the LAN, which the phone has to be able to reach. -->
+    <!-- Pinext listens on plain http on the LAN, which the phone has to be able to reach. -->
     <application
         android:usesCleartextTraffic="true"
-        android:label="FastVibe"
+        android:label="Pinext"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -36,7 +36,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- The browser sign-in ends at fastvibe://oauth/callback; this hands it back to the
+        <!-- The browser sign-in ends at pinext://oauth/callback; this hands it back to the
              app (flutter_web_auth_2). The scheme is the one the account service allows. -->
         <activity
             android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
@@ -45,7 +45,7 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="fastvibe"/>
+                <data android:scheme="pinext"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

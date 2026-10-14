@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fastvibe_mobile/chat/snapshot_sync.dart';
-import 'package:fastvibe_mobile/chat/history_pager.dart';
-import 'package:fastvibe_mobile/chat/message.dart';
-import 'package:fastvibe_mobile/protocol/client.dart';
+import 'package:pinext_mobile/chat/snapshot_sync.dart';
+import 'package:pinext_mobile/chat/history_pager.dart';
+import 'package:pinext_mobile/chat/message.dart';
+import 'package:pinext_mobile/protocol/client.dart';
 
 void main() {
   test(

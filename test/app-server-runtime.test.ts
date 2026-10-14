@@ -33,7 +33,7 @@ const hello = {
 const silent = { info: () => undefined, warn: () => undefined, error: () => undefined };
 
 test("identity loader writes a valid id that AppClient would accept", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-identity-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-identity-"));
   const file = join(dir, "server-identity.json");
   const first = loadOrCreateServerIdentity(file, { version: "1", platform: "linux" });
   const again = loadOrCreateServerIdentity(file, { version: "2", platform: "darwin" });
@@ -44,7 +44,7 @@ test("identity loader writes a valid id that AppClient would accept", async () =
 });
 
 test("identity loader replaces a corrupt file rather than claiming it", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-identity-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-identity-"));
   const file = join(dir, "server-identity.json");
   await mkdir(dir, { recursive: true });
   await writeFile(file, "{not json", "utf8");
@@ -165,7 +165,7 @@ test("a RemoteServer without appServer owns a fallback instance, not the process
       channels: () => [Ipc.engineGetStatus],
     });
     initAppServer({ dispatch: async () => ({}) });
-    const dir = await mkdtemp(join(tmpdir(), "fastvibe-owned-"));
+    const dir = await mkdtemp(join(tmpdir(), "pinext-owned-"));
     const remote = new RemoteServer({
       accessFile: join(dir, "remote-access.json"),
       channels: () => [Ipc.engineGetStatus],
@@ -226,7 +226,7 @@ async function waitUntil(predicate: () => boolean, message: string): Promise<voi
 
 test("runtime + RemoteServer + AppClient: broadcast is published once, except skips origin including legacy", async () => {
   resetAppServerRuntime();
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-runtime-ws-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-runtime-ws-"));
   const accessFile = join(dir, "remote-access.json");
   setPassword(accessFile, PASSWORD);
   const origins: string[] = [];
@@ -331,7 +331,7 @@ test("runtime + RemoteServer + AppClient: broadcast is published once, except sk
 
 test("stopping the HTTP remote does not close shared Electron AppServer sessions", async () => {
   resetAppServerRuntime();
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-runtime-stop-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-runtime-stop-"));
   const accessFile = join(dir, "remote-access.json");
   setPassword(accessFile, PASSWORD);
   try {

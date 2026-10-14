@@ -1,4 +1,4 @@
-import 'package:fastvibe_mobile/protocol/rtc_connection.dart';
+import 'package:pinext_mobile/protocol/rtc_connection.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

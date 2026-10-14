@@ -1,12 +1,12 @@
 [Unit]
-Description=FastVibe headless Agent
+Description=Pinext headless Agent
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 ExecStart=@NODE@ @AGENT@
-Environment=FASTVIBE_AGENT_PORT=7777
+Environment=PINEXT_AGENT_PORT=7777
 Restart=on-failure
 RestartSec=3
 

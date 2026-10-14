@@ -11,7 +11,7 @@
  * separate targets, and scroll/wait as explicit controls. It also gives every node a
  * code-owned identity and the semantic keys the executor compares before acting.
  *
- * Adaptations: the page global is `__fastvibeDecision`, and the scripts are strings the
+ * Adaptations: the page global is `__pinextDecision`, and the scripts are strings the
  * host injects (webview `executeJavaScript`), not CDP evaluations. Date/time inputs are
  * offered as text fields: the original skips them, which left a form's delivery-time
  * field invisible and the loop re-typing a neighbouring field instead. The nearest
@@ -67,7 +67,7 @@ export const OFFSCREEN_LIMIT = 60;
 /** Observe the page. Returns `null` while the document has no body (navigating). */
 export const OBSERVE_SCRIPT = String.raw`(() => {
   if (!document.body) return null;
-  const cache = window.__fastvibeDecision ||= {ids:new WeakMap(), nodes:new Map(), next:1};
+  const cache = window.__pinextDecision ||= {ids:new WeakMap(), nodes:new Map(), next:1};
   const identity = e => {
     if (!cache.ids.has(e)) cache.ids.set(e,cache.next++);
     const id=cache.ids.get(e); cache.nodes.set(id,e); return id;
@@ -152,7 +152,7 @@ export const OBSERVE_SCRIPT = String.raw`(() => {
     if (y<0 || y>=innerHeight) { offscreen.push([e,r,rname,y<0 ? -y : y-innerHeight]); continue; }
     add(e,r,rname,false);
   }
-  // FastVibe addition: the nearest off-screen controls, marked, so a target below the fold
+  // Pinext addition: the nearest off-screen controls, marked, so a target below the fold
   // (a "Next" link, a pager) can be chosen directly; the executor scrolls it into view.
   offscreen.sort((a,b)=>a[3]-b[3]);
   for (const [e,r,rname] of offscreen.slice(0,${OFFSCREEN_LIMIT})) add(e,r,rname,true);
@@ -191,7 +191,7 @@ export const MARKER_SCRIPT = `(() => { const state=${OBSERVE_SCRIPT}; return sta
 
 /** `[pageKey, guard(node)]` for a scoped click/select freshness check. */
 export function guardScript(node: number): string {
-  return `(() => { const c=window.__fastvibeDecision; return c ? [c.pageKey(),c.guard(c.nodes.get(${Math.trunc(node)}))] : null; })()`;
+  return `(() => { const c=window.__pinextDecision; return c ? [c.pageKey(),c.guard(c.nodes.get(${Math.trunc(node)}))] : null; })()`;
 }
 
 /**
@@ -201,7 +201,7 @@ export function guardScript(node: number): string {
  */
 export function targetScript(action: ObservedAction): string {
   return String.raw`(action => {
-  const e=window.__fastvibeDecision?.nodes.get(action.node);
+  const e=window.__pinextDecision?.nodes.get(action.node);
   if (!e?.isConnected || e.matches(':disabled') || e.closest('[aria-disabled="true"],[inert]') ||
       !e.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) return null;
   if (action.kind==='fill' && (e.readOnly || e.getAttribute('aria-readonly')==='true')) return null;
@@ -228,7 +228,7 @@ export function targetScript(action: ObservedAction): string {
  */
 export function settleScript(action: ObservedAction): string {
   return String.raw`(action => new Promise(resolve => {
-  const field=window.__fastvibeDecision?.nodes.get(action.node);
+  const field=window.__pinextDecision?.nodes.get(action.node);
   const autocomplete=action.kind==='fill' && field?.getAttribute('role')==='combobox';
   let frames=0, stopped=false;
   const finish=()=>{stopped=true;resolve(true)};

@@ -7,7 +7,7 @@ import type {
   Conversation,
   ConversationQueueState,
   EngineModel,
-  FastVibeModel,
+  PinextModel,
   EngineSessionState,
   EngineStatus,
   EngineEvent,
@@ -130,7 +130,7 @@ export function useExtensionWidgets(): Record<string, ExtensionWidget> {
 export type SessionStore = {
   status: EngineStatus;
   session: EngineSessionState | null;
-  models: FastVibeModel[];
+  models: PinextModel[];
   projects: Project[];
   conversations: Conversation[];
   activeId: string | null;
@@ -258,7 +258,7 @@ export type SessionStore = {
   forgetConversationExtensionState: (conversationId: string) => void;
   setStatus: (status: EngineStatus) => void;
   setSession: (session: EngineSessionState | null) => void;
-  setModels: (models: FastVibeModel[]) => void;
+  setModels: (models: PinextModel[]) => void;
   setStats: (stats: SessionStats | null) => void;
   applySnapshot: (snapshot: WorkspaceSnapshot) => void;
   setActiveId: (activeId: string | null) => void;
@@ -1035,7 +1035,7 @@ export const useSessionStore = create<SessionStore>((set, get) => {
     const cwd = conversations.find((item) => item.id === activeId)?.cwd;
     const resolved = resolvePath(path, cwd);
     try {
-      const preview = await window.fastvibe.workspace.preview(resolved);
+      const preview = await window.pinext.workspace.preview(resolved);
       set({ preview });
       useSidePaneStore.getState().openFilePreview(preview);
     } catch (error) {

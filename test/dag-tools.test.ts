@@ -14,7 +14,7 @@ function setup(agents: Array<{ name: string; instructions: string; tools?: strin
   finish: (id: string, result?: { status?: "completed" | "failed"; output?: string; error?: string }) => void;
   store: DagStore;
 } {
-  const store = new DagStore(join(mkdtempSync(join(tmpdir(), "fastvibe-dagtool-")), "dag.json"));
+  const store = new DagStore(join(mkdtempSync(join(tmpdir(), "pinext-dagtool-")), "dag.json"));
   const waiting = new Map<string, (value: { status: "completed" | "failed" | "aborted"; output: string; error?: string }) => void>();
   const run: DagRunner = ({ node, signal }) =>
     new Promise((resolve) => {

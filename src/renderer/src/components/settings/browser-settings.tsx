@@ -32,8 +32,8 @@ export function BrowserSettings(): JSX.Element {
     setLoading(true);
     try {
       const [found, list] = await Promise.all([
-        window.fastvibe.browser.listEngines(),
-        window.fastvibe.browser.listProfiles(),
+        window.pinext.browser.listEngines(),
+        window.pinext.browser.listProfiles(),
       ]);
       if (found.length > 0) setEngines(found);
       setProfiles(list);
@@ -52,7 +52,7 @@ export function BrowserSettings(): JSX.Element {
   async function importProfile(profile: BrowserProfileInfo): Promise<void> {
     setImporting(profile.id);
     try {
-      const result: BrowserImportResult = await window.fastvibe.browser.importProfile(profile, settings.browserUseSystem ? "system" : "builtin");
+      const result: BrowserImportResult = await window.pinext.browser.importProfile(profile, settings.browserUseSystem ? "system" : "builtin");
       toast.success(t("browser.importDone", { browser: result.browser, profile: result.profile }), {
         description: result.message,
       });

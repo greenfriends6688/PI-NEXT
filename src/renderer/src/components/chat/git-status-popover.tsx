@@ -108,7 +108,7 @@ export function GitStatusPopover({
     setBusy("unbind");
     setError(null);
     try {
-      await window.fastvibe.conversations.unbindWorktree(conversationId);
+      await window.pinext.conversations.unbindWorktree(conversationId);
       setOpen(false);
       toast.success(t("git.unbindWorktreeDone"));
     } catch (cause) {
@@ -123,7 +123,7 @@ export function GitStatusPopover({
     setBusy("generate");
     setError(null);
     try {
-      setMessage(await window.fastvibe.workspace.gitGenerateCommitMessage(repository.cwd, conversationId));
+      setMessage(await window.pinext.workspace.gitGenerateCommitMessage(repository.cwd, conversationId));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t("git.generateFailed"));
     } finally {
@@ -143,13 +143,13 @@ export function GitStatusPopover({
     setError(null);
     let committed = false;
     try {
-      await window.fastvibe.workspace.gitStage(repository.cwd, undefined, true);
+      await window.pinext.workspace.gitStage(repository.cwd, undefined, true);
       refreshed();
-      await window.fastvibe.workspace.gitCommit(repository.cwd, subject);
+      await window.pinext.workspace.gitCommit(repository.cwd, subject);
       committed = true;
       setMessage("");
       refreshed();
-      if (push) await window.fastvibe.workspace.gitPush(repository.cwd);
+      if (push) await window.pinext.workspace.gitPush(repository.cwd);
       refreshed();
       toast.success(t(push ? "git.commitPushDone" : "git.commitDone", { subject }));
     } catch (cause) {
@@ -206,7 +206,7 @@ export function GitStatusPopover({
                 size="icon-xs"
                 label={t("git.pull")}
                 disabled={Boolean(busy)}
-                onClick={() => void run("pull", () => window.fastvibe.workspace.gitPull(status.cwd), t("git.pullFailed"), (next) => t("git.pullDone", { branch: next.branch ?? status.branch }))}
+                onClick={() => void run("pull", () => window.pinext.workspace.gitPull(status.cwd), t("git.pullFailed"), (next) => t("git.pullDone", { branch: next.branch ?? status.branch }))}
               >
                 {busy === "pull" ? <Spinner className="size-3.5" /> : <HugeiconsIcon strokeWidth={2} icon={ArrowDown02Icon} />}
               </IconButton>
@@ -216,7 +216,7 @@ export function GitStatusPopover({
                 size="icon-xs"
                 label={t("git.push")}
                 disabled={Boolean(busy)}
-                onClick={() => void run("push", () => window.fastvibe.workspace.gitPush(status.cwd), t("git.pushFailed"), (next) => t("git.pushDone", { branch: next.branch ?? status.branch }))}
+                onClick={() => void run("push", () => window.pinext.workspace.gitPush(status.cwd), t("git.pushFailed"), (next) => t("git.pushDone", { branch: next.branch ?? status.branch }))}
               >
                 {busy === "push" ? <Spinner className="size-3.5" /> : <HugeiconsIcon strokeWidth={2} icon={ArrowUp02Icon} />}
               </IconButton>

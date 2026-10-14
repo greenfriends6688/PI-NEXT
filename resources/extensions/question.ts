@@ -3,17 +3,17 @@ import { Type } from "typebox";
 
 /**
  * The `question` tool: the agent's way to stop and ask the user. It is always on,
- * for the main agent only (a delegated subagent loads no FastVibe extension but
+ * for the main agent only (a delegated subagent loads no Pinext extension but
  * `folder-consent`), so a clarifying question never has to be a guess.
  */
 const QUESTION_TOOL = "question";
 /** One deadline for the whole call, including sequential select/input fallbacks. */
 const QUESTION_TIMEOUT_MS = 5 * 60_000;
-const T = (zh: string, en: string): string => (process.env.FASTVIBE_UI_LANGUAGE === "en" ? en : zh);
+const T = (zh: string, en: string): string => (process.env.PINEXT_UI_LANGUAGE === "en" ? en : zh);
 const otherAnswer = (): string => T("其他（自行输入）", "Other (type your own)");
 
 /**
- * The structured payload the `question` tool returns. FastVibe's transcript renders
+ * The structured payload the `question` tool returns. Pinext's transcript renders
  * it as a Q&A card (`question-answers.tsx`), and the model sees the plain-text
  * summary in `content`.
  */
@@ -27,7 +27,7 @@ type QuestionAnswer = {
 type QuestionDetails = { questions: QuestionAnswer[] };
 
 /**
- * FastVibe-specific single-panel multi-question UI, feature-detected on `ctx.ui`.
+ * Pinext-specific single-panel multi-question UI, feature-detected on `ctx.ui`.
  * Hosts that do not provide it (real pi/TUI) fall back to sequential select/input.
  */
 type QuestionBridge = {
@@ -45,7 +45,7 @@ type QuestionBridge = {
 };
 
 /**
- * The `question` tool uses one inline multi-question panel in FastVibe, or
+ * The `question` tool uses one inline multi-question panel in Pinext, or
  * sequential select/input dialogs on other hosts. The host owns each timeout
  * so it dismisses the panel as well as releasing the awaited tool call.
  */
@@ -109,7 +109,7 @@ function registerQuestionTool(pi: ExtensionAPI): void {
         return remaining > 0 ? open(remaining) : Promise.resolve(undefined);
       };
 
-      // Single-panel multi-question UI when the host offers it (FastVibe).
+      // Single-panel multi-question UI when the host offers it (Pinext).
       const bridge = (ctx.ui as unknown as QuestionBridge).questions;
       if (typeof bridge === "function") {
         const specs = items.map((item) => ({

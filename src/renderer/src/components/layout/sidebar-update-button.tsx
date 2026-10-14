@@ -46,7 +46,7 @@ export function SidebarUpdateButton(): JSX.Element | null {
         className="shrink-0"
         title={t("update.sidebarRestartTitle", { version: update?.availableVersion })}
         onClick={() => {
-          void window.fastvibe.updater.install();
+          void window.pinext.updater.install();
         }}
       >
         <HugeiconsIcon strokeWidth={2} icon={RefreshIcon} className="size-3" />
@@ -62,7 +62,7 @@ export function SidebarUpdateButton(): JSX.Element | null {
         className="shrink-0"
         title={t("update.sidebarUpdateTitle", { version: update?.availableVersion })}
         onClick={() => {
-          void window.fastvibe.updater.download();
+          void window.pinext.updater.download();
         }}
       >
         <HugeiconsIcon strokeWidth={2} icon={Download01Icon} className="size-3" />

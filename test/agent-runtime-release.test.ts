@@ -11,8 +11,8 @@ const arm64 = "b".repeat(64);
 
 function candidate(x = x64) {
   return JSON.stringify({ schema: 1, targets: {
-    "linux-x64": { runtimeHash: x, archive: "fastvibe-agent-linux-x64.tar.gz", archiveSha256: x },
-    "linux-arm64": { runtimeHash: arm64, archive: "fastvibe-agent-linux-arm64.tar.gz", archiveSha256: arm64 },
+    "linux-x64": { runtimeHash: x, archive: "pinext-agent-linux-x64.tar.gz", archiveSha256: x },
+    "linux-arm64": { runtimeHash: arm64, archive: "pinext-agent-linux-arm64.tar.gz", archiveSha256: arm64 },
   } });
 }
 
@@ -25,7 +25,7 @@ function resolveRelease(dir: string, candidatePath: string, latestPath?: string)
 }
 
 test("runtime release resolver keeps a readable id when hashes are unchanged", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-runtime-release-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-runtime-release-"));
   try {
     const candidates = join(dir, "candidates.json");
     writeFileSync(candidates, candidate());
@@ -39,7 +39,7 @@ test("runtime release resolver keeps a readable id when hashes are unchanged", (
 });
 
 test("runtime release resolver increments only after a content hash changes", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-runtime-release-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-runtime-release-"));
   try {
     const firstCandidates = join(dir, "first.json");
     writeFileSync(firstCandidates, candidate());

@@ -6,10 +6,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:fastvibe_mobile/chat/dag_data.dart';
-import 'package:fastvibe_mobile/protocol/address.dart';
-import 'package:fastvibe_mobile/session/connection.dart';
-import 'package:fastvibe_mobile/storage/servers.dart';
+import 'package:pinext_mobile/chat/dag_data.dart';
+import 'package:pinext_mobile/protocol/address.dart';
+import 'package:pinext_mobile/session/connection.dart';
+import 'package:pinext_mobile/storage/servers.dart';
 
 import 'support/protocol_server.dart';
 

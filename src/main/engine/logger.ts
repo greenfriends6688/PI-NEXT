@@ -2,7 +2,7 @@ import { app, dialog, shell, type BrowserWindow } from "electron";
 import { appendFileSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { crc32, deflateRawSync } from "node:zlib";
-import { getFastVibePaths } from "./paths";
+import { getPinextPaths } from "./paths";
 import { uiText } from "./ui-text";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
@@ -38,7 +38,7 @@ const consoleOriginals = {
 export function initLogger(): void {
   if (initialized) return;
   initialized = true;
-  logsDir = getFastVibePaths().logs;
+  logsDir = getPinextPaths().logs;
   seedSize("main");
   seedSize("renderer");
   hookConsole();
@@ -73,7 +73,7 @@ export async function exportLogs(parent?: BrowserWindow | null): Promise<string 
   const stamp = localStamp(new Date());
   const options = {
     title: uiText("导出日志", "Export logs"),
-    defaultPath: join(app.getPath("downloads"), `fastvibe-logs-${stamp}.zip`),
+    defaultPath: join(app.getPath("downloads"), `pinext-logs-${stamp}.zip`),
     filters: [{ name: uiText("日志归档", "Log archive"), extensions: ["zip"] }],
   };
   const result = parent ? await dialog.showSaveDialog(parent, options) : await dialog.showSaveDialog(options);
@@ -194,7 +194,7 @@ function hookProcess(): void {
 
 function startLine(): string {
   return [
-    `FastVibe ${app.getVersion()} starting`,
+    `Pinext ${app.getVersion()} starting`,
     `platform=${process.platform}`,
     `arch=${process.arch}`,
     `electron=${process.versions.electron}`,

@@ -17,7 +17,7 @@ import { sanitizeShortcutOverrides, type ShortcutOverrides } from "@/lib/shortcu
 
 import { DEFAULT_PROXY_SETTINGS, proxySettingsOf, type ProxySettings } from "@shared/proxy";
 
-const KEY = "fastvibe.settings";
+const KEY = "pinext.settings";
 
 export type AppSettings = ProxySettings & {
   thinkingLevel: ThinkingLevel | "auto";
@@ -69,7 +69,7 @@ export type AppSettings = ProxySettings & {
   /**
    * 界面语言: the language every string in the app is rendered in. Applied through
    * react-i18next (`lib/i18n.ts`); changing it re-renders the tree and writes
-   * `FASTVIBE_UI_LANGUAGE` so Main and the built-in extensions follow along.
+   * `PINEXT_UI_LANGUAGE` so Main and the built-in extensions follow along.
    */
   uiLanguage: UiLanguage;
   /**
@@ -329,7 +329,7 @@ function peekLocal(): Partial<AppSettings> {
 
 function peekDisk(): Partial<AppSettings> {
   try {
-    const raw = window.fastvibe?.settings?.initial;
+    const raw = window.pinext?.settings?.initial;
     if (!raw || typeof raw !== "object") return {};
     return sanitize(raw as Partial<AppSettings>);
   } catch {
@@ -355,7 +355,7 @@ function persist(task: () => Promise<unknown>): Promise<void> {
 }
 
 function writeDisk(): void {
-  void persist(() => window.fastvibe.settings.save(useSettingsStore.getState().settings)).catch(() => undefined);
+  void persist(() => window.pinext.settings.save(useSettingsStore.getState().settings)).catch(() => undefined);
 }
 
 /**
@@ -409,7 +409,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
     const generation = resetGeneration;
     return persist(async () => {
       if (generation !== resetGeneration) return;
-      await window.fastvibe.settings.saveProxy(patch);
+      await window.pinext.settings.saveProxy(patch);
       // Reflect an acknowledged save even if a reset is queued: the reset can fail.
       useSettingsStore.getState().applyRemote({ ...useSettingsStore.getState().settings, ...patch });
     });
@@ -424,7 +424,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
     resetGeneration += 1;
     return persist(async () => {
       const before = useSettingsStore.getState().settings;
-      await window.fastvibe.settings.clear();
+      await window.pinext.settings.clear();
       // Preserve preference changes made after reset was requested.
       const after = useSettingsStore.getState().settings;
       const changed = Object.fromEntries(Object.entries(after).filter(([key, value]) => value !== before[key as keyof AppSettings]));
@@ -436,8 +436,8 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
 }));
 
 // First launch after this change: copy whatever localStorage had onto disk.
-if (typeof window !== "undefined" && window.fastvibe?.settings) {
-  const disk = window.fastvibe.settings.initial;
+if (typeof window !== "undefined" && window.pinext?.settings) {
+  const disk = window.pinext.settings.initial;
   if (!disk || Object.keys(disk).length === 0) {
     writeDisk();
   }

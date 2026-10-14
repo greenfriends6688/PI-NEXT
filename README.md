@@ -1,21 +1,21 @@
-# FastVibe
+# PI NEXT
 
 [中文 README](README.zh-CN.md) · English README
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-44.4.0-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![pi coding agent](https://img.shields.io/badge/pi%20coding%20agent-1.1.0-6E56CF)](https://github.com/badlogic/pi-mono)
-[![Latest release](https://img.shields.io/github/v/release/tyuan511/fastvibe?display_name=tag&sort=semver)](https://github.com/tyuan511/fastvibe/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/YOUR_GITHUB_OWNER/pinext?display_name=tag&sort=semver)](https://github.com/YOUR_GITHUB_OWNER/pinext/releases/latest)
 
 > A desktop AI agent workspace built on **pi coding agent**.
 
-FastVibe embeds pi coding agent in an Electron desktop app, bringing conversations, tool calls, extensions, and project workspaces into one interface.
+PI NEXT embeds pi coding agent in an Electron desktop app, bringing conversations, tool calls, extensions, and project workspaces into one interface.
 
-![FastVibe](docs/images/workspace-en.webp)
+![PI NEXT](docs/images/workspace-en.webp)
 
 ## Download
 
-Download the latest installer from [GitHub Releases](https://github.com/tyuan511/fastvibe/releases/latest):
+Download the latest installer from [GitHub Releases](https://github.com/YOUR_GITHUB_OWNER/pinext/releases/latest):
 
 - macOS: `.dmg` or `.zip`
 - Windows: `.exe`
@@ -27,7 +27,7 @@ Download the latest installer from [GitHub Releases](https://github.com/tyuan511
 - Multi-project workspaces with archived chats, branches, attachments, and isolated scratch workspaces.
 - Visual tool calls, edit diffs, terminal output, and reasoning.
 - Goal mode for long-running objectives.
-- FastVibe and OpenAI-compatible providers, model protocol settings, and OAuth login.
+- PI NEXT and OpenAI-compatible providers, model protocol settings, and OAuth login.
 - MCP, skills, todos, subagents, Git worktrees, and usage statistics.
 - Optional Jev decision engine for browser control, computer control, and batch decisions.
 - Optional long-term memory, after Codex: finished conversations are distilled into local Markdown files, and the agent reads them on demand.
@@ -53,11 +53,11 @@ Settings → Memory is one switch, off by default. When it is on, a conversation
 
 ## Relationship with pi
 
-FastVibe uses the `@earendil-works/pi-coding-agent` SDK and stores runtime data in its own userData directory. It never reads or writes the user's native `~/.pi` directory.
+PI NEXT uses the `@earendil-works/pi-coding-agent` SDK and stores runtime data in its own userData directory. It never reads or writes the user's native `~/.pi` directory.
 
 Common pi UI APIs are mapped to the desktop UI:
 
-| pi API | FastVibe UI |
+| pi API | PI NEXT UI |
 | --- | --- |
 | `ctx.ui.confirm` | Inline yes / no panel |
 | `ctx.ui.select` / `input` / `questions` | Selection, input, and question forms |
@@ -66,7 +66,7 @@ Common pi UI APIs are mapped to the desktop UI:
 | `ctx.ui.setStatus` / `setWidget` | Status row and composer widgets |
 | `ctx.newSession` / `switchSession` | Create / switch conversations |
 
-Extensions are installed through the SDK package manager into FastVibe's isolated directory. Terminal-only full-screen interaction such as `ctx.ui.custom()` is not supported; extensions should use `select`, `confirm`, `input`, `editor`, or `questions` instead.
+Extensions are installed through the SDK package manager into PI NEXT's isolated directory. Terminal-only full-screen interaction such as `ctx.ui.custom()` is not supported; extensions should use `select`, `confirm`, `input`, `editor`, or `questions` instead.
 
 ## Development
 
@@ -96,21 +96,21 @@ pnpm exec vite src/renderer --config vite.config.ts
 
 ## Data and privacy
 
-Runtime data is stored in FastVibe's own userData directory:
+Runtime data is stored in PI NEXT's own userData directory:
 
 | Platform | Directory |
 | --- | --- |
-| macOS | `~/Library/Application Support/FastVibe/` |
-| Windows | `%APPDATA%\\FastVibe\\` |
-| Linux | `~/.config/FastVibe/` |
+| macOS | `~/Library/Application Support/PI NEXT/` |
+| Windows | `%APPDATA%\\PI NEXT\\` |
+| Linux | `~/.config/PI NEXT/` |
 
-Provider credentials stay in the isolated runtime and are injected into the SDK's in-memory authentication storage. They are not exported to the user's login shell or the in-app terminal. Browser login cookies are stored only in FastVibe's isolated browser session, and long-term memory lives as Markdown files in the local `runtime/engine/memories`. While memory is on, finished conversations are sent to your configured model to be distilled.
+Provider credentials stay in the isolated runtime and are injected into the SDK's in-memory authentication storage. They are not exported to the user's login shell or the in-app terminal. Browser login cookies are stored only in PI NEXT's isolated browser session, and long-term memory lives as Markdown files in the local `runtime/engine/memories`. While memory is on, finished conversations are sent to your configured model to be distilled.
 
 ## Project structure
 
 ```text
 src/main/       Electron main process, IPC, embedded Agent, and remote services
-src/agent/      headless FastVibe Agent
+src/agent/      headless PI NEXT Agent
 src/preload/    contextBridge API
 src/renderer/   React UI
 src/shared/     IPC, App Protocol, and shared types
@@ -119,4 +119,4 @@ resources/      bundled extensions, skills, and model resources
 
 ## License
 
-[MIT](LICENSE) © 2026 FastVibe
+[MIT](LICENSE) © 2026 PI NEXT

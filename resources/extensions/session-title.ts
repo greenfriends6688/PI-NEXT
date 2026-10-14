@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 /**
- * FastVibe's built-in session title — names a new conversation from the first
+ * Pinext's built-in session title — names a new conversation from the first
  * user prompt via a short, fire-and-forget model call (`pi.setSessionName`).
  *
  * Already-named sessions (manual rename, `/name`, parallel runs, side chats)

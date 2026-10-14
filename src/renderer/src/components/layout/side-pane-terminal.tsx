@@ -56,7 +56,7 @@ export function SidePaneTerminal({
       // ignore
     }
     entry.term.focus();
-    if (entry.sessionId) void window.fastvibe.workspace.terminalResize(entry.sessionId, entry.term.cols, entry.term.rows);
+    if (entry.sessionId) void window.pinext.workspace.terminalResize(entry.sessionId, entry.term.cols, entry.term.rows);
   }, [tabId, visible]);
 
   useEffect(() => {
@@ -104,29 +104,29 @@ export function SidePaneTerminal({
     registry.set(tabId, created);
 
     let cancelled = false;
-    const off = window.fastvibe.workspace.onTerminalData((event) => {
+    const off = window.pinext.workspace.onTerminalData((event) => {
       if (event.id !== created.sessionId) return;
       if (event.data) term.write(event.data);
       if (event.exited) term.write(`\r\n${i18n.t("sidepane:terminal.ended")}\r\n`);
     });
 
-    void window.fastvibe.workspace
+    void window.pinext.workspace
       .terminalStart(cwd, { cols: term.cols, rows: term.rows })
       .then((session) => {
         if (cancelled) {
-          void window.fastvibe.workspace.terminalKill(session.id);
+          void window.pinext.workspace.terminalKill(session.id);
           return;
         }
         created.sessionId = session.id;
         // Pin the resolved cwd (home when no project is bound) so the shell does
         // not respawn as the active project changes.
         patchTab(tabId, { sessionId: session.id, cwd: session.cwd });
-        void window.fastvibe.workspace.terminalResize(session.id, term.cols, term.rows);
+        void window.pinext.workspace.terminalResize(session.id, term.cols, term.rows);
       })
       .catch(() => undefined);
 
     const dataSub = term.onData((data) => {
-      if (created.sessionId) void window.fastvibe.workspace.terminalWrite(created.sessionId, data);
+      if (created.sessionId) void window.pinext.workspace.terminalWrite(created.sessionId, data);
     });
     term.attachCustomKeyEventHandler((event) => {
       if (event.type !== "keydown" || !(event.metaKey || event.ctrlKey)) return true;
@@ -153,7 +153,7 @@ export function SidePaneTerminal({
       } catch {
         return;
       }
-      if (created.sessionId) void window.fastvibe.workspace.terminalResize(created.sessionId, term.cols, term.rows);
+      if (created.sessionId) void window.pinext.workspace.terminalResize(created.sessionId, term.cols, term.rows);
     };
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame);
@@ -167,7 +167,7 @@ export function SidePaneTerminal({
       off();
       dataSub.dispose();
       for (const item of observers) item.disconnect();
-      if (created.sessionId) void window.fastvibe.workspace.terminalKill(created.sessionId);
+      if (created.sessionId) void window.pinext.workspace.terminalKill(created.sessionId);
       try {
         term.dispose();
       } catch {
@@ -190,7 +190,7 @@ export function SidePaneTerminal({
     } catch {
       // ignore
     }
-    if (entry.sessionId) void window.fastvibe.workspace.terminalResize(entry.sessionId, entry.term.cols, entry.term.rows);
+    if (entry.sessionId) void window.pinext.workspace.terminalResize(entry.sessionId, entry.term.cols, entry.term.rows);
   }, [uiFontSize, tabId]);
 
   return <div ref={box} className="h-full min-h-0 w-full bg-[var(--code-bg)] p-2" />;

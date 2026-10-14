@@ -18,7 +18,7 @@ import { applyLanguages } from "../main/engine/ai-language";
 import { clearAppSettings, invalidateAppSettingsCache, readAppSettings, writeAppSettings } from "../main/engine/runtime-settings";
 import { toolModeSettingsChanged } from "../main/engine/tool-modes";
 import { writeAgentConfig } from "../main/engine/runtime-config";
-import type { FastVibePaths } from "../main/engine/paths";
+import type { PinextPaths } from "../main/engine/paths";
 import type { GitBranch, GitDiffSource, GitStatus } from "@shared/ipc";
 import type { ImportSourceId, ProviderModel, UsageRange, McpServerConfig, SkillDraft, SubagentDraft } from "@shared/types";
 import type { AgentRuntime } from "./runtime";
@@ -82,7 +82,7 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   handle(Ipc.engineGetPendingUi, () => engine.getPendingUi());
   handle(Ipc.engineGetModels, () => engine.getAvailableModels());
   handle(Ipc.engineSyncConfig, async (payload: AgentConfigSyncPayload) => {
-    const expectedToken = process.env.FASTVIBE_AGENT_SYNC_TOKEN;
+    const expectedToken = process.env.PINEXT_AGENT_SYNC_TOKEN;
     if (!expectedToken || payload?.syncToken !== expectedToken) throw new Error("配置同步凭据无效");
     const previousSettings = readAppSettings(paths);
     const previousMcp = readFileOrEmpty(paths.mcpFile);
@@ -183,7 +183,7 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
     clearAppSettings(paths);
     if (toolModeSettingsChanged(previous, {})) void engine.refreshToolModes().catch(() => undefined);
   });
-  handle(Ipc.appGetInfo, () => ({ version: process.env.FASTVIBE_VERSION ?? "agent", engineVersion: piVersion, userData: paths.userData, runtimeRoot: paths.runtimeRoot, platform: process.platform }));
+  handle(Ipc.appGetInfo, () => ({ version: process.env.PINEXT_VERSION ?? "agent", engineVersion: piVersion, userData: paths.userData, runtimeRoot: paths.runtimeRoot, platform: process.platform }));
   handle(Ipc.workspaceFileIcons, () => ({ files: {}, folders: {} }));
   handle(Ipc.statsUsage, (_payload?: { range?: UsageRange }) => ({ range: "30d", from: "", to: "", totals: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, tokens: 0, cost: 0, requests: 0, toolCalls: 0, activeDays: 0 }, days: [], models: [], sessions: 0, longestSessionMinutes: 0, currentStreak: 0, longestStreak: 0 }));
 

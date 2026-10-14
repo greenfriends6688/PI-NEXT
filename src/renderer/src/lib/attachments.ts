@@ -64,7 +64,7 @@ export function resolveDroppedPath(legacyPath: string | undefined, bridged: stri
 
 function pathFromBridge(file: File): string | undefined {
   if (typeof window === "undefined") return undefined;
-  const read = window.fastvibe?.pathForFile;
+  const read = window.pinext?.pathForFile;
   if (!read) return undefined;
   try {
     const path = read(file);
@@ -138,8 +138,8 @@ export function attachmentPromptSuffix(items: ChatAttachment[]): string {
   return blocks.length > 0 ? `\n\n${blocks.join("\n\n")}` : "";
 }
 
-const ATTACHMENT_TAG = "fastvibe-attachments";
-const PASTED_TEXT_TAG = "fastvibe-pasted-text";
+const ATTACHMENT_TAG = "pinext-attachments";
+const PASTED_TEXT_TAG = "pinext-pasted-text";
 /**
  * Generated attachment blocks, anchored to the end so a prompt that merely quotes
  * either tag mid-text is left alone.

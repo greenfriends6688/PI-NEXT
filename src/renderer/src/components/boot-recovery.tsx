@@ -11,7 +11,7 @@ export function BootRecovery(): JSX.Element | null {
     const timer = window.setTimeout(() => setSlow(true), 8000);
     return () => window.clearTimeout(timer);
   }, []);
-  const splash = slow ? document.getElementById("fastvibe-boot") : null;
+  const splash = slow ? document.getElementById("pinext-boot") : null;
   if (!splash) return null;
   return createPortal(
     <div className="absolute inset-x-4 top-[calc(50%+5rem)] flex flex-col items-center gap-3 text-center">

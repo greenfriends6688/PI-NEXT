@@ -12,7 +12,7 @@ const box: SecretBox = {
 };
 
 function hostsFile(): string {
-  return join(mkdtempSync(join(tmpdir(), "fastvibe-hosts-")), "ssh-hosts.json");
+  return join(mkdtempSync(join(tmpdir(), "pinext-hosts-")), "ssh-hosts.json");
 }
 
 test("a saved password is sealed on disk and opened only in Main", () => {

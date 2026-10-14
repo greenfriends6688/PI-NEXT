@@ -57,8 +57,8 @@ export const useDagStore = create<DagState>((set) => ({
 /** Keeps the store in step with Main: one read at mount, then every `dag_changed`. */
 export function useDagSync(): void {
   useEffect(() => {
-    let stop = watchDagGraphs(window.fastvibe.dag, useDagStore.getState());
-    const offReconnect = onLiveReconnected(() => { stop(); stop = watchDagGraphs(window.fastvibe.dag, useDagStore.getState()); });
+    let stop = watchDagGraphs(window.pinext.dag, useDagStore.getState());
+    const offReconnect = onLiveReconnected(() => { stop(); stop = watchDagGraphs(window.pinext.dag, useDagStore.getState()); });
     return () => { offReconnect(); stop(); };
   }, []);
 }

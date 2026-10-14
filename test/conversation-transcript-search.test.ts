@@ -138,7 +138,7 @@ test("caps returned matches and reports truncation", () => {
 });
 
 test("loads only the current persisted branch without modifying the transcript", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-conversation-search-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-conversation-search-"));
   const file = join(dir, "session.jsonl");
   const raw = lines([
     { type: "session", version: 3, id: "session", timestamp, cwd: dir },
@@ -159,7 +159,7 @@ test("loads only the current persisted branch without modifying the transcript",
 });
 
 test("migrates a legacy hidden hook message in memory without exposing or rewriting it", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-conversation-search-legacy-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-conversation-search-legacy-"));
   const file = join(dir, "session.jsonl");
   const raw = lines([
     { type: "session", version: 2, id: "session", timestamp, cwd: dir },
@@ -187,7 +187,7 @@ test("migrates a legacy hidden hook message in memory without exposing or rewrit
 });
 
 test("rejects a cyclic parent chain instead of looping in the SDK reader", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-conversation-search-cycle-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-conversation-search-cycle-"));
   const file = join(dir, "session.jsonl");
   try {
     await writeFile(file, lines([
@@ -205,7 +205,7 @@ test("rejects a cyclic parent chain instead of looping in the SDK reader", async
 });
 
 test("rejects oversized transcripts before parsing them", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-conversation-search-large-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-conversation-search-large-"));
   const file = join(dir, "session.jsonl");
   try {
     await writeFile(file, Buffer.alloc(CONVERSATION_TRANSCRIPT_MAX_FILE_BYTES + 1, 32));

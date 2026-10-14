@@ -91,9 +91,9 @@ export function runComputerTask(request: ComputerTaskRequest): Promise<ComputerT
   });
 }
 
-/** Expose the runner to the computer-use extension, which cannot import FastVibe internals. */
+/** Expose the runner to the computer-use extension, which cannot import Pinext internals. */
 export function installComputerTaskGlobal(): void {
   const scope = globalThis as Record<string, unknown>;
-  scope.__fastvibeComputerTask = runComputerTask;
-  scope.__fastvibeComputerTaskEnabled = computerTasksEnabled;
+  scope.__pinextComputerTask = runComputerTask;
+  scope.__pinextComputerTaskEnabled = computerTasksEnabled;
 }

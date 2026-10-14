@@ -6,7 +6,7 @@ import {
   type ModelRegistry,
   type ModelRuntime,
 } from "@earendil-works/pi-coding-agent";
-import type { FastVibePaths } from "../engine/paths";
+import type { PinextPaths } from "../engine/paths";
 
 /**
  * Tools the consolidation agent may use. No `bash`: the job is reading and editing Markdown
@@ -19,11 +19,11 @@ const MEMORY_AGENT_TIMEOUT_MS = 10 * 60_000;
 
 /**
  * Run the consolidation agent: a throwaway in-memory session whose workspace is the memory
- * folder, given Codex's consolidation prompt as its one user message, with no FastVibe extension loaded (no recursion, no memory read for the thing
+ * folder, given Codex's consolidation prompt as its one user message, with no Pinext extension loaded (no recursion, no memory read for the thing
  * that writes memory) and nobody to ask — a prompt it raised would have no panel.
  */
 export async function runMemoryAgent(
-  host: { runtime: ModelRuntime; models: ModelRegistry; paths: FastVibePaths; model: ReturnType<ModelRegistry["find"]> },
+  host: { runtime: ModelRuntime; models: ModelRegistry; paths: PinextPaths; model: ReturnType<ModelRegistry["find"]> },
   request: { cwd: string; task: string; signal?: AbortSignal },
 ): Promise<void> {
   if (!host.model) throw new Error("no model is available for memory consolidation");

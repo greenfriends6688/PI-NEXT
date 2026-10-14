@@ -1,6 +1,6 @@
 # 从其他 Agent 导入会话：格式调研与实现设计
 
-> 对应 roadmap-2026-09-16.md 第二阶段 **P2「CLI 导入与迁移」**：只读发现 / 显式导入会话及非秘密配置，复制到 FastVibe 根，说明冲突与不支持项。
+> 对应 roadmap-2026-09-16.md 第二阶段 **P2「CLI 导入与迁移」**：只读发现 / 显式导入会话及非秘密配置，复制到 PI NEXT 根，说明冲突与不支持项。
 >
 > 结论基于本机真实数据逆向（`~/.claude` 9.1 MB / `~/.codex` 4.8 GB / `~/.local/share/opencode` 3.4 GB / `~/.pi` 3.7 MB / `~/.gemini` 191 MB），以及 SDK 与主进程源码。凡未验证的推断均标注 `UNVERIFIED`。
 
@@ -8,7 +8,7 @@
 
 ## 1. 结论
 
-**可行。** FastVibe 的会话本来就是 pi SDK 的 v3 会话文件（JSONL），而四个主流 agent 的会话都是「JSONL / JSON + 索引」结构，全部可以无损降级到同一套中间表示再写出。真正的工作量不在解析，而在**契约的十几条硬性规则**和**产品边界**（只读、选择性导入、大语料、上下文超限）。
+**可行。** PI NEXT 的会话本来就是 pi SDK 的 v3 会话文件（JSONL），而四个主流 agent 的会话都是「JSONL / JSON + 索引」结构，全部可以无损降级到同一套中间表示再写出。真正的工作量不在解析，而在**契约的十几条硬性规则**和**产品边界**（只读、选择性导入、大语料、上下文超限）。
 
 | 来源 | 存储 | 可枚举索引 | 导入难度 | 建议 |
 | --- | --- | --- | --- | --- |
@@ -89,7 +89,7 @@
 | R5 | `assistant` 要带 `api/provider/model/usage/stopReason`；`usage` 缺字段按 0 计（不报错，但统计会失真） | types.d.ts:307-329 |
 | R6 | **每个 `toolCall` 必须有配对的 `toolResult` 条目，且紧跟在承载它的那条 assistant 之后**（中间不能插入 user/assistant）。SDK 对条目内容不做修补（只把 `content == null` 补成 `[]`），悬空 tool_use 会在下一次真实请求里被 provider 拒绝（Anthropic 400） | session-manager.js:166-189；实测见 §9 |
 | R7 | **外来 thinking 的 `signature` 必须剥掉**。有 signature 时 pi 会原样回传 `signature`（anthropic-messages.js:996-1023），外来签名会被拒绝或语义错误；无 signature 的 thinking 会被安全降级成 `text` 发送 | anthropic-messages.js:985-1023 |
-| R8 | 会话文件**复制**进 FastVibe 根，不做软链/引用。删除会话会 `unlink(sessionFile)`（process-manager.ts:747-752），引用会毁掉用户原始数据；同时绝不写 `~/.pi`、`~/.claude` 等外部目录（独立数据目录约束） | process-manager.ts:371-373,747-752 |
+| R8 | 会话文件**复制**进 PI NEXT 根，不做软链/引用。删除会话会 `unlink(sessionFile)`（process-manager.ts:747-752），引用会毁掉用户原始数据；同时绝不写 `~/.pi`、`~/.claude` 等外部目录（独立数据目录约束） | process-manager.ts:371-373,747-752 |
 | R9 | `cwd` 必须**真实存在**才能绑项目；否则落到 `runtime/engine/scratch/<sessionId>`（每个会话各自一份，不共用根目录），不能把不存在的路径交给 bash 工具当工作目录 | writer.ts |
 | R10 | **上下文不是无上限的**。`session.messages`（`buildSessionContext`）= 送进 LLM 的全部历史；一个 2000 条消息的导入会话首轮就会超窗 | session-manager.js:232-237 |
 
@@ -167,7 +167,7 @@ interface ImportSource {
 
 ### 4.2 Claude Code
 
-- 根：`~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`；目录名编码与 FastVibe 一致（`/Users/a/b` → `-Users-a-b`），**前缀单横线而非双横线**。子目录 `memory/` 与导入无关。
+- 根：`~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`；目录名编码与 PI NEXT 一致（`/Users/a/b` → `-Users-a-b`），**前缀单横线而非双横线**。子目录 `memory/` 与导入无关。
 - 另有桌面版清单：`~/Library/Application Support/Claude/claude-code-sessions/<ws>/<worktreeHash>/local_*.json`（`UNVERIFIED`：结构与 CLI JSONL 的关系未确认，倾向不作为 v1 来源）。
 - 顶层 `type` 分布（实测 12 个文件 / 9.1 MB）：`assistant` 1439、`user` 852、`attachment` 564、`last-prompt` 216、`ai-title` 208、`custom-title` 116、`atis-latch` 116、`queue-operation` 112、`system` 29、`mode` 28、`bridge-session` 26。
 - **只要 `assistant` + `user`**；其余是 UI/书签状态。`ai-title` / `custom-title` 可作标题来源（`{type, sessionId, aiTitle|customTitle}`），`last-prompt` 可作 preview。
@@ -254,7 +254,7 @@ part(id, message_id, session_id, time_created, time_updated, data)  -- data 是 
   - `opencode.db` 可能在 opencode 运行时被锁 → 用只读方式打开（`file:…?immutable=1` 或先复制 db + `-wal` 到临时目录），并对 `SQLITE_BUSY` 做一次重试。
   - 旧 `storage/` 与 DB 的会话 id 有重叠但**内容不一定一致**；以 DB 为准，storage 仅在 DB 缺失时兜底。
   - 大体积来自 `event` 表（与导入无关，不要 `select *`）。
-  - `permission[]`、`revert`、`summary.*`、`snapshot` 与 FastVibe 的权限模型不对应，丢弃并在导入报告里列出。
+  - `permission[]`、`revert`、`summary.*`、`snapshot` 与 PI NEXT 的权限模型不对应，丢弃并在导入报告里列出。
 
 ### 4.5 zcode（z.ai 官方 CLI）
 
@@ -325,7 +325,7 @@ part(id, message_id, session_id, time_created, time_updated, data)  -- data 是 
 - 导入是**新增会话**，不修改、不删除来源数据；不覆盖同名会话（id 为新 UUID）。
 - 幂等：用 `conversations.json` 里的 `importedFrom` 标记；再次导入提示「已导入（可强制重复）」。
 - 大语料：默认上限（如按体积/条数）避免一次拉入 GB 级数据；超出时引导按项目/时间筛选。
-- 导入的会话在侧栏可加「来源」徽标（如 `Claude Code`），并在转录中把原 cwd 与「缺失的工具输出」说明清楚——用户必须能分辨哪些内容是历史、哪些是 FastVibe 的推断。
+- 导入的会话在侧栏可加「来源」徽标（如 `Claude Code`），并在转录中把原 cwd 与「缺失的工具输出」说明清楚——用户必须能分辨哪些内容是历史、哪些是 PI NEXT 的推断。
 
 ---
 
@@ -382,7 +382,7 @@ append 一轮后: 54 entries; version 仍为 3; 末行仍可解析   ← 继续�
 - Codex `local_shell_call`、`patch_apply_*` 事件、`item_completed` 与 `response_item` 的完整对应关系；`thread_items`（第三代）是否已完全取代 rollout 作为真相源。
 - opencode `session_message` / `session_input` 表的语义（是否也已承载正文）。
 - 各来源在 **旧版本** 下的字段漂移程度（建议用旧备份样本补 fixture）。
-- 未在真实 FastVibe 运行中验证渲染与使用统计的端到端表现（仅验证了 SDK 读取路径，§8）。
+- 未在真实 PI NEXT 运行中验证渲染与使用统计的端到端表现（仅验证了 SDK 读取路径，§8）。
 
 > 本文只新增调研文档：未安装依赖、未运行应用、未修改任何业务代码；验证脚本只读取 `~/.claude` 并在 `/tmp` 写出测试文件，外部数据未被改动。
 
@@ -407,7 +407,7 @@ append 一轮后: 54 entries; version 仍为 3; 末行仍可解析   ← 继续�
 
 `zcode` 后来按同一份契约加入（`src/main/engine/import/sources/zcode.ts`），本机语料 23 个候选、扫描 6ms、单会话读取 4ms、共 725 条消息，工具调用 / 工具结果 1:1 配对，零悬空调用，3 处模型切换能还原成分隔条。它同时暴露了四条只属于该源的规则，见 §4.5。
 
-每个导入都通过了 §7 的全部断言：header `version: 3`、id 唯一、`parentId` 线性链、`ctx` 消息数与写入数一致、0 悬空工具调用、0 签名、工具结果与其调用相邻、末行可解析、可继续对话（append 后仍为 v3）、计入使用统计、写出的文件全在 FastVibe 目录内、`conversations.json` 重载后 `importedFrom` 仍在、重复扫描会标记已导入。
+每个导入都通过了 §7 的全部断言：header `version: 3`、id 唯一、`parentId` 线性链、`ctx` 消息数与写入数一致、0 悬空工具调用、0 签名、工具结果与其调用相邻、末行可解析、可继续对话（append 后仍为 v3）、计入使用统计、写出的文件全在 PI NEXT 目录内、`conversations.json` 重载后 `importedFrom` 仍在、重复扫描会标记已导入。
 
 新增两条当时未预料到的产品约束：
 

@@ -8,7 +8,7 @@
 
 import { randomUUID } from "./random.ts";
 
-const PREFIX = "fastvibe-attachment-v1:";
+const PREFIX = "pinext-attachment-v1:";
 const ID_PATTERN = /^att_[A-Za-z0-9_-]{8,80}$/;
 
 export type BinaryAttachment = {

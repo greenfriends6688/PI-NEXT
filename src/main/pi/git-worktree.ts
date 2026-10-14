@@ -39,7 +39,7 @@ export async function createGitWorktree(project: string, id: string, options?: {
   const root = await gitToplevel(project);
   const projectName = basename(root);
   const safe = sanitizeSegment(options?.label || options?.branch || "run") || "run";
-  const branch = (options?.branch?.trim() || `fastvibe/${safe}-${id.slice(0, 8)}`).replace(/^\/+/, "");
+  const branch = (options?.branch?.trim() || `pinext/${safe}-${id.slice(0, 8)}`).replace(/^\/+/, "");
   if (!branch || branch.startsWith("-") || branch.includes("\0") || /\s/.test(branch)) {
     throw new Error(uiText("分支名称无效", "Invalid branch name"));
   }

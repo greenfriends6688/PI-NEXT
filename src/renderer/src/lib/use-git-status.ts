@@ -47,7 +47,7 @@ export async function readGitStatus(cwd: string, force = false): Promise<GitStat
   if (!force && cached && Date.now() - cached.at < TTL) return cached.status;
   const pending = inflight.get(cwd);
   if (pending) return pending;
-  const request = window.fastvibe.workspace
+  const request = window.pinext.workspace
     .gitStatus(cwd)
     .then((status) => {
       cache.set(cwd, { at: Date.now(), status });

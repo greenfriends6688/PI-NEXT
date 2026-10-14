@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { THINKING_EFFORT_LEVELS, type CostTier, type ModelPrice, type ProviderModel, type ThinkingLevel } from "@shared/types";
-import { getFastVibePaths } from "./paths";
+import { getPinextPaths } from "./paths";
 import { defaultContextWindow } from "./context-window";
 
 /**
@@ -104,7 +104,7 @@ export function bundledIndexPath(): string | null {
  * app shipped with.
  */
 export function localIndexPath(): string {
-  return join(getFastVibePaths().userData, "models-dev.json");
+  return join(getPinextPaths().userData, "models-dev.json");
 }
 
 /**
@@ -249,7 +249,7 @@ function decodeCost(cost: CostTuple | undefined): ModelPrice {
 
 /**
  * Translate the catalog's effort values into pi levels. `off` is deliberately absent:
- * it is not a capability the catalog reports but the absence of thinking, and FastVibe
+ * it is not a capability the catalog reports but the absence of thinking, and Pinext
  * never requests it, because an upstream whose model reasons by default rejects the
  * parameter. `xhigh` and `max` are only offered by pi when the model maps them
  * explicitly, so those mappings are recorded even when the provider names the level

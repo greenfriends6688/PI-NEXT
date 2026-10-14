@@ -5,7 +5,7 @@ import { getModels } from "@/lib/engine-client";
 import { useDraftPersistence } from "@/lib/draft-persistence";
 import { useSessionStore } from "@/stores/session";
 import { useSidePaneStore } from "@/stores/side-pane";
-import type { ChatAttachment, ChatMessage, FastVibeModel } from "@shared/types";
+import type { ChatAttachment, ChatMessage, PinextModel } from "@shared/types";
 
 /**
  * The models this install can actually chat with.
@@ -15,10 +15,10 @@ import type { ChatAttachment, ChatMessage, FastVibeModel } from "@shared/types";
  * because "no models" is the one condition that has to stop a prompt before a
  * conversation is created only for it to fail.
  */
-export async function availableModels(): Promise<FastVibeModel[]> {
+export async function availableModels(): Promise<PinextModel[]> {
   const cached = useSessionStore.getState().models;
   if (cached.length > 0) return cached;
-  const next = await getModels().catch((): FastVibeModel[] => []);
+  const next = await getModels().catch((): PinextModel[] => []);
   useSessionStore.getState().setModels(next);
   return next;
 }

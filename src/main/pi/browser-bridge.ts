@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { uiText } from "../engine/ui-text";
 import { readAppSettings } from "../engine/app-settings";
 import { runBrowserCdp } from "../engine/browser-cdp";
-import { getFastVibePaths } from "../engine/paths";
+import { getPinextPaths } from "../engine/paths";
 import { app, type WebContents } from "electron";
 import { Ipc } from "@shared/ipc";
 import type { BrowserRequest } from "@shared/types";
@@ -45,7 +45,7 @@ export function respondBrowserRequest(response: BrowserResponse): void {
  */
 function useSystemBrowser(): boolean {
   try {
-    return readAppSettings(getFastVibePaths()).browserUseSystem === true;
+    return readAppSettings(getPinextPaths()).browserUseSystem === true;
   } catch {
     return false;
   }
@@ -62,7 +62,7 @@ function useSystemBrowser(): boolean {
 export function requestBrowser(request: BrowserRequest, signal?: AbortSignal): Promise<unknown> {
   if (signal?.aborted) return Promise.reject(abortError());
   if (useSystemBrowser()) {
-    const profileDir = join(getFastVibePaths().runtimeRoot, "browser-profile");
+    const profileDir = join(getPinextPaths().runtimeRoot, "browser-profile");
     return untilAborted(runBrowserCdp(request, profileDir), signal);
   }
   if (!target || target.isDestroyed()) return Promise.reject(new Error(uiText("内置浏览器尚未打开", "Built-in browser is not open")));
@@ -108,9 +108,9 @@ function untilAborted<T>(work: Promise<T>, signal: AbortSignal | undefined): Pro
   });
 }
 
-/** Exposed for the resource-loaded extension without importing FastVibe internals. */
+/** Exposed for the resource-loaded extension without importing Pinext internals. */
 export function installBrowserGlobal(): void {
-  (globalThis as Record<string, unknown>).__fastvibeBrowserRequest = requestBrowser;
+  (globalThis as Record<string, unknown>).__pinextBrowserRequest = requestBrowser;
 }
 
 /**

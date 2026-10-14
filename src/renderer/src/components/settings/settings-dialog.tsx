@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import type { FastVibeModel, ImportRunResult, WorkspaceSnapshot } from "@shared/types";
+import type { PinextModel, ImportRunResult, WorkspaceSnapshot } from "@shared/types";
 import { notificationsEnabled } from "@shared/notifications";
 import { useSettingsStore } from "@/stores/settings";
 import { useIsNarrowViewport } from "@/lib/sidebar-visibility";
@@ -84,7 +84,7 @@ export function SettingsDialog({
   /** Sessions imported in Settings → 导入, so the sidebar picks the new chats up. */
   onImported?: (snapshot: WorkspaceSnapshot, result: ImportRunResult) => void;
   /** Model catalog, for the 默认模型 picker. */
-  models?: FastVibeModel[];
+  models?: PinextModel[];
   /** Active sub-route, e.g. "providers". */
   section?: SectionId;
 }): JSX.Element | null {

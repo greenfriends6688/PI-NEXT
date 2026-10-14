@@ -87,8 +87,8 @@ jobs:
           # `latest-linux.yml` for x64, `latest-linux-arm64.yml` for arm64 — the name
           # electron-updater derives from `process.arch` (`getChannelFilePrefix`), so an
           # arm64 client never reads the x64 file and neither leg can overwrite the
-          # other's update channel. Same for the artifacts (`FastVibe-<v>-arm64.AppImage`,
-          # `fastvibe_<v>_arm64.deb`), so no `files` glob or `publish` step has to learn
+          # other's update channel. Same for the artifacts (`Pinext-<v>-arm64.AppImage`,
+          # `pinext_<v>_arm64.deb`), so no `files` glob or `publish` step has to learn
           # about the second architecture.
           - os: ubuntu-24.04
             platform: linux
@@ -279,9 +279,9 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           draft: true
-          # `FastVibe vX.Y.Z` rather than the bare tag, on every leg, so the draft and the
+          # `Pinext vX.Y.Z` rather than the bare tag, on every leg, so the draft and the
           # published release carry the same title (the publish job sets it again on the way out).
-          name: FastVibe ${{ github.ref_name }}
+          name: Pinext ${{ github.ref_name }}
           # The release note is `docs/release/<tag>.md`, committed with the version bump
           # (see the header block above). It is a file rather than `generate_release_notes`
           # for two reasons: the note is written and reviewed before the tag exists, and
@@ -366,7 +366,7 @@ jobs:
           draft: false
           # Re-supplied on the way out so the release GitHub ends up with is the one in the
           # repo even if a draft was edited by hand while a failed run was being fixed.
-          name: FastVibe ${{ github.ref_name }}
+          name: Pinext ${{ github.ref_name }}
           body_path: docs/release/${{ github.ref_name }}.md
           # A tag carrying a semver prerelease component (v0.8.3-rc.1) has to be
           # flagged as one on GitHub, because that flag is the only thing keeping it

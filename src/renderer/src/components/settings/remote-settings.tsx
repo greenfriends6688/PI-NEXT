@@ -12,14 +12,14 @@ import { RemoteOfficial } from "./remote-official";
 import { RemoteLan } from "./remote-lan";
 
 /**
- * 远程访问: let phones signed in to the same FastVibe account find and use this computer.
+ * 远程访问: let phones signed in to the same Pinext account find and use this computer.
  *
  * One switch turns on two ways in. Phones signed in to the same account find this
  * computer on their own, with no address and no password (`RemoteOfficial`); and once a
  * LAN password is set, phones on the local network scan a code or find it by name
  * (`RemoteLan`). Neither is required for the other.
  *
- * State comes from `remote:state` pushes (`window.fastvibe.remote.onState`), the same
+ * State comes from `remote:state` pushes (`window.pinext.remote.onState`), the same
  * broadcast a second window would receive — so two settings panes cannot show the
  * connection as up in one and down in the other.
  */
@@ -45,7 +45,7 @@ export function RemoteSettings(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    void window.fastvibe.remote
+    void window.pinext.remote
       .getState()
       .then((current) => {
         if (!cancelled) setState(current);
@@ -55,7 +55,7 @@ export function RemoteSettings(): JSX.Element {
       });
     // Pushed by every write this pane (or a second window) makes, and by a phone
     // connecting or leaving, which nothing in this pane does.
-    const off = window.fastvibe.remote.onState(setState);
+    const off = window.pinext.remote.onState(setState);
     return () => {
       cancelled = true;
       off();
@@ -76,21 +76,21 @@ export function RemoteSettings(): JSX.Element {
 
   async function toggle(enabled: boolean): Promise<void> {
     const next = enabled
-      ? await run(() => window.fastvibe.remote.start())
-      : await run(() => window.fastvibe.remote.stop());
+      ? await run(() => window.pinext.remote.start())
+      : await run(() => window.pinext.remote.stop());
     if (next) setState(next);
   }
 
   /** An error from the official connection has nothing to retry but the whole switch. */
   async function retryOfficial(): Promise<void> {
-    await run(() => window.fastvibe.remote.stop());
-    const next = await run(() => window.fastvibe.remote.start());
+    await run(() => window.pinext.remote.stop());
+    const next = await run(() => window.pinext.remote.start());
     if (next) setState(next);
   }
 
   async function saveDeviceName(name = deviceName): Promise<void> {
     if (busy || deviceNameProblem(name)) return;
-    const next = await run(() => window.fastvibe.remote.setDeviceName(name.trim()));
+    const next = await run(() => window.pinext.remote.setDeviceName(name.trim()));
     if (next) {
       setState(next);
       setDeviceName(next.deviceName || next.defaultDeviceName);

@@ -13,7 +13,7 @@ import { readDecisionConfig, writeDecisionConfig } from "../src/main/engine/deci
  */
 
 function withTempFile(fn: (file: string) => void) {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-decision-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-decision-"));
   try {
     fn(join(dir, "decision.json"));
   } finally {

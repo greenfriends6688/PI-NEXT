@@ -32,15 +32,15 @@ export function DecisionSettings() {
 
   useEffect(() => {
     let cancelled = false;
-    window.fastvibe.decision.getConfig().then((config) => {
+    window.pinext.decision.getConfig().then((config) => {
       if (cancelled) return;
       applyExternal(config);
       setLoading(false);
     });
-    window.fastvibe.providers.list().then((list) => {
+    window.pinext.providers.list().then((list) => {
       if (!cancelled) setProviders(list);
     }).catch(() => undefined);
-    const unsubscribe = window.fastvibe.decision.onChanged((config) => applyExternal(config));
+    const unsubscribe = window.pinext.decision.onChanged((config) => applyExternal(config));
     return () => {
       cancelled = true;
       unsubscribe();
@@ -59,7 +59,7 @@ export function DecisionSettings() {
   async function save(next: DecisionModelConfig) {
     setSaving(true);
     try {
-      applyExternal(await window.fastvibe.decision.saveConfig(next));
+      applyExternal(await window.pinext.decision.saveConfig(next));
       toast.success(t("decision.saved"));
     } catch (cause) {
       toast.error(t("decision.saveFailed", { error: cleanError(cause) }));
@@ -78,7 +78,7 @@ export function DecisionSettings() {
     if (value !== "off" && !model) return;
     setSaving(true);
     try {
-      const stored = decisionModelConfigOf(await window.fastvibe.decision.saveConfig({
+      const stored = decisionModelConfigOf(await window.pinext.decision.saveConfig({
         ...saved,
         kind: model ? "jev" : "off",
         ...(model ? { model } : { model: undefined }),

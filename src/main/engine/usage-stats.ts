@@ -10,7 +10,7 @@ import type {
   UsageTotals,
 } from "@shared/types";
 import { catalogPrice } from "./models-dev";
-import type { FastVibePaths } from "./paths";
+import type { PinextPaths } from "./paths";
 import { priceUsage } from "./pricing";
 import { modelPriceIndex, readProviders } from "./providers";
 import { parseSessionTurns, turnKey, usageLedgerFor, type UsageTurn } from "./usage-ledger";
@@ -39,12 +39,12 @@ type ModelBucket = {
 };
 
 export async function collectUsageStats(
-  paths: FastVibePaths,
+  paths: PinextPaths,
   range: UsageRange = "30d",
 ): Promise<UsageStats> {
   const files = await listSessionFiles(paths.sessionsDir);
   const prices = modelPriceIndex(paths);
-  // A turn records only its provider *id* (`fastvibe`, or the internal
+  // A turn records only its provider *id* (`pinext`, or the internal
   // `custom-<slug>` of a user-added provider), which is not a name a user should ever
   // read — and a custom provider whose name has no ASCII collapses to the slug
   // `provider`, so the id alone reads as the literal word. Resolve the display name

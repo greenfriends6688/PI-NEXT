@@ -1,7 +1,7 @@
 /**
  * The official remote connection, as the settings pane sees it.
  *
- * The phone reaches this desktop through FastVibe's cloud: signaling introduces them (only
+ * The phone reaches this desktop through Pinext's cloud: signaling introduces them (only
  * devices signed in to the same account), and WebRTC connects them directly when it can,
  * relaying through the cloud only when it cannot. Shared by Main, which runs it, and the
  * renderer, which only shows it.
@@ -13,7 +13,7 @@ export type OfficialPath =
   | "connecting"
   /** Straight to this machine, on the LAN or across NATs. Costs the account nothing. */
   | "direct"
-  /** Through FastVibe's relay. Counts against the account's monthly relay allowance. */
+  /** Through Pinext's relay. Counts against the account's monthly relay allowance. */
   | "relay";
 
 export type OfficialPeer = {
@@ -27,7 +27,7 @@ export type OfficialPeer = {
 export type OfficialStatus =
   /** The switch is off. */
   | "off"
-  /** The switch is on but there is no FastVibe account to connect as. */
+  /** The switch is on but there is no Pinext account to connect as. */
   | "signed-out"
   /** Registering, or waiting for the cloud. */
   | "connecting"

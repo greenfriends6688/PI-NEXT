@@ -2,10 +2,10 @@ import { Type } from "typebox";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 /**
- * Computer-use tools, backed by Cua Driver running inside FastVibe's main process.
+ * Computer-use tools, backed by Cua Driver running inside Pinext's main process.
  *
  * The shape mirrors `browser-use.ts` — a `globalThis` bridge rather than an import,
- * because this file is loaded by path from outside the asar and cannot reach FastVibe's
+ * because this file is loaded by path from outside the asar and cannot reach Pinext's
  * own modules. What differs is the blast radius: `browser-use` drives a webview this app
  * owns, while these tools drive the user's actual desktop, including applications and
  * documents that have nothing to do with the conversation. Every description below is
@@ -51,13 +51,13 @@ type ComputerResult = {
 type ComputerBridge = (request: ComputerRequest) => Promise<ComputerResult>;
 
 function bridge(): ComputerBridge {
-  const handler = (globalThis as Record<string, unknown>).__fastvibeComputerRequest;
+  const handler = (globalThis as Record<string, unknown>).__pinextComputerRequest;
   if (typeof handler !== "function") throw new Error("电脑操作桥接尚未就绪");
   return handler as ComputerBridge;
 }
 
 function boundConversationId(): string | undefined {
-  const value = (globalThis as Record<string, unknown>).__fastvibeComputerConversationId;
+  const value = (globalThis as Record<string, unknown>).__pinextComputerConversationId;
   return typeof value === "string" && value ? value : undefined;
 }
 
@@ -83,8 +83,8 @@ const COMPUTER_STEP_TOOLS = ["computer_click", "computer_type", "computer_key", 
 /** Main's decision-model loop and its switch, when this host provides them (not headless). */
 function computerTaskRunner(): { run: ComputerTaskRunner; enabled: () => boolean } | undefined {
   const scope = globalThis as Record<string, unknown>;
-  const enabled = scope.__fastvibeComputerTaskEnabled;
-  const runner = scope.__fastvibeComputerTask;
+  const enabled = scope.__pinextComputerTaskEnabled;
+  const runner = scope.__pinextComputerTask;
   if (typeof enabled !== "function" || typeof runner !== "function") return undefined;
   return {
     run: runner as ComputerTaskRunner,

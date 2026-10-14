@@ -5,7 +5,7 @@ export function useAppUpdate(): AppUpdateState | null {
   const [state, setState] = useState<AppUpdateState | null>(null);
 
   useEffect(() => {
-    const api = window.fastvibe?.updater;
+    const api = window.pinext?.updater;
     if (!api) return;
     void api.getState().then(setState).catch(() => undefined);
     return api.onState(setState);

@@ -36,7 +36,7 @@ function lines(entries: unknown[]): string {
 }
 
 async function withDir(run: (dir: string) => Promise<void>): Promise<void> {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-transcript-file-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-transcript-file-"));
   try {
     await run(dir);
   } finally {

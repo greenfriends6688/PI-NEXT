@@ -87,13 +87,13 @@ final Map<String, List<Diagnostic>> _metrics = <String, List<Diagnostic>>{};
 const int _maxEntries = 100;
 const int _maxMetricSamples = 32;
 
-/// `--dart-define=FASTVIBE_TRACE=true` also writes every sample to the device log as it is
+/// `--dart-define=PINEXT_TRACE=true` also writes every sample to the device log as it is
 /// taken, for measuring a build on a real network. Off in a shipped build.
-const bool _trace = bool.fromEnvironment('FASTVIBE_TRACE');
+const bool _trace = bool.fromEnvironment('PINEXT_TRACE');
 
 void recordConnectionDiagnostic(Diagnostic entry) {
   // ignore: avoid_print
-  if (_trace) print('FVTRACE ${jsonEncode(entry.toJson())}');
+  if (_trace) print('PINEXTTRACE ${jsonEncode(entry.toJson())}');
   if (entry.event == 'metric' && entry.metric != null) {
     final recent = _metrics.putIfAbsent(entry.metric!, () => <Diagnostic>[]);
     recent.add(entry);

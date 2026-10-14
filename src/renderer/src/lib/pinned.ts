@@ -7,7 +7,7 @@
  * sidebar draws the 已置顶 section, and the auto-archive sweep must leave a pinned chat
  * alone (pinning is the user saying "keep this one where I can see it").
  */
-const PINNED_KEY = "fastvibe.sidebar.pinned";
+const PINNED_KEY = "pinext.sidebar.pinned";
 
 /**
  * Pins are stored as `id -> pinnedAt` so the "已置顶" list can be ordered by pin

@@ -6,7 +6,7 @@ import type {
   DirEntry,
   EngineSessionState,
   ExtensionPackage,
-  FastVibeModel,
+  PinextModel,
   FilePreview,
   MarketPackage,
   McpServerStatus,
@@ -30,11 +30,11 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-export const PREVIEW_CWD = "/Users/dev/code/fastvibe";
+export const PREVIEW_CWD = "/Users/dev/code/pinext";
 export const SECOND_CWD = "/Users/dev/code/paper-trail";
 
 export const PROJECTS: Project[] = [
-  { cwd: PREVIEW_CWD, name: "fastvibe", createdAt: NOW - 12 * DAY, updatedAt: NOW - 2 * MINUTE },
+  { cwd: PREVIEW_CWD, name: "pinext", createdAt: NOW - 12 * DAY, updatedAt: NOW - 2 * MINUTE },
   { cwd: SECOND_CWD, name: "paper-trail", createdAt: NOW - 30 * DAY, updatedAt: NOW - 3 * DAY },
   {
     cwd: "remote:srv_preview:/home/dev/app",
@@ -104,7 +104,7 @@ export const CONVERSATIONS: Conversation[] = [
   {
     id: "conv-readme",
     title: "写一篇介绍 README",
-    cwd: "/Users/dev/FastVibe/scratch",
+    cwd: "/Users/dev/Pinext/scratch",
     createdAt: NOW - 20 * HOUR,
     updatedAt: NOW - 20 * HOUR,
     preview: "突出 100% 兼容 pi 插件机制，用截图讲清每个界面。",
@@ -113,7 +113,7 @@ export const CONVERSATIONS: Conversation[] = [
   {
     id: "conv-weekly",
     title: "整理这周的改动",
-    cwd: "/Users/dev/FastVibe/scratch",
+    cwd: "/Users/dev/Pinext/scratch",
     createdAt: NOW - 3 * DAY,
     updatedAt: NOW - 3 * DAY,
     preview: "把提交整理成易于阅读的周报，附带上线计划。",
@@ -209,14 +209,14 @@ const FAILED_TERMINAL: ToolCallBlock = {
   id: "tool-bash-fail",
   name: "bash",
   args: {
-    command: "cd /Users/dev/code/fastvibe && node /tmp/fvcheck/run.mjs 2>&1 | tail -20",
+    command: "cd /Users/dev/code/pinext && node /tmp/fvcheck/run.mjs 2>&1 | tail -20",
   },
   status: "error",
   result:
     "node:internal/modules/cjs/loader:1215\n" +
     "  throw err;\n" +
     "  ^\n\n" +
-    "Error: Cannot find module '/tmp/fvcheck/run.mjs' imported from /Users/dev/code/fastvibe/[eval]\n" +
+    "Error: Cannot find module '/tmp/fvcheck/run.mjs' imported from /Users/dev/code/pinext/[eval]\n" +
     "    at finalizeResolution (node:internal/modules/esm/resolve:283:11)\n" +
     "    at moduleResolve (node:internal/modules/esm/resolve:924:10)\n" +
     "    at defaultResolve (node:internal/modules/esm/resolve:1065:11)\n" +
@@ -228,7 +228,7 @@ const FAILED_TERMINAL: ToolCallBlock = {
 const FAILED_BUILD: ToolCallBlock = {
   id: "tool-build-fail",
   name: "bash",
-  args: { command: "cd /Users/dev/code/fastvibe && npx electron-vite build 2>&1 | tail -5" },
+  args: { command: "cd /Users/dev/code/pinext && npx electron-vite build 2>&1 | tail -5" },
   status: "error",
   result: "error during build:\nError: Could not resolve \"./missing\" from src/renderer/src/App.tsx",
 };
@@ -314,7 +314,7 @@ export const MESSAGES: ChatMessage[] = [
       // A switch made mid-reply: the divider sits between the reply's own blocks.
       {
         kind: "model",
-        from: { provider: "fastvibe", id: "claude-fable-5-1" },
+        from: { provider: "pinext", id: "claude-fable-5-1" },
         to: { provider: "deepseek", id: "deepseek-v4-pro" },
       },
       { kind: "tool", toolId: "tool-edit-settings" },
@@ -530,12 +530,12 @@ export const STATS: SessionStats = {
   timing: { totalMs: 68_400, modelMs: 41_200, toolMs: 18_200 },
 };
 
-export const MODELS: FastVibeModel[] = [
-  { provider: "fastvibe", providerName: "FastVibe", id: "claude-fable-5-1", name: "Claude Fable 5.1", thinkingLevels: ["low", "medium", "high", "xhigh", "max"] },
-  { provider: "fastvibe", providerName: "FastVibe", id: "claude-opus-5-5", name: "Claude Opus 5.5", thinkingLevels: ["low", "medium", "high", "xhigh", "max"] },
-  { provider: "fastvibe", providerName: "FastVibe", id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", thinkingLevels: ["low", "medium", "high", "xhigh", "max"] },
-  { provider: "fastvibe", providerName: "FastVibe", id: "gpt-6.1-sol", name: "GPT-6.1 Sol", thinkingLevels: ["low", "medium", "high", "xhigh", "max"] },
-  { provider: "fastvibe", providerName: "FastVibe", id: "gemini-3.7-flash", name: "Gemini 3.7 Flash", thinkingLevels: ["minimal", "low", "medium", "high"] },
+export const MODELS: PinextModel[] = [
+  { provider: "pinext", providerName: "Pinext", id: "claude-fable-5-1", name: "Claude Fable 5.1", thinkingLevels: ["low", "medium", "high", "xhigh", "max"] },
+  { provider: "pinext", providerName: "Pinext", id: "claude-opus-5-5", name: "Claude Opus 5.5", thinkingLevels: ["low", "medium", "high", "xhigh", "max"] },
+  { provider: "pinext", providerName: "Pinext", id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", thinkingLevels: ["low", "medium", "high", "xhigh", "max"] },
+  { provider: "pinext", providerName: "Pinext", id: "gpt-6.1-sol", name: "GPT-6.1 Sol", thinkingLevels: ["low", "medium", "high", "xhigh", "max"] },
+  { provider: "pinext", providerName: "Pinext", id: "gemini-3.7-flash", name: "Gemini 3.7 Flash", thinkingLevels: ["minimal", "low", "medium", "high"] },
   { provider: "deepseek", providerName: "DeepSeek", id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", thinkingLevels: ["low", "high", "max"] },
 ];
 
@@ -549,19 +549,19 @@ export const SKILLS: SkillInfo[] = [
   {
     name: "frontend-design",
     description: "Create distinctive, production-grade frontend interfaces with high design quality.",
-    filePath: "/Users/dev/FastVibe/runtime/engine/agent/skills/frontend-design/SKILL.md",
-    baseDir: "/Users/dev/FastVibe/runtime/engine/agent/skills/frontend-design",
+    filePath: "/Users/dev/Pinext/runtime/engine/agent/skills/frontend-design/SKILL.md",
+    baseDir: "/Users/dev/Pinext/runtime/engine/agent/skills/frontend-design",
     scope: "user",
-    source: "fastvibe",
+    source: "pinext",
     removable: true,
   },
   {
     name: "excalidraw",
     description: "Generate architecture diagrams as .excalidraw files from codebase analysis.",
-    filePath: "/Users/dev/FastVibe/runtime/engine/agent/skills/excalidraw/SKILL.md",
-    baseDir: "/Users/dev/FastVibe/runtime/engine/agent/skills/excalidraw",
+    filePath: "/Users/dev/Pinext/runtime/engine/agent/skills/excalidraw/SKILL.md",
+    baseDir: "/Users/dev/Pinext/runtime/engine/agent/skills/excalidraw",
     scope: "user",
-    source: "fastvibe",
+    source: "pinext",
     removable: true,
   },
   {
@@ -593,18 +593,18 @@ export const MARKET_PACKAGES: MarketPackage[] = [
 
 export const PROVIDERS: ProviderConfig[] = [
   {
-    id: "fastvibe",
+    id: "pinext",
     kind: "custom",
-    name: "FastVibe",
-    baseUrl: "https://fastvibe.dev/v1",
+    name: "Pinext",
+    baseUrl: "https://pinext.dev/v1",
     api: "openai-responses",
-    apiKeyEnv: "FASTVIBE_API_KEY",
+    apiKeyEnv: "PINEXT_API_KEY",
     hasKey: true,
     hasOAuth: false,
     supportsKey: true,
     gateway: "sub2api",
     enabled: true,
-    models: MODELS.filter((model) => model.provider === "fastvibe").map((model) => ({
+    models: MODELS.filter((model) => model.provider === "pinext").map((model) => ({
       id: model.id,
       name: model.name,
       contextWindow: 200_000,
@@ -703,7 +703,7 @@ export const PROVIDERS: ProviderConfig[] = [
 
 export const MCP_SERVERS: McpServerStatus[] = [
   { id: "mcp-filesystem", name: "filesystem", enabled: true, transport: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", PREVIEW_CWD], env: { LOG_LEVEL: "debug", ALLOWED_ROOT: PREVIEW_CWD }, connected: true, tools: ["read_file", "write_file", "list_directory", "search_files"] },
-  { id: "mcp-docs", name: "docs", enabled: true, transport: "http", url: "https://example.com/mcp", headers: { Authorization: "Bearer sk-demo:123", "X-Workspace": "fastvibe" }, connected: true, tools: ["search_docs"] },
+  { id: "mcp-docs", name: "docs", enabled: true, transport: "http", url: "https://example.com/mcp", headers: { Authorization: "Bearer sk-demo:123", "X-Workspace": "pinext" }, connected: true, tools: ["search_docs"] },
   { id: "mcp-postgres", name: "postgres", enabled: false, transport: "stdio", connected: false, tools: [], error: "not started" },
 ];
 
@@ -724,8 +724,8 @@ export const USAGE: UsageStats = {
     { date: "2026-09-14", input: 176_200, output: 19_400, cacheRead: 89_600, cacheWrite: 6_800, tokens: 285_200, cost: 1.84, requests: 38, toolCalls: 141 },
   ],
   models: [
-    { provider: "fastvibe", model: "claude-fable-5-1", input: 1_120_400, output: 112_800, cacheRead: 612_000, cacheWrite: 38_200, tokens: 1_845_200, cost: 11.24, requests: 248, toolCalls: 802 },
-    { provider: "fastvibe", model: "gpt-6.1-sol", input: 512_900, output: 51_200, cacheRead: 246_800, cacheWrite: 16_900, tokens: 810_900, cost: 5.18, requests: 112, toolCalls: 358 },
+    { provider: "pinext", model: "claude-fable-5-1", input: 1_120_400, output: 112_800, cacheRead: 612_000, cacheWrite: 38_200, tokens: 1_845_200, cost: 11.24, requests: 248, toolCalls: 802 },
+    { provider: "pinext", model: "gpt-6.1-sol", input: 512_900, output: 51_200, cacheRead: 246_800, cacheWrite: 16_900, tokens: 810_900, cost: 5.18, requests: 112, toolCalls: 358 },
     { provider: "deepseek", model: "deepseek-v4-pro", input: 209_000, output: 20_200, cacheRead: 75_200, cacheWrite: 7_300, tokens: 304_800, cost: 2.0, requests: 52, toolCalls: 124 },
   ],
   sessions: 37,
@@ -848,7 +848,7 @@ export function previewFor(path: string): FilePreview {
     return { kind: "code", path, name, language: name.endsWith(".tsx") ? "tsx" : "typescript", text: THEME_SELECT_TSX };
   }
   if (name.endsWith(".json")) {
-    return { kind: "code", path, name, language: "json", text: '{\n  "name": "fastvibe",\n  "version": "0.1.0"\n}\n' };
+    return { kind: "code", path, name, language: "json", text: '{\n  "name": "pinext",\n  "version": "0.1.0"\n}\n' };
   }
   return {
     kind: "markdown",
@@ -931,7 +931,7 @@ export const IMPORT_CANDIDATES: ImportCandidate[] = [
     id: "codex:live-1",
     source: "codex",
     title: "排查 browser_click 命中失败",
-    cwd: "/Users/yuantang/code/fastvibe",
+    cwd: "/Users/yuantang/code/pinext",
     createdAt: NOW - 40 * MINUTE,
     updatedAt: NOW - 25 * MINUTE,
     bytes: 3_100_000,
@@ -941,7 +941,7 @@ export const IMPORT_CANDIDATES: ImportCandidate[] = [
     id: "codex:live-2",
     source: "codex",
     title: "git worktree 并发冲突",
-    cwd: "/Users/yuantang/code/fastvibe",
+    cwd: "/Users/yuantang/code/pinext",
     createdAt: NOW - 4 * DAY,
     updatedAt: NOW - 4 * DAY + 50 * MINUTE,
     bytes: 1_240_000,

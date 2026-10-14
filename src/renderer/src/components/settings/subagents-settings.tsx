@@ -39,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { THINKING_EFFORT_LEVELS, type EngineModel, type FastVibeModel, type SubagentConfig, type SubagentDraft, type ThinkingLevel } from "@shared/types";
+import { THINKING_EFFORT_LEVELS, type EngineModel, type PinextModel, type SubagentConfig, type SubagentDraft, type ThinkingLevel } from "@shared/types";
 import { thinkingLabel } from "@/lib/thinking-levels";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +79,7 @@ function formFrom(config?: SubagentConfig): FormState {
   };
 }
 
-export function SubagentsSettings({ models }: { models: FastVibeModel[] }): JSX.Element {
+export function SubagentsSettings({ models }: { models: PinextModel[] }): JSX.Element {
   const { t } = useTranslation("settings");
   const dynamicDag = useSettingsStore((state) => state.settings.dynamicDag);
   const updateSettings = useSettingsStore((state) => state.update);
@@ -92,7 +92,7 @@ export function SubagentsSettings({ models }: { models: FastVibeModel[] }): JSX.
   const refresh = useCallback(async (): Promise<void> => {
     setLoading(true);
     try {
-      setAgents(await window.fastvibe.engine.listAgentConfigs());
+      setAgents(await window.pinext.engine.listAgentConfigs());
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("subagents.loadFailed"));
     } finally {
@@ -113,7 +113,7 @@ export function SubagentsSettings({ models }: { models: FastVibeModel[] }): JSX.
   ): Promise<void> {
     setSaving(true);
     try {
-      setAgents(await window.fastvibe.engine.saveAgentConfig({
+      setAgents(await window.pinext.engine.saveAgentConfig({
         id: agent.id,
         name: agent.name,
         description: agent.description,
@@ -142,7 +142,7 @@ export function SubagentsSettings({ models }: { models: FastVibeModel[] }): JSX.
       systemPrompt: editor.systemPrompt,
     };
     try {
-      setAgents(await window.fastvibe.engine.saveAgentConfig(draft));
+      setAgents(await window.pinext.engine.saveAgentConfig(draft));
       setEditor(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("subagents.saveFailed"));
@@ -155,7 +155,7 @@ export function SubagentsSettings({ models }: { models: FastVibeModel[] }): JSX.
     if (!removeId) return;
     setSaving(true);
     try {
-      setAgents(await window.fastvibe.engine.removeAgentConfig(removeId));
+      setAgents(await window.pinext.engine.removeAgentConfig(removeId));
       setRemoveId(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("subagents.removeFailed"));

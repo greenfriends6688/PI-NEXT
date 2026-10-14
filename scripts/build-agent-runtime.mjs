@@ -35,7 +35,7 @@ const runtimeDependencies = agentDependencies(agentRuntimePackages(agentEntry));
 const outputDir = resolve(root, String(args.get("output") || "release/agent-runtime"));
 const staging = join(outputDir, `.staging-${platform}-${arch}`);
 const target = `${platform}-${arch}`;
-const archive = join(outputDir, `fastvibe-agent-${target}.tar.gz`);
+const archive = join(outputDir, `pinext-agent-${target}.tar.gz`);
 const metadataFile = join(outputDir, `runtime-metadata-${target}.json`);
 rmSync(staging, { recursive: true, force: true });
 mkdirSync(staging, { recursive: true });
@@ -79,7 +79,7 @@ try {
   }
   // Node is intentionally not copied into the Agent archive. The remote bootstrap
   // reuses a compatible system Node, or installs the exact build version under the
-  // user's ~/.fastvibe-agent directory when the host has none.
+  // user's ~/.pinext-agent directory when the host has none.
   const runtimeHash = hashRuntimeDirectory(staging, {
     target,
     // CI tracks the Node major/minor line. Patch updates do not change the Agent
@@ -113,7 +113,7 @@ try {
     schema: 1,
     target,
     runtimeHash,
-    archive: `fastvibe-agent-${target}.tar.gz`,
+    archive: `pinext-agent-${target}.tar.gz`,
     archiveSha256,
     node: process.version,
   };
@@ -180,10 +180,10 @@ function pruneDebugFiles(rootDir) {
  * file it still needed fails here, with its log, before the archive exists.
  */
 async function smokeTest(dir) {
-  const scratch = mkdtempSync(join(tmpdir(), "fastvibe-agent-smoke-"));
+  const scratch = mkdtempSync(join(tmpdir(), "pinext-agent-smoke-"));
   const stateFile = join(scratch, "agent.json");
   const child = spawn(process.execPath, [join(dir, "out", "main", "agent.js"), "--headless", "--port=0", `--state-file=${stateFile}`, `--data-dir=${join(scratch, "data")}`], {
-    env: { ...process.env, HOME: scratch, FASTVIBE_AGENT_SYNC_TOKEN: "0".repeat(64) },
+    env: { ...process.env, HOME: scratch, PINEXT_AGENT_SYNC_TOKEN: "0".repeat(64) },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let log = "";

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:fastvibe_mobile/protocol/discovery.dart';
+import 'package:pinext_mobile/protocol/discovery.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,7 +31,7 @@ void main() {
       switch (call.method) {
         case 'startDiscovery':
           discoveryHandle = arguments['handle'] as String;
-          expect(arguments['service.type'], fastvibeServiceType);
+          expect(arguments['service.type'], pinextServiceType);
           await nativeEvent('onDiscoveryStartSuccessful', arguments);
         case 'resolve':
           // Match nsd_android's real wire format: addresses is one string, not a list.
@@ -54,7 +54,7 @@ void main() {
       await nativeEvent('onServiceDiscovered', <String, Object?>{
         'handle': discoveryHandle,
         'service.name': 'tangge mbp',
-        'service.type': fastvibeServiceType,
+        'service.type': pinextServiceType,
       });
       await Future<void>.delayed(Duration.zero);
       expect(nearby.machines, const <NearbyMachine>[
@@ -67,7 +67,7 @@ void main() {
       await nativeEvent('onServiceLost', <String, Object?>{
         'handle': discoveryHandle,
         'service.name': 'tangge mbp',
-        'service.type': fastvibeServiceType,
+        'service.type': pinextServiceType,
       });
       expect(nearby.machines, isEmpty);
     } finally {

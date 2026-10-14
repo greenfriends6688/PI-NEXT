@@ -22,9 +22,9 @@ import 'release.dart';
 /// iOS has no sideloading, so every entry point here is a no-op there.
 bool get updatesSupported => !kIsWeb && Platform.isAndroid;
 
-const String _skippedKey = 'fastvibe.update.skipped.v1';
-const String _cacheKey = 'fastvibe.update.checked.v1';
-const String _backoffKey = 'fastvibe.update.backoffUntil.v1';
+const String _skippedKey = 'pinext.update.skipped.v1';
+const String _cacheKey = 'pinext.update.checked.v1';
+const String _backoffKey = 'pinext.update.backoffUntil.v1';
 
 /// How long a 403/429 keeps an automatic check from asking again. A refusal that is
 /// retried on every resume is what keeps the refusal in place.

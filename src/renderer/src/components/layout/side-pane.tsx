@@ -75,7 +75,7 @@ export function disposeSidePaneTabs(tabs: SidePaneTab[]): void {
     if (tab.type === "terminal") releaseTerminal(tab.id);
     if (tab.type === "browser") releaseBrowser(tab.id);
     if (tab.type === "selection-side-chat" && tab.conversationId) {
-      void window.fastvibe.conversations.delete(tab.conversationId).catch(() => undefined);
+      void window.pinext.conversations.delete(tab.conversationId).catch(() => undefined);
     }
   }
 }

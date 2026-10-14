@@ -141,7 +141,7 @@ export const Ipc = {
   computerRequestPermissions: "computer:request-permissions",
   computerOpenSettings: "computer:open-settings",
   computerListApps: "computer:list-apps",
-  /** Starts the native drag that carries FastVibe.app into the Privacy & Security list. */
+  /** Starts the native drag that carries Pinext.app into the Privacy & Security list. */
   computerStartDrag: "computer:start-drag",
   /** The guided grant sequence, and the floating panel it drives. */
   computerStartGrantFlow: "computer:start-grant-flow",
@@ -233,7 +233,7 @@ export const Ipc = {
    * password on the host and restarts the Agent once. Disconnects the host first.
    */
   sshSetPhoneAccess: "ssh:set-phone-access",
-  /** SSH tunnel lifecycle for a selected remote FastVibe service. */
+  /** SSH tunnel lifecycle for a selected remote Pinext service. */
   sshConnect: "ssh:connect",
   sshDisconnect: "ssh:disconnect",
   sshState: "ssh:state",

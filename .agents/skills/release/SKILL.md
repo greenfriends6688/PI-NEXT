@@ -1,6 +1,6 @@
 ---
 name: release
-description: 发布 FastVibe 新版本：按提交推断并写入 package.json 版本号、生成 release note 并提交到 docs/release/{version}.md、打 tag 推送触发远端 CI 打包，CI 直接用它当 GitHub Release body。用户说「发版 / 发布新版本 / 出个 release / cut a release」时使用。
+description: 发布 Pinext 新版本：按提交推断并写入 package.json 版本号、生成 release note 并提交到 docs/release/{version}.md、打 tag 推送触发远端 CI 打包，CI 直接用它当 GitHub Release body。用户说「发版 / 发布新版本 / 出个 release / cut a release」时使用。
 ---
 
 # Release
@@ -12,7 +12,7 @@ GitHub Release 的 body（`release.yml` 的 `body_path`）。所以发布出去�
 
 ## 环境
 
-FastVibe 的 agent shell 只有 `/usr/bin:/bin:...`，node / pnpm / gh 都不在 PATH 上，
+Pinext 的 agent shell 只有 `/usr/bin:/bin:...`，node / pnpm / gh 都不在 PATH 上，
 而 bash 工具每次调用都是新 shell（`export` 不跨调用生效）。**每条命令都加这个前缀**：
 
 ```bash
@@ -77,7 +77,7 @@ compare 链接。
 - 每条一到两句，说清「改了什么、用户能感觉到什么」，不要贴 diff 细节。
 - **只写桌面端产品改动。** 以 Electron 应用及其运行时为范围（`src/main`、`src/preload`、
   `src/renderer`、`src/shared`、`resources/extensions`、桌面打包与更新）。官网与云服务已经
-  搬到另一个私有仓库（`tyuan511/fastvibe-services`），不在本仓库里，也不会进入 release note。
+  搬到另一个私有仓库（`YOUR_GITHUB_OWNER/pinext-services`），不在本仓库里，也不会进入 release note。
 - README / 文档本身的改写不算发布内容；只有它描述了同一 tag 区间内真实交付的桌面功能时，
   才从对应代码改动提炼该功能，不能把「新增文档」写成一条更新。
 - 一个提交同时包含桌面端与其他改动时必须查看 diff，只提炼桌面端部分，不能照抄提交标题或
@@ -108,7 +108,7 @@ rg -P '[\p{Han}]' docs/release/vX.Y.Z.md || echo "all English"
 --notes-file` 覆盖即可，产物不用重打；覆盖前先把原文存到仓库外备份：
 
 ```bash
-gh release view vX.Y.Z --json tagName,body > "${TMPDIR:-/tmp}/fv-notes/vX.Y.Z.json"
+gh release view vX.Y.Z --json tagName,body > "${TMPDIR:-/tmp}/pn-notes/vX.Y.Z.json"
 ```
 
 ### 3. 写入版本号和 note 并提交
@@ -125,7 +125,7 @@ git commit -m "chore: release vX.Y.Z"
 ### 4. 打 tag 并推送
 
 ```bash
-git tag -a vX.Y.Z -m "FastVibe vX.Y.Z"
+git tag -a vX.Y.Z -m "Pinext vX.Y.Z"
 git push origin main
 git push origin vX.Y.Z
 ```
@@ -134,10 +134,10 @@ git push origin vX.Y.Z
 `-a` 与已有的 `v0.0.1` 保持一致。`release.yml` 是 mac ×2 / linux ×2 / win 的矩阵，各自
 `build → stage:app → electron-builder`，把 dmg / zip / exe / AppImage / deb /
 blockmap / `latest*.yml` 传到**同一个 draft Release** 上。Linux 两条腿按架构分开，产出
-`FastVibe-<v>.AppImage` / `fastvibe_<v>_amd64.deb` / `latest-linux.yml` 与
-`FastVibe-<v>-arm64.AppImage` / `fastvibe_<v>_arm64.deb` / `latest-linux-arm64.yml`；
+`Pinext-<v>.AppImage` / `pinext_<v>_amd64.deb` / `latest-linux.yml` 与
+`Pinext-<v>-arm64.AppImage` / `pinext_<v>_arm64.deb` / `latest-linux-arm64.yml`；
 `latest-linux-arm64.yml` 正是 arm64 上 electron-updater 按 `process.arch` 去取的文件名，
-所以两条腿不会互相覆盖更新通道。Agent runtime 的 `fastvibe-agent-linux-*.tar.gz` 不在这里
+所以两条腿不会互相覆盖更新通道。Agent runtime 的 `pinext-agent-linux-*.tar.gz` 不在这里
 产出，它由独立的 `agent-runtime.yml` 发布（见 `docs/agent-runtime.md`）。
 
 **draft 是对用户不可见的窗口期，最后一步才转正。** 这些产物有 130 MB 量级，而
@@ -197,7 +197,7 @@ diff <(gh release view vX.Y.Z --json body --jq .body) docs/release/vX.Y.Z.md
 
 校验四项：tag 对、不是 draft、上面那条 `diff` 无输出、产物齐全（mac 两条 dmgs/zip +
 blockmap、win exe、linux 两条腿的 AppImage/deb、`latest-mac.yml` / `latest.yml` /
-`latest-linux.yml` / `latest-linux-arm64.yml`）；title 是 `FastVibe vX.Y.Z`。最后把 `url` 给用户。
+`latest-linux.yml` / `latest-linux-arm64.yml`）；title 是 `Pinext vX.Y.Z`。最后把 `url` 给用户。
 
 若 body 确实错了（写成中文、漏了内容等），改的是**那条 Release**，不是重打产物：
 
@@ -221,11 +221,11 @@ note，设置 → 关于 → 更新日志显示当前安装版本的 note，都�
 node .agents/skills/release/scripts/release-notes.mjs --tag app-vX.Y.Z   # 从上一个 app-v tag 起，只列 apps/mobile_flutter 的提交
 # 改写后写入 docs/release/app-vX.Y.Z.md，pubspec.yaml 改成 X.Y.Z+BUILD
 node scripts/check-release-note.mjs --tag app-vX.Y.Z
-git tag -a app-vX.Y.Z -m "FastVibe Mobile app-vX.Y.Z" && git push origin app-vX.Y.Z
+git tag -a app-vX.Y.Z -m "Pinext Mobile app-vX.Y.Z" && git push origin app-vX.Y.Z
 ```
 
 改写规则同上（英文、面向用户），范围换成手机 App；需要新版桌面端配合的，写明
-「Update your FastVibe host to **vX.Y.Z or newer** …」。
+「Update your Pinext host to **vX.Y.Z or newer** …」。
 
 ## 为什么这么排
 

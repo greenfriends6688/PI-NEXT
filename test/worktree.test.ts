@@ -14,13 +14,13 @@ import {
   worktreeHome,
 } from "../src/main/engine/worktree.ts";
 
-test("default worktree paths live under ~/.fastvibe/worktree/<project-name>", () => {
+test("default worktree paths live under ~/.pinext/worktree/<project-name>", () => {
   const home = "/Users/demo";
-  assert.equal(worktreeHome(home), join(home, ".fastvibe", "worktree"));
-  assert.equal(defaultWorktreeDir("FastVibe", home), join(home, ".fastvibe", "worktree", "fastvibe"));
+  assert.equal(worktreeHome(home), join(home, ".pinext", "worktree"));
+  assert.equal(defaultWorktreeDir("Pinext", home), join(home, ".pinext", "worktree", "pinext"));
   assert.equal(
-    defaultWorktreePath("FastVibe", "feat auth", home),
-    join(home, ".fastvibe", "worktree", "fastvibe", "feat-auth"),
+    defaultWorktreePath("Pinext", "feat auth", home),
+    join(home, ".pinext", "worktree", "pinext", "feat-auth"),
   );
 });
 
@@ -36,14 +36,14 @@ test("expandUserPath resolves a leading tilde against the given home", () => {
   assert.equal(expandUserPath("/abs/path", "/Users/demo"), "/abs/path");
 });
 
-test("isManagedWorktreePath only matches FastVibe-owned roots", () => {
+test("isManagedWorktreePath only matches Pinext-owned roots", () => {
   const home = "/Users/demo";
-  const owned = join(home, ".fastvibe", "worktree", "fastvibe", "run-abc");
+  const owned = join(home, ".pinext", "worktree", "pinext", "run-abc");
   const extra = join("/tmp", "app-wt");
   assert.equal(isManagedWorktreePath(owned, [], home), true);
   assert.equal(isManagedWorktreePath(join(extra, "run"), [extra], home), true);
-  assert.equal(isManagedWorktreePath("/Users/demo/code/fastvibe", [], home), false);
-  assert.equal(isManagedWorktreePath(join(home, ".fastvibe-other", "wt"), [], home), false);
+  assert.equal(isManagedWorktreePath("/Users/demo/code/pinext", [], home), false);
+  assert.equal(isManagedWorktreePath(join(home, ".pinext-other", "wt"), [], home), false);
 });
 
 test("parseWorktreePorcelain reads path, branch and detached HEAD", () => {
@@ -53,7 +53,7 @@ test("parseWorktreePorcelain reads path, branch and detached HEAD", () => {
       "HEAD abc",
       "branch refs/heads/main",
       "",
-      "worktree /repo/.fastvibe/wt/run",
+      "worktree /repo/.pinext/wt/run",
       "HEAD def",
       "detached",
       "",
@@ -61,18 +61,18 @@ test("parseWorktreePorcelain reads path, branch and detached HEAD", () => {
   );
   assert.deepEqual(parsed, [
     { path: "/repo", head: "abc", branch: "main" },
-    { path: "/repo/.fastvibe/wt/run", head: "def", detached: true },
+    { path: "/repo/.pinext/wt/run", head: "def", detached: true },
   ]);
 });
 
 test("catalog setWorktree binds cwd to the checkout and keeps the project", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-wt-catalog-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-wt-catalog-"));
   const cat = new ConversationCatalog(join(dir, "conversations.json"), join(dir, "scratch"));
   const created = cat.create("/tmp/demo");
-  const updated = cat.setWorktree(created.id, { path: "/tmp/wt/demo", branch: "fastvibe/run" });
+  const updated = cat.setWorktree(created.id, { path: "/tmp/wt/demo", branch: "pinext/run" });
   assert.equal(updated?.project, "/tmp/demo");
   assert.equal(updated?.cwd, "/tmp/wt/demo");
-  assert.deepEqual(updated?.worktree, { path: "/tmp/wt/demo", branch: "fastvibe/run" });
+  assert.deepEqual(updated?.worktree, { path: "/tmp/wt/demo", branch: "pinext/run" });
 
   const restored = cat.setWorktree(created.id, undefined);
   assert.equal(restored?.cwd, "/tmp/demo");
@@ -80,10 +80,10 @@ test("catalog setWorktree binds cwd to the checkout and keeps the project", asyn
 });
 
 test("catalog setProject clears a bound worktree and restores cwd", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-wt-project-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-wt-project-"));
   const cat = new ConversationCatalog(join(dir, "conversations.json"), join(dir, "scratch"));
   const created = cat.create("/tmp/demo");
-  cat.setWorktree(created.id, { path: "/tmp/wt/demo", branch: "fastvibe/run" });
+  cat.setWorktree(created.id, { path: "/tmp/wt/demo", branch: "pinext/run" });
   const next = cat.setProject(created.id, "/tmp/other");
   assert.equal(next?.project, "/tmp/other");
   assert.equal(next?.cwd, "/tmp/other");

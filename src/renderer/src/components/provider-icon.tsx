@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
  * Providers without a colour variant in the upstream set keep the same LobeHub Mono
  * path with the provider's brand colour applied as a fallback.
  *
- * A mark is keyed by the SDK's own provider id, so what FastVibe offers is what the
+ * A mark is keyed by the SDK's own provider id, so what Pinext offers is what the
  * SDK says it offers. A provider LobeHub has no icon for — `radius`, a pi-only gateway
  * — falls through to a neutral glyph, and so does a custom provider (`custom-…`),
  * which has no brand to show.
@@ -367,9 +367,9 @@ const PROVIDER_COLORS: Record<string, string> = {
  * Do not "fix" either number on its own: the pair is what makes them match.
  */
 export function ProviderIcon({ provider, className }: { provider: string; className?: string }): JSX.Element {
-  // FastVibe has a real gradient app mark, so keep it in model menus too instead of
+  // Pinext has a real gradient app mark, so keep it in model menus too instead of
   // falling back to a CPU glyph when its models are grouped by provider id.
-  if (provider === "fastvibe") {
+  if (provider === "pinext") {
     return <AppLogo className={cn("size-3.5 shrink-0 rounded-[3px]", className)} />;
   }
 

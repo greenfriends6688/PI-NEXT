@@ -19,7 +19,7 @@ import { deflateRawSync, inflateRawSync } from "node:zlib";
  *   header bit 0x10  CLOSE   control; payload is a big-endian u16 close code, then a UTF-8 reason
  *   header bit 0x20  DEFLATE the frame's bytes are raw-deflate compressed (RFC 1951); set on every fragment
  *
- * DEFLATE exists for the relay: through FastVibe's TURN server a phone on mobile data can be
+ * DEFLATE exists for the relay: through Pinext's TURN server a phone on mobile data can be
  * a few hundred milliseconds from this computer, where a transcript of a megabyte of JSON is
  * the difference between seconds and a fraction of one. A sender may only set it once the
  * peer has said it understands it — the phone offers `deflate`, the desktop's answer agrees

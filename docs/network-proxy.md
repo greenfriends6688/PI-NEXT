@@ -4,7 +4,7 @@
 
 ## 覆盖与边界
 
-- Chromium：默认会话、内置浏览器 `persist:fastvibe-browser`、更新器 `electron-updater`，以及后续创建的会话；无 Session 的 Electron 网络请求也应用配置。
+- Chromium：默认会话、内置浏览器 `persist:pinext-browser`、更新器 `electron-updater`，以及后续创建的会话；无 Session 的 Electron 网络请求也应用配置。
 - Node：全局 fetch/Undici、HTTP/HTTPS 默认 Agent、全局 WebSocket。模型流、供应商探测、OAuth 令牌交换、MCP HTTP、模型目录、插件目录和本地资源下载共同使用它。
 - npm/git 等遵循代理环境变量的子进程通过带随机认证的 loopback relay 出网。变量仅存在本进程及其后代，不修改登录 shell、系统代理或远端主机。运行中的子进程持有的 relay 地址不因切换代理而失效。
 - 本机 loopback 通信直连，保留 OAuth 回调、本机 MCP、SSH 本地转发等能力。`127.example.com` 不是 loopback。

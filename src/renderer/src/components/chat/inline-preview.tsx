@@ -66,7 +66,7 @@ function useMissingGuesses(items: InlinePreview[]): ReadonlySet<string> {
   useEffect(() => {
     if (!signature) return;
     let live = true;
-    void window.fastvibe.workspace
+    void window.pinext.workspace
       .filesExist(signature.split("\n"), cwd)
       .then((existing) => {
         if (!live) return;
@@ -104,7 +104,7 @@ function ItemMenu({ preview, className }: { preview: InlinePreview; className?: 
         {canReveal ? (
           <DropdownMenuItem
             onClick={() =>
-              void window.fastvibe.workspace.reveal(ref).then((result) => {
+              void window.pinext.workspace.reveal(ref).then((result) => {
                 if (result && result.ok === false) toast.error(t("preview.pathMissing"));
               })
             }

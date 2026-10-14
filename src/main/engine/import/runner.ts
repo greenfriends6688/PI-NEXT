@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { uiText } from "../ui-text";
 import type { ImportCandidate, ImportOutcome, ImportRunResult, ImportSourceId, ImportSourceStatus, WorkspaceSnapshot } from "@shared/types";
 import type { ConversationCatalog } from "../conversation-catalog";
-import type { FastVibePaths } from "../paths";
+import type { PinextPaths } from "../paths";
 import { IMPORT_ADAPTERS, importAdapter } from "./adapters";
 import { writeImportedSession, type WrittenSession } from "./writer";
 
@@ -113,7 +113,7 @@ function noteFor(note: string | undefined, messageCount: number | undefined, byt
  * twelfth.
  */
 export async function importSessions(options: {
-  paths: FastVibePaths;
+  paths: PinextPaths;
   catalog: ConversationCatalog;
   source: ImportSourceId;
   ids: string[];

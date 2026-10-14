@@ -257,7 +257,7 @@ function FileActions({ path }: { path: string }): JSX.Element {
         onClick={() => {
           const resolved = resolvePath(path, cwd);
           if (isRemoteRef(resolved) || isRemoteRef(cwd) ) return;
-          void window.fastvibe.workspace.reveal(resolved);
+          void window.pinext.workspace.reveal(resolved);
         }}
       >
         {displayPath(path, cwd)}

@@ -95,16 +95,16 @@ test("提醒里点名了文件，也给出了技能文件的位置", () => {
 
 test("技能文件位置跟着资源根走，两种平台分隔符都对", () => {
   assert.equal(
-    pdfSkillFile({ FASTVIBE_RESOURCES_PATH: "/app/resources" } as NodeJS.ProcessEnv),
+    pdfSkillFile({ PINEXT_RESOURCES_PATH: "/app/resources" } as NodeJS.ProcessEnv),
     "/app/resources/skills/pdf/SKILL.md",
   );
   // 尾部斜杠不能拼出双斜杠
   assert.equal(
-    pdfSkillFile({ FASTVIBE_RESOURCES_PATH: "/app/resources/" } as NodeJS.ProcessEnv),
+    pdfSkillFile({ PINEXT_RESOURCES_PATH: "/app/resources/" } as NodeJS.ProcessEnv),
     "/app/resources/skills/pdf/SKILL.md",
   );
   assert.equal(
-    pdfSkillFile({ FASTVIBE_RESOURCES_PATH: "C:\\App\\resources" } as NodeJS.ProcessEnv),
+    pdfSkillFile({ PINEXT_RESOURCES_PATH: "C:\\App\\resources" } as NodeJS.ProcessEnv),
     "C:\\App\\resources\\skills\\pdf\\SKILL.md",
   );
   // 资源根没设时返回 undefined，调用方退化成不带路径的说法

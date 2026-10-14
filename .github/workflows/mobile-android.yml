@@ -115,13 +115,13 @@ jobs:
 
       - name: Decode Android release keystore
         env:
-          FASTVIBE_ANDROID_KEYSTORE_BASE64: ${{ secrets.FASTVIBE_ANDROID_KEYSTORE_BASE64 }}
+          PINEXT_ANDROID_KEYSTORE_BASE64: ${{ secrets.PINEXT_ANDROID_KEYSTORE_BASE64 }}
         run: |
           set -euo pipefail
-          test -n "$FASTVIBE_ANDROID_KEYSTORE_BASE64"
-          printf '%s' "$FASTVIBE_ANDROID_KEYSTORE_BASE64" \
-            | base64 --decode > "$RUNNER_TEMP/fastvibe-release.keystore"
-          chmod 600 "$RUNNER_TEMP/fastvibe-release.keystore"
+          test -n "$PINEXT_ANDROID_KEYSTORE_BASE64"
+          printf '%s' "$PINEXT_ANDROID_KEYSTORE_BASE64" \
+            | base64 --decode > "$RUNNER_TEMP/pinext-release.keystore"
+          chmod 600 "$RUNNER_TEMP/pinext-release.keystore"
 
       # A PKCS12 keystore (keytool's default) keys its entry with the store password,
       # whatever -keypass said, so a separate key password fails at packageRelease after
@@ -131,16 +131,16 @@ jobs:
       - name: Resolve release key password
         id: signing
         env:
-          FASTVIBE_ANDROID_STORE_PASSWORD: ${{ secrets.FASTVIBE_ANDROID_STORE_PASSWORD }}
-          FASTVIBE_ANDROID_KEY_ALIAS: ${{ secrets.FASTVIBE_ANDROID_KEY_ALIAS }}
-          FASTVIBE_ANDROID_KEY_PASSWORD: ${{ secrets.FASTVIBE_ANDROID_KEY_PASSWORD }}
+          PINEXT_ANDROID_STORE_PASSWORD: ${{ secrets.PINEXT_ANDROID_STORE_PASSWORD }}
+          PINEXT_ANDROID_KEY_ALIAS: ${{ secrets.PINEXT_ANDROID_KEY_ALIAS }}
+          PINEXT_ANDROID_KEY_PASSWORD: ${{ secrets.PINEXT_ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           source="$(java .github/scripts/AndroidKeyPassword.java \
-            "$RUNNER_TEMP/fastvibe-release.keystore" \
-            FASTVIBE_ANDROID_KEY_ALIAS FASTVIBE_ANDROID_STORE_PASSWORD \
-            FASTVIBE_ANDROID_KEY_PASSWORD FASTVIBE_ANDROID_STORE_PASSWORD)"
-          if [ "$source" = FASTVIBE_ANDROID_STORE_PASSWORD ]; then
+            "$RUNNER_TEMP/pinext-release.keystore" \
+            PINEXT_ANDROID_KEY_ALIAS PINEXT_ANDROID_STORE_PASSWORD \
+            PINEXT_ANDROID_KEY_PASSWORD PINEXT_ANDROID_STORE_PASSWORD)"
+          if [ "$source" = PINEXT_ANDROID_STORE_PASSWORD ]; then
             echo "::notice::The release key is unlocked by the store password (PKCS12 keystore)."
             echo "key-password=store" >> "$GITHUB_OUTPUT"
           else
@@ -159,10 +159,10 @@ jobs:
       - name: Build signed arm64 APK
         working-directory: apps/mobile_flutter
         env:
-          FASTVIBE_ANDROID_STORE_FILE: ${{ runner.temp }}/fastvibe-release.keystore
-          FASTVIBE_ANDROID_STORE_PASSWORD: ${{ secrets.FASTVIBE_ANDROID_STORE_PASSWORD }}
-          FASTVIBE_ANDROID_KEY_ALIAS: ${{ secrets.FASTVIBE_ANDROID_KEY_ALIAS }}
-          FASTVIBE_ANDROID_KEY_PASSWORD: ${{ steps.signing.outputs.key-password == 'store' && secrets.FASTVIBE_ANDROID_STORE_PASSWORD || secrets.FASTVIBE_ANDROID_KEY_PASSWORD }}
+          PINEXT_ANDROID_STORE_FILE: ${{ runner.temp }}/pinext-release.keystore
+          PINEXT_ANDROID_STORE_PASSWORD: ${{ secrets.PINEXT_ANDROID_STORE_PASSWORD }}
+          PINEXT_ANDROID_KEY_ALIAS: ${{ secrets.PINEXT_ANDROID_KEY_ALIAS }}
+          PINEXT_ANDROID_KEY_PASSWORD: ${{ steps.signing.outputs.key-password == 'store' && secrets.PINEXT_ANDROID_STORE_PASSWORD || secrets.PINEXT_ANDROID_KEY_PASSWORD }}
         run: bash tool/build_release.sh
 
       # Stop the daemon before the cache step packs ~/.gradle, so it is not archiving
@@ -175,7 +175,7 @@ jobs:
       - name: Name and verify APK
         run: |
           set -euo pipefail
-          apk="FastVibe-${RELEASE_TAG:-main-${GITHUB_SHA::7}}-arm64-v8a.apk"
+          apk="Pinext-${RELEASE_TAG:-main-${GITHUB_SHA::7}}-arm64-v8a.apk"
           echo "APK=$apk" >> "$GITHUB_ENV"
           cp apps/mobile_flutter/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "$apk"
           apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
@@ -199,7 +199,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag }}
-          name: FastVibe Mobile ${{ inputs.tag }}
+          name: Pinext Mobile ${{ inputs.tag }}
           body_path: docs/release/${{ inputs.tag }}.md
           draft: false
           prerelease: false
@@ -213,4 +213,4 @@ jobs:
 
       - name: Remove Android release keystore
         if: always()
-        run: rm -f "$RUNNER_TEMP/fastvibe-release.keystore"
+        run: rm -f "$RUNNER_TEMP/pinext-release.keystore"

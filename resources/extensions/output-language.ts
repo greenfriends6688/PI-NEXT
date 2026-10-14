@@ -9,14 +9,14 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
  * mid-conversation takes effect on the very next message.
  *
  * The sentence itself is not written here: Main owns the wording and hands it over in
- * `FASTVIBE_AI_LANGUAGE_PROMPT` (see `src/main/engine/ai-language.ts`), which keeps
- * this extension — a standalone jiti module that cannot import FastVibe internals —
+ * `PINEXT_AI_LANGUAGE_PROMPT` (see `src/main/engine/ai-language.ts`), which keeps
+ * this extension — a standalone jiti module that cannot import Pinext internals —
  * and the subagent runner from drifting apart. The env vars are re-read per turn, so
  * a settings change reaches a running session without rebuilding it. The user's
  * personalization text is appended after the language directive.
  */
-const PROMPT_ENV = "FASTVIBE_AI_LANGUAGE_PROMPT";
-const CUSTOM_PROMPT_ENV = "FASTVIBE_CUSTOM_SYSTEM_PROMPT";
+const PROMPT_ENV = "PINEXT_AI_LANGUAGE_PROMPT";
+const CUSTOM_PROMPT_ENV = "PINEXT_CUSTOM_SYSTEM_PROMPT";
 
 export default function outputLanguage(pi: ExtensionAPI): void {
   pi.on("before_agent_start", (event) => {

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:fastvibe_mobile/i18n/core.dart';
-import 'package:fastvibe_mobile/main.dart';
-import 'package:fastvibe_mobile/router.dart';
-import 'package:fastvibe_mobile/theme/theme.dart';
-import 'package:fastvibe_mobile/ui/feedback.dart';
-import 'package:fastvibe_mobile/ui/kit.dart';
+import 'package:pinext_mobile/i18n/core.dart';
+import 'package:pinext_mobile/main.dart';
+import 'package:pinext_mobile/router.dart';
+import 'package:pinext_mobile/theme/theme.dart';
+import 'package:pinext_mobile/ui/feedback.dart';
+import 'package:pinext_mobile/ui/kit.dart';
 
 /// The layer 切换语言 → 回到其他界面 used to break on.
 ///

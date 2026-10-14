@@ -4,25 +4,25 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:fastvibe_mobile/chat/composer.dart';
-import 'package:fastvibe_mobile/chat/draft_storage.dart';
-import 'package:fastvibe_mobile/chat/option_sheet.dart';
-import 'package:fastvibe_mobile/i18n/core.dart';
-import 'package:fastvibe_mobile/main.dart';
-import 'package:fastvibe_mobile/protocol/address.dart';
-import 'package:fastvibe_mobile/screens/add_device.dart';
-import 'package:fastvibe_mobile/screens/chat.dart';
-import 'package:fastvibe_mobile/screens/devices.dart';
-import 'package:fastvibe_mobile/screens/settings.dart';
-import 'package:fastvibe_mobile/session/connection.dart';
-import 'package:fastvibe_mobile/storage/servers.dart';
-import 'package:fastvibe_mobile/theme/theme.dart';
-import 'package:fastvibe_mobile/ui/context_menu.dart';
-import 'package:fastvibe_mobile/ui/feedback.dart';
-import 'package:fastvibe_mobile/ui/glass_screen.dart';
-import 'package:fastvibe_mobile/ui/icons.dart';
-import 'package:fastvibe_mobile/ui/kit.dart';
-import 'package:fastvibe_mobile/ui/scroll_fade.dart';
+import 'package:pinext_mobile/chat/composer.dart';
+import 'package:pinext_mobile/chat/draft_storage.dart';
+import 'package:pinext_mobile/chat/option_sheet.dart';
+import 'package:pinext_mobile/i18n/core.dart';
+import 'package:pinext_mobile/main.dart';
+import 'package:pinext_mobile/protocol/address.dart';
+import 'package:pinext_mobile/screens/add_device.dart';
+import 'package:pinext_mobile/screens/chat.dart';
+import 'package:pinext_mobile/screens/devices.dart';
+import 'package:pinext_mobile/screens/settings.dart';
+import 'package:pinext_mobile/session/connection.dart';
+import 'package:pinext_mobile/storage/servers.dart';
+import 'package:pinext_mobile/theme/theme.dart';
+import 'package:pinext_mobile/ui/context_menu.dart';
+import 'package:pinext_mobile/ui/feedback.dart';
+import 'package:pinext_mobile/ui/glass_screen.dart';
+import 'package:pinext_mobile/ui/icons.dart';
+import 'package:pinext_mobile/ui/kit.dart';
+import 'package:pinext_mobile/ui/scroll_fade.dart';
 
 void main() {
   setUpAll(() async {

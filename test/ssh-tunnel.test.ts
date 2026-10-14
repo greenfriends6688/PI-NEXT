@@ -62,9 +62,9 @@ test("a control socket is attached without asking for the password again", () =>
     password: "secret",
     localPort: 17777,
     remotePort: 7777,
-    controlPath: "/tmp/fv-1",
+    controlPath: "/tmp/pn-1",
   });
-  assert.equal(args[args.indexOf("-S") + 1], "/tmp/fv-1");
+  assert.equal(args[args.indexOf("-S") + 1], "/tmp/pn-1");
   assert.ok(args.includes("BatchMode=yes"));
   assert.ok(!args.includes("secret"));
 });
@@ -86,7 +86,7 @@ test("sshDestination joins the user when there is one", () => {
 test("the probe reports a failure as a value, with OpenSSH's own reason", async () => {
   // OpenSSH exits 255 with the real reason on stderr, and our wrapper would otherwise
   // report `SSH 远程初始化失败（exit 255）` — which says nothing about a denied key.
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-probe-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-probe-"));
   const fake = join(dir, "ssh");
   writeFileSync(fake, "#!/bin/sh\necho 'Permission denied (publickey).' >&2\ncat >/dev/null\nexit 255\n", { mode: 0o700 });
   const result = await probeSshHost({
@@ -100,7 +100,7 @@ test("the probe reports a failure as a value, with OpenSSH's own reason", async 
 });
 
 test("the probe succeeds without deploying anything", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-probe-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-probe-"));
   const fake = join(dir, "ssh");
   // Records the command it was asked to run, so the test can prove the probe is a login
   // and nothing else: no tar, no node download, no nohup of a remote Agent.
@@ -154,7 +154,7 @@ test("OpenSSH failures are classified, and a changed key is never taken for an u
 });
 
 test("the probe carries the failure code for the GUI to act on", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-probe-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-probe-"));
   const fake = join(dir, "ssh");
   writeFileSync(fake, "#!/bin/sh\necho 'No ED25519 host key is known for dev and you have requested strict checking.' >&2\necho 'Host key verification failed.' >&2\ncat >/dev/null\nexit 255\n", { mode: 0o700 });
   const result = await probeSshHost({ host: { id: "x", host: "dev" }, sshBinary: fake, timeoutMs: 5_000 });

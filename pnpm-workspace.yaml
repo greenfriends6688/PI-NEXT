@@ -1,4 +1,4 @@
-# No workspace packages: the website moved to tyuan511/fastvibe-services, and
+# No workspace packages: the website moved to tyuan511/pinext-services, and
 # apps/mobile_flutter is Flutter (no package.json). This file is kept for the settings
 # below, which pnpm reads whether or not anything is a workspace member.
 packages: []
@@ -46,7 +46,7 @@ minimumReleaseAgeExclude:
   - '@earendil-works/pi-telemetry@1.1.0'
   - '@earendil-works/pi-tui@1.1.0'
 
-# Pin the pi runtime to the exact SDK version FastVibe ships so the host and any
+# Pin the pi runtime to the exact SDK version Pinext ships so the host and any
 # extension loaded into it share one pi-tui/pi-ai instance.
 overrides:
   '@earendil-works/pi-ai': 1.1.0

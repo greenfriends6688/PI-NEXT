@@ -33,7 +33,7 @@ a target for that operation; another question decides which operation to execute
 a field that already contains the requested value. Choose only an offered element index.`;
 
 /**
- * FastVibe addition to the ported rules: the observation also offers the nearest
+ * Pinext addition to the ported rules: the observation also offers the nearest
  * off-screen controls (see browser-snapshot.ts), and the model must know it may act on
  * them directly rather than treat "not on screen" as "not possible".
  */

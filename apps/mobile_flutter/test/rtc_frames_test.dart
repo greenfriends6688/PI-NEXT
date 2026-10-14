@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fastvibe_mobile/protocol/rtc_frames.dart';
+import 'package:pinext_mobile/protocol/rtc_frames.dart';
 
 /// The wire format between the phone and the desktop. The desktop's copy
 /// (`test/rtc-frames.test.ts`) pins the very same bytes, so a change that is not mirrored
@@ -144,7 +144,7 @@ void main() {
     test('reads what the desktop wrote', () {
       const wire = <int>[0xab, 0x56, 0xca, 0x48, 0xcd, 0xc9, 0xc9, 0x57, 0xb2, 0x52, 0x4a, 0x4b, 0x2c, 0x2e, 0x29, 0xcb, 0x4c, 0x4a, 0x55, 0x48, 0x2b, 0x4a, 0xcc, 0x4d, 0x2d, 0x56, 0xd2, 0x51, 0xca, 0x53, 0xb2, 0x8a, 0x36, 0xd4, 0x31, 0xd2, 0x31, 0xd6, 0x31, 0xd1, 0x31, 0xd5, 0x31, 0xd3, 0x31, 0xd7, 0xb1, 0xd0, 0xb1, 0xd4, 0x31, 0x34, 0x88, 0xad, 0x05, 0x00];
       final out = FrameAssembler(1 << 20).push(Uint8List.fromList(<int>[fragLast | fragDeflate, ...wire])) as IncomingFrame;
-      expect(utf8.decode(out.data), '{"hello":"fastvibe frames","n":[1,2,3,4,5,6,7,8,9,10]}');
+      expect(utf8.decode(out.data), '{"hello":"pinext frames","n":[1,2,3,4,5,6,7,8,9,10]}');
     });
   });
 }

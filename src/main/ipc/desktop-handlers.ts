@@ -24,7 +24,7 @@ import {
   readAppSettings,
   writeAppSettings,
 } from "../engine/app-settings";
-import { getFastVibePaths } from "../engine/paths";
+import { getPinextPaths } from "../engine/paths";
 import { applyLanguages } from "../engine/ai-language";
 import { uiText } from "../engine/ui-text";
 import { exportLogs, writeRendererLog } from "../engine/logger";
@@ -114,10 +114,10 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       const written = await importIntoBrowserProfile(browserProfileDir(), collected);
       return { ...result, cookies: written, message: uiText(`已导入 ${written} 个 Cookie 到所选浏览器`, `Imported ${written} cookies into the selected browser`) };
     }
-    return importBrowserProfile(allowed, (cookie) => session.fromPartition("persist:fastvibe-browser").cookies.set(cookie));
+    return importBrowserProfile(allowed, (cookie) => session.fromPartition("persist:pinext-browser").cookies.set(cookie));
   });
   handle(Ipc.browserClearData, () =>
-    session.fromPartition("persist:fastvibe-browser").clearStorageData(),
+    session.fromPartition("persist:pinext-browser").clearStorageData(),
   );
   handle(Ipc.browserListEngines, () => installedBrowsers());
   handle(Ipc.computerPermissions, () => computerPermissions());
@@ -468,7 +468,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     });
   }
   handle(Ipc.appGetInfo, () => {
-    const paths = getFastVibePaths();
+    const paths = getPinextPaths();
     return {
       version: app.getVersion(),
       engineVersion: piVersion,
@@ -493,10 +493,10 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
    */
   handle(Ipc.modelsDevUpdate, () => refreshModelsDev());
   handle(Ipc.statsUsage, (payload?: { range?: UsageRange }) => {
-    return collectUsageStats(getFastVibePaths(), payload?.range ?? "30d");
+    return collectUsageStats(getPinextPaths(), payload?.range ?? "30d");
   });
   handle(Ipc.windowNew, () => {
-    // FastVibe is a single-window app: every push, and every method that acts on "the
+    // Pinext is a single-window app: every push, and every method that acts on "the
     // active conversation" without saying whose, is addressed to one client by design.
     // Rather than answer a second window with a second, subtly different view of the
     // same state, the request is folded into the window that already exists — which is
@@ -529,10 +529,10 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
   });
   handle(Ipc.windowIsMaximized, (_payload: void, ctx) => ctx.window?.isMaximized() ?? false);
 
-  handle(Ipc.settingsGet, () => readAppSettings(getFastVibePaths()));
+  handle(Ipc.settingsGet, () => readAppSettings(getPinextPaths()));
   const commitSettings = async (payload: Record<string, unknown>, ctx: CallerContext) => {
     assertProxySettings(payload);
-    const paths = getFastVibePaths();
+    const paths = getPinextPaths();
     const previous = readAppSettings(paths);
     await networkProxy?.apply(payload);
     try { writeAppSettings(paths, payload); }
@@ -549,7 +549,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
   };
   handle(Ipc.settingsSet, (settings: Record<string, unknown>, ctx) => queueSettingsWrite(async () => {
     const incoming = settings && typeof settings === "object" ? settings : {};
-    const current = readAppSettings(getFastVibePaths());
+    const current = readAppSettings(getPinextPaths());
     // Proxy and remote-access keys are written by their own methods; a preference
     // snapshot — stale by nature, and possibly a remote client's — changes neither.
     await commitSettings(mergeClientSettings(current, incoming), ctx);
@@ -557,10 +557,10 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
   handle(Ipc.settingsProxySet, (settings: Record<string, unknown>, ctx) => queueSettingsWrite(async () => {
     const incoming = settings && typeof settings === "object" ? settings : {};
     assertProxySettings(incoming);
-    await commitSettings({ ...readAppSettings(getFastVibePaths()), ...proxySettingsOf(incoming) }, ctx);
+    await commitSettings({ ...readAppSettings(getPinextPaths()), ...proxySettingsOf(incoming) }, ctx);
   }));
   handle(Ipc.settingsClear, (_payload: void, ctx) => queueSettingsWrite(async () => {
-    const paths = getFastVibePaths();
+    const paths = getPinextPaths();
     const previous = readAppSettings(paths);
     // 恢复默认 resets preferences. Remote access is not one: dropping its switch here
     // left the listener running with nothing to bring it back at the next launch.

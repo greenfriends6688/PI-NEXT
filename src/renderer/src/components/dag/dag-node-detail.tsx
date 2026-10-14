@@ -77,7 +77,7 @@ export function DagNodeDetail({
           </Button>
         ) : null}
         {node.status === "failed" || node.status === "blocked" || node.status === "cancelled" ? (
-          <Button type="button" size="xs" variant="outline" onClick={() => void window.fastvibe.dag.retry(conversationId, node.id).catch(failure)}>
+          <Button type="button" size="xs" variant="outline" onClick={() => void window.pinext.dag.retry(conversationId, node.id).catch(failure)}>
             <HugeiconsIcon strokeWidth={2} icon={RefreshIcon} data-icon="inline-start" />
             {t("dag.retry")}
           </Button>
@@ -144,7 +144,7 @@ export function DagNodeDetail({
               <Button size="xs" variant="outline" disabled={loading} onClick={() => {
                 const generation = requestGeneration.current;
                 setLoading(true);
-                void window.fastvibe.dag.output(conversationId, node.id, output === null ? 0 : nextOffset).then((page) => {
+                void window.pinext.dag.output(conversationId, node.id, output === null ? 0 : nextOffset).then((page) => {
                   if (generation !== requestGeneration.current) return;
                   setOutput((previous) => (previous ?? "") + page.output); setNextOffset(page.nextOffset);
                 }).catch((error) => { if (generation === requestGeneration.current) failure(error); }).finally(() => { if (generation === requestGeneration.current) setLoading(false); });

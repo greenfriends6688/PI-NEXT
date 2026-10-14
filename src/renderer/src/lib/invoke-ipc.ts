@@ -1,14 +1,14 @@
 /**
  * Call the preload bridge in a way that **cannot throw synchronously**.
  *
- * `window.fastvibe.<group>.<method>()` is a property access on an object the preload
+ * `window.pinext.<group>.<method>()` is a property access on an object the preload
  * built. When the preload is older than the renderer — a dev process that was not
  * restarted after a channel was added, or an update whose renderer reloaded while the old
  * preload stayed — the method is simply *absent*. Calling it throws before there is a
  * promise to catch, so the obvious spelling
  *
  * ```ts
- * void window.fastvibe.providers.identifyGateway(id).then(...).finally(() => setBusy(false));
+ * void window.pinext.providers.identifyGateway(id).then(...).finally(() => setBusy(false));
  * ```
  *
  * never reaches its `catch` or its `finally`: the loading state set one line earlier is

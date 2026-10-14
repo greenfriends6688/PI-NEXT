@@ -5,7 +5,7 @@ import type { Credential } from "@earendil-works/pi-ai";
 import type { McpServerConfig, PiConfigSyncReport } from "@shared/types";
 import { readPreferredModelSettings } from "./app-settings";
 import { readOAuthCredentials } from "./oauth-store";
-import type { FastVibePaths } from "./paths";
+import type { PinextPaths } from "./paths";
 import {
   piProviderModelsEntry,
   writePiAgentConfig,
@@ -16,7 +16,7 @@ import {
 } from "./pi-global-sync.ts";
 import { connectedProviderIds, loadProviderKeys, readProviders } from "./providers";
 
-/** The CLI's own agent directory. FastVibe never uses this as its runtime. */
+/** The CLI's own agent directory. Pinext never uses this as its runtime. */
 export function globalPiAgentDir(): string {
   return join(homedir(), ".pi", "agent");
 }
@@ -24,11 +24,11 @@ export function globalPiAgentDir(): string {
 /**
  * Copy the connected configuration into the global pi agent directory.
  *
- * Sessions, UI preferences and FastVibe's own files stay where they are. See
+ * Sessions, UI preferences and Pinext's own files stay where they are. See
  * `pi-global-sync.ts` for what is merged and what is left alone.
  */
-export async function syncFastVibeConfigToPi(
-  paths: FastVibePaths,
+export async function syncPinextConfigToPi(
+  paths: PinextPaths,
   agentDir = globalPiAgentDir(),
   mode: PiSyncMode = "merge",
 ): Promise<PiConfigSyncReport> {

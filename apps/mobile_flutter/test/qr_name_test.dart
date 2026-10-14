@@ -4,13 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:fastvibe_mobile/chat/option_sheet.dart';
-import 'package:fastvibe_mobile/i18n/core.dart';
-import 'package:fastvibe_mobile/main.dart' show buildTheme;
-import 'package:fastvibe_mobile/screens/add_device.dart';
-import 'package:fastvibe_mobile/theme/theme.dart';
-import 'package:fastvibe_mobile/ui/feedback.dart';
-import 'package:fastvibe_mobile/ui/kit.dart';
+import 'package:pinext_mobile/chat/option_sheet.dart';
+import 'package:pinext_mobile/i18n/core.dart';
+import 'package:pinext_mobile/main.dart' show buildTheme;
+import 'package:pinext_mobile/screens/add_device.dart';
+import 'package:pinext_mobile/theme/theme.dart';
+import 'package:pinext_mobile/ui/feedback.dart';
+import 'package:pinext_mobile/ui/kit.dart';
 
 void main() {
   setUpAll(() async {

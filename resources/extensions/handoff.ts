@@ -11,11 +11,11 @@ import { convertToLlm, serializeConversation } from "@earendil-works/pi-coding-a
  * prompt. The source chat is left as it was.
  *
  * The pi example this follows draws a terminal loader and refuses every mode
- * but `tui`. FastVibe sessions are `rpc`, so the review step is `ctx.ui.editor`
+ * but `tui`. Pinext sessions are `rpc`, so the review step is `ctx.ui.editor`
  * and progress is a status line above the composer.
  */
 
-const T = (zh: string, en: string): string => (process.env.FASTVIBE_UI_LANGUAGE === "en" ? en : zh);
+const T = (zh: string, en: string): string => (process.env.PINEXT_UI_LANGUAGE === "en" ? en : zh);
 
 /** Serialized transcript passed to the summarizer. Head plus tail stay when it is longer. */
 export const HANDOFF_TRANSCRIPT_CHARS = 80_000;

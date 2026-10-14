@@ -1,7 +1,7 @@
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 const MAX_MESSAGE_CHARS = 16_384;
-const INSTALLED = "__fastvibeLoggerInstalled";
+const INSTALLED = "__pinextLoggerInstalled";
 
 /**
  * Capture the renderer's console and window errors, and ship them to Main over
@@ -74,7 +74,7 @@ function forward(level: LogLevel, args: unknown[]): void {
   const message = args.map(formatArg).join(" ").trim().slice(0, MAX_MESSAGE_CHARS);
   if (!message) return;
   try {
-    window.fastvibe.app.log({ level, message });
+    window.pinext.app.log({ level, message });
   } catch {
     // Preview / missing preload: the original console line already printed.
   }

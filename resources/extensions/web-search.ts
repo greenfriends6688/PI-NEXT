@@ -2,7 +2,7 @@ import { Type } from "typebox";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 /**
- * FastVibe's built-in web search — a client `web_search` tool that, on execute,
+ * Pinext's built-in web search — a client `web_search` tool that, on execute,
  * opens a *side* Responses request with the provider's hosted `{ type: "web_search" }`
  * tool. The main conversation never receives that hosted tool (pi-ai cannot parse
  * `web_search_call`), so the transcript shows a normal tool card instead.

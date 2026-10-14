@@ -63,7 +63,7 @@ test("fork preview is inherited and remains non-empty when an old catalog has no
 });
 
 test("worktree guard catches direct descendants and forks whose cwd belongs to another conversation", () => {
-  const root = join(tmpdir(), "fastvibe-worktree-owner");
+  const root = join(tmpdir(), "pinext-worktree-owner");
   assert.equal(cwdUsesWorktree(root, [root]), true);
   assert.equal(cwdUsesWorktree(join(root, "nested"), [root]), true);
   assert.equal(cwdUsesWorktree(`${root}-other`, [root]), false);
@@ -185,7 +185,7 @@ test("a full fork copies only the supplied current branch and preserves usage or
 });
 
 test("SessionManager roundtrip keeps repaired history, compaction metadata, and nested usage identity", async () => {
-  const root = await mkdtemp(join(tmpdir(), "fastvibe-fork-roundtrip-"));
+  const root = await mkdtemp(join(tmpdir(), "pinext-fork-roundtrip-"));
   try {
     const compacted = [
       branch[0],
@@ -258,7 +258,7 @@ test("SessionManager roundtrip keeps repaired history, compaction metadata, and 
 });
 
 test("fork transcript has a new session id while inherited turns deduplicate with the source", async () => {
-  const root = await mkdtemp(join(tmpdir(), "fastvibe-fork-"));
+  const root = await mkdtemp(join(tmpdir(), "pinext-fork-"));
   try {
     const sourceFile = join(root, "source.jsonl");
     const assistant = entry("answer", null, "assistant", [{ type: "text", text: "ok" }], {
@@ -278,8 +278,8 @@ test("fork transcript has a new session id while inherited turns deduplicate wit
     });
     assert.notEqual(written.sessionId, "source-session");
     const firstLine = JSON.parse((await readFile(written.sessionFile, "utf8")).split("\n")[0]);
-    assert.equal(firstLine.fastvibeFork.sourceSessionId, "source-session");
-    assert.equal(firstLine.fastvibeFork.inheritedThroughEntryId, "answer");
+    assert.equal(firstLine.pinextFork.sourceSessionId, "source-session");
+    assert.equal(firstLine.pinextFork.inheritedThroughEntryId, "answer");
 
     clearSessionUsageCache();
     const sourceTurns = await parseSessionTurns(sourceFile);

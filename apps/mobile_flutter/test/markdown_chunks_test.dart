@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fastvibe_mobile/chat/markdown_chunks.dart';
+import 'package:pinext_mobile/chat/markdown_chunks.dart';
 
 /// A reply is one list row, so a long one used to be parsed and laid out whole — on every
 /// streamed frame, and again every time the list rebuilt the row. `MarkdownChunker` cuts it

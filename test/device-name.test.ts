@@ -24,6 +24,6 @@ test("the default is the computer's own name without .local", () => {
   assert.equal(defaultDeviceName("Yuans-MacBook-Pro.local"), "Yuans-MacBook-Pro");
   assert.equal(defaultDeviceName("build-box.LOCAL."), "build-box");
   assert.equal(defaultDeviceName("my.server.example"), "my.server.example");
-  assert.equal(defaultDeviceName(""), "FastVibe");
-  assert.equal(defaultDeviceName(".local"), "FastVibe");
+  assert.equal(defaultDeviceName(""), "Pinext");
+  assert.equal(defaultDeviceName(".local"), "Pinext");
 });

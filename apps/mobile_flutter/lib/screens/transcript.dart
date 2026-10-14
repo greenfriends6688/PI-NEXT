@@ -573,7 +573,7 @@ class _AssistantRow extends StatelessWidget {
                   const BrandLogo(size: 17),
                   const SizedBox(width: 7),
                   Text(
-                    'FastVibe',
+                    'Pinext',
                     style: TextStyle(
                       color: palette.muted,
                       fontSize: 12,

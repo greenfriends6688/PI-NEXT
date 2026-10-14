@@ -12,7 +12,7 @@
 import { isNarrowViewport } from "@/lib/sidebar-visibility";
 import { useSettingsStore } from "@/stores/settings";
 
-const WIDTH_KEY = "fastvibe.sidebar.width";
+const WIDTH_KEY = "pinext.sidebar.width";
 const MIN_WIDTH = 200;
 const DEFAULT_WIDTH = 288;
 const MAX_WIDTH = 480;

@@ -26,7 +26,7 @@ test("a tunnel hostname is reachable, scheme or not", () => {
   for (const address of [
     "fluffy-panda-rides-again.trycloudflare.com",
     "foo.ngrok-free.app",
-    "fastvibe.example.com:8080",
+    "pinext.example.com:8080",
   ]) {
     assert.equal(isReachableFromAnotherDevice(address), true, `${address} should be scannable`);
   }

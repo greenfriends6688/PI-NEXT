@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * pi theme color names mapped onto the app's semantic tokens, so a plugin's
- * terminal component reads correctly in every FastVibe light/dark theme.
+ * terminal component reads correctly in every Pinext light/dark theme.
  * Unmapped names fall back to their literal color (see `runStyle`).
  */
 const FG_TOKEN: Record<string, string> = {

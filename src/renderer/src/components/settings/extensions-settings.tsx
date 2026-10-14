@@ -87,7 +87,7 @@ function formatDownloads(value?: number): string | null {
 }
 
 /**
- * Plugins are pi packages from pi.dev's catalog, installed into FastVibe's
+ * Plugins are pi packages from pi.dev's catalog, installed into Pinext's
  * isolated agentDir — never the user's `~/.pi`.
  */
 export function ExtensionsSettings(): JSX.Element {
@@ -118,8 +118,8 @@ export function ExtensionsSettings(): JSX.Element {
     setInstalledBusy(true);
     try {
       const [next, extensions] = await Promise.all([
-        window.fastvibe.engine.listExtensionPackages(),
-        window.fastvibe.engine.getExtensions(),
+        window.pinext.engine.listExtensionPackages(),
+        window.pinext.engine.getExtensions(),
       ]);
       // Built-in extensions ship with the app; they are not something the user manages here.
       setPackages(next.filter((item) => !item.builtin));
@@ -148,7 +148,7 @@ export function ExtensionsSettings(): JSX.Element {
     if (tab !== "market") return;
     let cancelled = false;
     setLoading(true);
-    void window.fastvibe.engine
+    void window.pinext.engine
       .listMarketPackages({ query: search, type, sort, page: pageIndex })
       .then((result) => {
         if (cancelled) return;
@@ -170,7 +170,7 @@ export function ExtensionsSettings(): JSX.Element {
     if (pending || installedNames.has(item.name)) return;
     setPending(item.name);
     try {
-      setPackages(await window.fastvibe.engine.installExtensionPackage(`npm:${item.name}`));
+      setPackages(await window.pinext.engine.installExtensionPackage(`npm:${item.name}`));
       await refreshInstalled();
       toast.success(t("extensions.installDone", { name: item.name }));
     } catch (err) {
@@ -184,7 +184,7 @@ export function ExtensionsSettings(): JSX.Element {
     if (pending) return;
     setPending(item.source);
     try {
-      setPackages(await window.fastvibe.engine.removeExtensionPackage(item.source));
+      setPackages(await window.pinext.engine.removeExtensionPackage(item.source));
       await refreshInstalled();
       toast.success(t("extensions.removeDone", { name: packageName(item.source) }));
     } catch (err) {

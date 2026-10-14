@@ -58,7 +58,7 @@ jobs:
         with:
           name: agent-runtime-candidate-${{ matrix.arch }}
           path: |
-            release/agent-runtime/fastvibe-agent-linux-${{ matrix.arch }}.tar.gz
+            release/agent-runtime/pinext-agent-linux-${{ matrix.arch }}.tar.gz
             release/agent-runtime/runtime-metadata-linux-${{ matrix.arch }}.json
           retention-days: 1
 
@@ -105,18 +105,18 @@ jobs:
             echo "Agent runtime unchanged; reusing $release"
           elif gh release view "$release" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$release" --repo "$GITHUB_REPOSITORY" \
-              runtime/candidates/fastvibe-agent-linux-x64.tar.gz \
-              runtime/candidates/fastvibe-agent-linux-arm64.tar.gz \
+              runtime/candidates/pinext-agent-linux-x64.tar.gz \
+              runtime/candidates/pinext-agent-linux-arm64.tar.gz \
               runtime/agent-runtime.json --clobber
             gh release edit "$release" --repo "$GITHUB_REPOSITORY" \
-              --title "FastVibe Agent runtime ${release#agent-runtime-}" \
+              --title "Pinext Agent runtime ${release#agent-runtime-}" \
               --draft=false --prerelease --latest=false
           else
             gh release create "$release" --repo "$GITHUB_REPOSITORY" \
-              --title "FastVibe Agent runtime ${release#agent-runtime-}" \
+              --title "Pinext Agent runtime ${release#agent-runtime-}" \
               --notes "Content-addressed Agent runtime release; desktop version is independent." \
               --prerelease --latest=false \
-              runtime/candidates/fastvibe-agent-linux-x64.tar.gz \
-              runtime/candidates/fastvibe-agent-linux-arm64.tar.gz \
+              runtime/candidates/pinext-agent-linux-x64.tar.gz \
+              runtime/candidates/pinext-agent-linux-arm64.tar.gz \
               runtime/agent-runtime.json
           fi

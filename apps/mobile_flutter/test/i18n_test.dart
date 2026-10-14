@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fastvibe_mobile/i18n/zh.dart';
-import 'package:fastvibe_mobile/i18n/en.dart';
+import 'package:pinext_mobile/i18n/zh.dart';
+import 'package:pinext_mobile/i18n/en.dart';
 
 void main() {
   test('every literal product translation exists in both languages', () {

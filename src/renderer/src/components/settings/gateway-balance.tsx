@@ -51,7 +51,7 @@ export function GatewayBalance({
     const current = ++request.current;
     setLoading(true);
     setError(null);
-    void invokeIpc(() => window.fastvibe.providers.gatewayBalance(provider.id, force))
+    void invokeIpc(() => window.pinext.providers.gatewayBalance(provider.id, force))
       .then((next) => {
         if (request.current === current) setResult(next);
       })
@@ -89,7 +89,7 @@ export function GatewayBalance({
             // `invokeIpc` so that a preload too old to have this method reports itself
             // instead of throwing before there is a promise to catch — which would leave
             // the spinner below running with no way back.
-            void invokeIpc(() => window.fastvibe.providers.identifyGateway(provider.id))
+            void invokeIpc(() => window.pinext.providers.identifyGateway(provider.id))
               .then((kind) => {
                 // An `undefined` verdict is a real answer — most relays have no panel — and
                 // the pane re-reads either way, so the row settles into its final state

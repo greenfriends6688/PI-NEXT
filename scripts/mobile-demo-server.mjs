@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * A stand-in FastVibe machine for photographing the native phone app.
+ * A stand-in Pinext machine for photographing the native phone app.
  *
  * The app only has content once it is connected to a machine, so for the website's
  * phone pictures this answers the handful of methods the device list, the project list
@@ -71,7 +71,7 @@ wss.on("connection", (ws) => {
     let frame;
     try { frame = JSON.parse(String(raw)); } catch { return; }
     if (frame.type === "auth") return ws.send(JSON.stringify({ type: "auth", ok: frame.token === TOKEN }));
-    if (frame.kind === "hello") return ws.send(JSON.stringify({ kind: "welcome", welcome: { protocol: "fastvibe.app", protocolVersion: 1 } }));
+    if (frame.kind === "hello") return ws.send(JSON.stringify({ kind: "welcome", welcome: { protocol: "pinext.app", protocolVersion: 1 } }));
     if (frame.kind === "call") {
       const handler = methods[frame.method];
       if (!handler) console.log(`unhandled: ${frame.method}`);

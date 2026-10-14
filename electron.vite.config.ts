@@ -18,7 +18,7 @@ const shared = resolve("src/shared");
  */
 function katexWoff2Only(): Plugin {
   return {
-    name: "fastvibe:katex-woff2-only",
+    name: "pinext:katex-woff2-only",
     enforce: "pre",
     transform(code: string, id: string) {
       // Matched on content, not on the id: the stylesheet reaches the renderer's CSS

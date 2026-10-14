@@ -28,11 +28,11 @@ const WAIT_MS = 5 * 60_000;
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 beforeEach((t) => {
-  const previous = process.env.FASTVIBE_UI_LANGUAGE;
-  process.env.FASTVIBE_UI_LANGUAGE = "en";
+  const previous = process.env.PINEXT_UI_LANGUAGE;
+  process.env.PINEXT_UI_LANGUAGE = "en";
   t.after(() => {
-    if (previous === undefined) delete process.env.FASTVIBE_UI_LANGUAGE;
-    else process.env.FASTVIBE_UI_LANGUAGE = previous;
+    if (previous === undefined) delete process.env.PINEXT_UI_LANGUAGE;
+    else process.env.PINEXT_UI_LANGUAGE = previous;
   });
   t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
 });

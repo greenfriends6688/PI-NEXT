@@ -1,4 +1,4 @@
-import { configureFastVibeUserData, getFastVibePaths, type FastVibePaths } from "../main/engine/paths";
+import { configurePinextUserData, getPinextPaths, type PinextPaths } from "../main/engine/paths";
 import { PiProcessManager } from "../main/pi/process-manager";
 
 export type AgentRuntimeOptions = {
@@ -9,7 +9,7 @@ export type AgentRuntimeOptions = {
 };
 
 export type AgentRuntime = {
-  paths: FastVibePaths;
+  paths: PinextPaths;
   engine: PiProcessManager;
 };
 
@@ -20,8 +20,8 @@ export type AgentRuntime = {
  * because SDK extensions and the existing engine helpers share one isolated data root.
  */
 export function createAgentRuntime(options: AgentRuntimeOptions): AgentRuntime {
-  configureFastVibeUserData(options.userData);
-  if (options.resourcesPath?.trim()) process.env.FASTVIBE_RESOURCES_PATH = options.resourcesPath.trim();
-  const paths = getFastVibePaths();
+  configurePinextUserData(options.userData);
+  if (options.resourcesPath?.trim()) process.env.PINEXT_RESOURCES_PATH = options.resourcesPath.trim();
+  const paths = getPinextPaths();
   return { paths, engine: new PiProcessManager(paths) };
 }

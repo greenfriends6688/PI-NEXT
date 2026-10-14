@@ -1,4 +1,4 @@
-package dev.fastvibe.fastvibe_mobile
+package dev.pinext.pinext_mobile
 
 import android.content.ClipboardManager
 import android.content.Context
@@ -44,7 +44,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.fastvibe.mobile/device")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.pinext.mobile/device")
             .setMethodCallHandler { call, result ->
                 if (call.method == "openSettings") {
                     try {

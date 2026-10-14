@@ -4,7 +4,7 @@
  * without a cycle (`settings.ts` ← this → `i18n.ts`).
  */
 
-/** The languages FastVibe ships. One value drives both 界面语言 and AI 偏好语言. */
+/** The languages Pinext ships. One value drives both 界面语言 and AI 偏好语言. */
 export type UiLanguage = "zh" | "en";
 
 export const UI_LANGUAGES: readonly UiLanguage[] = ["zh", "en"];
@@ -21,7 +21,7 @@ export function isUiLanguage(value: unknown): value is UiLanguage {
 }
 
 /**
- * First-run default, from the OS locale. FastVibe used to be Chinese-only, so an
+ * First-run default, from the OS locale. Pinext used to be Chinese-only, so an
  * install that already has settings predates the setting and keeps 中文 (see
  * `stores/settings.ts`); only a brand-new install follows the system.
  */

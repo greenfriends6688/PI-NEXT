@@ -8,11 +8,11 @@ import type { FileIconMapping } from "@shared/types";
 /**
  * File icons come from the Material Icon Theme VS Code extension
  * (`material-icon-theme`), the most-installed file icon pack. It ships ~1250 SVG
- * icons plus a `material-icons.json` association table; FastVibe serves the SVGs
+ * icons plus a `material-icons.json` association table; Pinext serves the SVGs
  * over a private scheme and hands the renderer the lookup table, so the chat's
  * change chips and (later) the project file tree share one icon source.
  */
-export const FILE_ICON_SCHEME = "fastvibe-icon";
+export const FILE_ICON_SCHEME = "pinext-icon";
 
 type ThemeManifest = {
   fileExtensions: Record<string, string>;
@@ -84,7 +84,7 @@ export function registerFileIconScheme(): void {
   ]);
 }
 
-/** Serves `fastvibe-icon://icons/<name>.svg` out of the icon package. */
+/** Serves `pinext-icon://icons/<name>.svg` out of the icon package. */
 export function registerFileIconProtocol(): void {
   const directory = iconsDir();
   protocol.handle(FILE_ICON_SCHEME, (request) => {

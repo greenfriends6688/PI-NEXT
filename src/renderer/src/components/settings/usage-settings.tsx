@@ -37,7 +37,7 @@ export function UsageSettings(): JSX.Element {
     setLoading(true);
     setStats(null);
     setFailed(false);
-    void window.fastvibe.stats
+    void window.pinext.stats
       .usage(range)
       .then((next) => {
         if (cancelled) return;

@@ -15,7 +15,7 @@ function deferred() {
 }
 
 test("Stop during a real SDK memory hook releases preparation and prevents the provider from starting", async (t) => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-preflight-stop-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-preflight-stop-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const preparations = new PromptPreparations();
   const entered = deferred();

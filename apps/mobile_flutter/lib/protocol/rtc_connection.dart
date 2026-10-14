@@ -14,7 +14,7 @@ import 'rtc_frames.dart';
 import 'rtc_signaling.dart';
 
 /// The one data channel label the desktop expects; anything else it closes.
-const String rtcChannelLabel = 'fastvibe';
+const String rtcChannelLabel = 'pinext';
 
 /// Largest frame accepted from the desktop. A transcript page is the big one.
 const int _maxFrameBytes = 24 * 1024 * 1024;
@@ -199,12 +199,12 @@ SelectedPair? selectedPairFrom(List<StatsEntry> stats) {
 const int _highWaterBytes = 256 * 1024;
 const int _lowWaterBytes = 64 * 1024;
 
-/// Reaches a computer on the same FastVibe account over WebRTC.
+/// Reaches a computer on the same Pinext account over WebRTC.
 ///
 /// The cloud's signaling introduces this phone to the desktop — it only connects two sessions
 /// of one account, and the DTLS fingerprints travel over that authenticated channel, so
 /// nothing else needs a password. ICE then picks the best path itself: the LAN, a route across
-/// NATs, or FastVibe's TURN relay when neither works. The result is a [FrameSocket], so
+/// NATs, or Pinext's TURN relay when neither works. The result is a [FrameSocket], so
 /// [RemoteClient] runs its ordinary handshake over it.
 class RtcDialer {
   RtcDialer({
@@ -217,7 +217,7 @@ class RtcDialer {
     http.Client? client,
   }) : _http = client ?? http.Client();
 
-  /// The site, e.g. `https://app.fastvibe.dev`.
+  /// The site, e.g. `https://app.pinext.dev`.
   final String origin;
 
   /// The account's device token. Sent to [origin] and nowhere else.
@@ -794,7 +794,7 @@ class RtcFrameSocket implements ExpiringFrameSocket {
   Future<bool> usesRelay() async => await selectedPath() == 'relay';
 
   /// Which kind of path ICE chose: `direct` (LAN or across NATs) or `relay` (through
-  /// FastVibe's relay, which counts against the account's monthly allowance). Null until known.
+  /// Pinext's relay, which counts against the account's monthly allowance). Null until known.
   Future<String?> selectedPath() async => (await selectedPair())?.path;
 
   /// The pair of addresses the connection is on, or null until one is chosen.

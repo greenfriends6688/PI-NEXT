@@ -16,7 +16,7 @@ import '../i18n/core.dart';
 ///
 /// A tag is not yet a release — CI pushes the tag, then spends ten minutes building before
 /// it publishes — so the newest tag whose APK is not there yet is skipped for the one below.
-const String releaseRepo = 'tyuan511/fastvibe';
+const String releaseRepo = 'YOUR_GITHUB_OWNER/pinext';
 const String releaseTagPrefix = 'app-v';
 
 /// Tags tried, newest first, before giving up on finding a published build.
@@ -153,10 +153,10 @@ List<String> apkCandidates(String version, List<String> supportedAbis) {
   final seen = <String>{};
   for (final abi in supportedAbis) {
     if (!_knownAbis.contains(abi)) continue;
-    final name = 'FastVibe-$releaseTagPrefix$version-$abi.apk';
+    final name = 'Pinext-$releaseTagPrefix$version-$abi.apk';
     if (seen.add(name)) names.add(name);
   }
-  if (seen.add('FastVibe.apk')) names.add('FastVibe.apk');
+  if (seen.add('Pinext.apk')) names.add('Pinext.apk');
   return names;
 }
 
@@ -269,7 +269,7 @@ String _xmlUnescape(String value) => value
     .replaceAll('&amp;', '&');
 
 Map<String, String> get _requestHeaders => <String, String>{
-  'User-Agent': 'FastVibe/$appVersion',
+  'User-Agent': 'Pinext/$appVersion',
 };
 
 /// The note of one published phone version. The atom feed carries it while the release

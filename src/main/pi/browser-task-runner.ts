@@ -87,9 +87,9 @@ export function runBrowserTask(request: BrowserTaskRequest): Promise<BrowserTask
   });
 }
 
-/** Expose the runner to the browser-use extension, which cannot import FastVibe internals. */
+/** Expose the runner to the browser-use extension, which cannot import Pinext internals. */
 export function installBrowserTaskGlobal(): void {
   const scope = globalThis as Record<string, unknown>;
-  scope.__fastvibeBrowserTask = runBrowserTask;
-  scope.__fastvibeBrowserTaskEnabled = browserTasksEnabled;
+  scope.__pinextBrowserTask = runBrowserTask;
+  scope.__pinextBrowserTaskEnabled = browserTasksEnabled;
 }

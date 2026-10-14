@@ -18,7 +18,7 @@ export type RemoteHostProfile = {
   host: string;
   /** Resolved HostName, for display and diagnostics only. */
   hostName?: string;
-  /** Whether this entry came from ~/.ssh/config or was created in FastVibe. */
+  /** Whether this entry came from ~/.ssh/config or was created in Pinext. */
   source?: "config" | "manual";
   user?: string;
   port?: number;
@@ -33,7 +33,7 @@ export type RemoteHostProfile = {
   /** A password is saved for this host. Set on the copies the renderer receives. */
   hasPassword?: boolean;
   knownHostsFile?: string;
-  /** The remote FastVibe service port, normally bound to loopback. */
+  /** The remote Pinext service port, normally bound to loopback. */
   servicePort?: number;
   /** Port on the local machine used for the SSH forward. */
   localPort?: number;
@@ -103,7 +103,7 @@ export type RemoteWorkspaceTarget = {
 /**
  * The outcome of a one-shot SSH reachability check (主机列表里的「测试」).
  *
- * The check stops at the login: no Agent deploy, no forwarding. A host whose FastVibe
+ * The check stops at the login: no Agent deploy, no forwarding. A host whose Pinext
  * Agent is absent is still a host this machine can reach, and reporting that as a
  * failure would answer a question nobody asked.
  */
@@ -114,12 +114,12 @@ export type RemoteHostTestResult = {
   /** Why it failed, when it did — OpenSSH's own last line where there is one. */
   error?: string;
   errorCode?: SshErrorCode;
-  /** What the login found of FastVibe on the host, when it got that far. */
+  /** What the login found of Pinext on the host, when it got that far. */
   agent?: RemoteAgentStatus;
 };
 
 export type RemoteAgentStatus = {
-  /** Readable independent runtime release linked as `~/.fastvibe-agent/current`, if any. */
+  /** Readable independent runtime release linked as `~/.pinext-agent/current`, if any. */
   installed?: string;
   /** Runtime release of the Agent listening on the service port, if one is. */
   running?: string;

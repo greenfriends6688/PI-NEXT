@@ -45,7 +45,7 @@ test("a reference is an image, a video or a local page — and an https page is 
 });
 
 test("a path becomes a media URL and a URL stays itself", () => {
-  assert.match(inlineSrc({ ref: "/tmp/a b.png" }), /^fastvibe-media:\/\/media\/play\?path=/);
+  assert.match(inlineSrc({ ref: "/tmp/a b.png" }), /^pinext-media:\/\/media\/play\?path=/);
   assert.equal(inlineSrc({ ref: "https://x.test/a.png" }), "https://x.test/a.png");
 });
 
@@ -208,7 +208,7 @@ test("present checks the file before it claims to show it", async () => {
   type Tool = { execute: (id: string, params: unknown, ...rest: unknown[]) => Promise<{ content: Array<{ text: string }>; details: { items: Array<{ ref: string; ok: boolean }> }; isError?: boolean }> };
   let registered: Tool | undefined;
   presentExtension({ registerTool: (definition: Tool) => (registered = definition) } as never);
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-present-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-present-"));
   try {
     await writeFile(join(dir, "a.png"), "x");
     await writeFile(join(dir, "n.txt"), "x");

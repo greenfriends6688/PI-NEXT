@@ -7,8 +7,8 @@ import { piAdapter } from "./sources/pi";
 import { zcodeAdapter } from "./sources/zcode";
 
 /**
- * The sources FastVibe imports from, in the order the 导入 pane lists them: the
- * sibling CLI whose format FastVibe's own engine speaks first, then the four that
+ * The sources Pinext imports from, in the order the 导入 pane lists them: the
+ * sibling CLI whose format Pinext's own engine speaks first, then the four that
  * cover most of the rest of the market.
  *
  * Adding a source means writing one adapter and naming it here — nothing else in the

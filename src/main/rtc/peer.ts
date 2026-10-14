@@ -82,7 +82,7 @@ export function createNodeDataChannelPeer(iceServers: IceServerConfig[], log?: (
     // Before any peer exists: a setting applied after usrsctp has started is ignored.
     tuneSctp();
   }
-  const pc = new nodeDataChannel.PeerConnection("fastvibe-desktop", {
+  const pc = new nodeDataChannel.PeerConnection("pinext-desktop", {
     iceServers,
     ...(options.bindAddress ? { bindAddress: options.bindAddress } : {}),
     ...(options.port ? { portRangeBegin: options.port, portRangeEnd: options.port } : {}),

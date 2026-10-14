@@ -34,8 +34,8 @@ const BROWSER_STEP_TOOLS = ["browser_click", "browser_type", "browser_press"];
 /** Main's decision-model loop and its switch, when this host provides them (not headless). */
 function browserTaskRunner(): { run: BrowserTaskRunner; enabled: () => boolean } | undefined {
   const scope = globalThis as Record<string, unknown>;
-  const enabled = scope.__fastvibeBrowserTaskEnabled;
-  const runner = scope.__fastvibeBrowserTask;
+  const enabled = scope.__pinextBrowserTaskEnabled;
+  const runner = scope.__pinextBrowserTask;
   if (typeof enabled !== "function" || typeof runner !== "function") return undefined;
   return {
     run: runner as BrowserTaskRunner,
@@ -69,13 +69,13 @@ function syncDecisionTools(pi: ExtensionAPI, task: string, steps: string[], on: 
 }
 
 function bridge(): BrowserBridge {
-  const handler = (globalThis as Record<string, unknown>).__fastvibeBrowserRequest;
+  const handler = (globalThis as Record<string, unknown>).__pinextBrowserRequest;
   if (typeof handler !== "function") throw new Error("内置浏览器桥接尚未就绪");
   return handler as BrowserBridge;
 }
 
 function boundConversationId(): string | undefined {
-  const value = (globalThis as Record<string, unknown>).__fastvibeBrowserConversationId;
+  const value = (globalThis as Record<string, unknown>).__pinextBrowserConversationId;
   return typeof value === "string" && value ? value : undefined;
 }
 
@@ -89,7 +89,7 @@ const TAB_ID = (required: boolean) => {
 /** Loading a page can outlast the bridge's default 30s, so say so per action. */
 const LOAD_TIMEOUT = 45_000;
 
-/** Browser-use tools backed by FastVibe's side-pane Electron webview. */
+/** Browser-use tools backed by Pinext's side-pane Electron webview. */
 export default function browserUse(pi: ExtensionAPI): void {
   // Closed over at factory time: the host stamps the conversation around reload,
   // and execute() must not read the global later (another session may have loaded).

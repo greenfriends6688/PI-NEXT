@@ -194,7 +194,7 @@ test("reconnecting after a close does not report the old connection as lost", as
 });
 
 test("a stdio server gets the short inherited environment plus its own, not the app's", () => {
-  const key = "FASTVIBE_TEST_SECRET";
+  const key = "PINEXT_TEST_SECRET";
   process.env[key] = "leak";
   try {
     const transport = createTransport(configOf("s", { command: "node", args: ["x"], env: { API_KEY: "k" } }), () => {}) as StdioTransport;

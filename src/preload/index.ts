@@ -1,9 +1,9 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { Ipc } from "@shared/ipc";
-import { createFastVibeApi, type FastVibeApi } from "@shared/api";
+import { createPinextApi, type PinextApi } from "@shared/api";
 
 /**
- * The Electron half of `window.fastvibe`.
+ * The Electron half of `window.pinext`.
  *
  * The bridge's shape lives in `@shared/api`, built once for every transport that can
  * carry it; this file only says how a desktop window reaches Main. The web client says
@@ -12,7 +12,7 @@ import { createFastVibeApi, type FastVibeApi } from "@shared/api";
  * the other lacks.
  */
 
-const api = createFastVibeApi({
+const api = createPinextApi({
   invoke: (channel, payload) => ipcRenderer.invoke(channel, payload),
   send: (channel, payload) => ipcRenderer.send(channel, payload),
   subscribe: (channel, listener) => {
@@ -38,6 +38,6 @@ const api = createFastVibeApi({
   pathForFile: (file) => webUtils.getPathForFile(file as Parameters<typeof webUtils.getPathForFile>[0]),
 });
 
-export type { FastVibeApi };
+export type { PinextApi };
 
-contextBridge.exposeInMainWorld("fastvibe", api);
+contextBridge.exposeInMainWorld("pinext", api);

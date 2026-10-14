@@ -56,7 +56,7 @@ const EXTRA_USAGE_LOGINS: Record<string, string> = {
 };
 
 export type NativeProvider = {
-  /** SDK provider id, e.g. `deepseek`. FastVibe uses it verbatim as the stored id. */
+  /** SDK provider id, e.g. `deepseek`. Pinext uses it verbatim as the stored id. */
   id: string;
   name: string;
   api: string;
@@ -114,7 +114,7 @@ export function listNativeProviders(): NativeProvider[] {
     .map(([id, entry]) => {
       const reason = UNSUPPORTED[id];
       // A `radius` gateway advertises a login but has no catalog until it is
-      // configured, and FastVibe keeps model networking off — offering it would only
+      // configured, and Pinext keeps model networking off — offering it would only
       // produce a provider with nothing to talk to.
       const oauth = entry.models.length > 0 ? entry.oauth : undefined;
       return {
@@ -150,7 +150,7 @@ export function findNativeProvider(id: string): NativeProvider | undefined {
  */
 function toProviderModel(model: Model<Api>): ProviderModel {
   // Keep only levels the shared vocabulary knows, so a future pi level cannot leak
-  // into `models.json` / the composer before FastVibe has a label for it. `off` is
+  // into `models.json` / the composer before Pinext has a label for it. `off` is
   // dropped with them: the SDK reports it for every model, but requesting it is what
   // makes a reason-by-default upstream answer with a 400.
   const supported = new Set<string>(THINKING_LEVELS);
@@ -188,7 +188,7 @@ export function selectedNativeModels(id: string, selectedIds: string[]): Provide
 }
 
 /**
- * Rebuild a selected native roster from the SDK catalog while retaining FastVibe's
+ * Rebuild a selected native roster from the SDK catalog while retaining Pinext's
  * user-edited metadata. Unedited rows deliberately come from the SDK so an upgrade can
  * refresh its defaults; edited rows only override the fields the detail dialog owns.
  */

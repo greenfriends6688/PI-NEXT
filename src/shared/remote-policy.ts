@@ -155,7 +155,7 @@ const ALLOWED = new Set<string>([
   // which decision model is selected, and whether a key exists, costs nothing.
   Ipc.decisionGetConfig,
   Ipc.decisionKeyState,
-  // Memory is local to this FastVibe instance; remote clients may switch it, run a pass
+  // Memory is local to this Pinext instance; remote clients may switch it, run a pass
   // and clear it, exactly as the desktop can.
   Ipc.memoryGetState,
   Ipc.memorySetConfig,

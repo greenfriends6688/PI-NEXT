@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { uiText } from "../engine/ui-text";
 import { readComputerSettings } from "../engine/app-settings";
 import { unpackedPath } from "../engine/asar-unpacked";
-import { getFastVibePaths } from "../engine/paths";
+import { getPinextPaths } from "../engine/paths";
 import { resolveComputerAvailability } from "@shared/computer-availability";
 import type {
   ComputerAppInfo,
@@ -17,7 +17,7 @@ import type {
 } from "@shared/types";
 
 /**
- * FastVibe's bridge to Cua Driver, the Rust engine behind the `computer_*` tools.
+ * Pinext's bridge to Cua Driver, the Rust engine behind the `computer_*` tools.
  *
  * The driver runs as a *private worker*: a `cua-driver` process this app spawns and
  * owns, reached over a unix socket. It began as an in-process library
@@ -33,7 +33,7 @@ import type {
  * and Screen Recording to a process, keyed by its code signature, and a child spawned
  * through a gateway, a terminal or `open` starts a new responsibility chain owning none
  * of them. `EmbeddedCuaDriverHost` spawns the worker directly from this process, so it
- * inherits the grants the user gave FastVibe — which is also why cua requires the spawn
+ * inherits the grants the user gave Pinext — which is also why cua requires the spawn
  * to come from the app that holds them.
  *
  * The corollary is that a build signed with an unstable identity cannot hold those grants
@@ -53,7 +53,7 @@ type Driver = Awaited<ReturnType<DriverModule["CuaDriver"]["create"]>>;
  * one on-screen cue that something other than their own hand is moving the pointer, and
  * a UUID reads as a glitch rather than as an explanation.
  */
-const SESSION = "FastVibe";
+const SESSION = "Pinext";
 
 /** Any single desktop action that has not answered by now is not going to. */
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -80,7 +80,7 @@ function fail(code: ComputerErrorCode, message: string, suggestedAction?: string
 }
 
 /** Identity the worker reports in macOS permission diagnostics. Advisory only. */
-const HOST_BUNDLE_ID = "dev.fastvibe.desktop";
+const HOST_BUNDLE_ID = "dev.pinext.desktop";
 
 let modulePromise: Promise<DriverModule> | null = null;
 let driverPromise: Promise<Driver> | null = null;
@@ -314,7 +314,7 @@ async function ensureDriver(): Promise<Driver> {
         approveCapabilityManifest: false,
         approveSessionPolicy: false,
         // The flag that turns off the driver's own runtime approvals. Left as the
-        // driver ships it: FastVibe adds no approval layer of its own, so this is not
+        // driver ships it: Pinext adds no approval layer of its own, so this is not
         // something to widen quietly.
         dangerouslyBypassApprovals: false,
         // The worker's stderr carries its telemetry notice and its own diagnostics;
@@ -342,7 +342,7 @@ async function assertDrivable(): Promise<void> {
   if (!permissions.ready && permissions.available) {
     // Ask before complaining. macOS does not list an application under Privacy &
     // Security until it has actually requested the permission, so an error telling the
-    // user to go flip a toggle would point them at a pane FastVibe is not in yet.
+    // user to go flip a toggle would point them at a pane Pinext is not in yet.
     // Requesting registers the app and surfaces the prompts; flipping the toggle stays
     // the user's decision, which is why this can still fall through to the throw.
     permissions = await requestComputerPermissions();
@@ -366,7 +366,7 @@ async function assertDrivable(): Promise<void> {
   // still off — the answer it would get could already differ from the one that failed.
   fail(
     "permission_required",
-    uiText(`FastVibe 还没有获得「${missing}」权限。`, `FastVibe has not been granted ${missing}.`),
+    uiText(`Pinext 还没有获得「${missing}」权限。`, `Pinext has not been granted ${missing}.`),
     uiText(
       "在 设置 › 电脑操控 点「开始授权」，按引导把浮层拖进系统设置的列表。",
       "Press Start granting in Settings › Computer control and drag the panel into the System Settings list.",
@@ -423,7 +423,7 @@ export async function requestComputer(request: ComputerRequest): Promise<Compute
   return serialize(async () => {
     // Read per call, not per session: a user who turns the switch off mid-run means it
     // to stop now, and a cached value would let the current run finish driving anyway.
-    const settings = readComputerSettings(getFastVibePaths());
+    const settings = readComputerSettings(getPinextPaths());
     if (!settings.enabled) {
       fail(
         "disabled",
@@ -502,7 +502,7 @@ export async function requestComputer(request: ComputerRequest): Promise<Compute
  *
  * Cua ends a session after it has been idle — five minutes, per its own README — and a
  * *named* one is then refused rather than silently recreated: every later call comes back
- * `session 'FastVibe' has ended; call start_session with this id to revive it`. That is
+ * `session 'Pinext' has ended; call start_session with this id to revive it`. That is
  * what `sessionStarted` used to turn into a permanent failure — it was set on the first
  * action of an app run and never cleared, so the session was never revived and nothing
  * but `list_apps` / `list_windows` (which take no session) worked again until the app was
@@ -1044,7 +1044,7 @@ export async function computerAppForPid(pid: number): Promise<ComputerAppInfo | 
 }
 
 /**
- * Start a native drag carrying FastVibe's own application bundle.
+ * Start a native drag carrying Pinext's own application bundle.
  *
  * This is the macOS grant flow that actually works. The Privacy & Security list accepts
  * an application dropped onto it, and dropping is the one gesture that does not require
@@ -1055,7 +1055,7 @@ export async function computerAppForPid(pid: number): Promise<ComputerAppInfo | 
 export function startComputerDrag(contents: WebContents): void {
   if (process.platform !== "darwin") return;
   const bundle = appBundlePath();
-  if (!bundle) throw new Error(uiText("未能定位 FastVibe 应用包", "Could not locate the FastVibe application bundle"));
+  if (!bundle) throw new Error(uiText("未能定位 Pinext 应用包", "Could not locate the Pinext application bundle"));
   const iconFile = app.isPackaged
     ? join(process.resourcesPath, "icon.png")
     : join(__dirname, "../../resources/icon.png");
@@ -1068,7 +1068,7 @@ export function startComputerDrag(contents: WebContents): void {
   });
 }
 
-/** `/Applications/FastVibe.app`, derived from the running executable. */
+/** `/Applications/Pinext.app`, derived from the running executable. */
 function appBundlePath(): string | null {
   const exe = app.getPath("exe");
   const marker = exe.indexOf(".app/Contents/MacOS/");
@@ -1086,7 +1086,7 @@ function appBundlePath(): string | null {
  * lazy start do it, which costs one cold start on the next action and avoids a second
  * reconnection path that would only ever run in this one situation.
  *
- * It is why granting no longer asks the user to restart FastVibe: the process that has
+ * It is why granting no longer asks the user to restart Pinext: the process that has
  * to be restarted is the worker, and it is ours.
  */
 export async function resetComputerWorker(): Promise<void> {
@@ -1095,11 +1095,11 @@ export async function resetComputerWorker(): Promise<void> {
 }
 
 /**
- * Exposed for the resource-loaded extension, which cannot import FastVibe internals —
+ * Exposed for the resource-loaded extension, which cannot import Pinext internals —
  * it is loaded by path from outside the asar, the same arrangement `browser-bridge` uses.
  */
 export function installComputerGlobal(): void {
-  (globalThis as Record<string, unknown>).__fastvibeComputerRequest = requestComputer;
+  (globalThis as Record<string, unknown>).__pinextComputerRequest = requestComputer;
   app.once("will-quit", () => {
     void shutdownComputer();
   });

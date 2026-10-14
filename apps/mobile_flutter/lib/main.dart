@@ -41,7 +41,7 @@ Future<void> startApp({bool checkUpdates = true}) async {
   await LocalNotifications.instance.install((serverId, conversationId) {
     unawaited(openNotificationTarget(serverId, conversationId));
   });
-  runApp(FastVibeApp(checkUpdates: checkUpdates));
+  runApp(PinextApp(checkUpdates: checkUpdates));
 }
 
 /// The account decides which computers are on the list: signing in brings them, signing out
@@ -65,15 +65,15 @@ Future<void> _startAccount() async {
   if (wasSignedIn) unawaited(OfficialDevices.instance.refresh());
 }
 
-class FastVibeApp extends StatefulWidget {
-  const FastVibeApp({super.key, this.checkUpdates = true});
+class PinextApp extends StatefulWidget {
+  const PinextApp({super.key, this.checkUpdates = true});
   final bool checkUpdates;
 
   @override
-  State<FastVibeApp> createState() => _FastVibeAppState();
+  State<PinextApp> createState() => _PinextAppState();
 }
 
-class _FastVibeAppState extends State<FastVibeApp> with WidgetsBindingObserver {
+class _PinextAppState extends State<PinextApp> with WidgetsBindingObserver {
   StreamSubscription<List<ConnectivityResult>>? _network;
   @override
   void initState() {
@@ -119,7 +119,7 @@ class _FastVibeAppState extends State<FastVibeApp> with WidgetsBindingObserver {
         ),
         theme: GlassThemeData.simple(blur: 12, thickness: 25),
         child: MaterialApp.router(
-          title: 'FastVibe',
+          title: 'Pinext',
           debugShowCheckedModeBanner: false,
           scrollBehavior: const _IosScrollBehavior(),
           routerConfig: appRouter,

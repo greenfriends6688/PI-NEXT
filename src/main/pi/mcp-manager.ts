@@ -165,7 +165,7 @@ export class McpManager {
   }
 
   async #connect(config: McpServerConfig): Promise<void> {
-    const client = new McpClient({ name: "FastVibe", version: "0.1.0", requestTimeoutMs: REQUEST_TIMEOUT_MS });
+    const client = new McpClient({ name: "Pinext", version: "0.1.0", requestTimeoutMs: REQUEST_TIMEOUT_MS });
     let stderr = "";
     try {
       const transport = this.#createTransport(config, (chunk) => {
@@ -211,7 +211,7 @@ export function normalizeConfigs(value: unknown): McpServerConfig[] {
   if (!value || typeof value !== "object") return [];
 
   // Also accept the standard MCP client shape, so a config copied from DBX,
-  // Claude Desktop, etc. can be placed directly in FastVibe's mcp.json.
+  // Claude Desktop, etc. can be placed directly in Pinext's mcp.json.
   const servers = (value as Record<string, unknown>).mcpServers;
   if (!servers || typeof servers !== "object" || Array.isArray(servers)) return [];
   return Object.entries(servers).flatMap(([name, raw]) => {

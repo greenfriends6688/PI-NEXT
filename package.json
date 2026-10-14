@@ -1,22 +1,22 @@
 {
-  "name": "fastvibe",
+  "name": "pinext",
   "version": "0.19.5",
   "private": true,
   "license": "MIT",
   "description": "Desktop client for agent work, code, and cowork",
   "author": {
-    "name": "FastVibe",
-    "email": "dev@fastvibe.dev"
+    "name": "Pinext",
+    "email": "dev@pinext.dev"
   },
-  "homepage": "https://fastvibe.dev",
+  "homepage": "https://pinext.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tyuan511/fastvibe.git"
+    "url": "https://github.com/YOUR_GITHUB_OWNER/pinext.git"
   },
   "type": "module",
   "main": "./out/main/index.js",
   "bin": {
-    "fastvibe-agent": "./out/main/agent.js"
+    "pinext-agent": "./out/main/agent.js"
   },
   "scripts": {
     "sync:models": "node scripts/sync-models-dev.mjs",

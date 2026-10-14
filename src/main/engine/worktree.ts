@@ -1,8 +1,8 @@
 import { homedir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
 
-/** Parent directory for FastVibe-created worktrees: `~/.fastvibe/worktree`. */
-export const WORKTREE_HOME_SEGMENTS = [".fastvibe", "worktree"] as const;
+/** Parent directory for Pinext-created worktrees: `~/.pinext/worktree`. */
+export const WORKTREE_HOME_SEGMENTS = [".pinext", "worktree"] as const;
 
 export type GitWorktreeInfo = {
   path: string;
@@ -19,7 +19,7 @@ export function worktreeHome(home = homedir()): string {
   return join(home, ...WORKTREE_HOME_SEGMENTS);
 }
 
-/** `~/.fastvibe/worktree/<project-name>` — default parent for a project's worktrees. */
+/** `~/.pinext/worktree/<project-name>` — default parent for a project's worktrees. */
 export function defaultWorktreeDir(projectName: string, home = homedir()): string {
   return join(worktreeHome(home), sanitizeSegment(projectName) || "project");
 }

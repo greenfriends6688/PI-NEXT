@@ -56,7 +56,7 @@ function AttachmentStrip({ items }: { items: ChatAttachment[] }): JSX.Element {
                   : item.path
                     ? () => {
                         if (isRemoteRef(item.path) ) return;
-                        void window.fastvibe.workspace.reveal(item.path!);
+                        void window.pinext.workspace.reveal(item.path!);
                       }
                     : undefined
               }

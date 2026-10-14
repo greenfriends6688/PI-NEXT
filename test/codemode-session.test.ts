@@ -22,7 +22,7 @@ import { McpManager, type McpServerConfig } from "../src/main/pi/mcp-manager.ts"
 import { applyToolModes, toolModes } from "../src/main/engine/tool-modes.ts";
 
 /**
- * The real SDK, end to end: the extensions FastVibe loads, an MCP server behind our
+ * The real SDK, end to end: the extensions Pinext loads, an MCP server behind our
  * manager, and a scripted model. What it pins is the wiring the engine does in
  * `#createSession` — which tools are declared, what a script can reach, and what the
  * events a client receives look like — none of which a unit test of one piece can see.
@@ -84,11 +84,11 @@ async function harness(options: {
     agentDir,
     settingsManager,
     extensionFactories: [
-      { name: "fastvibe-mcp", hidden: true, factory: async (pi) => { for (const tool of await manager.tools()) pi.registerTool(tool as ToolDefinition); } },
-      { name: "fastvibe-codemode", hidden: true, factory: createCodemodeExtension() },
-      { name: "fastvibe-tool-search", hidden: true, factory: createToolSearchExtension() },
+      { name: "pinext-mcp", hidden: true, factory: async (pi) => { for (const tool of await manager.tools()) pi.registerTool(tool as ToolDefinition); } },
+      { name: "pinext-codemode", hidden: true, factory: createCodemodeExtension() },
+      { name: "pinext-tool-search", hidden: true, factory: createToolSearchExtension() },
       {
-        name: "fastvibe-tool-modes",
+        name: "pinext-tool-modes",
         hidden: true,
         factory: (pi) => {
           pi.on("session_start", () => {

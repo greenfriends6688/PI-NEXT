@@ -1,4 +1,4 @@
-const BOOT_LOADER_ID = "fastvibe-boot";
+const BOOT_LOADER_ID = "pinext-boot";
 
 /**
  * Remove the static splash after the initial workspace has committed (see App).

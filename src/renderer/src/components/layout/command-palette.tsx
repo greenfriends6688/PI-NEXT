@@ -151,7 +151,7 @@ export function CommandPalette({
     }
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      void window.fastvibe.conversations
+      void window.pinext.conversations
         .search(needle)
         .then((next) => {
           if (!cancelled) setHits(next);

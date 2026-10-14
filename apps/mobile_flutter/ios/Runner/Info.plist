@@ -12,7 +12,7 @@
 			<string>zh-Hans</string>
 		</array>
 		<key>CFBundleDisplayName</key>
-		<string>FastVibe</string>
+		<string>Pinext</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -20,7 +20,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>FastVibe</string>
+		<string>Pinext</string>
 		<key>NSAppTransportSecurity</key>
 		<dict>
 			<!-- 设置 → 远程访问 copies a plain http LAN address, and a phone on the same
@@ -29,15 +29,15 @@
 			<true/>
 		</dict>
 		<key>NSLocalNetworkUsageDescription</key>
-		<string>Connect to FastVibe on your local network.</string>
+		<string>Connect to Pinext on your local network.</string>
 		<key>NSBonjourServices</key>
 		<array>
-			<string>_fastvibe._tcp</string>
+			<string>_pinext._tcp</string>
 		</array>
 		<key>NSCameraUsageDescription</key>
-		<string>Scan the QR code on your computer to connect to FastVibe.</string>
+		<string>Scan the QR code on your computer to connect to Pinext.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>Choose photos to send to FastVibe.</string>
+		<string>Choose photos to send to Pinext.</string>
 		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
 		<key>CFBundlePackageType</key>

@@ -2,11 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:fastvibe_mobile/chat/draft_storage.dart';
-import 'package:fastvibe_mobile/notifications/target.dart';
-import 'package:fastvibe_mobile/protocol/address.dart';
-import 'package:fastvibe_mobile/storage/servers.dart';
-import 'package:fastvibe_mobile/ui/preferences.dart';
+import 'package:pinext_mobile/chat/draft_storage.dart';
+import 'package:pinext_mobile/notifications/target.dart';
+import 'package:pinext_mobile/protocol/address.dart';
+import 'package:pinext_mobile/storage/servers.dart';
+import 'package:pinext_mobile/ui/preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

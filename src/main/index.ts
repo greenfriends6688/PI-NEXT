@@ -17,7 +17,7 @@ import {
   readAppSettings,
   writeAppSettings,
 } from "./engine/app-settings";
-import { configureFastVibeUserData, getFastVibePaths, type FastVibePaths } from "./engine/paths";
+import { configurePinextUserData, getPinextPaths, type PinextPaths } from "./engine/paths";
 import { readDecisionConfig, writeDecisionConfig } from "./engine/decision/store";
 import { testJevConnection } from "./engine/decision/backends/jev";
 import { decisionModelConfigOf, JEV_KEY_ENV, type DecisionKeyState, type DecisionModelConfig, type DecisionTestResult } from "@shared/decision";
@@ -72,9 +72,9 @@ import {
 } from "./pi/cua-bridge";
 import { cancelGrantFlow, grantFlowState, startGrantFlow } from "./pi/computer-grant-flow";
 
-app.setName("FastVibe");
-configureFastVibeUserData(app.getPath("userData"));
-process.env.FASTVIBE_RESOURCES_PATH = app.isPackaged
+app.setName("Pinext");
+configurePinextUserData(app.getPath("userData"));
+process.env.PINEXT_RESOURCES_PATH = app.isPackaged
   ? process.resourcesPath
   : join(app.getAppPath(), "resources");
 
@@ -113,7 +113,7 @@ function bundledAgentRuntime(): AgentRuntimeSource {
 }
 
 const agentRuntime = bundledAgentRuntime();
-const paths = getFastVibePaths();
+const paths = getPinextPaths();
 // The SQLite index and the embedding model of the memory this one replaced; derived data, and
 // the model alone was 118 MB.
 removeLegacyMemory(paths.runtimeRoot);
@@ -130,7 +130,7 @@ const terminals = new TerminalSessions();
 const terminalOwners = new Map<string, string>();
 
 const sshManager = new SshManager({
-  paths: getFastVibePaths(),
+  paths: getPinextPaths(),
   // Linux without a secret service falls back to a hard-coded key ("basic_text"), which
   // is obfuscation rather than encryption; the 0600 file is no worse than that.
   secrets: {
@@ -151,7 +151,7 @@ const sshManager = new SshManager({
     artifactDirectory: app.isPackaged
       ? join(app.getAppPath(), "agent-runtimes")
       : join(__dirname, "../../release/agent-runtime"),
-    cacheDirectory: join(getFastVibePaths().runtimeRoot, "ssh-agent-runtimes"),
+    cacheDirectory: join(getPinextPaths().runtimeRoot, "ssh-agent-runtimes"),
     releaseBaseUrl: process.env.PINEXT_AGENT_RELEASE_BASE_URL,
   },
 });
@@ -234,7 +234,7 @@ const remoteConnections = new RemoteConnectionManager({
       artifactDirectory: app.isPackaged
         ? join(app.getAppPath(), "agent-runtimes")
         : join(__dirname, "../../release/agent-runtime"),
-      cacheDirectory: join(getFastVibePaths().runtimeRoot, "ssh-agent-runtimes"),
+      cacheDirectory: join(getPinextPaths().runtimeRoot, "ssh-agent-runtimes"),
       releaseBaseUrl: process.env.PINEXT_AGENT_RELEASE_BASE_URL,
     },
     log: {
@@ -246,9 +246,9 @@ const remoteConnections = new RemoteConnectionManager({
 const gateway = new RemoteGateway({
   localDispatch: (method, payload, ctx) => dispatch(method, payload, ctx as CallerContext),
   localSnapshot: () => engine.listWorkspace(),
-  localAgentConfig: () => readAgentConfig(getFastVibePaths()),
+  localAgentConfig: () => readAgentConfig(getPinextPaths()),
   connections: remoteConnections,
-  bindingsFile: getFastVibePaths().projectBindingsFile,
+  bindingsFile: getPinextPaths().projectBindingsFile,
   profiles: () => {
     const hosts = sshManager.hosts();
     return [...hosts.saved, ...hosts.discovered];
@@ -282,7 +282,7 @@ function modelsDevInfo(stats: ModelsDevStats): AppModelsDevInfo {
  * config per run; sessions pick up whether to offer the tool when their tools load.
  */
 function registerDecisionIpc(): void {
-  const paths = () => getFastVibePaths();
+  const paths = () => getPinextPaths();
   const keyState = async (): Promise<DecisionKeyState> => {
     await adoptLegacyJevProvider(paths());
     return { jev: Boolean(await resolveSystemOne(paths())) };
@@ -483,7 +483,7 @@ function wireElectronTransport(): void {
   // and `sendSync` has no counterpart on any other transport. A remote client answers
   // the same need from its connection handshake instead.
   ipcMain.on(Ipc.settingsGetSync, (event) => {
-    event.returnValue = readAppSettings(getFastVibePaths());
+    event.returnValue = readAppSettings(getPinextPaths());
   });
 }
 
@@ -503,7 +503,7 @@ function queueSettingsWrite(task: () => Promise<void>): Promise<void> {
 let shutdownDeadline: NodeJS.Timeout | undefined;
 let devParentWatch: NodeJS.Timeout | undefined;
 
-// FastVibe is a single-window app, and one *process*: a second launch — the Dock icon, or
+// Pinext is a single-window app, and one *process*: a second launch — the Dock icon, or
 // opening the .app again — must bring the window that already exists forward rather than
 // start a second copy holding its own engine over the same catalog and transcripts. The
 // lock is taken at module scope, before anything is ready, because the process that loses
@@ -536,12 +536,12 @@ app.whenReady().then(async () => {
   // inside the bridge — which would make the bridge and the flow import each other.
   app.once("will-quit", () => cancelGrantFlow());
   applyAppIcon();
-  const startupSettings = readAppSettings(getFastVibePaths());
+  const startupSettings = readAppSettings(getPinextPaths());
   networkProxy = await createNetworkProxy(startupSettings);
   applyNativeTheme(startupSettings);
   // 跟随系统 flips the OS between light and dark behind the app's back: the window's
   // pre-paint fill follows it (and so does the blur's own appearance, which macOS does).
-  nativeTheme.on("updated", () => paintWindows(windows, readAppSettings(getFastVibePaths())));
+  nativeTheme.on("updated", () => paintWindows(windows, readAppSettings(getPinextPaths())));
   // Seed the extensions' UI language and the AI 偏好语言 prompt before any
   // session starts. A first launch has no settings file yet; the renderer writes one
   // (with the OS-detected language) on boot, which re-applies these.
@@ -588,7 +588,7 @@ app.whenReady().then(async () => {
   registerSshIpc();
   registerDecisionIpc();
   createAppServer({
-    identity: loadOrCreateServerIdentity(getFastVibePaths().serverIdentityFile, {
+    identity: loadOrCreateServerIdentity(getPinextPaths().serverIdentityFile, {
       version: app.getVersion(),
       platform: process.platform,
     }),
@@ -671,7 +671,7 @@ app.whenReady().then(async () => {
   // phone page watching a conversation the desktop is not showing. Published straight
   // to the App Server rather than through `broadcast`, so it reaches those subscribers
   // and never the windows.
-  // The `fastvibe_config_*` tools: the agent filling in FastVibe's own settings panes.
+  // The `pinext_config_*` tools: the agent filling in Pinext's own settings panes.
   engine.setAppConfigHost(runAppConfig);
   engine.setStreamWatch({
     isWatched: (conversationId) => getAppServer().shouldRetainStream(conversationScope(conversationId)),

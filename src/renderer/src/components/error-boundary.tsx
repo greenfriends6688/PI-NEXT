@@ -62,7 +62,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
             type="button"
             className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-accent"
             onClick={() => {
-              void window.fastvibe.app.exportLogs();
+              void window.pinext.app.exportLogs();
             }}
           >
             {i18n.t("common:crash.exportLogs")}

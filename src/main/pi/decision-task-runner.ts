@@ -7,7 +7,7 @@ import { DecisionRuntime, type DecisionBackend } from "../engine/decision/runtim
 import { resolveSystemOne } from "../engine/decision/systemone";
 import { DecisionTraceFile } from "../engine/decision/trace";
 import { readDecisionConfig } from "../engine/decision/store";
-import { getFastVibePaths } from "../engine/paths";
+import { getPinextPaths } from "../engine/paths";
 import { adoptLegacyJevProvider } from "../engine/providers";
 import { uiText } from "../engine/ui-text";
 import type { DecisionModelConfig } from "@shared/decision";
@@ -50,13 +50,13 @@ export function installDecisionTaskDependencies(deps: DecisionTaskDependencies):
 
 /** Whether sessions should be offered `browser_task` (re-read at the start of every turn). */
 export function browserTasksEnabled(): boolean {
-  const config = readDecisionConfig(getFastVibePaths().decisionFile);
+  const config = readDecisionConfig(getPinextPaths().decisionFile);
   return config.kind === "jev" && config.browserControl;
 }
 
 /** Whether sessions should be offered `computer_task` (re-read at the start of every turn). */
 export function computerTasksEnabled(): boolean {
-  const config = readDecisionConfig(getFastVibePaths().decisionFile);
+  const config = readDecisionConfig(getPinextPaths().decisionFile);
   return config.kind === "jev" && config.computerControl;
 }
 
@@ -80,7 +80,7 @@ export function trackDecisionWork(stop: AbortController): () => void {
 /** The backend the saved config selects, or the sentence explaining why there is none. */
 export async function backendFor(config: DecisionModelConfig): Promise<DecisionBackend | string> {
   if (config.kind === "jev") {
-    const paths = getFastVibePaths();
+    const paths = getPinextPaths();
     await adoptLegacyJevProvider(paths);
     const resolved = await resolveSystemOne(paths);
     if (!resolved) return uiText("还没有可用的 System One 模型（设置 → 模型管理）", "No System One model is available (Settings → Models)");
@@ -99,7 +99,7 @@ export type DecisionTaskTarget = {
 
 export async function runDecisionTask(request: DecisionTaskRequest, target: DecisionTaskTarget): Promise<DecisionTaskResult> {
   const started = Date.now();
-  const config = readDecisionConfig(getFastVibePaths().decisionFile);
+  const config = readDecisionConfig(getPinextPaths().decisionFile);
   const backend = await backendFor(config);
   if (typeof backend === "string") return { status: "error", detail: backend, steps: [], backend: config.kind, ms: 0 };
   if (!dependencies) return { status: "error", detail: `${target.kind} is not installed`, steps: [], backend: backend.id, ms: 0 };
@@ -110,7 +110,7 @@ export async function runDecisionTask(request: DecisionTaskRequest, target: Deci
   running.add(stop);
   const onAbort = () => stop.abort();
   request.signal?.addEventListener("abort", onAbort, { once: true });
-  const runtime = new DecisionRuntime({ backend, trace: new DecisionTraceFile(getFastVibePaths().decisionTraceFile) });
+  const runtime = new DecisionRuntime({ backend, trace: new DecisionTraceFile(getPinextPaths().decisionTraceFile) });
   const run = runtime.startRun({ budgetKey: `${target.kind}:${conversationId ?? "none"}:${started}`, deadlineAt: started + 5 * 60_000, signal: stop.signal });
 
   try {

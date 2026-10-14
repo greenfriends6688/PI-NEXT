@@ -19,7 +19,7 @@ import { useSessionStore, useExtensionStatus, useExtensionWidgets } from "@/stor
 import { TuiLines } from "./tui-lines";
 
 /**
- * Status keys FastVibe renders with its own chrome instead of the generic text
+ * Status keys Pinext renders with its own chrome instead of the generic text
  * line above the composer: `goal` becomes the `GoalPanel`, `goal-armed` a badge
  * beside the permission control, and `handoff` the composer's own placeholder
  * while the summary is written.
@@ -206,7 +206,7 @@ export function GoalPanel({ className, disabled }: { className?: string; disable
  * Status entries and string-line widgets an extension published via
  * `ctx.ui.setStatus()` / `ctx.ui.setWidget()`, rendered just above the composer.
  *
- * Goal-mode statuses are excluded: FastVibe draws those as its own badge /
+ * Goal-mode statuses are excluded: Pinext draws those as its own badge /
  * control panel.
  */
 export function ExtensionWidgets({ className }: { className?: string }): JSX.Element | null {

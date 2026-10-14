@@ -2,12 +2,12 @@ import { Type } from "typebox";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 /**
- * The agent's hands on FastVibe's own settings panes.
+ * The agent's hands on Pinext's own settings panes.
  *
  * A setup like an MCP server is a form of a dozen fields on this machine: the agent
  * works the values out with bash and ssh, and these two tools fill the form in for the
  * user. The playbook for using them lives in the
- * `fastvibe-setup` skill (`resources/skills/fastvibe-setup/SKILL.md`).
+ * `pinext-setup` skill (`resources/skills/pinext-setup/SKILL.md`).
  *
  * Holds no settings code: every call crosses into Main's allowlist
  * (`src/main/app-config.ts`) through `ctx.ui.appConfig`, which dispatches the same
@@ -21,7 +21,7 @@ type AppConfigHost = {
   appConfig?(request: { action: string; input?: Record<string, unknown>; write?: boolean }): Promise<AppConfigResult>;
 };
 
-const T = (zh: string, en: string): string => (process.env.FASTVIBE_UI_LANGUAGE === "en" ? en : zh);
+const T = (zh: string, en: string): string => (process.env.PINEXT_UI_LANGUAGE === "en" ? en : zh);
 
 function hostOf(ctx: ExtensionContext): AppConfigHost {
   return ctx.ui as unknown as AppConfigHost;
@@ -38,7 +38,7 @@ function reply(result: AppConfigResult, action: string) {
 }
 
 const unsupported = (action: string) => ({
-  content: [{ type: "text" as const, text: T("当前宿主不支持修改 FastVibe 设置。", "This host cannot change FastVibe settings.") }],
+  content: [{ type: "text" as const, text: T("当前宿主不支持修改 Pinext 设置。", "This host cannot change Pinext settings.") }],
   details: { action, ok: false },
   isError: true,
 });
@@ -50,17 +50,17 @@ const params = Type.Object({
 
 export default function appConfigExtension(pi: ExtensionAPI): void {
   pi.registerTool({
-    name: "fastvibe_config_get",
-    label: T("读取 FastVibe 设置", "Read FastVibe settings"),
+    name: "pinext_config_get",
+    label: T("读取 Pinext 设置", "Read Pinext settings"),
     description: [
-      "Read FastVibe's own configuration (the app you are running in): remote access and who can reach it,",
+      "Read Pinext's own configuration (the app you are running in): remote access and who can reach it,",
       "SSH hosts, MCP servers, UI settings. Call with action \"overview\" first —",
       "it returns the full action catalog (every read and write action with its input fields) plus current state.",
       "Never returns secrets.",
     ].join(" "),
-    promptSnippet: "Read FastVibe's own settings (remote access, MCP, SSH hosts)",
+    promptSnippet: "Read Pinext's own settings (remote access, MCP, SSH hosts)",
     promptGuidelines: [
-      "When the user asks to set up or change a FastVibe feature (远程访问 / MCP / 设置项), follow the fastvibe-setup skill and start with fastvibe_config_get({ action: \"overview\" }).",
+      "When the user asks to set up or change a Pinext feature (远程访问 / MCP / 设置项), follow the pinext-setup skill and start with pinext_config_get({ action: \"overview\" }).",
     ],
     parameters: params,
     async execute(_id, input, _signal, _onUpdate, ctx) {
@@ -71,14 +71,14 @@ export default function appConfigExtension(pi: ExtensionAPI): void {
   });
 
   pi.registerTool({
-    name: "fastvibe_config_apply",
-    label: T("修改 FastVibe 设置", "Change FastVibe settings"),
+    name: "pinext_config_apply",
+    label: T("修改 Pinext 设置", "Change Pinext settings"),
     description: [
-      "Change FastVibe's own configuration through the same methods its settings panes call; the panes update live.",
-      "Write actions come from the catalog fastvibe_config_get({ action: \"overview\" }) returns.",
+      "Change Pinext's own configuration through the same methods its settings panes call; the panes update live.",
+      "Write actions come from the catalog pinext_config_get({ action: \"overview\" }) returns.",
       "remote.set_password takes no input: the user types the password into a prompt and it never reaches you.",
     ].join(" "),
-    promptSnippet: "Change FastVibe's own settings (fill the remote access / MCP forms for the user)",
+    promptSnippet: "Change Pinext's own settings (fill the remote access / MCP forms for the user)",
     promptGuidelines: [
       "Before a change the user did not spell out (turning remote access on), say what you are about to change and why.",
       "Never ask the user to paste the remote-access password into the chat; call remote.set_password and let the prompt collect it.",

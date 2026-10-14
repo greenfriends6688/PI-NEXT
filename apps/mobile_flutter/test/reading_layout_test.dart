@@ -4,17 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:fastvibe_mobile/chat/markdown_chunks.dart';
-import 'package:fastvibe_mobile/chat/markdown_view.dart';
-import 'package:fastvibe_mobile/chat/turn_meta.dart';
-import 'package:fastvibe_mobile/chat/message.dart';
-import 'package:fastvibe_mobile/i18n/core.dart';
-import 'package:fastvibe_mobile/main.dart';
-import 'package:fastvibe_mobile/screens/transcript.dart';
-import 'package:fastvibe_mobile/theme/theme.dart';
-import 'package:fastvibe_mobile/ui/dock.dart';
-import 'package:fastvibe_mobile/ui/glass_screen.dart';
-import 'package:fastvibe_mobile/ui/kit.dart';
+import 'package:pinext_mobile/chat/markdown_chunks.dart';
+import 'package:pinext_mobile/chat/markdown_view.dart';
+import 'package:pinext_mobile/chat/turn_meta.dart';
+import 'package:pinext_mobile/chat/message.dart';
+import 'package:pinext_mobile/i18n/core.dart';
+import 'package:pinext_mobile/main.dart';
+import 'package:pinext_mobile/screens/transcript.dart';
+import 'package:pinext_mobile/theme/theme.dart';
+import 'package:pinext_mobile/ui/dock.dart';
+import 'package:pinext_mobile/ui/glass_screen.dart';
+import 'package:pinext_mobile/ui/kit.dart';
 
 import 'support/reading_sample.dart';
 

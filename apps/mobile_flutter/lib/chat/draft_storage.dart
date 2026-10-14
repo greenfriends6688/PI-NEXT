@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String _prefix = 'fastvibe.chat-draft.v1:';
+const String _prefix = 'pinext.chat-draft.v1:';
 final Map<String, MobileDraft?> _memory = <String, MobileDraft?>{};
 final Map<String, Future<void>> _writes = <String, Future<void>>{};
 

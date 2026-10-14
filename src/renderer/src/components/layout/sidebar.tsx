@@ -159,9 +159,9 @@ export const Sidebar = memo(function Sidebar({
       if (!mounted || !state.hostId) return;
       setSshStates((current) => ({ ...current, [state.hostId!]: state }));
     };
-    const offState = window.fastvibe.ssh.onState(applyState);
-    const offStates = window.fastvibe.ssh.onStates(applyStates);
-    void window.fastvibe.ssh.states().then(applyStates).catch(() => undefined);
+    const offState = window.pinext.ssh.onState(applyState);
+    const offStates = window.pinext.ssh.onStates(applyStates);
+    void window.pinext.ssh.states().then(applyStates).catch(() => undefined);
     return () => {
       mounted = false;
       offState();
@@ -554,7 +554,7 @@ export const Sidebar = memo(function Sidebar({
             ) : (
               <div className="flex items-center gap-2 px-2">
                 <AppLogo className="size-5 shrink-0 rounded-md" />
-                <span className="text-sm font-semibold tracking-tight">FastVibe</span>
+                <span className="text-sm font-semibold tracking-tight">Pinext</span>
               </div>
             )}
             <div className="flex items-center gap-0.5">

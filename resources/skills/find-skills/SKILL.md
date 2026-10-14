@@ -7,13 +7,13 @@ description: 帮用户寻找、评估并安装 agent 技能。当用户问「怎
 
 This skill helps you discover and install skills from the open agent skills ecosystem.
 
-## 你运行在 FastVibe 里（读这一节，它改写了下面的安装命令）
+## 你运行在 Pinext 里（读这一节，它改写了下面的安装命令）
 
 This skill was written for Claude Code and other harnesses. **One thing about it is wrong here and will silently do nothing: the default install target.** Everything else works as written. Fix that one thing before you run anything.
 
 ### `-g -y` 不够，必须加 `--agent universal`
 
-`npx skills add` 默认只装到 `claude-code` / `opencode` / `codex` 的目录（`~/.claude/skills` 等）。**FastVibe 不读那些目录**——它读的是 `~/.agents/skills`（全局）和 `<项目>/.agents/skills`（项目）。所以默认命令会报「已安装」，然后你在 FastVibe 里找不到它。
+`npx skills add` 默认只装到 `claude-code` / `opencode` / `codex` 的目录（`~/.claude/skills` 等）。**Pinext 不读那些目录**——它读的是 `~/.agents/skills`（全局）和 `<项目>/.agents/skills`（项目）。所以默认命令会报「已安装」，然后你在 Pinext 里找不到它。
 
 正确的写法是显式指定 universal 这个 target（已实测）：
 
@@ -26,14 +26,14 @@ npx skills add <owner/repo@skill> -y --agent universal
 ```
 
 - `--agent universal` 是那个把落点指到 `.agents/skills` 的开关（`--agent '*'` 也会包含它，但会顺带写一堆用不上的目录）。
-- 默认那三个 agent 的目录（`~/.claude/skills`、`~/.codex/skills` 等）FastVibe 一律读不到；如果用户本来就同时用 Claude Code，不加 `--agent` 也只会装到那边，对 FastVibe 仍然无效。
+- 默认那三个 agent 的目录（`~/.claude/skills`、`~/.codex/skills` 等）Pinext 一律读不到；如果用户本来就同时用 Claude Code，不加 `--agent` 也只会装到那边，对 Pinext 仍然无效。
 - **全局还是项目要问用户**，不要自己定。区别很实在：项目级在 `<仓库>/.agents/skills`，**通常会跟代码一起提交**，团队克隆下去就都有；全局则在 `~/.agents/skills`，只在这台机器上生效。参考 `skill-creator` 那一节问法。
 - **装完告诉用户怎么让它生效**：技能列表在会话开始时读，新技能通常要开新会话才进工具列表；但 设置 → 技能 的刷新按钮能立刻确认它确实落地了。
 - 装之前在 设置 → 技能 里看一眼有没有同名技能：**同名时用户的版本会胜出，不会报错**，所以装重复的名字等于没装。
 
 ### 其余部分照原文做
 
-`npx skills find`、看 skills.sh 排行、查安装量/来源、装完给用户验证——这些在 FastVibe 里都成立（`find` 非交互也能跑，输出带 ANSI 颜色）。下面是原文：
+`npx skills find`、看 skills.sh 排行、查安装量/来源、装完给用户验证——这些在 Pinext 里都成立（`find` 非交互也能跑，输出带 ANSI 颜色）。下面是原文：
 
 ## When to Use This Skill
 
@@ -122,13 +122,13 @@ Learn more: https://skills.sh/vercel-labs/agent-skills/react-best-practices
 
 ### Step 6: Offer to Install
 
-If the user wants to proceed, install it **into a directory FastVibe actually reads** — the `--agent universal` flag is not optional here (see the section at the top):
+If the user wants to proceed, install it **into a directory Pinext actually reads** — the `--agent universal` flag is not optional here (see the section at the top):
 
 ```bash
 npx skills add <owner/repo@skill> -g -y --agent universal
 ```
 
-The `-g` flag installs globally (`~/.agents/skills`), `-y` skips confirmation prompts, and `--agent universal` is what puts it somewhere FastVibe can see. Without `-g`, the same command lands in `<cwd>/.agents/skills` for the current project instead — ask the user which of the two they want.
+The `-g` flag installs globally (`~/.agents/skills`), `-y` skips confirmation prompts, and `--agent universal` is what puts it somewhere Pinext can see. Without `-g`, the same command lands in `<cwd>/.agents/skills` for the current project instead — ask the user which of the two they want.
 
 ## Common Skill Categories
 

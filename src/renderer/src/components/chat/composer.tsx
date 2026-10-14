@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import type {
   ChatAttachment,
   ContextUsage,
-  FastVibeModel,
+  PinextModel,
   Project,
   QueuePauseReason,
   QueuedPrompt,
@@ -260,7 +260,7 @@ export function Composer({
    */
   working: boolean;
   placeholder?: string;
-  models: FastVibeModel[];
+  models: PinextModel[];
   model?: { provider: string; id: string };
   thinkingLevel?: string;
   workspaceLabel: string;
@@ -865,7 +865,7 @@ export function Composer({
                 variant="destructive"
                 className="rounded-full"
                 label={t("composer.stop")}
-                data-fv-action="stop"
+                data-pn-action="stop"
                 shortcut={stopShortcut}
                 onClick={onAbort}
               >
@@ -878,7 +878,7 @@ export function Composer({
               variant="destructive"
               className="rounded-full"
               label={t("composer.stop")}
-              data-fv-action="stop"
+              data-pn-action="stop"
               shortcut={stopShortcut}
               onClick={onAbort}
             >
@@ -902,7 +902,7 @@ export function Composer({
               variant="default"
               className="rounded-full"
               label={streaming ? t("composer.queue") : t("composer.send")}
-              data-fv-action="send"
+              data-pn-action="send"
               shortcut={sendShortcut}
               disabled={locked || !hasContent}
               onClick={submit}

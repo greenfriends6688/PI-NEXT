@@ -269,7 +269,7 @@ function DiffPane({
           variant="ghost"
           label={t("git.reveal")}
           onClick={() => {
-            void window.fastvibe.workspace.reveal(resolvePath(file.path, cwd));
+            void window.pinext.workspace.reveal(resolvePath(file.path, cwd));
           }}
         >
           <HugeiconsIcon strokeWidth={2} icon={Folder01Icon} />
@@ -394,7 +394,7 @@ export function SidePaneGit({
     setDiff("");
     setDiffError(null);
     setDiffLoading(true);
-    void window.fastvibe.workspace
+    void window.pinext.workspace
       .gitDiff(cwd, selected, source)
       .then((text) => {
         if (cancelled) return;
@@ -448,7 +448,7 @@ export function SidePaneGit({
           disabled={busy}
           onClick={() => {
             setSyncing("pull");
-            void run(() => window.fastvibe.workspace.gitPull(cwd), t("git.pullFailed"), (next) => t("git.pullDone", { branch: next.branch ?? "HEAD" }))
+            void run(() => window.pinext.workspace.gitPull(cwd), t("git.pullFailed"), (next) => t("git.pullDone", { branch: next.branch ?? "HEAD" }))
               .finally(() => setSyncing(null));
           }}
         >
@@ -461,7 +461,7 @@ export function SidePaneGit({
           disabled={busy}
           onClick={() => {
             setSyncing("push");
-            void run(() => window.fastvibe.workspace.gitPush(cwd), t("git.pushFailed"), (next) => t("git.pushDone", { branch: next.branch ?? "HEAD" }))
+            void run(() => window.pinext.workspace.gitPush(cwd), t("git.pushFailed"), (next) => t("git.pushDone", { branch: next.branch ?? "HEAD" }))
               .finally(() => setSyncing(null));
           }}
         >
@@ -581,9 +581,9 @@ export function SidePaneGit({
             canUnstage={canUnstage}
             canDiscard={canDiscard}
             onBack={() => setSelected(undefined)}
-            onStage={() => void run(() => window.fastvibe.workspace.gitStage(cwd, [selected]), t("git.stageFailed"))}
-            onUnstage={() => void run(() => window.fastvibe.workspace.gitUnstage(cwd, [selected]), t("git.unstageFailed"))}
-            onDiscard={() => void run(() => window.fastvibe.workspace.gitDiscard(cwd, [selected]), t("git.discardFailed"), () => t("git.discardDone", { path: selected }))}
+            onStage={() => void run(() => window.pinext.workspace.gitStage(cwd, [selected]), t("git.stageFailed"))}
+            onUnstage={() => void run(() => window.pinext.workspace.gitUnstage(cwd, [selected]), t("git.unstageFailed"))}
+            onDiscard={() => void run(() => window.pinext.workspace.gitDiscard(cwd, [selected]), t("git.discardFailed"), () => t("git.discardDone", { path: selected }))}
           />
         ) : (
           <div className="hidden min-h-0 min-w-0 flex-1 items-center justify-center px-8 text-center text-xs leading-5 text-muted-foreground @min-[32rem]/git:flex">
@@ -603,7 +603,7 @@ export function SidePaneGit({
             if (event.key !== "Enter" || !message.trim() || !status?.staged) return;
             const subject = message.trim();
             void run(async () => {
-              const next = await window.fastvibe.workspace.gitCommit(cwd, subject);
+              const next = await window.pinext.workspace.gitCommit(cwd, subject);
               setMessage("");
               return next;
             }, t("git.commitFailed"), () => t("git.commitDone", { subject }));
@@ -616,7 +616,7 @@ export function SidePaneGit({
             if (!message.trim() || !status?.staged) return;
             const subject = message.trim();
             void run(async () => {
-              const next = await window.fastvibe.workspace.gitCommit(cwd, subject);
+              const next = await window.pinext.workspace.gitCommit(cwd, subject);
               setMessage("");
               return next;
             }, t("git.commitFailed"), () => t("git.commitDone", { subject }));

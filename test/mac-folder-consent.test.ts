@@ -17,7 +17,7 @@ test("a file inside Desktop, Documents or Downloads belongs to that folder", () 
 
 test("a name that only starts with the folder is not that folder", () => {
   assert.equal(protectedFolderRoot(`${HOME}/Documents-backup/a`, HOME), null);
-  assert.equal(protectedFolderRoot(`${HOME}/code/fastvibe`, HOME), null);
+  assert.equal(protectedFolderRoot(`${HOME}/code/pinext`, HOME), null);
 });
 
 test("iCloud, a cloud provider and an external volume are one grant each", () => {

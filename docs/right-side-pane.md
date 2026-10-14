@@ -1,6 +1,6 @@
-# 右侧侧边面板：zcode 逆向分析与 FastVibe 改造方案
+# 右侧侧边面板：zcode 逆向分析与 PI NEXT 改造方案
 
-> 结论先行：zcode 右侧不是「文件预览抽屉」，而是一个**按 workspace 持久化的多标签工作台**（内部名 `sidePane`）。空着的时候居中画一张「打开标签页」卡片墙——辅助对话 / 审查 / 终端 / 浏览器；有内容时变成可拖拽排序的 tab 条 + 可拖宽度的面板。FastVibe 现在只有左侧会话栏，右侧仅在点开文件时临时挂一个 `PreviewPanel`，Git 是 Dialog、终端是系统终端——整个 `sidePane` 壳都还没做。
+> 结论先行：zcode 右侧不是「文件预览抽屉」，而是一个**按 workspace 持久化的多标签工作台**（内部名 `sidePane`）。空着的时候居中画一张「打开标签页」卡片墙——辅助对话 / 审查 / 终端 / 浏览器；有内容时变成可拖拽排序的 tab 条 + 可拖宽度的面板。PI NEXT 现在只有左侧会话栏，右侧仅在点开文件时临时挂一个 `PreviewPanel`，Git 是 Dialog、终端是系统终端——整个 `sidePane` 壳都还没做。
 
 证据来源：`zcode.asar` 3.11.2（commit `89817f5b`，2026-09-04），主包 `styles-DyAcaLKy.js` + i18n `IntlProvider-Db46X9QF.js`。
 
@@ -57,9 +57,9 @@ side-pane-open-tab-shell          ← container query 根
 
 ## 1. 一句话诊断
 
-| FastVibe 现状 | zcode 做法 | 定位 |
+| PI NEXT 现状 | zcode 做法 | 定位 |
 |---|---|---|
-| 没有常驻右侧栏 | 可折叠 / 可拖宽的 `sidePane`，默认收起 | FastVibe `App.tsx` 只有 `Sidebar` + `main` + 条件 `PreviewPanel` |
+| 没有常驻右侧栏 | 可折叠 / 可拖宽的 `sidePane`，默认收起 | PI NEXT `App.tsx` 只有 `Sidebar` + `main` + 条件 `PreviewPanel` |
 | 点文件才弹出预览 | 预览只是 tab 之一（`code-viewer`） | `preview-panel.tsx` |
 | Git 是 Dialog | Git 是侧栏 tab「审查」，左树右 diff | `git-status-dialog.tsx` |
 | 终端 `openTerminal(cwd)` 调系统终端 | 侧栏可开多个 PTY tab；另有 `Cmd+J` 底栏终端 | `workspace.openTerminal` |
@@ -187,11 +187,11 @@ Tab 条：
 - 切走父任务时这些 tab 被 scope 掉；关掉要调会话销毁，不是只藏 UI
 - 有未处理权限请求时主会话会提示 `chat.selections.sideBlocked`
 
-FastVibe：无。
+PI NEXT：无。
 
 #### B. 审查 `git`（单例，id 恒为 `"git"`）
 
-不是 FastVibe 那个小 Dialog，是 **左文件树 + 右 Diff** 的审阅台。四个来源：
+不是 PI NEXT 那个小 Dialog，是 **左文件树 + 右 Diff** 的审阅台。四个来源：
 
 | id | 文案 | 读写 |
 |---|---|---|
@@ -208,7 +208,7 @@ FastVibe：无。
 
 单例：空态在 `hasReviewTab` 为真时不再画「审查」卡；再点只是激活已有 tab。
 
-FastVibe：`GitStatusDialog` 列表 + 一段 raw diff 文本，没有来源切换、没有树、没有 last-turn。
+PI NEXT：`GitStatusDialog` 列表 + 一段 raw diff 文本，没有来源切换、没有树、没有 last-turn。
 
 #### C. 终端 `terminal`
 
@@ -219,7 +219,7 @@ FastVibe：`GitStatusDialog` 列表 + 一段 raw diff 文本，没有来源切�
 - `Cmd+J` / `isTerminalOpen`：底栏终端
 - 侧栏 `terminal` tab：空态卡片「终端」、可多开
 
-FastVibe：`workspace.openTerminal(cwd)` 打开系统终端，应用内没有 PTY。
+PI NEXT：`workspace.openTerminal(cwd)` 打开系统终端，应用内没有 PTY。
 
 #### D. 浏览器 `browser`
 
@@ -229,13 +229,13 @@ FastVibe：`workspace.openTerminal(cwd)` 打开系统终端，应用内没有 PT
 
 另有 `browser-use`：agent 驱动的浏览器，id `browser-use:{tabId}`，带 `sessionId`、截图 surface、挂起（`suspended` / `suspend-pending` / `restoring`）。非当前任务时后台挂载不展开面板（日志：`后台挂载 browser-use tab`）。
 
-FastVibe：无。
+PI NEXT：无。
 
 ### 3.2 系统打开（用户不会在空态看到）
 
 这些不进 `Pjt` 目录，由聊天 / 工具 / 其它入口 `Yu` 进去，并 **展开** 侧栏。
 
-#### E. 代码查看 `code-viewer` ← FastVibe `PreviewPanel` 的真身
+#### E. 代码查看 `code-viewer` ← PI NEXT `PreviewPanel` 的真身
 
 id 按「工作区 + 类型 + 路径」去重，同一文件反复点只激活已有 tab。source 类型：
 
@@ -243,7 +243,7 @@ id 按「工作区 + 类型 + 路径」去重，同一文件反复点只激活�
 file | code-review | image | media | pdf | pptx | text | html | markdown | patch | multi-file-diff
 ```
 
-能力远超 FastVibe 现在的预览：
+能力远超 PI NEXT 现在的预览：
 
 - 文本：高亮、换行开关、markdown/svg 预览模式
 - 行选 / gutter 评论（`code-review` 除外）→ 加到聊天
@@ -252,7 +252,7 @@ file | code-review | image | media | pdf | pptx | text | html | markdown | patch
 - 「用已安装编辑器打开」、文件监视刷新
 - 大文件 / 二进制 / 缺失路径都有独立文案（`codeViewer.*`）
 
-FastVibe `PreviewPanel`：条件 aside，无 tab、无去重、无 Office/PPTX、无行选、无 diff viewer。点关闭就没了。
+PI NEXT `PreviewPanel`：条件 aside，无 tab、无去重、无 Office/PPTX、无行选、无 diff viewer。点关闭就没了。
 
 #### F. 其它
 
@@ -303,7 +303,7 @@ agent 的 browser-use 且不属于当前任务
 
 ---
 
-## 5. FastVibe 对照
+## 5. PI NEXT 对照
 
 当前壳（`App.tsx`）：
 
@@ -386,14 +386,14 @@ Wiki / 画板 / 轨迹 / 开发者工具：产品需要再单开，不挡 P0–P
 
 ---
 
-## 7. FastVibe 落地时注意
+## 7. PI NEXT 落地时注意
 
 - **空态是一等公民**。右栏展开但没 tab ≠ 空白，必须是卡片墙。审查一旦打开，空态里就不要再出现「审查」。
 - **右栏不是 PreviewPanel**。Preview 只是 tab。现在 `preview ? <PreviewPanel/> : null` 这条要废掉。
 - **单例 vs 多开**：审查 / Wiki 单例；终端 / 浏览器 / 辅助对话 / 代码查看多开，代码查看按 path 去重。
 - **scope**：切会话不要把别人的辅助对话、browser-use 露出来；审查可以留。
 - **别把底栏终端和侧栏终端做成两个入口还不说明关系**。先只做侧栏 tab。
-- **主题**：卡片用 `bg-surface` / `text-foreground-subtle` / `hover:bg-surface-hover`。FastVibe 没有 `--surface` 的话对到 `bg-muted` / `text-muted-foreground`，不要写死灰。
+- **主题**：卡片用 `bg-surface` / `text-foreground-subtle` / `hover:bg-surface-hover`。PI NEXT 没有 `--surface` 的话对到 `bg-muted` / `text-muted-foreground`，不要写死灰。
 - **不要手写 shadcn 已有件**：tab 条的 `+` 用 Button + DropdownMenu；空态按钮用 Button；右栏用现有 Tooltip。
 
 ---

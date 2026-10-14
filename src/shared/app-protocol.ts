@@ -1,5 +1,5 @@
 /**
- * App Protocol v1 — the envelope every FastVibe UI client speaks.
+ * App Protocol v1 — the envelope every Pinext UI client speaks.
  *
  * Method names stay in `ipc.ts`. This file is the wire contract: handshake, frames,
  * scopes, and cursors. Additive fields may appear; the version number does not move
@@ -8,7 +8,7 @@
 
 import { randomUUID } from "./random.ts";
 
-export const APP_PROTOCOL = "fastvibe.app";
+export const APP_PROTOCOL = "pinext.app";
 
 /** Exact protocol version. Peers that do not speak 1 are incompatible. */
 export const APP_PROTOCOL_VERSION = 1;
@@ -53,7 +53,7 @@ export function newServerInstanceId(random: () => string = randomUUID): string {
 
 export type AppServerIdentity = {
   serverInstanceId: string;
-  /** FastVibe build on that machine. Diagnostics only. */
+  /** Pinext build on that machine. Diagnostics only. */
   version: string;
   platform: string;
 };

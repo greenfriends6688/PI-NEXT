@@ -271,7 +271,7 @@ export function websiteFixture(language: WebsiteLanguage): WebsiteFixture {
     {
       id: "website-scratch",
       title: text.scratch[0],
-      cwd: "/Users/demo/Library/Application Support/FastVibe/scratch",
+      cwd: "/Users/demo/Library/Application Support/Pinext/scratch",
       createdAt: NOW - 6 * DAY,
       updatedAt: NOW - 6 * DAY,
       preview: text.scratch[1],
@@ -342,7 +342,7 @@ export function websiteFixture(language: WebsiteLanguage): WebsiteFixture {
     conversations,
     messages,
     session: {
-      model: { provider: "fastvibe", id: "claude-fable-5-1" },
+      model: { provider: "pinext", id: "claude-fable-5-1" },
       thinkingLevel: "high",
       isStreaming: false,
       messageCount: messages.length,

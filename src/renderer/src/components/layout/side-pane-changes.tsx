@@ -138,7 +138,7 @@ function ChangeDiffPane({
           variant="ghost"
           label={t("changes.reveal")}
           onClick={() => {
-            void window.fastvibe.workspace.reveal(resolvePath(file.path, cwd));
+            void window.pinext.workspace.reveal(resolvePath(file.path, cwd));
           }}
         >
           <HugeiconsIcon strokeWidth={2} icon={Folder01Icon} />

@@ -23,5 +23,5 @@ function conversationBinder(key: string) {
   };
 }
 
-export const bindBrowserConversation = conversationBinder("__fastvibeBrowserConversationId");
-export const bindComputerConversation = conversationBinder("__fastvibeComputerConversationId");
+export const bindBrowserConversation = conversationBinder("__pinextBrowserConversationId");
+export const bindComputerConversation = conversationBinder("__pinextComputerConversationId");

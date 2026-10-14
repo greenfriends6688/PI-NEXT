@@ -31,7 +31,7 @@ function FileChip({ file, onOpen }: { file: ChangedFile; onOpen: (file: ChangedF
     return resolvePath(file.path, conversations.find((item) => item.id === activeId)?.cwd);
   };
   const reveal = async (): Promise<void> => {
-    const result = await window.fastvibe.workspace.reveal(absolute());
+    const result = await window.pinext.workspace.reveal(absolute());
     if (result && result.ok === false) toast.error(t("preview.pathMissing"));
   };
   return (

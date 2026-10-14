@@ -78,7 +78,7 @@ import type {
   ConversationDeleteResult,
   ConversationOpenResult,
   EngineModel,
-  FastVibeModel,
+  PinextModel,
   PermissionRequest,
   QueuedPrompt,
   QueuedPromptPreview,
@@ -125,13 +125,13 @@ export function App(): JSX.Element {
   // Another window's preference write. Every window keeps its own copy of
   // `settings.json`, so without this they drifted (two themes, two font sizes) and
   // the next save from either one silently reverted the other's change.
-  useEffect(() => window.fastvibe.settings.onChanged((next) => useSettingsStore.getState().applyRemote(next)), []);
+  useEffect(() => window.pinext.settings.onChanged((next) => useSettingsStore.getState().applyRemote(next)), []);
   const { t } = useTranslation("app");
   useEffect(() => {
-    return window.fastvibe.browser.onRequest(({ id, request }) => {
+    return window.pinext.browser.onRequest(({ id, request }) => {
       void handleBrowserRequest(request)
-        .then((result) => window.fastvibe.browser.respond({ id, ok: true, result }))
-        .catch((error: unknown) => window.fastvibe.browser.respond({ id, ok: false, error: error instanceof Error ? error.message : String(error) }));
+        .then((result) => window.pinext.browser.respond({ id, ok: true, result }))
+        .catch((error: unknown) => window.pinext.browser.respond({ id, ok: false, error: error instanceof Error ? error.message : String(error) }));
     });
   }, []);
   const status = useSessionStore((state) => state.status);
@@ -292,7 +292,7 @@ export function App(): JSX.Element {
   // placeholder. Track whether the real status has landed: the shell shows the F
   // loader (and keeps the boot splash up) until it has.
   const [engineKnown, setEngineKnown] = useState(false);
-  const [booting, setBooting] = useState(() => Boolean(document.getElementById("fastvibe-boot")));
+  const [booting, setBooting] = useState(() => Boolean(document.getElementById("pinext-boot")));
   // Bumped whenever a fresh conversation is started so the composer grabs focus.
   const [composerFocus, setComposerFocus] = useState(0);
   // Skills the engine can load, surfaced by the composer's 技能 picker. Refetched
@@ -446,7 +446,7 @@ export function App(): JSX.Element {
       }
       // The composer owns the send button; the stable data attribute keeps the shortcut
       // working whatever language the label is rendered in.
-      const send = document.querySelector<HTMLButtonElement>('[data-fv-action="send"]');
+      const send = document.querySelector<HTMLButtonElement>('[data-pn-action="send"]');
       if (!send || send.disabled) return false;
       send.click();
     },
@@ -460,7 +460,7 @@ export function App(): JSX.Element {
       const store = useSessionStore.getState();
       const busy = Boolean(store.activeId && store.running[store.activeId]);
       if (!busy || store.permission) return false;
-      document.querySelector<HTMLButtonElement>('[data-fv-action="stop"]')?.click();
+      document.querySelector<HTMLButtonElement>('[data-pn-action="stop"]')?.click();
     },
     prevChat: () => {
       setCommandOpen(false);
@@ -504,7 +504,7 @@ export function App(): JSX.Element {
     // start rather than on every status flip. `modelsLoaded` records that the answer
     // has landed: an empty list then means 没有模型 rather than 还没问到.
     if (useSessionStore.getState().models.length === 0) {
-      void window.fastvibe.engine
+      void window.pinext.engine
         .getModels()
         .then(setModels)
         .catch(() => undefined)
@@ -512,11 +512,11 @@ export function App(): JSX.Element {
     } else {
       setModelsLoaded(true);
     }
-    void window.fastvibe.engine
+    void window.pinext.engine
       .getCommands()
       .then(setCommands)
       .catch(() => undefined);
-    void window.fastvibe.engine
+    void window.pinext.engine
       .getSubagents()
       .then(setSubagents)
       .catch(() => undefined);
@@ -551,7 +551,7 @@ export function App(): JSX.Element {
   // since project skills are discovered from the active workspace.
   useEffect(() => {
     if (settingsOpen) return;
-    void window.fastvibe.engine
+    void window.pinext.engine
       .listSkills()
       .then(setSkills)
       .catch(() => undefined);
@@ -793,7 +793,7 @@ export function App(): JSX.Element {
       setComposer("", []);
       let conversationId = submitOwner;
       if (!conversationId) {
-        const created = await window.fastvibe.conversations.create(active?.project);
+        const created = await window.pinext.conversations.create(active?.project);
         applyOpen(created);
         conversationId = created.conversation.id;
         revealConversation(conversationId);
@@ -804,7 +804,7 @@ export function App(): JSX.Element {
       // become the chat's title or preview.
       if (!compact && !handoff) {
         const beforePrompt = useSessionStore.getState().conversations.find((item) => item.id === conversationId);
-        const nextList = await window.fastvibe.conversations.recordPrompt(conversationId, promptText);
+        const nextList = await window.pinext.conversations.recordPrompt(conversationId, promptText);
         applyList(nextList);
         const afterPrompt = nextList.conversations.find((item) => item.id === conversationId);
         if (beforePrompt && afterPrompt) {
@@ -823,7 +823,7 @@ export function App(): JSX.Element {
       if (queueAtSubmit) {
         const payload = `${promptText}${attachmentPromptSuffix(currentAttachments)}`;
         try {
-          const queue = await window.fastvibe.engine.queueAdd({
+          const queue = await window.pinext.engine.queueAdd({
             conversationId,
             text: promptText,
             // The goal is the command's argument. An attachment suffix would become
@@ -844,7 +844,7 @@ export function App(): JSX.Element {
             restoreComposer(conversationId, text, currentAttachments, consumedVersion);
           }
           if (queuePreview) {
-            void window.fastvibe.conversations
+            void window.pinext.conversations
               .restorePrompt({
                 id: conversationId,
                 expectedTitle: queuePreview.nextTitle,
@@ -944,7 +944,7 @@ export function App(): JSX.Element {
   async function handleRemoveQueued(id: string): Promise<void> {
     const owner = useSessionStore.getState().queued.find((entry) => entry.id === id)?.conversationId;
     try {
-      const queue = await window.fastvibe.engine.queueCancel(id, owner);
+      const queue = await window.pinext.engine.queueCancel(id, owner);
       if (queue) setQueueState(queue);
     } catch (err) {
       queueActionError(err, owner);
@@ -962,7 +962,7 @@ export function App(): JSX.Element {
     // switches chats, this reservation follows its owner and is waiting on return.
     setComposer(item.text, item.attachments ?? []);
     const reservedVersion = useSessionStore.getState().composerDrafts[item.conversationId]?.version;
-    void window.fastvibe.engine.queueCancel(id, item.conversationId).then((queue) => {
+    void window.pinext.engine.queueCancel(id, item.conversationId).then((queue) => {
       if (!queue) {
         if (reservedVersion !== undefined) {
           restoreComposer(item.conversationId, previous.draft, previous.attachments, reservedVersion);
@@ -981,7 +981,7 @@ export function App(): JSX.Element {
   async function handleRecallQueued(id: string): Promise<void> {
     const owner = useSessionStore.getState().queued.find((entry) => entry.id === id)?.conversationId;
     try {
-      const queue = await window.fastvibe.engine.queueRecall(id, owner);
+      const queue = await window.pinext.engine.queueRecall(id, owner);
       if (queue) setQueueState(queue);
     } catch (err) {
       queueActionError(err, owner);
@@ -1001,7 +1001,7 @@ export function App(): JSX.Element {
       void reloadActiveState();
     };
     try {
-      const queue = await window.fastvibe.engine.queueSendNow(id, owner);
+      const queue = await window.pinext.engine.queueSendNow(id, owner);
       if (queue) setQueueState(queue);
       else takeBack();
     } catch (err) {
@@ -1013,14 +1013,14 @@ export function App(): JSX.Element {
   function handleReorderQueued(ids: string[]): void {
     const conversationId = useSessionStore.getState().activeId;
     if (!conversationId) return;
-    void window.fastvibe.engine.queueReorder(conversationId, ids).then(setQueueState)
+    void window.pinext.engine.queueReorder(conversationId, ids).then(setQueueState)
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
   }
 
   function handleResumeQueue(): void {
     const conversationId = useSessionStore.getState().activeId;
     if (!conversationId) return;
-    void window.fastvibe.engine.queueResume(conversationId).then(setQueueState)
+    void window.pinext.engine.queueResume(conversationId).then(setQueueState)
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
   }
 
@@ -1144,7 +1144,7 @@ export function App(): JSX.Element {
       }
       setDraft("");
       addUserMessage(text, source?.attachments);
-      const hasAttachmentMetadata = text.includes("<fastvibe-attachments>") || text.includes("<fastvibe-pasted-text>");
+      const hasAttachmentMetadata = text.includes("<pinext-attachments>") || text.includes("<pinext-pasted-text>");
       const payload = hasAttachmentMetadata ? text : `${text}${attachmentPromptSuffix(source?.attachments ?? [])}`;
       try {
         await engine.prompt(payload, {
@@ -1167,7 +1167,7 @@ export function App(): JSX.Element {
     // leaves everything exactly as it was.
     const owner = useSessionStore.getState().activeId;
     if (owner) {
-      const checkpoint = await window.fastvibe.engine.getCheckpoint(owner).catch(() => null);
+      const checkpoint = await window.pinext.engine.getCheckpoint(owner).catch(() => null);
       if (checkpoint && checkpoint.paths.length > 0) {
         setRetryRewind({ message, paths: checkpoint.paths });
         return;
@@ -1282,7 +1282,7 @@ export function App(): JSX.Element {
       // Main reuses the unfinished conversation for this project. Do not retarget the
       // current empty chat: its draft belongs to its old project and must remain there.
       ticket = beginOpening(null, isRemoteRef(project));
-      const created = await window.fastvibe.conversations.create(project);
+      const created = await window.pinext.conversations.create(project);
       if (!openingStillCurrent(ticket)) return;
       applyOpen(created);
       revealConversation(created.conversation.id);
@@ -1322,7 +1322,7 @@ export function App(): JSX.Element {
     intendedActiveId.current = id;
     const ticket = beginOpening(id, source === "restore" || !workspaceReady || isRemoteRef(id));
     try {
-      const opened = await window.fastvibe.conversations.open(id);
+      const opened = await window.pinext.conversations.open(id);
       if (!openingStillCurrent(ticket)) return;
       applyOpen(opened);
       if (source === "user") revealConversation(id);
@@ -1356,7 +1356,7 @@ export function App(): JSX.Element {
     // and the promise would never settle. Guarded here because three different controls
     // reach this one function.
     try {
-      const added = await window.fastvibe.projects.add();
+      const added = await window.pinext.projects.add();
       if (!added) return;
       applyList(added);
       setStatus(await getStatus());
@@ -1371,7 +1371,7 @@ export function App(): JSX.Element {
 
   async function handleRenameSession(id: string, title: string): Promise<void> {
     try {
-      applyList(await window.fastvibe.conversations.rename(id, title));
+      applyList(await window.pinext.conversations.rename(id, title));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -1400,7 +1400,7 @@ export function App(): JSX.Element {
     const item = useSessionStore.getState().conversations.find((entry) => entry.id === id);
     if (!item || item.preview) return;
     try {
-      applyList(await window.fastvibe.conversations.delete(id));
+      applyList(await window.pinext.conversations.delete(id));
       disposeSidePaneTabs(useSidePaneStore.getState().forgetScope(id));
       useSidePaneStore.getState().forgetWidths([id]);
       useSessionStore.getState().forgetConversationExtensionState(id);
@@ -1439,7 +1439,7 @@ export function App(): JSX.Element {
       .sort((a, b) => b.createdAt - a.createdAt || a.id.localeCompare(b.id))[0];
     if (next) {
       try {
-        applyOpen(await window.fastvibe.conversations.open(next.id));
+        applyOpen(await window.pinext.conversations.open(next.id));
         revealConversation(next.id, true);
         return;
       } catch {
@@ -1453,7 +1453,7 @@ export function App(): JSX.Element {
 
   async function handleRenameProject(cwd: string, name: string): Promise<void> {
     try {
-      applyList(await window.fastvibe.projects.rename(cwd, name));
+      applyList(await window.pinext.projects.rename(cwd, name));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -1473,7 +1473,7 @@ export function App(): JSX.Element {
     const restore = { projects: current, conversations: list, activeId: currentActiveId ?? undefined };
     applySnapshot({ ...restore, projects: reordered });
     try {
-      const snapshot = await window.fastvibe.projects.reorder(cwds);
+      const snapshot = await window.pinext.projects.reorder(cwds);
       // A later drag owns the visible order. The older response is still allowed to
       // finish saving on Main, but it must not overwrite the later optimistic state.
       if (ticket !== projectReorderTicket.current) return;
@@ -1492,7 +1492,7 @@ export function App(): JSX.Element {
     try {
       // The catalog drops the project's conversations with it; their panes go too.
       const doomed = useSessionStore.getState().conversations.filter((item) => item.project === cwd).map((item) => item.id);
-      const result = await window.fastvibe.projects.remove(cwd);
+      const result = await window.pinext.projects.remove(cwd);
       applyList(result);
       for (const id of doomed) {
         disposeSidePaneTabs(useSidePaneStore.getState().forgetScope(id));
@@ -1503,7 +1503,7 @@ export function App(): JSX.Element {
       forgetSidebarProject(cwd);
       toast.success(t("sidebar.projectRemoved", { name }));
       if (result.nextId) {
-        applyOpen(await window.fastvibe.conversations.open(result.nextId));
+        applyOpen(await window.pinext.conversations.open(result.nextId));
         revealConversation(result.nextId, true);
       } else if (active?.project === cwd) {
         resetConversation();
@@ -1525,7 +1525,7 @@ export function App(): JSX.Element {
     let result: ConversationDeleteResult | null = null;
     for (const id of ids) {
       try {
-        result = await window.fastvibe.conversations.delete(id);
+        result = await window.pinext.conversations.delete(id);
         deleted.push(id);
         disposeSidePaneTabs(useSidePaneStore.getState().forgetScope(id));
         useSidePaneStore.getState().forgetWidths([id]);
@@ -1540,7 +1540,7 @@ export function App(): JSX.Element {
     if (ids.includes(activeId ?? "") && deleted.length > 0) {
       // The chat on screen was deleted: fall through to whatever the catalog promoted.
       if (result.nextId) {
-        applyOpen(await window.fastvibe.conversations.open(result.nextId));
+        applyOpen(await window.pinext.conversations.open(result.nextId));
         revealConversation(result.nextId, true);
       } else {
         resetConversation();
@@ -1567,7 +1567,7 @@ export function App(): JSX.Element {
         const previousId = activeId;
         const ticket = beginOpening(null, isRemoteRef(project));
         try {
-          const created = await window.fastvibe.conversations.create(project ?? undefined);
+          const created = await window.pinext.conversations.create(project ?? undefined);
           if (!openingStillCurrent(ticket)) return;
           applyOpen(created);
           revealConversation(created.conversation.id);
@@ -1578,7 +1578,7 @@ export function App(): JSX.Element {
         return;
       }
       if ((current.project ?? null) === project) return;
-      const snapshot = await window.fastvibe.conversations.setProject(activeId!, project);
+      const snapshot = await window.pinext.conversations.setProject(activeId!, project);
       applyList(snapshot);
       void getStatus().then(setStatus).catch(() => undefined);
     } catch (err) {
@@ -1587,10 +1587,10 @@ export function App(): JSX.Element {
   }
 
   async function handlePickWorkspace(): Promise<void> {
-    const picked = await window.fastvibe.workspace.pick();
+    const picked = await window.pinext.workspace.pick();
     if (!picked) return;
     setStatus(picked.status);
-    applyList(await window.fastvibe.conversations.list());
+    applyList(await window.pinext.conversations.list());
     await handleSetProject(picked.cwd);
   }
 
@@ -1675,7 +1675,7 @@ export function App(): JSX.Element {
   const onSidebarRenameProject = useStable((cwd: string, name: string) => void handleRenameProject(cwd, name));
   const onSidebarRemoveProject = useStable((cwd: string) => void handleRemoveProject(cwd));
   const onSidebarRevealProject = useStable((cwd: string) => {
-    void window.fastvibe.workspace.reveal(cwd);
+    void window.pinext.workspace.reveal(cwd);
   });
   const onSidebarReorderProjects = useStable((cwds: string[]) => void handleReorderProjects(cwds));
   const onSidebarOpenSettings = useStable(() => navigate("/settings/general"));
@@ -2050,7 +2050,7 @@ export function App(): JSX.Element {
                 void (async () => {
                   if (owner) {
                     try {
-                      const result = await window.fastvibe.engine.restoreCheckpoint(owner);
+                      const result = await window.pinext.engine.restoreCheckpoint(owner);
                       // A file the turn created but could not be put back (binary, too
                       // large, or a path git will not hand over) must be said out loud —
                       // silently "reverting" and then retrying on a half-restored tree is

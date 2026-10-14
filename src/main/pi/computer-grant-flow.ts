@@ -12,7 +12,7 @@ import { computerPermissions, requestComputerPermissions, resetComputerWorker } 
  * user has to add it to a list in another application's window. Two things follow, and
  * together they decide the shape of this module.
  *
- * A drag source inside FastVibe's own Settings cannot serve that gesture, because the
+ * A drag source inside Pinext's own Settings cannot serve that gesture, because the
  * moment System Settings comes forward the source is behind it. So the source is its own
  * chrome-less always-on-top window, drawn to look like the row the drop is going to
  * create — the user drags it in, and the row that appears is the one they were holding.
@@ -28,7 +28,7 @@ import { computerPermissions, requestComputerPermissions, resetComputerWorker } 
  * Screen Recording is the grant that most often exposes this. Taking it first means the
  * restart that follows lands before the rest of the flow rather than in the middle.
  *
- * The process that restarts is the *worker*, not FastVibe: `resetComputerWorker` drops
+ * The process that restarts is the *worker*, not Pinext: `resetComputerWorker` drops
  * it when the last grant lands, and the next action spawns one that can see the new
  * permissions. The user is never asked to relaunch the app.
  */
@@ -78,7 +78,7 @@ function publish(): void {
 /**
  * Begin, or restart, the sequence.
  *
- * The request comes first and unconditionally: it is what *registers* FastVibe in
+ * The request comes first and unconditionally: it is what *registers* Pinext in
  * Privacy & Security, and an application that has never asked does not appear in those
  * lists at all — so without it the panel would be dragged towards a list that has no
  * row to accept it.
@@ -166,7 +166,7 @@ async function showOverlay(permission: GrantPermission): Promise<void> {
   await overlay.loadFile(file, {
     query: {
       permission,
-      lang: process.env.FASTVIBE_UI_LANGUAGE === "en" ? "en" : "zh",
+      lang: process.env.PINEXT_UI_LANGUAGE === "en" ? "en" : "zh",
       step: String(state.step),
       total: String(state.total),
     },

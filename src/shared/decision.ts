@@ -26,7 +26,7 @@ export type DecisionModelConfig = {
 };
 
 /** The fixed `.env` variable holding the Jev API key; callers never choose a variable name. */
-export const JEV_KEY_ENV = "FASTVIBE_JEV_API_KEY";
+export const JEV_KEY_ENV = "PINEXT_JEV_API_KEY";
 
 /** Whether each keyed decision model has a stored key. The key itself never leaves Main. */
 export type DecisionKeyState = { jev: boolean };

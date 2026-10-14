@@ -137,7 +137,7 @@ export async function startProxyRelay(resolveProxy: (url: string) => Promise<str
 
   const server = http.createServer(async (req, res) => {
     if (!authenticated(req.headers["proxy-authorization"])) {
-      res.writeHead(407, { "Proxy-Authenticate": 'Basic realm="FastVibe relay"', Connection: "close" }).end();
+      res.writeHead(407, { "Proxy-Authenticate": 'Basic realm="Pinext relay"', Connection: "close" }).end();
       return;
     }
     let target: URL;
@@ -215,7 +215,7 @@ export async function startProxyRelay(resolveProxy: (url: string) => Promise<str
   server.on("connection", track);
   server.on("clientError", (_error, socket) => { socket.end("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n"); });
   server.on("connect", async (req, client, head) => {
-    const reject = (status: number) => client.end(`HTTP/1.1 ${status} ${status === 407 ? "Proxy Authentication Required" : status === 400 ? "Bad Request" : "Bad Gateway"}\r\n${status === 407 ? 'Proxy-Authenticate: Basic realm="FastVibe relay"\r\n' : ""}Connection: close\r\n\r\n`);
+    const reject = (status: number) => client.end(`HTTP/1.1 ${status} ${status === 407 ? "Proxy Authentication Required" : status === 400 ? "Bad Request" : "Bad Gateway"}\r\n${status === 407 ? 'Proxy-Authenticate: Basic realm="Pinext relay"\r\n' : ""}Connection: close\r\n\r\n`);
     if (!authenticated(req.headers["proxy-authorization"])) { reject(407); return; }
     let target: URL;
     let port: number;

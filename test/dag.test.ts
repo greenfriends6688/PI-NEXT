@@ -23,7 +23,7 @@ const draft = (ref: string, dependsOn: string[] = [], extra: Partial<DagNodeDraf
 });
 
 function fixture(): { store: DagStore; file: string } {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-dag-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-dag-"));
   const file = join(dir, "dag.json");
   return { store: new DagStore(file), file };
 }

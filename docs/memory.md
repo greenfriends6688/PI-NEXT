@@ -1,7 +1,7 @@
-# FastVibe memory
+# PI NEXT memory
 
 One switch (设置 → 长期记忆), off by default, and one choice: which model does the work. Off means off: nothing is read, written or
-injected, and the files already on disk stay until the user clears them. On, FastVibe runs
+injected, and the files already on disk stay until the user clears them. On, PI NEXT runs
 **Codex's memory pipeline** (`codex-rs/memories`): two background phases that turn finished
 conversations into Markdown files, and a read path that costs one prompt section. The four
 prompts are Codex's own, vendored under `resources/memories/` (Apache-2.0, see its
@@ -66,7 +66,7 @@ unused for 30 days are out) are written to `raw_memories.md` and `rollout_summar
 brought in line with that selection exactly.
 
 Codex keeps the folder in a git repository and gives the agent `phase2_workspace_diff.md`, the
-diff from the last baseline; no changes means no agent. FastVibe cannot count on a `git`
+diff from the last baseline; no changes means no agent. PI NEXT cannot count on a `git`
 binary, so it compares the folder with the baseline copy and writes the same file in the same
 git style (a status list, then `diff --git` hunks, capped at 4 MiB). **A folder identical to
 its baseline, with a valid `MEMORY.md` and summary, is not consolidated.** Anything else
@@ -112,8 +112,8 @@ no extensions, so they have no memory.
 ## Where this differs from Codex, on purpose or not yet
 
 - **State** is a JSON file and in-process flags, not a state database with leases and a global
-  lock: there is one FastVibe process, so there is no second worker to exclude.
-- **Triggers**: Codex starts a pass when a root session starts. FastVibe runs one on a timer, so
+  lock: there is one PI NEXT process, so there is no second worker to exclude.
+- **Triggers**: Codex starts a pass when a root session starts. PI NEXT runs one on a timer, so
   it takes at most 2 conversations per pass but passes come every 15 minutes.
 - **Stage-1 input** is rendered text, not Codex's serialized response items, and a tool result
   and a row are clipped as in Codex's tiered (v2) input rather than not at all.
@@ -123,7 +123,7 @@ no extensions, so they have no memory.
   generation, the rate-limit guard, a separate model per stage, memory
   extensions (`extensions/`), and stage 1's strict output schema (the answer is parsed leniently).
 - **Skills**: the agent may write `skills/<name>/SKILL.md` in the memory folder and the read
-  prompt tells later agents to open them from `MEMORY.md`, but FastVibe does not register them
+  prompt tells later agents to open them from `MEMORY.md`, but PI NEXT does not register them
   as skills in the skill list.
 - **Scope**: one store for the whole machine, like Codex's; the handbook records which cwd each
   entry applies to.

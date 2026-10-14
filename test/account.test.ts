@@ -45,7 +45,7 @@ async function cloud(): Promise<Cloud> {
       state.codes.delete(body.code);
       const challenge = createHash("sha256").update(body.code_verifier ?? "").digest("base64url");
       if (state.tokenStatus !== 200) return send(state.tokenStatus, { error: { code: state.tokenStatus === 403 ? "account_disabled" : "invalid_grant" } });
-      if (!issued || issued.challenge !== challenge || issued.redirectUri !== body.redirect_uri || body.client_id !== "fastvibe-desktop") {
+      if (!issued || issued.challenge !== challenge || issued.redirectUri !== body.redirect_uri || body.client_id !== "pinext-desktop") {
         return send(400, { error: { code: "invalid_grant" } });
       }
       return send(200, { access_token: "fvs_issued", token_type: "Bearer", expires_in: 7_776_000, user: USER });
@@ -78,7 +78,7 @@ type Rig = {
 
 async function rig(options: { origin?: string; file?: string; loginTimeoutMs?: number } = {}): Promise<Rig> {
   const c = await cloud();
-  const file = options.file ?? join(mkdtempSync(join(tmpdir(), "fastvibe-account-")), "account.json");
+  const file = options.file ?? join(mkdtempSync(join(tmpdir(), "pinext-account-")), "account.json");
   const r: Rig = {
     cloud: c,
     file,
@@ -142,11 +142,11 @@ test("PKCE: the challenge is the S256 of the verifier", () => {
 });
 
 test("the authorize link names the client, the loopback callback and the challenge", () => {
-  const url = new URL(authorizeUrl("https://app.fastvibe.dev", {
+  const url = new URL(authorizeUrl("https://app.pinext.dev", {
     redirectUri: "http://127.0.0.1:5000/callback", state: "s", challenge: "c", deviceName: "Mac", platform: "darwin",
   }));
-  assert.equal(url.origin + url.pathname, "https://app.fastvibe.dev/authorize");
-  assert.equal(url.searchParams.get("client_id"), "fastvibe-desktop");
+  assert.equal(url.origin + url.pathname, "https://app.pinext.dev/authorize");
+  assert.equal(url.searchParams.get("client_id"), "pinext-desktop");
   assert.equal(url.searchParams.get("redirect_uri"), "http://127.0.0.1:5000/callback");
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
 });
@@ -191,7 +191,7 @@ test("the browser is told the outcome on the page it is left on", async () => {
     await r.service.login();
     await settled(r, "signed-in");
     await new Promise((resolve) => setTimeout(resolve, 30));
-    assert.match(page, /FastVibe/);
+    assert.match(page, /Pinext/);
   } finally { closeAll(r); }
 });
 
@@ -446,7 +446,7 @@ test("logout still signs out locally when the site cannot be reached", async () 
 });
 
 test("a damaged account file is a signed-out app, not a crash", async () => {
-  const r = await rig({ file: join(mkdtempSync(join(tmpdir(), "fastvibe-account-")), "account.json") });
+  const r = await rig({ file: join(mkdtempSync(join(tmpdir(), "pinext-account-")), "account.json") });
   try {
     writeFileSync(r.file, "{not json");
     const service = new AccountService({

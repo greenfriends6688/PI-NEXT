@@ -26,7 +26,7 @@ type Harness = {
 };
 
 function harness(options: { enabled?: boolean; chats?: number } = {}): Harness {
-  const dir = mkdtempSync(join(tmpdir(), "fv-memory-"));
+  const dir = mkdtempSync(join(tmpdir(), "pn-memory-"));
   const files = { memoryFile: join(dir, "memory.json"), memoriesDir: join(dir, "memories"), memoriesBaselineDir: join(dir, "memories-baseline"), memoryStateFile: join(dir, "memory-state.json") };
   if (options.enabled !== false) writeFileSync(files.memoryFile, JSON.stringify({ version: MEMORY_CONFIG_VERSION, enabled: true }));
   const chats: Conversation[] = [];
@@ -296,7 +296,7 @@ test("a model chosen for memory reaches both stages, survives a restart, and cle
 });
 
 test("the retired SQLite and embedding files are removed", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fv-legacy-"));
+  const dir = mkdtempSync(join(tmpdir(), "pn-legacy-"));
   try {
     writeFileSync(join(dir, "memory.sqlite"), "x");
     writeFileSync(join(dir, "memory.sqlite-wal"), "x");

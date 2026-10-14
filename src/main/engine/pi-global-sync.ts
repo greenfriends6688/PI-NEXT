@@ -8,18 +8,18 @@ import { engineModelBaseUrl, trimBaseUrl } from "./provider-url.ts";
 import { uiText } from "./ui-text.ts";
 
 /**
- * Merge FastVibe's provider, default-model and MCP configuration into a pi agent
+ * Merge Pinext's provider, default-model and MCP configuration into a pi agent
  * directory (`~/.pi/agent`), without taking that directory over.
  *
- * pi and FastVibe do not share a data root. This writes the files the CLI actually
+ * pi and Pinext do not share a data root. This writes the files the CLI actually
  * reads and leaves sessions, themes and installed packages in place. `merge` replaces
  * a provider or MCP server that exists on both sides and keeps one that exists only in
- * pi. `replace` writes FastVibe's providers, credentials and MCP servers in their
+ * pi. `replace` writes Pinext's providers, credentials and MCP servers in their
  * place and drops the rest.
  *
  * Secrets are the sharp edge. pi does not store an API key as an opaque string: a
  * value that starts with `!` is a shell command, and `$VAR` / `${VAR}` are expanded.
- * A key pasted into FastVibe can contain either by accident, so every secret is
+ * A key pasted into Pinext can contain either by accident, so every secret is
  * escaped (`escapePiConfigSecret`) on the way out. Existing files are copied aside
  * before the first byte changes, and a file that is not valid JSON aborts the whole
  * sync so a half-applied write cannot replace a config we failed to read.
@@ -65,7 +65,7 @@ export type PiSyncRequest = {
   defaultModel?: { provider: string; id: string };
   /** A concrete level. `auto` / absent leaves pi's thinking default alone. */
   thinkingLevel?: string;
-  /** Omitted when FastVibe's effective value already matches pi's default. */
+  /** Omitted when Pinext's effective value already matches pi's default. */
   autoCompact?: boolean;
   mcp: PiSyncMcpServer[];
   /** Absent means merge, which is what the older call sites do. */
@@ -75,7 +75,7 @@ export type PiSyncRequest = {
 /**
  * One provider object for pi's `models.json`.
  *
- * `apiKey` is written exactly as given. FastVibe's own `models.json` passes the env
+ * `apiKey` is written exactly as given. Pinext's own `models.json` passes the env
  * var name (the process injects the secret); a sync to global pi passes the secret
  * itself, and `writePiAgentConfig` escapes it. Native providers contribute overrides
  * only — a full entry would shadow the CLI's built-in provider.
@@ -148,8 +148,8 @@ export function writePiAgentConfig(agentDir: string, request: PiSyncRequest, own
   const root = resolve(agentDir);
   if (ownAgentDir && resolve(ownAgentDir) === root) {
     throw new Error(uiText(
-      "不能把配置同步到 FastVibe 自己的运行目录",
-      "Refusing to write pi config into FastVibe's own runtime directory",
+      "不能把配置同步到 Pinext 自己的运行目录",
+      "Refusing to write pi config into Pinext's own runtime directory",
     ));
   }
   if (existsSync(root) && !isDirectory(root)) {
@@ -376,7 +376,7 @@ function compactionEnabled(settings: Record<string, unknown>): boolean {
 function backup(root: string, writes: Array<{ path: string; before?: string }>): string | undefined {
   const originals = writes.filter((item) => item.before !== undefined);
   if (originals.length === 0) return undefined;
-  const dir = join(root, "backups", `fastvibe-${Date.now()}`);
+  const dir = join(root, "backups", `pinext-${Date.now()}`);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   for (const item of originals) copyFileSync(item.path, join(dir, basename(item.path)));
   return dir;

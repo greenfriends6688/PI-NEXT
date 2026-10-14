@@ -35,7 +35,7 @@ test("a Messages base loses the version segment the Anthropic client adds itself
   // A bare host is already what the client wants (Anthropic's own base, minimax's).
   assert.equal(engineModelBaseUrl("https://api.anthropic.com", "anthropic-messages"), "https://api.anthropic.com");
   assert.equal(engineModelBaseUrl("https://api.minimaxi.com/anthropic", "anthropic-messages"), "https://api.minimaxi.com/anthropic");
-  // Only the version segments FastVibe itself hands a user are recognised: z.ai's `/v4`
+  // Only the version segments Pinext itself hands a user are recognised: z.ai's `/v4`
   // is part of the endpoint path, and stripping it would break the provider.
   assert.equal(engineModelBaseUrl("https://api.z.ai/api/coding/paas/v4", "anthropic-messages"), "https://api.z.ai/api/coding/paas/v4");
 });

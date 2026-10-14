@@ -15,7 +15,7 @@ import {
 } from "../src/main/remote/binding-store.ts";
 
 function file(): string {
-  return join(mkdtempSync(join(tmpdir(), "fastvibe-bindings-")), "bindings.json");
+  return join(mkdtempSync(join(tmpdir(), "pinext-bindings-")), "bindings.json");
 }
 
 function binding(over: Partial<ProjectBinding> = {}): ProjectBinding {

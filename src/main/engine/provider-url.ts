@@ -1,7 +1,7 @@
 /**
  * Where one model's requests actually go.
  *
- * FastVibe stores **one** `baseUrl` per provider, and each protocol's client addresses its
+ * Pinext stores **one** `baseUrl` per provider, and each protocol's client addresses its
  * endpoint from that base differently, so a base written for one protocol is wrong for
  * another. Three facts here, each measured against the SDK rather than assumed:
  *
@@ -23,7 +23,7 @@
  * model-level `baseUrl` in preference to the provider's — while the provider keeps the base
  * the user typed for every other model.
  *
- * Only the two segments FastVibe itself hands a user are rewritten, and only on a base that
+ * Only the two segments Pinext itself hands a user are rewritten, and only on a base that
  * carries one. A relay fronting its protocols elsewhere (`https://host/anthropic`, z.ai's
  * `.../coding/paas/v4`) keeps what was entered and appends its path to it as always. An
  * OpenAI api is never rewritten either way: that base is what those clients use today, and

@@ -67,7 +67,7 @@ test("an assistant row keeps its request start, which the entry cannot say", () 
 
 test("other hidden custom messages stay out of the thread", () => {
   const messages = mapEngineMessages([
-    { role: "custom", customType: "fastvibe-goal", display: false, content: "keep going", timestamp: 12 },
+    { role: "custom", customType: "pinext-goal", display: false, content: "keep going", timestamp: 12 },
     { role: "custom", customType: "audit", display: true, content: "visible", timestamp: 13 },
   ]);
   assert.equal(messages.length, 1);

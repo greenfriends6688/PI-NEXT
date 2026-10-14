@@ -50,7 +50,7 @@ export function GatewayCredentialDialog({
     if (!provider) return;
     setBusy(true);
     try {
-      await window.fastvibe.providers.setGatewayCredentials({
+      await window.pinext.providers.setGatewayCredentials({
         id: provider.id,
         accessToken: clear ? "" : accessToken.trim(),
         userId: clear ? "" : userId.trim(),

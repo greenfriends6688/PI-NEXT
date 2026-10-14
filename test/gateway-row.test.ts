@@ -21,11 +21,11 @@ function provider(over: Partial<Parameters<typeof gatewayRowState>[0]> = {}) {
 }
 
 /**
- * FastVibe's own gateway is a Sub2API deployment, so it is an ordinary custom provider
+ * Pinext's own gateway is a Sub2API deployment, so it is an ordinary custom provider
  * whose upstream is already identified; its panel answers for the key with no probing.
  */
 test("an identified sub2api custom provider shows its balance and is not offered 识别", () => {
-  const state = gatewayRowState(provider({ id: "fastvibe", gateway: "sub2api" }));
+  const state = gatewayRowState(provider({ id: "pinext", gateway: "sub2api" }));
   assert.equal(state.showValue, true);
   assert.equal(state.offerIdentify, false);
 });

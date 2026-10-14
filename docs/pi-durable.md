@@ -1,8 +1,8 @@
 # 从 Pi Durable 可参考的点
 
-Pi Durable（`@earendil-works/pi-durable`）是 Earendil 在 2026-10-01 与 Pi 1.0 一起发出的实验性 harness，说明见 [Pi Durable](https://earendil.com/posts/pi-durable/)。它不替换 `@earendil-works/pi-coding-agent`，API 也会变。FastVibe 不迁过去。
+Pi Durable（`@earendil-works/pi-durable`）是 Earendil 在 2026-10-01 与 Pi 1.0 一起发出的实验性 harness，说明见 [Pi Durable](https://earendil.com/posts/pi-durable/)。它不替换 `@earendil-works/pi-coding-agent`，API 也会变。PI NEXT 不迁过去。
 
-帖子把现在的 coding agent 定义成「一个人、一个终端、进程死了就看一眼再让它继续」。Durable 要的是另一类应用：任意 JS 运行时、多个界面同时看、对话可以很长、进程崩了接着跑、多个人能改同一条对话。FastVibe 已经在 coding agent 上自己补了其中大部分：多会话、snapshot + `seq`、`canResume`、fork、压缩、handoff、todo、子 agent、steer。下面只记还能在现有引擎上改的行为，不换 harness，也不改转写格式。
+帖子把现在的 coding agent 定义成「一个人、一个终端、进程死了就看一眼再让它继续」。Durable 要的是另一类应用：任意 JS 运行时、多个界面同时看、对话可以很长、进程崩了接着跑、多个人能改同一条对话。PI NEXT 已经在 coding agent 上自己补了其中大部分：多会话、snapshot + `seq`、`canResume`、fork、压缩、handoff、todo、子 agent、steer。下面只记还能在现有引擎上改的行为，不换 harness，也不改转写格式。
 
 ## 值得做
 
@@ -61,7 +61,7 @@ Durable 把系统提示拆成段落，变化记在转写里变化发生的那个
 ## 先不做
 
 - **换 harness。** Durable 是实验包，不是完整的 coding agent。扩展、MCP、codemode、模型配置、用量账本、远程协议都绑在现在的 SDK 上。
-- **Fork 不复制历史。** Durable 的 fork 是共享到某个点为止的视图。`writeForkSession`（`src/main/engine/session-fork.ts`）整份复制，用量靠 `fastvibeUsageSessionId` 去重。SDK 认的是一份线性 v3 转写；改成共享前缀要动读取、搜索、导入和计费。
+- **Fork 不复制历史。** Durable 的 fork 是共享到某个点为止的视图。`writeForkSession`（`src/main/engine/session-fork.ts`）整份复制，用量靠 `pinextUsageSessionId` 去重。SDK 认的是一份线性 v3 转写；改成共享前缀要动读取、搜索、导入和计费。
 - **让后台任务躲过「停止」。** Durable 的后台任务，普通中止碰不到。这里的停止就是停掉这个会话，以及它的子 agent 和 DAG。
 - **会话留在本机、工具跑到另一台机器。** 那是 Durable 的 execution environment。SSH Agent 是整份运行时在远端，不是这一层能挪的。
 

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { existingFiles } from "../src/main/engine/path-exists.ts";
 
 test("batch file probes return regular files, not directories or missing paths", async () => {
-  const root = await mkdtemp(join(tmpdir(), "fastvibe-paths-"));
+  const root = await mkdtemp(join(tmpdir(), "pinext-paths-"));
   await mkdir(join(root, "src"));
   await writeFile(join(root, "src", "main.ts"), "export {};");
 

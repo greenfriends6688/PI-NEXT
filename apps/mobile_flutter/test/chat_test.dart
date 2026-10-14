@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:fastvibe_mobile/chat/image_bytes.dart';
-import 'package:fastvibe_mobile/chat/image_note.dart';
-import 'package:fastvibe_mobile/chat/message.dart';
-import 'package:fastvibe_mobile/chat/queue.dart';
-import 'package:fastvibe_mobile/chat/turn_meta.dart';
-import 'package:fastvibe_mobile/chat/live_events.dart';
-import 'package:fastvibe_mobile/i18n/core.dart';
-import 'package:fastvibe_mobile/session/catalog.dart';
+import 'package:pinext_mobile/chat/image_bytes.dart';
+import 'package:pinext_mobile/chat/image_note.dart';
+import 'package:pinext_mobile/chat/message.dart';
+import 'package:pinext_mobile/chat/queue.dart';
+import 'package:pinext_mobile/chat/turn_meta.dart';
+import 'package:pinext_mobile/chat/live_events.dart';
+import 'package:pinext_mobile/i18n/core.dart';
+import 'package:pinext_mobile/session/catalog.dart';
 
 /// The runtime invariants the Expo client pins with `test/mobile-*.test.ts`. They are the
 /// rules a refactor breaks silently — a queue that lets a late RPC revive a delivered

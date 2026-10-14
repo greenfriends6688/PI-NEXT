@@ -13,7 +13,7 @@ import UIKit
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     let clipboard = FlutterMethodChannel(
-      name: "dev.fastvibe.mobile/device",
+      name: "dev.pinext.mobile/device",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     clipboard.setMethodCallHandler { call, result in

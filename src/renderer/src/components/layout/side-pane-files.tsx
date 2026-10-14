@@ -60,7 +60,7 @@ export function SidePaneFiles({
 
   const loadDir = useCallback(async (path: string): Promise<void> => {
     try {
-      const entries = await window.fastvibe.workspace.readDir(path);
+      const entries = await window.pinext.workspace.readDir(path);
       setChildren((prev) => ({ ...prev, [path]: entries }));
     } catch {
       setChildren((prev) => ({ ...prev, [path]: [] }));
@@ -120,7 +120,7 @@ export function SidePaneFiles({
 
   async function openFile(path: string): Promise<void> {
     try {
-      const preview = await window.fastvibe.workspace.preview(path);
+      const preview = await window.pinext.workspace.preview(path);
       patchTab(tab.id, { path, preview });
     } catch (error) {
       onError(error instanceof Error ? error.message : t("files.previewFailed"));
@@ -171,7 +171,7 @@ export function SidePaneFiles({
               variant="ghost"
               label={t("files.reveal")}
               onClick={() => {
-                if (cwd) void window.fastvibe.workspace.reveal(cwd);
+                if (cwd) void window.pinext.workspace.reveal(cwd);
               }}
             >
               <HugeiconsIcon strokeWidth={2} icon={Folder01Icon} />
@@ -263,7 +263,7 @@ function FilePreviewPane({
             variant="ghost"
             label={t("files.reveal")}
             onClick={() => {
-              void window.fastvibe.workspace.reveal(preview.path);
+              void window.pinext.workspace.reveal(preview.path);
             }}
           >
             <HugeiconsIcon strokeWidth={2} icon={Folder01Icon} />

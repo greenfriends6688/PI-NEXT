@@ -5,30 +5,30 @@ import type { ExtensionPackage } from "@shared/types";
 import { uiText } from "../engine/ui-text.ts";
 
 /**
- * FastVibe's own extensions. They are plain files shipped outside the asar
+ * Pinext's own extensions. They are plain files shipped outside the asar
  * archive (`resources/extensions`, copied to `resourcesPath/extensions`) and
  * loaded through the SDK's jiti loader, so `/goal`, `/handoff`, the todo tool,
  * web search and auto session titles work on a fresh install with no network and no npm package.
  */
 export const BUILTIN_EXTENSIONS: Array<{ source: string; file: string }> = [
-  { source: "fastvibe:goal", file: "goal.ts" },
-  { source: "fastvibe:handoff", file: "handoff.ts" },
-  { source: "fastvibe:todo", file: "todo.ts" },
-  { source: "fastvibe:question", file: "question.ts" },
-  { source: "fastvibe:output-language", file: "output-language.ts" },
-  { source: "fastvibe:folder-consent", file: "folder-consent.ts" },
-  { source: "fastvibe:session-title", file: "session-title.ts" },
-  { source: "fastvibe:browser-use", file: "browser-use.ts" },
-  { source: "fastvibe:computer-use", file: "computer-use.ts" },
-  { source: "fastvibe:web-search", file: "web-search.ts" },
-  { source: "fastvibe:conversation-search", file: "conversation-search.ts" },
-  { source: "fastvibe:worktree", file: "worktree.ts" },
-  { source: "fastvibe:present", file: "present.ts" },
-  { source: "fastvibe:batch-decide", file: "batch-decide.ts" },
-  { source: "fastvibe:app-config", file: "app-config.ts" },
-  { source: "fastvibe:dag", file: "dag.ts" },
-  { source: "fastvibe:pdf-attachment", file: "pdf-attachment.ts" },
-  { source: "fastvibe:subagent-team", file: "subagent/index.ts" },
+  { source: "pinext:goal", file: "goal.ts" },
+  { source: "pinext:handoff", file: "handoff.ts" },
+  { source: "pinext:todo", file: "todo.ts" },
+  { source: "pinext:question", file: "question.ts" },
+  { source: "pinext:output-language", file: "output-language.ts" },
+  { source: "pinext:folder-consent", file: "folder-consent.ts" },
+  { source: "pinext:session-title", file: "session-title.ts" },
+  { source: "pinext:browser-use", file: "browser-use.ts" },
+  { source: "pinext:computer-use", file: "computer-use.ts" },
+  { source: "pinext:web-search", file: "web-search.ts" },
+  { source: "pinext:conversation-search", file: "conversation-search.ts" },
+  { source: "pinext:worktree", file: "worktree.ts" },
+  { source: "pinext:present", file: "present.ts" },
+  { source: "pinext:batch-decide", file: "batch-decide.ts" },
+  { source: "pinext:app-config", file: "app-config.ts" },
+  { source: "pinext:dag", file: "dag.ts" },
+  { source: "pinext:pdf-attachment", file: "pdf-attachment.ts" },
+  { source: "pinext:subagent-team", file: "subagent/index.ts" },
 ];
 
 /** Roles available to the built-in team orchestrator. Kept data-only so the
@@ -46,18 +46,18 @@ function resourcesRoot(): string {
   // development entry points independent of electron-vite's chunk location: a
   // bundled module lives under out/main/chunks, where walking up from __dirname
   // incorrectly points at out/resources and silently drops every built-in extension.
-  return process.env.FASTVIBE_RESOURCES_PATH?.trim() || join(process.cwd(), "resources");
+  return process.env.PINEXT_RESOURCES_PATH?.trim() || join(process.cwd(), "resources");
 }
 
 /** Built-in skills, by directory name under `resources/skills`. */
-const BUILTIN_SKILLS = ["browser-use", "computer-use", "fastvibe-setup", "skill-creator", "find-skills", "pdf"];
+const BUILTIN_SKILLS = ["browser-use", "computer-use", "pinext-setup", "skill-creator", "find-skills", "pdf"];
 
 export function builtinSkillPaths(): string[] {
   const dir = join(resourcesRoot(), "skills");
   return BUILTIN_SKILLS.map((name) => join(dir, name, "SKILL.md")).filter((path) => existsSync(path));
 }
 
-/** Directory holding FastVibe's built-in extension entry points (outside the asar). */
+/** Directory holding Pinext's built-in extension entry points (outside the asar). */
 function extensionsDir(): string {
   return join(resourcesRoot(), "extensions");
 }
@@ -76,7 +76,7 @@ export function builtinExtensionPaths(): string[] {
 
 /**
  * Extra pi packages the user installed at runtime, backed by the SDK's own
- * `DefaultPackageManager`. Installs land in FastVibe's isolated agentDir (its
+ * `DefaultPackageManager`. Installs land in Pinext's isolated agentDir (its
  * `settings.json` + `npm/`), never in the user's `~/.pi`.
  *
  * Bundled extensions are reported alongside them so Settings can show them, but

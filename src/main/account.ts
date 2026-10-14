@@ -4,7 +4,7 @@ import { DEFAULT_ACCOUNT_ORIGIN } from "@shared/account";
 import { Ipc } from "@shared/ipc";
 import { AccountService } from "./engine/account";
 import { log } from "./engine/logger";
-import { getFastVibePaths } from "./engine/paths";
+import { getPinextPaths } from "./engine/paths";
 import { broadcast } from "./ipc/broadcast";
 import { handle } from "./ipc/registry";
 
@@ -28,7 +28,7 @@ function accountOrigin(): string {
 
 /** The name the site's device list shows for this machine. */
 function deviceName(): string {
-  return hostname().replace(/\.local$/i, "") || "FastVibe";
+  return hostname().replace(/\.local$/i, "") || "Pinext";
 }
 
 /**
@@ -60,7 +60,7 @@ export function registerAccount(
   openWindow: () => void,
 ): AccountService {
   const service = new AccountService({
-    file: getFastVibePaths().accountFile,
+    file: getPinextPaths().accountFile,
     origin: accountOrigin(),
     platform: process.platform,
     deviceName,

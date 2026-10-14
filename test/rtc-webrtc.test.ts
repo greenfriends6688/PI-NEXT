@@ -35,7 +35,7 @@ type Rig = {
 };
 
 async function withRig(fn: (rig: Rig) => Promise<void>): Promise<void> {
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-rtc-e2e-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-rtc-e2e-"));
   const cloud = await startFakeCloud();
   const dispatched: string[] = [];
   const server = new RemoteServer({
@@ -91,7 +91,7 @@ async function callDesktop(cloud: FakeCloud, deviceId: string) {
     if (message.type === "answer") pc.setRemoteDescription(message.sdp!, "answer");
     else if (message.type === "candidate") pc.addRemoteCandidate(message.candidate!, message.mid ?? "0");
   });
-  const channel = pc.createDataChannel("fastvibe");
+  const channel = pc.createDataChannel("pinext");
   const socket = await new Promise<ChannelSocket>((settle, fail) => {
     const timer = setTimeout(() => fail(new Error("the data channel never opened")), 8000);
     channel.onOpen(() => {

@@ -3,7 +3,7 @@ import test from "node:test";
 import { invokeIpc } from "../src/renderer/src/lib/invoke-ipc.ts";
 
 /**
- * The failure this exists for is a *stale preload*: `window.fastvibe.<group>.<method>` is
+ * The failure this exists for is a *stale preload*: `window.pinext.<group>.<method>` is
  * built by the preload, so a renderer that knows a channel the running preload does not
  * finds the method missing. That is a property access that throws *before* there is a
  * promise, and a call site written as `void bridge.thing().catch(...).finally(clearBusy)`

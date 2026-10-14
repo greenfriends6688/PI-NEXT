@@ -52,7 +52,7 @@ import type { Conversation, Project } from "@shared/types";
 // so the sidebar keeps a single import for its row state.
 export { persistPinned, readPinned } from "@/lib/pinned";
 
-export const COLLAPSED_KEY = "fastvibe.sidebar.collapsed";
+export const COLLAPSED_KEY = "pinext.sidebar.collapsed";
 /** Default visible chats under each project; the rest sit behind 展开显示. */
 export const PROJECT_SESSION_LIMIT = 5;
 

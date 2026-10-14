@@ -20,7 +20,7 @@ import type { DagGraph } from "../src/shared/dag.ts";
 import type { Conversation, Project, WorkspaceSnapshot } from "../src/shared/types.ts";
 
 function bindingsFile(): string {
-  return join(mkdtempSync(join(tmpdir(), "fastvibe-gateway-")), "bindings.json");
+  return join(mkdtempSync(join(tmpdir(), "pinext-gateway-")), "bindings.json");
 }
 
 function profile(id: string): RemoteHostProfile {

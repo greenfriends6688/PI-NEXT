@@ -10,7 +10,7 @@ import '../ui/preferences.dart';
 import 'policy.dart';
 import 'target.dart';
 
-const String _channelId = 'fastvibe-activity';
+const String _channelId = 'pinext-activity';
 
 final FlutterLocalNotificationsPlugin _plugin =
     FlutterLocalNotificationsPlugin();

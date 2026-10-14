@@ -43,7 +43,7 @@ async function flushPending(): Promise<void> {
   const keys = group.map((item) => cacheKey(item.path, item.cwd));
   for (const key of keys) pending.delete(key);
   try {
-    const existing = new Set(await window.fastvibe.workspace.filesExist(group.map((item) => item.path), first.cwd));
+    const existing = new Set(await window.pinext.workspace.filesExist(group.map((item) => item.path), first.cwd));
     const now = Date.now();
     for (const item of group) {
       const value = existing.has(item.path);

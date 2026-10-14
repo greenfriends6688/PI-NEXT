@@ -35,7 +35,7 @@ import { cleanError } from "@/lib/ipc-error";
 import { providerLabel } from "@/lib/provider-label";
 import { cn } from "@/lib/utils";
 import { ProviderIcon } from "@/components/provider-icon";
-import { PROVIDER_APIS, type CcSwitchCandidate, type CcSwitchScan, type EngineModel, type FastVibeModel, type GatewayKind, type Project, type ProjectModelDefault, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel } from "@shared/types";
+import { PROVIDER_APIS, type CcSwitchCandidate, type CcSwitchScan, type EngineModel, type PinextModel, type GatewayKind, type Project, type ProjectModelDefault, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel } from "@shared/types";
 import { OAuthExtraUsageNote } from "./oauth-extra-usage-note";
 import { GatewayBalance } from "./gateway-balance";
 import { EMPTY_ADD, PROVIDER_API_ITEMS, PROVIDER_API_SHORT, type AddMode, type AddState, type PickerState } from "./providers-settings-types";
@@ -231,7 +231,7 @@ export function ProviderDetail({
   }): Promise<boolean> {
     setSaving(true);
     try {
-      await onChanged(await window.fastvibe.providers.update({ id: provider.id, ...patch }));
+      await onChanged(await window.pinext.providers.update({ id: provider.id, ...patch }));
       if (patch.apiKey !== undefined) setApiKey("");
       return true;
     } catch (err) {
@@ -244,7 +244,7 @@ export function ProviderDetail({
 
   async function remove(): Promise<void> {
     try {
-      await onRemoved(await window.fastvibe.providers.remove(provider.id));
+      await onRemoved(await window.pinext.providers.remove(provider.id));
     } catch (err) {
       toast.error(cleanError(err));
     }

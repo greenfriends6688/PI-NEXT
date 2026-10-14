@@ -53,16 +53,16 @@ test("the instance name is the host name without the mDNS suffix", () => {
   assert.equal(mdnsInstanceName("build-box.LOCAL."), "build-box");
   assert.equal(mdnsInstanceName("  desk  "), "desk");
   assert.equal(mdnsInstanceName("my.server.example"), "my-server-example");
-  assert.equal(mdnsInstanceName(""), "FastVibe");
-  assert.equal(mdnsInstanceName(".local"), "FastVibe");
+  assert.equal(mdnsInstanceName(""), "Pinext");
+  assert.equal(mdnsInstanceName(".local"), "Pinext");
 });
 
-test("publishes _fastvibe._tcp under the host name", () => {
+test("publishes _pinext._tcp under the host name", () => {
   const f = fake();
   const advertiser = new MdnsAdvertiser({ log: silent, create: f.create, hostName: () => "Desk.local" });
   advertiser.publish(7777);
   const host = f.published[0]?.host;
-  assert.match(host, /^fastvibe-[a-f0-9-]+\.local$/);
+  assert.match(host, /^pinext-[a-f0-9-]+\.local$/);
   assert.deepEqual(f.published, [{ name: "Desk", host, type: MDNS_SERVICE_TYPE, port: 7777, txt: { v: "1" }, disableIPv6: true }]);
   assert.equal(advertiser.port, 7777);
   assert.equal(advertiser.name, "Desk");

@@ -408,7 +408,7 @@ function usePanelKeys({
 }
 
 /**
- * Single-panel multi-question prompt (FastVibe's `questions` UI). One question at
+ * Single-panel multi-question prompt (Pinext's `questions` UI). One question at
  * a time; paging arrows sit top-right and answers return positionally as `{ answers }`.
  */
 function QuestionsPanel({ request, onRespond }: { request: PermissionRequest; onRespond: Respond }): JSX.Element | null {

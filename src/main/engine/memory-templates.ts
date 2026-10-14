@@ -11,7 +11,7 @@ import { join } from "node:path";
 
 function templatesDir(): string {
   // Main pins this explicitly; the cwd fallback is for source-level tests (see `extension-manager.ts`).
-  return join(process.env.FASTVIBE_RESOURCES_PATH?.trim() || join(process.cwd(), "resources"), "memories");
+  return join(process.env.PINEXT_RESOURCES_PATH?.trim() || join(process.cwd(), "resources"), "memories");
 }
 
 const cache = new Map<string, string>();

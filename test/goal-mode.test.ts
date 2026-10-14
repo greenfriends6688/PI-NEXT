@@ -36,7 +36,7 @@ const aborted = () => ({ ...assistant("", "aborted"), content: [{ type: "text", 
 
 /** Run the goal extension on a scripted session and report what it published. */
 async function runGoal(script: Array<ReturnType<typeof assistant>>, options: { retries?: number } = {}) {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-goal-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-goal-"));
   let calls = 0;
   const streamFn = (model: { provider: string; id: string }) => {
     const partial = script[Math.min(calls, script.length - 1)];
@@ -114,7 +114,7 @@ async function runGoal(script: Array<ReturnType<typeof assistant>>, options: { r
     states: statuses.map((raw) => JSON.parse(raw) as { status: string; round: number; objective: string }),
     goalEntries: sessionManager
       .getEntries()
-      .filter((entry) => entry.type === "custom" && entry.customType === "fastvibe-goal")
+      .filter((entry) => entry.type === "custom" && entry.customType === "pinext-goal")
       .map((entry) => (entry as { data: { status: string; round: number } }).data),
   };
 }

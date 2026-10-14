@@ -11,13 +11,13 @@ export type MediaProtocolDeps = {
 };
 
 /**
- * Serves `fastvibe-media://media/play?path=` to the renderer's `<img>` and `<video>`.
+ * Serves `pinext-media://media/play?path=` to the renderer's `<img>` and `<video>`.
  *
  * A local path is read from disk. A remote ref is proxied as a binary stream from the
  * machine that has the file. Either way the preview payload itself holds no bytes.
  */
 export function registerMediaProtocol(deps: MediaProtocolDeps): void {
-  protocol.handle("fastvibe-media", async (request) => {
+  protocol.handle("pinext-media", async (request) => {
     const requested = mediaPathFromUrl(request.url);
     if (!requested) return new Response(null, { status: 400 });
     const remote = decodeScopedId(requested);

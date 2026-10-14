@@ -8,7 +8,7 @@ A readable paragraph with **emphasis**, a [reference](https://example.com) and `
 > Keep the content clear; put the controls within reach.
 
 ```dart
-final client = FastVibe.connect(workspace);
+final client = Pinext.connect(workspace);
 await client.send('Hello');
 ```
 

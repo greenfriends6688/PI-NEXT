@@ -11,7 +11,7 @@
  * That leaves the artifact users actually double-click failing the assessment Gatekeeper
  * runs on a downloaded disk image:
  *
- *   spctl --assess --type open --context context:primary-signature FastVibe-0.8.2-arm64.dmg
+ *   spctl --assess --type open --context context:primary-signature Pinext-0.8.2-arm64.dmg
  *   → rejected (source=no usable signature)
  *
  * Signing the image, notarizing it and stapling the ticket turns that into

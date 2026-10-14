@@ -146,7 +146,7 @@ test("UPnP: the router is found, asked for the same port, and the mapping remove
   assert.equal(mapping.protocol, "upnp");
   assert.equal(mapping.externalAddress, "203.0.113.8");
   assert.equal(mapping.externalPort, 47812);
-  assert.deepEqual(gateway.mappings.get(47812), { internal: 47812, client: LOCAL, lease: 900, description: "FastVibe" });
+  assert.deepEqual(gateway.mappings.get(47812), { internal: 47812, client: LOCAL, lease: 900, description: "Pinext" });
   // The gateway is remembered: a second call asks it nothing but the mapping itself.
   const second = await mapper.map(LOCAL, 47900);
   assert.equal(second?.externalPort, 47900);

@@ -7,7 +7,7 @@ import { useSettingsStore } from "@/stores/settings";
  * sidebar. It lives in `settings.json` (see `stores/settings.ts`) so the same
  * list is visible from the sidebar and from Settings → 归档对话.
  */
-const LEGACY_KEY = "fastvibe.sidebar.archived";
+const LEGACY_KEY = "pinext.sidebar.archived";
 const EMPTY: string[] = [];
 
 /** Ids of every archived conversation, as a Set for the sidebar's filters. */

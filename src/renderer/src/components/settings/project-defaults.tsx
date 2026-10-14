@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { PROVIDER_APIS, type CcSwitchCandidate, type CcSwitchScan, type EngineModel, type FastVibeModel, type GatewayKind, type Project, type ProjectModelDefault, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel } from "@shared/types";
+import { PROVIDER_APIS, type CcSwitchCandidate, type CcSwitchScan, type EngineModel, type PinextModel, type GatewayKind, type Project, type ProjectModelDefault, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel } from "@shared/types";
 import { ModelThinkingSelect } from "@/components/model-thinking-select";
 import { useSettingsStore } from "@/stores/settings";
 import { useSessionStore } from "@/stores/session";
@@ -23,7 +23,7 @@ import { useSessionStore } from "@/stores/session";
  */
 const NO_PROJECT_DEFAULTS: Record<string, ProjectModelDefault> = {};
 
-export function ProjectDefaultsSection({ models }: { models: FastVibeModel[] }): JSX.Element {
+export function ProjectDefaultsSection({ models }: { models: PinextModel[] }): JSX.Element {
   const { t } = useTranslation("settings");
   const projects = useSessionStore((state) => state.projects);
   const settings = useSettingsStore((state) => state.settings);

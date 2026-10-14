@@ -7,8 +7,8 @@ import type { AccountState, AccountUser } from "@shared/account";
 import { uiText } from "./ui-text.ts";
 
 /**
- * Sign-in to the FastVibe account: the browser authorization-code flow for native apps
- * (RFC 8252) with PKCE (RFC 7636), against `app.fastvibe.dev`.
+ * Sign-in to the Pinext account: the browser authorization-code flow for native apps
+ * (RFC 8252) with PKCE (RFC 7636), against `app.pinext.dev`.
  *
  *   1. A listener opens on `127.0.0.1:<free port>/callback` and the system browser is
  *      sent to the site's `/authorize` page with a PKCE challenge and a random `state`.
@@ -22,7 +22,7 @@ import { uiText } from "./ui-text.ts";
  * UI and lifting the window are all handed in.
  */
 
-const CLIENT_ID = "fastvibe-desktop";
+const CLIENT_ID = "pinext-desktop";
 const CALLBACK_PATH = "/callback";
 const FILE_VERSION = 1;
 /** How long the browser has to come back. The site's own code is good for five minutes. */
@@ -32,7 +32,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 export type AccountDeps = {
   /** Where the token and the signed-in user are kept (0600). */
   file: string;
-  /** The site, e.g. `https://app.fastvibe.dev`, no trailing slash. */
+  /** The site, e.g. `https://app.pinext.dev`, no trailing slash. */
   origin: string;
   /** Open `url` in the system browser. */
   openUrl: (url: string) => Promise<void> | void;
@@ -270,7 +270,7 @@ export class AccountService {
         redirect_uri: redirectUri,
       },
     }).catch(() => {
-      throw new LoginError(uiText("无法连接 FastVibe 服务，请检查网络", "Couldn't reach FastVibe. Check your connection."));
+      throw new LoginError(uiText("无法连接 Pinext 服务，请检查网络", "Couldn't reach Pinext. Check your connection."));
     });
     const body: unknown = await response.json().catch(() => undefined);
     if (!response.ok) {
@@ -408,7 +408,7 @@ async function listen(state: string, timeoutMs: number): Promise<Listener> {
     }
     const given = url.searchParams.get("state") ?? "";
     if (!safeEqual(given, state)) {
-      res.writeHead(400, pageHeaders()).end(page(false, uiText("这个登录请求不是从 FastVibe 发起的。", "This sign-in didn't start from FastVibe.")));
+      res.writeHead(400, pageHeaders()).end(page(false, uiText("这个登录请求不是从 Pinext 发起的。", "This sign-in didn't start from Pinext.")));
       return;
     }
     if (done) {
@@ -496,9 +496,9 @@ function escapeHtml(text: string): string {
 function page(ok: boolean, message?: string): string {
   const title = ok ? uiText("登录成功", "Signed in") : uiText("没有登录成功", "Sign-in didn't complete");
   const body = ok
-    ? uiText("已经回到 FastVibe，这个标签页可以关闭了。", "You're back in FastVibe. You can close this tab.")
-    : (message ?? uiText("请回到 FastVibe 重试。", "Return to FastVibe and try again."));
-  return `<!doctype html><html lang="${uiText("zh", "en")}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} · FastVibe</title>
+    ? uiText("已经回到 Pinext，这个标签页可以关闭了。", "You're back in Pinext. You can close this tab.")
+    : (message ?? uiText("请回到 Pinext 重试。", "Return to Pinext and try again."));
+  return `<!doctype html><html lang="${uiText("zh", "en")}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} · Pinext</title>
 <style>:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:Canvas;color:CanvasText}
 main{max-width:24rem;padding:2rem;text-align:center}h1{font-size:1.375rem;margin:0 0 .5rem}p{margin:0;opacity:.7}</style>
 <main><h1>${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p></main></html>`;

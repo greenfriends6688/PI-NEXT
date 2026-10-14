@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:fastvibe_mobile/protocol/client.dart';
-import 'package:fastvibe_mobile/protocol/frame_socket.dart';
+import 'package:pinext_mobile/protocol/client.dart';
+import 'package:pinext_mobile/protocol/frame_socket.dart';
 
 /// A relayed connection as [RemoteClient] sees it: it knows when its credential runs out
 /// and which path it is on.

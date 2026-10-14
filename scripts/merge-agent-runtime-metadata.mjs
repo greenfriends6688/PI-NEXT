@@ -25,7 +25,7 @@ for (const input of inputs) {
   if (!/^[a-f0-9]{64}$/.test(metadata.archiveSha256)) {
     throw new Error(`Agent runtime archive hash 无效：${metadata.target}`);
   }
-  const expectedArchive = `fastvibe-agent-${metadata.target}.tar.gz`;
+  const expectedArchive = `pinext-agent-${metadata.target}.tar.gz`;
   if (metadata.archive !== expectedArchive) throw new Error(`Agent runtime archive 名称无效：${metadata.target}`);
   const archivePath = join(dirname(resolve(input)), metadata.archive);
   if (existsSync(archivePath)) {

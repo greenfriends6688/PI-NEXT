@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
-import type { EngineModel, FastVibeModel } from "@shared/types";
+import type { EngineModel, PinextModel } from "@shared/types";
 import { providerLabel } from "@/lib/provider-label";
 import { useSessionStore } from "@/stores/session";
 
@@ -9,7 +9,7 @@ import { useSessionStore } from "@/stores/session";
  * consulted for the provider's display name: a model that was since unconfigured still
  * has to render (a switch should stay legible after its provider was removed).
  */
-function label(model: EngineModel | undefined, models: FastVibeModel[]): string {
+function label(model: EngineModel | undefined, models: PinextModel[]): string {
   if (!model) return "";
   const known = models.find((item) => item.provider === model.provider && item.id === model.id);
   return `${known?.providerName || providerLabel(model.provider)}/${model.id}`;

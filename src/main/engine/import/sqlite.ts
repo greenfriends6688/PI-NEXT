@@ -32,7 +32,7 @@ export async function openReadOnlyDatabase(file: string): Promise<Handle> {
   } catch {
     // Locked or mid-checkpoint: fall through to the copy.
   }
-  const dir = await mkdtemp(join(tmpdir(), "fastvibe-import-"));
+  const dir = await mkdtemp(join(tmpdir(), "pinext-import-"));
   const copy = join(dir, basename(file));
   await copyFile(file, copy);
   for (const suffix of ["-wal", "-shm"]) {

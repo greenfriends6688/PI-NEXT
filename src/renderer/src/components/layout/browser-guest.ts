@@ -298,7 +298,7 @@ function createGuest(tabId: string, url: string): Entry {
   // is what a browser with dialogs switched off does too. Popups are a different door,
   // closed in main (`guardGuestPopups`).
   view.setAttribute("webpreferences", "disableDialogs=true");
-  view.setAttribute("partition", "persist:fastvibe-browser");
+  view.setAttribute("partition", "persist:pinext-browser");
   view.style.width = "100%";
   view.style.height = "100%";
   view.style.backgroundColor = "#fff";

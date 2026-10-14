@@ -23,7 +23,7 @@ function source(release = "agent-runtime-v12", releaseBaseUrl?: string): AgentRu
 
 /** Undo the shell selector wrapper so a test can read the script the host will run. */
 function remoteScript(command: string): string {
-  const marker = " fastvibe-ssh ";
+  const marker = " pinext-ssh ";
   assert.ok(command.includes(marker));
   const inner = command.slice(command.indexOf(marker) + marker.length);
   return inner.slice(1, -1).replace(/'\\''/g, "'");
@@ -38,7 +38,7 @@ test("agent runtime maps Linux architectures to release targets", () => {
 test("agent runtime URL uses an independent readable release and target", () => {
   assert.equal(
     agentRuntimeUrl(source("agent-runtime-v12", "https://example.test/releases"), "linux-x64"),
-    "https://example.test/releases/agent-runtime-v12/fastvibe-agent-linux-x64.tar.gz",
+    "https://example.test/releases/agent-runtime-v12/pinext-agent-linux-x64.tar.gz",
   );
 });
 
@@ -48,7 +48,7 @@ test("a source with no download base is refused rather than pointed at somebody 
 
 test("the remote download command fetches the release on the host itself", () => {
   const command = agentRuntimeRemoteDownloadCommand(source("agent-runtime-v12", GITHUB_RELEASES), "linux-arm64");
-  assert.match(command, /fastvibe-agent-linux-arm64\.tar\.gz/);
+  assert.match(command, /pinext-agent-linux-arm64\.tar\.gz/);
   assert.match(command, /curl -fsSL/);
   assert.match(command, /wget -q/);
   assert.match(command, /--connect-timeout 15/);
@@ -56,7 +56,7 @@ test("the remote download command fetches the release on the host itself", () =>
   assert.match(command, /--speed-time 30/);
   assert.match(command, /VERSION=/);
   assert.equal(command.includes("agent-runtime-v12"), true);
-  assert.match(command, /~|\$HOME\/\.fastvibe-agent/);
+  assert.match(command, /~|\$HOME\/\.pinext-agent/);
   assert.match(command, /tar -xzf/);
   assert.match(command, /unpacked\/out\/main\/agent\.js/);
   assert.match(command, /runtimeHash/);
@@ -90,10 +90,10 @@ test("an uploaded archive passes the same checks as a downloaded one, plus its c
 test("GitHub releases fall back to gh-proxy; a custom release server is never rewritten", () => {
   assert.equal(
     agentRuntimeMirrorUrl(source("agent-runtime-v12", GITHUB_RELEASES), "linux-x64"),
-    `https://gh-proxy.com/${GITHUB_RELEASES}/agent-runtime-v12/fastvibe-agent-linux-x64.tar.gz`,
+    `https://gh-proxy.com/${GITHUB_RELEASES}/agent-runtime-v12/pinext-agent-linux-x64.tar.gz`,
   );
   assert.equal(agentRuntimeMirrorUrl(source("agent-runtime-v12", "https://cdn.example.com/releases"), "linux-x64"), undefined);
   const command = agentRuntimeRemoteDownloadCommand(source("agent-runtime-v12", GITHUB_RELEASES), "linux-x64");
-  assert.match(command, /fv_download agent-download "\$TMP\/agent\.tar\.gz" "\$URL" "\$MIRROR_URL"/);
+  assert.match(command, /pn_download agent-download "\$TMP\/agent\.tar\.gz" "\$URL" "\$MIRROR_URL"/);
   assert.equal(command.includes("gh-proxy.com"), true);
 });

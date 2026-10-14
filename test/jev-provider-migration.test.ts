@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import type { FastVibePaths } from "../src/main/engine/paths.ts";
+import type { PinextPaths } from "../src/main/engine/paths.ts";
 import * as types from "../src/shared/types.ts";
 import * as decision from "../src/shared/decision.ts";
 import * as order from "../src/shared/model-order.ts";
@@ -45,11 +45,11 @@ function loadProviders(fetch: typeof globalThis.fetch) {
 }
 
 function fixture(t: test.TestContext, fetch: typeof globalThis.fetch = async () => response()) {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-jev-provider-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-jev-provider-"));
   const paths = {
     providersFile: join(dir, "providers.json"), agentEnv: join(dir, ".env"),
     decisionFile: join(dir, "decision.json"), oauthFile: join(dir, "oauth.json"),
-  } as FastVibePaths;
+  } as PinextPaths;
   writeFileSync(paths.agentEnv, `${decision.JEV_KEY_ENV}=legacy-key\nOTHER_KEY=keep-me\n`);
   decisionStore.writeDecisionConfig(paths.decisionFile, { ...decision.DEFAULT_DECISION_MODEL, kind: "jev" });
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -194,11 +194,11 @@ test("an interrupted provider write recovers its credential before retiring the 
   assert.equal(keys.OTHER_KEY, "keep-me");
 });
 
-/** The retired built-in FastVibe provider, as an old build wrote it. */
-function oldFastVibeEntry(over: Record<string, unknown> = {}) {
+/** The retired built-in Pinext provider, as an old build wrote it. */
+function oldPinextEntry(over: Record<string, unknown> = {}) {
   return {
-    id: "fastvibe", kind: "builtin", name: "FastVibe", baseUrl: "https://fastvibe.dev/v1", api: "openai-completions",
-    apiKeyEnv: "FASTVIBE_API_KEY", gateway: "sub2api", enabled: true, models: [model("claude-sonnet-5-5")], ...over,
+    id: "pinext", kind: "builtin", name: "Pinext", baseUrl: "https://pinext.dev/v1", api: "openai-completions",
+    apiKeyEnv: "PINEXT_API_KEY", gateway: "sub2api", enabled: true, models: [model("claude-sonnet-5-5")], ...over,
   };
 }
 
@@ -209,8 +209,8 @@ test("a fresh install has no provider at all", (t) => {
 
 test("a retired built-in provider entry is dropped, never resurrected as a custom one", async (t) => {
   const { paths, api } = fixture(t);
-  writeFileSync(paths.providersFile, JSON.stringify({ version: 2, providers: [oldFastVibeEntry()] }));
-  writeFileSync(paths.agentEnv, "FASTVIBE_API_KEY=sk-kept\n");
+  writeFileSync(paths.providersFile, JSON.stringify({ version: 2, providers: [oldPinextEntry()] }));
+  writeFileSync(paths.agentEnv, "PINEXT_API_KEY=sk-kept\n");
 
   // Its endpoint belonged to a service this build does not use. Reading the entry as a
   // custom provider would point the stored key at somebody else's host, so the row goes.
@@ -219,12 +219,12 @@ test("a retired built-in provider entry is dropped, never resurrected as a custo
 
 test("the drop is version-independent: a v1 file loses its built-in entry too", (t) => {
   const { paths, api } = fixture(t);
-  writeFileSync(paths.providersFile, JSON.stringify({ version: 1, providers: [oldFastVibeEntry({ api: "openai-completions" })] }));
+  writeFileSync(paths.providersFile, JSON.stringify({ version: 1, providers: [oldPinextEntry({ api: "openai-completions" })] }));
   assert.deepEqual(api.readProviders(paths), []);
 });
 
 test("a built-in that was never connected leaves no empty row behind", (t) => {
   const { paths, api } = fixture(t);
-  writeFileSync(paths.providersFile, JSON.stringify({ version: 2, providers: [oldFastVibeEntry({ models: [] })] }));
+  writeFileSync(paths.providersFile, JSON.stringify({ version: 2, providers: [oldPinextEntry({ models: [] })] }));
   assert.deepEqual(api.readProviders(paths), []);
 });

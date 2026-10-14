@@ -22,7 +22,7 @@ export function OpenAIQuota({ provider }: { provider: ProviderConfig }): JSX.Ele
     const current = ++request.current;
     setLoading(true);
     setError(null);
-    void window.fastvibe.providers
+    void window.pinext.providers
       .quota(provider.id as "openai" | "openai-codex", force)
       .then((next) => {
         if (request.current === current) setQuota(next);

@@ -1,7 +1,7 @@
 import { Notification, app, type BrowserWindow } from "electron";
 import type { NotificationRequest } from "@shared/notifications";
 import { readAppSettings } from "./app-settings";
-import { getFastVibePaths } from "./paths";
+import { getPinextPaths } from "./paths";
 
 /**
  * 系统通知 — the Electron half: raising a notice and answering its click.
@@ -30,7 +30,7 @@ const MAX_LIVE = 50;
 
 /** The settings bag Main reads for a notice, or `{}` when the file has none yet. */
 export function readNotificationSettings(): Record<string, unknown> {
-  return readAppSettings(getFastVibePaths());
+  return readAppSettings(getPinextPaths());
 }
 
 /**

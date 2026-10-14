@@ -33,6 +33,6 @@ test("background prompts and subagents still update their keyed state, but not t
 
 test("App session reads and mutations cannot bypass the conversation-scoped facade", () => {
   const source = readFileSync(new URL("../src/renderer/src/App.tsx", import.meta.url), "utf8");
-  assert.doesNotMatch(source, /window\.fastvibe\.engine\s*\.\s*(?:getMessages|getState|getStats|setThinking|setModel)\s*\(/);
+  assert.doesNotMatch(source, /window\.pinext\.engine\s*\.\s*(?:getMessages|getState|getStats|setThinking|setModel)\s*\(/);
   assert.match(source, /createConversationRefresh\(engine, useSessionStore\.getState\)/);
 });

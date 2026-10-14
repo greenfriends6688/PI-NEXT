@@ -1,4 +1,4 @@
-/// A FastVibe remote address, whether it came from a tunnel QR code or the LAN
+/// A Pinext remote address, whether it came from a tunnel QR code or the LAN
 /// line in 设置 → 远程访问.
 ///
 /// The settings pane copies a LAN address as `192.168.x.x:7777` — no scheme.
@@ -15,8 +15,8 @@ enum AddressKind {
   public,
   loopback,
 
-  /// A computer on the signed-in FastVibe account, reached through the account rather than
-  /// by address (`fastvibe-official://<device id>`). Never produced by parsing an address.
+  /// A computer on the signed-in Pinext account, reached through the account rather than
+  /// by address (`pinext-official://<device id>`). Never produced by parsing an address.
   official,
 }
 
@@ -108,7 +108,7 @@ final RegExp _private100 = RegExp(
   r'^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}$',
 );
 
-/// Returns null for anything that is not a host FastVibe could be listening on.
+/// Returns null for anything that is not a host Pinext could be listening on.
 ServerAddress? parseServerAddress(String raw) {
   var input = raw.trim();
   input = input.replaceAll(RegExp(r'''^['"]+|['"]+$'''), '');
@@ -179,7 +179,7 @@ String _inferProtocol(
   AddressKind kind,
 ) {
   if (explicit) return parsed == 'https:' ? 'https:' : 'http:';
-  // An IP literal has no certificate to offer, so a bare one is FastVibe's plain LAN
+  // An IP literal has no certificate to offer, so a bare one is Pinext's plain LAN
   // listener — including a global IPv6 address, which is what the LAN row shows (and
   // copies, with no scheme) when the machine is set to IPv6. Reading that as public
   // and trying TLS against the plain listener failed every connection. Tunnels hand

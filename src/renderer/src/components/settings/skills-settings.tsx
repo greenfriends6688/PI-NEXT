@@ -58,7 +58,7 @@ export function SkillsSettings(): JSX.Element {
 
   async function refresh(): Promise<void> {
     try {
-      setSkills(await window.fastvibe.engine.listSkills());
+      setSkills(await window.pinext.engine.listSkills());
     } catch {
       setSkills([]);
     }
@@ -85,7 +85,7 @@ export function SkillsSettings(): JSX.Element {
     if (!draft || !valid) return;
     setSaving(true);
     try {
-      setSkills(await window.fastvibe.engine.createSkill(draft));
+      setSkills(await window.pinext.engine.createSkill(draft));
       setDraft(null);
       toast.success(t("skills.addDone", { name: draft.name.trim() }));
     } catch (err) {
@@ -100,7 +100,7 @@ export function SkillsSettings(): JSX.Element {
     // works from anywhere.
     setSaving(true);
     try {
-      const next = await window.fastvibe.engine.importSkill();
+      const next = await window.pinext.engine.importSkill();
       if (next) {
         setSkills(next);
         toast.success(t("skills.importDone"));
@@ -115,7 +115,7 @@ export function SkillsSettings(): JSX.Element {
   async function remove(name: string): Promise<void> {
     setSaving(true);
     try {
-      setSkills(await window.fastvibe.engine.removeSkill(name));
+      setSkills(await window.pinext.engine.removeSkill(name));
       toast.success(t("skills.deleteDone", { name }));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("skills.deleteFailed"));

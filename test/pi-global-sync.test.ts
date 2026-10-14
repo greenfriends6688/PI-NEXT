@@ -8,13 +8,13 @@ import { escapePiConfigSecret, writePiAgentConfig, type PiSyncRequest } from "..
 
 /**
  * Syncing into the global pi directory is a merge, not a takeover: a provider the
- * CLI already has and FastVibe does not must survive, and a secret must come back
+ * CLI already has and Pinext does not must survive, and a secret must come back
  * out of pi's config parser as the same string. A leading `!` is otherwise a shell
  * command, which is the failure this file exists to keep from shipping.
  */
 
 function agentDir(): string {
-  return mkdtempSync(join(tmpdir(), "fv-pi-sync-"));
+  return mkdtempSync(join(tmpdir(), "pn-pi-sync-"));
 }
 
 function writeJson(dir: string, name: string, value: unknown): void {
@@ -250,7 +250,7 @@ test("a file that is not valid JSON stops the sync before anything is written", 
   assert.equal(readJson(dir, "settings.json").defaultModel, undefined);
 });
 
-test("refuses to write into FastVibe's own agent directory", () => {
+test("refuses to write into Pinext's own agent directory", () => {
   const dir = agentDir();
   assert.throws(() => writePiAgentConfig(dir, { providers: [], skipped: [], mcp: [] }, dir), /runtime|运行目录/);
 });

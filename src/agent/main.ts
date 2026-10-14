@@ -18,7 +18,7 @@ import { HEADLESS_CAPABILITIES } from "../main/app-server/capabilities";
 import { createAppServer, initAppServer } from "../main/app-server/runtime";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const defaultDataRoot = join(homedir(), ".fastvibe");
+const defaultDataRoot = join(homedir(), ".pinext");
 
 function option(name: string): string | undefined {
   const prefix = `${name}=`;
@@ -26,21 +26,21 @@ function option(name: string): string | undefined {
   return value ? value.slice(prefix.length) : undefined;
 }
 
-const userData = option("--data-dir") || process.env.FASTVIBE_USER_DATA || defaultDataRoot;
-const port = Number(option("--port") ?? (process.env.FASTVIBE_AGENT_PORT || 7777));
+const userData = option("--data-dir") || process.env.PINEXT_USER_DATA || defaultDataRoot;
+const port = Number(option("--port") ?? (process.env.PINEXT_AGENT_PORT || 7777));
 /**
  * Where this Agent records its pid, port and version once listening (`<data>/agent.json`).
  *
  * The SSH bootstrap starts the Agent on `--port=0`: the OS picks a free port, so no fixed
  * port can be taken by another user or program, and this file is how the desktop then
  * finds it. The bootstrap passes the path explicitly so it never depends on how the
- * login shell happens to set `FASTVIBE_USER_DATA`.
+ * login shell happens to set `PINEXT_USER_DATA`.
  */
 const stateFile = option("--state-file") || join(userData, "agent.json");
-const resourcesPath = process.env.FASTVIBE_RESOURCES_PATH || join(here, "../../resources");
+const resourcesPath = process.env.PINEXT_RESOURCES_PATH || join(here, "../../resources");
 
-if (!Number.isInteger(port) || port < 0 || port > 65_535) throw new Error("FASTVIBE_AGENT_PORT 无效");
-const listen = resolveListenHost(option("--host") ?? process.env.FASTVIBE_AGENT_HOST);
+if (!Number.isInteger(port) || port < 0 || port > 65_535) throw new Error("PINEXT_AGENT_PORT 无效");
+const listen = resolveListenHost(option("--host") ?? process.env.PINEXT_AGENT_HOST);
 
 // The headless service can also start outside a login shell.
 applyShellPath();
@@ -53,22 +53,22 @@ registerAgentIpc({
   runtime,
   terminals,
   log: {
-    info: (message) => console.info(`[fastvibe-agent] ${message}`),
-    warn: (message) => console.warn(`[fastvibe-agent] ${message}`),
-    error: (message, error) => console.error(`[fastvibe-agent] ${message}`, error ?? ""),
+    info: (message) => console.info(`[pinext-agent] ${message}`),
+    warn: (message) => console.warn(`[pinext-agent] ${message}`),
+    error: (message, error) => console.error(`[pinext-agent] ${message}`, error ?? ""),
   },
 });
 
 const appServer = createAppServer({
   identity: loadOrCreateServerIdentity(runtime.paths.serverIdentityFile, {
-    version: process.env.FASTVIBE_VERSION || "agent",
+    version: process.env.PINEXT_VERSION || "agent",
     platform: process.platform,
   }),
   capabilities: HEADLESS_CAPABILITIES,
   channels: agentChannels,
   log: {
-    info: (message) => console.info(`[fastvibe-agent] ${message}`),
-    warn: (message) => console.warn(`[fastvibe-agent] ${message}`),
+    info: (message) => console.info(`[pinext-agent] ${message}`),
+    warn: (message) => console.warn(`[pinext-agent] ${message}`),
   },
 });
 initAppServer({
@@ -85,13 +85,13 @@ const server = new RemoteServer({
   channels: agentChannels,
   policyScope: "subset",
   // The bootstrap starts this process with the token it also hands the desktop over SSH.
-  loopbackToken: process.env.FASTVIBE_AGENT_SYNC_TOKEN || undefined,
+  loopbackToken: process.env.PINEXT_AGENT_SYNC_TOKEN || undefined,
   dispatch: (method, payload, clientId) => dispatch(method, payload, { kind: "remote", window: null, origin: clientId }),
   subscribe,
   log: {
-    info: (message) => console.info(`[fastvibe-agent] ${message}`),
-    warn: (message) => console.warn(`[fastvibe-agent] ${message}`),
-    error: (message, error) => console.error(`[fastvibe-agent] ${message}`, error ?? ""),
+    info: (message) => console.info(`[pinext-agent] ${message}`),
+    warn: (message) => console.warn(`[pinext-agent] ${message}`),
+    error: (message, error) => console.error(`[pinext-agent] ${message}`, error ?? ""),
   },
 });
 
@@ -113,7 +113,7 @@ await runtime.engine.start();
 const listening = (await server.start({ port, host: listen.host })).port ?? port;
 writeStateFile(listening);
 broadcast("agent:ready", { port: listening, userData });
-console.info(`[fastvibe-agent] ready on ${listen.host}:${listening}`);
+console.info(`[pinext-agent] ready on ${listen.host}:${listening}`);
 
 /**
  * Written only after `listen` succeeded, so its presence means the port accepts. One
@@ -124,7 +124,7 @@ function writeStateFile(listeningPort: number): void {
   const temporary = `${stateFile}.${process.pid}.tmp`;
   // `public` is a number, not a boolean, because the bootstrap reads this file with `sed`
   // and its field reader only knows digits. 1 means listening beyond loopback.
-  const state = { pid: process.pid, port: listeningPort, public: listen.exposed ? 1 : 0, version: process.env.FASTVIBE_VERSION || null, startedAt: new Date().toISOString() };
+  const state = { pid: process.pid, port: listeningPort, public: listen.exposed ? 1 : 0, version: process.env.PINEXT_VERSION || null, startedAt: new Date().toISOString() };
   writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
   renameSync(temporary, stateFile);
 }

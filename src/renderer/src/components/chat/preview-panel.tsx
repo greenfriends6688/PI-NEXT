@@ -31,7 +31,7 @@ export function PreviewPanel({
             variant="ghost"
             label={t("preview.reveal")}
             onClick={() => {
-              void window.fastvibe.workspace.reveal(preview.path);
+              void window.pinext.workspace.reveal(preview.path);
             }}
           >
             <HugeiconsIcon strokeWidth={2} icon={Folder01Icon} />

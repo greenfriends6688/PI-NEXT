@@ -10,7 +10,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
  *
  * 所以附件里有 PDF 时，由宿主把这条提醒直接放进系统提示，不指望模型自己意识到。
  * 这是 `before_agent_start` 的职责：它每次用户提示前触发一次，`event.prompt` 是
- * 引擎最终收到的完整文本（含宿主追加的 `<fastvibe-attachments>` 路径块）。
+ * 引擎最终收到的完整文本（含宿主追加的 `<pinext-attachments>` 路径块）。
  *
  * 三条设计取舍：
  *
@@ -30,7 +30,7 @@ const PDF_EXTENSIONS = [".pdf"];
 /** MIME 白名单。浏览器偶尔给 `application/x-pdf`。 */
 const PDF_MIME_TYPES = new Set(["application/pdf", "application/x-pdf"]);
 
-const T = (zh: string, en: string): string => (process.env.FASTVIBE_UI_LANGUAGE === "en" ? en : zh);
+const T = (zh: string, en: string): string => (process.env.PINEXT_UI_LANGUAGE === "en" ? en : zh);
 
 /** 后缀判断，容忍查询串（从 URL 粘来的路径会带 `?x=1`）。 */
 export function hasPdfExtension(path: string): boolean {
@@ -180,12 +180,12 @@ export function pdfReminder(paths: readonly string[], skillFile: string): string
 }
 
 /**
- * 技能文件的位置。宿主把 `FASTVIBE_RESOURCES_PATH` 指到 `resources/`（开发）或
+ * 技能文件的位置。宿主把 `PINEXT_RESOURCES_PATH` 指到 `resources/`（开发）或
  * `resourcesPath/`（打包），内置技能在它下面的 `skills/`。这个变量由 Main 在
  * 启动时设好，和 `builtinSkillPaths()` 读的是同一个。
  */
 export function pdfSkillFile(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  const root = env.FASTVIBE_RESOURCES_PATH?.trim();
+  const root = env.PINEXT_RESOURCES_PATH?.trim();
   if (!root) return undefined;
   const separator = root.includes("\\") && !root.includes("/") ? "\\" : "/";
   return `${root.replace(/[\\/]+$/, "")}${separator}skills${separator}pdf${separator}SKILL.md`;

@@ -53,7 +53,7 @@ export function GitBranchChip({
     }
     let cancelled = false;
     setBranches(null);
-    window.fastvibe.workspace
+    window.pinext.workspace
       .gitBranches(cwd)
       .then((list) => {
         if (!cancelled) setBranches(list);
@@ -78,7 +78,7 @@ export function GitBranchChip({
     setBusy(true);
     setError(null);
     try {
-      const next = await window.fastvibe.workspace.gitCheckout(cwd, branch);
+      const next = await window.pinext.workspace.gitCheckout(cwd, branch);
       onBranchChange?.(next);
       setOpen(false);
       toast.success(t("git.switched", { branch: next.branch ?? branch }));
@@ -95,7 +95,7 @@ export function GitBranchChip({
     setBusy(true);
     setError(null);
     try {
-      const next = await window.fastvibe.workspace.gitCreateBranch(cwd, name);
+      const next = await window.pinext.workspace.gitCreateBranch(cwd, name);
       onBranchChange?.(next);
       setOpen(false);
       toast.success(t("git.created", { branch: next.branch ?? name }));

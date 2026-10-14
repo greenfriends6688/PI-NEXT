@@ -10,7 +10,7 @@
  * This runs as the `afterPack` hook, so a bad package fails the build before any installer or
  * release exists. It is also a CLI, for checking an installed or unpacked app:
  *
- *     node scripts/check-packaged-deps.cjs /Applications/FastVibe.app/Contents/Resources/app.asar
+ *     node scripts/check-packaged-deps.cjs /Applications/Pinext.app/Contents/Resources/app.asar
  *
  * For every package in the archive it reads `dependencies` and looks each one up the way
  * Node would: in the package's own `node_modules`, then in each enclosing one. A package
@@ -32,7 +32,7 @@ const REMOVED_ON_PURPOSE = {
  * `@trycua/cua-driver` SDK because computer use is not offered there, and the app declares it.
  */
 const REMOVED_ON_PURPOSE_BY_PLATFORM = {
-  linux: { fastvibe: ["@trycua/cua-driver"] },
+  linux: { pinext: ["@trycua/cua-driver"] },
 };
 
 function skippedDeps(packageName, platform) {

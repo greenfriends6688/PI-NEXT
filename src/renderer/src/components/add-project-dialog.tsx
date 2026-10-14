@@ -61,8 +61,8 @@ export function AddProjectDialog({ open, onOpenChange, onAdded }: Props): JSX.El
       if (!state.hostId || state.hostId !== hostId) return;
       setConnection(state);
     };
-    const offState = window.fastvibe.ssh.onState(apply);
-    const offStates = window.fastvibe.ssh.onStates((states) => {
+    const offState = window.pinext.ssh.onState(apply);
+    const offStates = window.pinext.ssh.onStates((states) => {
       const match = states.find((state) => state.hostId === hostId);
       if (match) apply(match);
     });
@@ -84,7 +84,7 @@ export function AddProjectDialog({ open, onOpenChange, onAdded }: Props): JSX.El
     setError(null);
     setBusy(false);
     let cancelled = false;
-    void window.fastvibe.ssh.hosts().then((snapshot) => {
+    void window.pinext.ssh.hosts().then((snapshot) => {
       if (cancelled) return;
       const map = new Map<string, RemoteHostProfile>();
       for (const host of [...snapshot.discovered, ...snapshot.saved]) map.set(host.id, host);
@@ -98,7 +98,7 @@ export function AddProjectDialog({ open, onOpenChange, onAdded }: Props): JSX.El
   function abandonPendingConnect(): void {
     const pending = pendingConnectRef.current;
     pendingConnectRef.current = null;
-    if (pending) void window.fastvibe.ssh.disconnect(pending).catch(() => undefined);
+    if (pending) void window.pinext.ssh.disconnect(pending).catch(() => undefined);
   }
 
   function close(): void {
@@ -117,7 +117,7 @@ export function AddProjectDialog({ open, onOpenChange, onAdded }: Props): JSX.El
 
   async function readPath(nextRaw: string, server: string, token: number): Promise<void> {
     const scoped = encodeRemoteReadPath(server, nextRaw);
-    const listed = await window.fastvibe.workspace.readDir(scoped);
+    const listed = await window.pinext.workspace.readDir(scoped);
     if (stale(token)) return;
     setEntries(listed);
     setRawPath(nextRaw.trim() || "/");
@@ -135,10 +135,10 @@ export function AddProjectDialog({ open, onOpenChange, onAdded }: Props): JSX.El
     setRawPath("/");
     setConnection({ hostId: requested, status: "connecting" });
     try {
-      const live = await window.fastvibe.ssh.states().catch(() => [] as RemoteHostConnectionState[]);
+      const live = await window.pinext.ssh.states().catch(() => [] as RemoteHostConnectionState[]);
       if (stale(token)) return;
       if (!live.some((item) => item.hostId === requested && item.status === "connected")) pendingConnectRef.current = requested;
-      const state = await window.fastvibe.ssh.connect(requested);
+      const state = await window.pinext.ssh.connect(requested);
       if (pendingConnectRef.current === requested) pendingConnectRef.current = null;
       if (stale(token) || state.hostId !== requested) return;
       setConnection(state);
@@ -194,7 +194,7 @@ export function AddProjectDialog({ open, onOpenChange, onAdded }: Props): JSX.El
     setError(null);
     try {
       const cwd = encodeRemoteReadPath(server, path);
-      const added: ProjectAddResult = await window.fastvibe.projects.addRemote(cwd, {
+      const added: ProjectAddResult = await window.pinext.projects.addRemote(cwd, {
         hostId: host.id,
         serverInstanceId: server,
         workspaceId: path,

@@ -147,7 +147,7 @@ PromptImage promptImage(ComposerImage image) =>
 
 /// Reads only in response to the explicit Paste image action; never on app focus.
 Future<ComposerImage?> pasteImage() async {
-  const channel = MethodChannel('dev.fastvibe.mobile/device');
+  const channel = MethodChannel('dev.pinext.mobile/device');
   final bytes = await channel.invokeMethod<Uint8List>('readImage');
   if (bytes == null || bytes.isEmpty) return null;
   return prepareImageBytes(bytes);

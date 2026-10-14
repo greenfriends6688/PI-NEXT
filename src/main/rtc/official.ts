@@ -13,7 +13,7 @@ import { SignalingClient, type SignalingStop } from "./signaling.ts";
 
 /**
  * The official remote connection: this desktop, reachable from a phone signed in to the
- * same FastVibe account.
+ * same Pinext account.
  *
  * It registers the machine as a device, keeps the cloud's signaling open, and answers each
  * phone that calls (`Responder`). The connections it produces are attached to the remote
@@ -292,8 +292,8 @@ export class OfficialConnection {
       case "replaced":
         this.#teardown();
         this.#set("error", uiText(
-          "这台设备已在另一个 FastVibe 窗口或进程中连接，请先关闭它",
-          "This device is already connected from another FastVibe process. Close it first.",
+          "这台设备已在另一个 Pinext 窗口或进程中连接，请先关闭它",
+          "This device is already connected from another Pinext process. Close it first.",
         ));
         return;
       case "removed":
@@ -514,7 +514,7 @@ export class OfficialConnection {
       });
     } catch (error) {
       this.#deps.log.warn(`official: could not reach the service: ${String(error)}`);
-      return { ok: false, retry: true, message: uiText("无法连接 FastVibe 服务，请检查网络", "Couldn't reach FastVibe. Check your connection.") };
+      return { ok: false, retry: true, message: uiText("无法连接 Pinext 服务，请检查网络", "Couldn't reach Pinext. Check your connection.") };
     }
     const body: unknown = await response.json().catch(() => undefined);
     if (response.status === 401) return { ok: false, retry: false, unauthorized: true, message: "" };

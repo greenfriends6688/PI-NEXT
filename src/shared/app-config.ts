@@ -1,5 +1,5 @@
 /**
- * The catalog of what the agent may do to FastVibe's own configuration.
+ * The catalog of what the agent may do to Pinext's own configuration.
  *
  * Main implements exactly these names (`src/main/app-config.ts` is typed against this
  * list, so an action cannot be offered without an implementation) and serves the list
@@ -10,7 +10,7 @@
 export const APP_CONFIG_CATALOG = {
   overview: { kind: "read", summary: "一次读取远程访问状态、SSH 主机和 MCP 服务器" },
   "remote.status": { kind: "read", summary: "远程访问的当前状态：局域网监听、官方连接（同账号手机能否发现这台电脑）和已连接的手机" },
-  "ssh.hosts": { kind: "read", summary: "FastVibe 里保存的和 ~/.ssh/config 里发现的 SSH 主机（不含密码）" },
+  "ssh.hosts": { kind: "read", summary: "Pinext 里保存的和 ~/.ssh/config 里发现的 SSH 主机（不含密码）" },
   "mcp.list": { kind: "read", summary: "MCP 服务器配置与连接状态" },
   "settings.get": { kind: "read", summary: "settings.json 里的界面与对话偏好" },
 
@@ -34,7 +34,7 @@ export function isAppConfigAction(value: unknown): value is AppConfigAction {
 export type AppConfigHostRequest = {
   action: string;
   input?: Record<string, unknown>;
-  /** Set only by `fastvibe_config_apply`, so the read tool cannot reach a write. */
+  /** Set only by `pinext_config_apply`, so the read tool cannot reach a write. */
   write?: boolean;
 };
 

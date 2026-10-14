@@ -37,7 +37,7 @@ export async function createNetworkProxy(initial: Record<string, unknown>) {
   app.on("session-created", created);
   const defaultSession = session.defaultSession;
   register(defaultSession);
-  register(session.fromPartition("persist:fastvibe-browser"));
+  register(session.fromPartition("persist:pinext-browser"));
   register(session.fromPartition("electron-updater", { cache: false }));
   try {
     await app.setProxy(chromiumProxyConfig(current));

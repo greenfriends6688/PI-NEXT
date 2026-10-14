@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { chmod, readFile, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { INPUT_MODALITIES, PROVIDER_APIS, THINKING_EFFORT_LEVELS, type CostTier, type FastVibeModel, type ModelCost, type ModelPrice, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel, type ThinkingLevel } from "@shared/types";
+import { INPUT_MODALITIES, PROVIDER_APIS, THINKING_EFFORT_LEVELS, type CostTier, type PinextModel, type ModelCost, type ModelPrice, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel, type ThinkingLevel } from "@shared/types";
 import { catalogPrice, enrichModel, loadModelsDev, type ModelsDevIndex } from "./models-dev";
 import { findNativeProvider, listNativeProviders, mergeNativeModels, selectedNativeModels } from "./native-providers";
 import { piProviderModelsEntry } from "./pi-global-sync.ts";
@@ -11,7 +11,7 @@ import { isGatewayKind, probeGateway, readGatewayCredentials, type GatewayKind }
 import { JEV_KEY_ENV } from "@shared/decision";
 import { readDecisionConfig, writeDecisionConfig } from "./decision/store";
 import { deleteOAuthCredential, readOAuthProviderIds } from "./oauth-store";
-import type { FastVibePaths } from "./paths";
+import type { PinextPaths } from "./paths";
 import { orderProviderModels } from "@shared/model-order";
 
 /**
@@ -58,11 +58,11 @@ const PROVIDERS_VERSION = 3;
 
 const COST_KEYS: Array<keyof ModelCost> = ["input", "output", "cacheRead", "cacheWrite"];
 
-export function providersFilePath(paths: FastVibePaths): string {
+export function providersFilePath(paths: PinextPaths): string {
   return paths.providersFile;
 }
 
-function readProvidersFile(paths: FastVibePaths): ProvidersFile | undefined {
+function readProvidersFile(paths: PinextPaths): ProvidersFile | undefined {
   try {
     const parsed = JSON.parse(readFileSync(paths.providersFile, "utf8")) as ProvidersFile;
     return parsed && Array.isArray(parsed.providers) ? parsed : undefined;
@@ -71,7 +71,7 @@ function readProvidersFile(paths: FastVibePaths): ProvidersFile | undefined {
   }
 }
 
-export function readProviders(paths: FastVibePaths): StoredProvider[] {
+export function readProviders(paths: PinextPaths): StoredProvider[] {
   try {
     const parsed = readProvidersFile(paths);
     // No providers.json yet: a fresh install has no provider, and the empty model list
@@ -108,7 +108,7 @@ function isLiveProvider(provider: StoredProvider): boolean {
 }
 
 function writeProviders(
-  paths: FastVibePaths,
+  paths: PinextPaths,
   providers: StoredProvider[],
   legacyJevMigrated = readProvidersFile(paths)?.legacyJevMigrated === true,
 ): void {
@@ -120,7 +120,7 @@ function writeProviders(
   writeFileSync(paths.providersFile, `${JSON.stringify(payload, null, 2)}\n`);
 }
 
-export async function loadProviderKeys(paths: FastVibePaths): Promise<Record<string, string>> {
+export async function loadProviderKeys(paths: PinextPaths): Promise<Record<string, string>> {
   const keys: Record<string, string> = {};
   try {
     const text = await readFile(paths.agentEnv, "utf8");
@@ -136,7 +136,7 @@ export async function loadProviderKeys(paths: FastVibePaths): Promise<Record<str
   return keys;
 }
 
-async function writeProviderKeys(paths: FastVibePaths, keys: Record<string, string>): Promise<void> {
+async function writeProviderKeys(paths: PinextPaths, keys: Record<string, string>): Promise<void> {
   const body = Object.entries(keys)
     .filter(([, value]) => value)
     .map(([name, value]) => `${name}=${value}`)
@@ -146,7 +146,7 @@ async function writeProviderKeys(paths: FastVibePaths, keys: Record<string, stri
 }
 
 export async function setProviderKey(
-  paths: FastVibePaths,
+  paths: PinextPaths,
   apiKeyEnv: string,
   apiKey: string,
 ): Promise<void> {
@@ -157,7 +157,7 @@ export async function setProviderKey(
 }
 
 export function listProviderConfigs(
-  paths: FastVibePaths,
+  paths: PinextPaths,
   keys: Record<string, string>,
 ): ProviderConfig[] {
   const oauth = readOAuthProviderIds(paths.oauthFile);
@@ -357,7 +357,7 @@ function extractModelList(payload: unknown): unknown[] {
  * may, however, carry `modelOverrides`: the SDK composes those onto its own native
  * catalog while keeping the provider's auth and streaming implementation intact.
  */
-export function applyProviders(paths: FastVibePaths): FastVibeModel[] {
+export function applyProviders(paths: PinextPaths): PinextModel[] {
   const providers = readProviders(paths);
   const keys = readProviderKeysSync(paths);
   const connected = connectedProviderIds(paths, keys);
@@ -412,7 +412,7 @@ function chatProvider(provider: StoredProvider): StoredProvider {
  * in the overlay, or a stored subscription (OAuth) token. A provider with neither
  * contributes no models anywhere — which is the whole signal for «not connected».
  */
-export function connectedProviderIds(paths: FastVibePaths, keys: Record<string, string>): Set<string> {
+export function connectedProviderIds(paths: PinextPaths, keys: Record<string, string>): Set<string> {
   const oauth = readOAuthProviderIds(paths.oauthFile);
   const ids = new Set<string>();
   for (const provider of readProviders(paths)) {
@@ -434,12 +434,12 @@ export function connectedProviderIds(paths: FastVibePaths, keys: Record<string, 
  * `reloadProviders` prunes the overlay against, and a logged-in provider missing from
  * it would have its (unused) overlay entry dropped on every settings write.
  */
-export function usableProviders(paths: FastVibePaths, keys: Record<string, string>): StoredProvider[] {
+export function usableProviders(paths: PinextPaths, keys: Record<string, string>): StoredProvider[] {
   const connected = connectedProviderIds(paths, keys);
   return readProviders(paths).filter((provider) => connected.has(provider.id));
 }
 
-function readProviderKeysSync(paths: FastVibePaths): Record<string, string> {
+function readProviderKeysSync(paths: PinextPaths): Record<string, string> {
   try {
     const text = readFileSync(paths.agentEnv, "utf8");
     const keys: Record<string, string> = {};
@@ -456,7 +456,7 @@ function readProviderKeysSync(paths: FastVibePaths): Record<string, string> {
 /* ---------------- mutations ---------------- */
 
 export async function addProvider(
-  paths: FastVibePaths,
+  paths: PinextPaths,
   draft: { name: string; baseUrl: string; apiKey: string; api?: ProviderApi; gateway?: GatewayKind },
   models: ProviderModel[],
 ): Promise<string> {
@@ -510,7 +510,7 @@ function officialSystemOneProvider(providers: StoredProvider[]): StoredProvider 
  * Concurrent engine/settings callers share one run per file. Completion is persisted
  * so the old key cannot resurrect a provider the user subsequently deletes.
  */
-export function adoptLegacyJevProvider(paths: FastVibePaths): Promise<void> {
+export function adoptLegacyJevProvider(paths: PinextPaths): Promise<void> {
   const pending = legacyJevMigrations.get(paths.providersFile);
   if (pending) return pending;
   const migration = migrateLegacyJevProvider(paths).finally(() => {
@@ -520,7 +520,7 @@ export function adoptLegacyJevProvider(paths: FastVibePaths): Promise<void> {
   return migration;
 }
 
-async function migrateLegacyJevProvider(paths: FastVibePaths): Promise<void> {
+async function migrateLegacyJevProvider(paths: PinextPaths): Promise<void> {
   if (readProvidersFile(paths)?.legacyJevMigrated) {
     await retireLegacyJevKey(paths);
     return;
@@ -566,7 +566,7 @@ async function migrateLegacyJevProvider(paths: FastVibePaths): Promise<void> {
 }
 
 /** Retire the old credential only together with a durable key for the official provider. */
-async function retireLegacyJevKey(paths: FastVibePaths, provider?: StoredProvider): Promise<void> {
+async function retireLegacyJevKey(paths: PinextPaths, provider?: StoredProvider): Promise<void> {
   const keys = await loadProviderKeys(paths);
   const legacyKey = keys[JEV_KEY_ENV];
   if (!legacyKey) return;
@@ -584,7 +584,7 @@ async function retireLegacyJevKey(paths: FastVibePaths, provider?: StoredProvide
  * `force` is the migration that just created the official provider: the old selection
  * is replaced even when some other provider happens to list a System One model.
  */
-function retargetDecisionModel(paths: FastVibePaths, provider: StoredProvider, force: boolean): void {
+function retargetDecisionModel(paths: PinextPaths, provider: StoredProvider, force: boolean): void {
   const config = readDecisionConfig(paths.decisionFile);
   if (config.kind !== "jev") return;
   const models = provider.models.filter((model) => (model.api ?? provider.api) === "systemone");
@@ -596,7 +596,7 @@ function retargetDecisionModel(paths: FastVibePaths, provider: StoredProvider, f
   writeDecisionConfig(paths.decisionFile, { ...config, model: { provider: provider.id, id: pick.id } });
 }
 
-function systemOneSelection(paths: FastVibePaths, selected: { provider: string; id: string }): boolean {
+function systemOneSelection(paths: PinextPaths, selected: { provider: string; id: string }): boolean {
   const provider = readProviders(paths).find((item) => item.id === selected.provider);
   const model = provider?.models.find((item) => item.id === selected.id);
   return Boolean(provider && model && (model.api ?? provider.api) === "systemone");
@@ -612,7 +612,7 @@ function systemOneSelection(paths: FastVibePaths, selected: { provider: string; 
  * login-only built-in such as `openai-codex`.
  */
 export async function addNativeProvider(
-  paths: FastVibePaths,
+  paths: PinextPaths,
   id: string,
   apiKey: string,
   models: ProviderModel[],
@@ -654,7 +654,7 @@ export async function addNativeProvider(
 }
 
 export function updateProvider(
-  paths: FastVibePaths,
+  paths: PinextPaths,
   id: string,
   patch: Partial<Pick<StoredProvider, "name" | "baseUrl" | "api" | "enabled" | "models" | "modelOrder">>,
 ): void {
@@ -689,7 +689,7 @@ export function updateProvider(
   writeProviders(paths, providers);
 }
 
-export async function removeProvider(paths: FastVibePaths, id: string): Promise<void> {
+export async function removeProvider(paths: PinextPaths, id: string): Promise<void> {
   const providers = readProviders(paths);
   const removed = providers.find((provider) => provider.id === id);
   if (!removed) return;
@@ -697,7 +697,7 @@ export async function removeProvider(paths: FastVibePaths, id: string): Promise<
   writeProviders(paths, providers.filter((provider) => provider.id !== id),
     removedOfficialJev || readProvidersFile(paths)?.legacyJevMigrated === true);
   // Both credentials live outside `providers.json`, so dropping the entry would
-  // otherwise strand a `FASTVIBE_KEY_…` line and a live refresh token behind it.
+  // otherwise strand a `PINEXT_KEY_…` line and a live refresh token behind it.
   await setProviderKey(paths, removed.apiKeyEnv, "");
   if (removedOfficialJev) await retireLegacyJevKey(paths);
   deleteOAuthCredential(paths.oauthFile, id);
@@ -748,7 +748,7 @@ function hostLabel(baseUrl: string): string {
   }
 }
 
-export function providerKeyEnv(paths: FastVibePaths, id: string): string | undefined {
+export function providerKeyEnv(paths: PinextPaths, id: string): string | undefined {
   return readProviders(paths).find((provider) => provider.id === id)?.apiKeyEnv;
 }
 
@@ -761,7 +761,7 @@ export function providerKeyEnv(paths: FastVibePaths, id: string): string | undef
  * instead of having to be deleted and re-added.
  */
 export async function refreshProviderModels(
-  paths: FastVibePaths,
+  paths: PinextPaths,
   id: string,
 ): Promise<ProviderModel[]> {
   const provider = readProviders(paths).find((item) => item.id === id);
@@ -777,7 +777,7 @@ export async function refreshProviderModels(
 }
 
 /** Record what the gateway probe found. Ignored for anything but a custom entry. */
-export function setProviderGateway(paths: FastVibePaths, id: string, kind: GatewayKind): void {
+export function setProviderGateway(paths: PinextPaths, id: string, kind: GatewayKind): void {
   const providers = readProviders(paths);
   const index = providers.findIndex((provider) => provider.id === id);
   if (index < 0 || providers[index].kind !== "custom") return;
@@ -832,7 +832,7 @@ function hydrateProvider(value: StoredProviderInput): StoredProvider {
 }
 
 export function nativeKeyEnv(id: string): string {
-  return `FASTVIBE_KEY_${id.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
+  return `PINEXT_KEY_${id.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
 }
 
 /**
@@ -862,7 +862,7 @@ function hydrateModels(value: unknown): ProviderModel[] {
     const stored = isModelCost(cost) ? { cost, costTiers: hydrateCostTiers(costTiers) } : catalogPrice(id);
     model.cost = stored?.cost;
     // The ladder rides alongside the flat price the engine reads: pi cannot bill a
-    // long-context step itself, so FastVibe picks the tier when it reports money.
+    // long-context step itself, so Pinext picks the tier when it reports money.
     model.costTiers = stored?.costTiers;
     model.thinkingLevels = hydrateThinkingLevels(thinkingLevels);
     model.effortMap = hydrateEffortMap(effortMap);
@@ -934,7 +934,7 @@ function isModelCost(value: unknown): value is ModelCost {
  * Both keys because a transcript records the model id verbatim while the provider that
  * served it may have been renamed or removed before the report is read.
  */
-export function modelPriceIndex(paths: FastVibePaths): Map<string, ModelPrice> {
+export function modelPriceIndex(paths: PinextPaths): Map<string, ModelPrice> {
   const index = new Map<string, ModelPrice>();
   for (const provider of readProviders(paths)) {
     for (const model of provider.models) {

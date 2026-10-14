@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fastvibe_mobile/protocol/client.dart';
-import 'package:fastvibe_mobile/protocol/rtc_signaling.dart';
+import 'package:pinext_mobile/protocol/client.dart';
+import 'package:pinext_mobile/protocol/rtc_signaling.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The phone's signaling against a stand-in for the cloud's `/api/rtc/signal`: what a call

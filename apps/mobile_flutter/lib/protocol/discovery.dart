@@ -1,6 +1,6 @@
-/// Finding FastVibe machines on the local network (mDNS / Bonjour).
+/// Finding Pinext machines on the local network (mDNS / Bonjour).
 ///
-/// The desktop announces `_fastvibe._tcp` while 允许局域网访问 is on (`src/main/server/mdns.ts`).
+/// The desktop announces `_pinext._tcp` while 允许局域网访问 is on (`src/main/server/mdns.ts`).
 /// The instance name is the computer's host name, which is what the row shows and what the
 /// saved connection is called — nobody has to type `192.168.x.x:7777` on the same Wi-Fi.
 library;
@@ -12,7 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:nsd/nsd.dart' as nsd;
 
-const String fastvibeServiceType = '_fastvibe._tcp';
+const String pinextServiceType = '_pinext._tcp';
 
 /// One computer found on the network.
 @immutable
@@ -129,7 +129,7 @@ Future<bool> _answers(String origin, Duration timeout) async {
   }
 }
 
-/// A live browse for FastVibe machines. Holds nothing when it cannot run (no multicast, no
+/// A live browse for Pinext machines. Holds nothing when it cannot run (no multicast, no
 /// plugin, a denied Local Network prompt): [machines] then stays empty and the manual and
 /// QR paths are what is left, which is exactly where the user was before this existed.
 class NearbyDiscovery extends ChangeNotifier {
@@ -149,7 +149,7 @@ class NearbyDiscovery extends ChangeNotifier {
     notifyListeners();
     try {
       final discovery = await nsd.startDiscovery(
-        fastvibeServiceType,
+        pinextServiceType,
         ipLookupType: nsd.IpLookupType.any,
       );
       if (_disposed) {
