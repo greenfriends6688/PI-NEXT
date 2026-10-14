@@ -4,6 +4,7 @@ import {
   AiImageIcon,
   Analytics01Icon,
   SentIcon,
+  Robot01Icon,
   Search01Icon,
   Archive04Icon,
   BotIcon,
@@ -44,6 +45,7 @@ export type SectionId =
   | "imagegen"
   | "websearch"
   | "im"
+  | "bot-channel"
   | "decision"
   | "memory"
   | "mcp"
@@ -92,6 +94,7 @@ export const SETTINGS_SECTIONS: Array<{
       { id: "subagents", icon: <HugeiconsIcon strokeWidth={2} icon={BotIcon} /> },
       { id: "imagegen", icon: <HugeiconsIcon strokeWidth={2} icon={AiImageIcon} /> },
       { id: "websearch", icon: <HugeiconsIcon strokeWidth={2} icon={Search01Icon} /> },
+      { id: "bot-channel", icon: <HugeiconsIcon strokeWidth={2} icon={Robot01Icon} /> },
       { id: "im", icon: <HugeiconsIcon strokeWidth={2} icon={SentIcon} /> },
       { id: "decision", icon: <HugeiconsIcon strokeWidth={2} icon={BrainCircuitIcon} /> },
       { id: "memory", icon: <HugeiconsIcon strokeWidth={2} icon={StickyNote01Icon} /> },

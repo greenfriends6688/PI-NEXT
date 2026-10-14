@@ -201,7 +201,8 @@
   "ssh": "SSH 远程主机",
   "computer": "电脑操控",
   "proxy": "网络代理",
-  "browser": "浏览器控制"
+  "browser": "浏览器控制",
+  "bot-channel": "机器人渠道"
  },
  "backToApp": "返回应用",
  "personalization": {
@@ -1042,5 +1043,34 @@
   "loading": "正在查找本机浏览器…",
   "noProfiles": "没有找到可导入的配置",
   "noProfilesDesc": "支持 Chrome、Edge、Brave、Chromium、Arc 和 Opera。"
+ },
+ "botChannel": {
+  "enable": "启用",
+  "running": "运行中",
+  "stopped": "未运行",
+  "token": "令牌",
+  "tokenHint": "平台侧凭证；只在本机保存",
+  "chatIdHint": "消息发到这个 chat id；BotFather 建好机器人后发一条消息即可拿到",
+  "session": "绑定的会话",
+  "sessionHint": "留空 = 落到「无项目的会话」，**不是**你正在看的那个",
+  "sessionPlaceholder": "留空即可",
+  "allowFrom": "白名单",
+  "allowFromHint": "空 = 谁都不许（fail closed）；扫码渠道由首个发信人自动绑定",
+  "allowFromPlaceholder": "逗号分隔，留空即自动绑定",
+  "notReady": "还缺东西",
+  "missing": "缺少：{{list}}",
+  "save": "保存",
+  "saved": "已保存",
+  "saveFailed": "保存失败：{{error}}",
+  "loadFailed": "读取失败：{{error}}",
+  "startFailed": "启动失败：{{error}}",
+  "loading": "正在读取渠道配置…",
+  "behaviourTitle": "它的行为",
+  "behaviourWhere": "消息落到哪里",
+  "behaviourWhereHint": "一个与任何项目无关的会话；不会掉进你桌上正开着的项目对话里",
+  "behaviourBusy": "会话正在跑时不注入",
+  "behaviourBusyHint": "回一句「它现在在忙」，让人自己决定什么时候放机器人进来",
+  "toolTitle": "启停",
+  "toolHint": "「启用」= 该不该在跑；开机按它自动拉起，显式停掉的不会自己回来"
  }
 }

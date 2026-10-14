@@ -201,7 +201,8 @@
   "ssh": "SSH hosts",
   "computer": "Computer control",
   "proxy": "Network proxy",
-  "browser": "Browser control"
+  "browser": "Browser control",
+  "bot-channel": "Bot channels"
  },
  "backToApp": "Back to app",
  "personalization": {
@@ -1044,5 +1045,34 @@
   "loading": "Looking for browsers…",
   "noProfiles": "No profiles to import",
   "noProfilesDesc": "Supports Chrome, Edge, Brave, Chromium, Arc and Opera."
+ },
+ "botChannel": {
+  "enable": "Enabled",
+  "running": "Running",
+  "stopped": "Not running",
+  "token": "Token",
+  "tokenHint": "The platform credential; kept on this machine only",
+  "chatIdHint": "Messages go to this chat id — send the bot one message to learn it",
+  "session": "Bound conversation",
+  "sessionHint": "Empty = a conversation with no project, **not** the one you are looking at",
+  "sessionPlaceholder": "Leave empty",
+  "allowFrom": "Allow-list",
+  "allowFromHint": "Empty lets nobody through (fail closed); the QR channels bind the first sender automatically",
+  "allowFromPlaceholder": "Comma-separated; empty binds automatically",
+  "notReady": "Not ready",
+  "missing": "Missing: {{list}}",
+  "save": "Save",
+  "saved": "Saved",
+  "saveFailed": "Could not save: {{error}}",
+  "loadFailed": "Could not read: {{error}}",
+  "startFailed": "Could not start: {{error}}",
+  "loading": "Reading the channel configuration…",
+  "behaviourTitle": "How it behaves",
+  "behaviourWhere": "Where a message lands",
+  "behaviourWhereHint": "A conversation tied to no project; it never drops into whatever project is open on the desk",
+  "behaviourBusy": "Never injected into a running turn",
+  "behaviourBusyHint": "It answers “busy right now” instead, so the person decides when to let the bot in",
+  "toolTitle": "Start / stop",
+  "toolHint": "“Enabled” means it should be running: brought back on launch, and a channel you stopped stays stopped"
  }
 }

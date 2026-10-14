@@ -44,6 +44,7 @@ import { ShortcutsSettings } from "./shortcuts-settings";
 import { AboutSettings } from "./about-settings";
 import { PersonalizationSettings } from "./personalization-settings";
 import { ImageGenSettings } from "./imagegen-settings";
+import { BotChannelSettings } from "./bot-channel-settings";
 import { ImBridgeSettings } from "./im-settings";
 import { WebSearchSettings } from "./websearch-settings";
 import { SubagentsSettings } from "./subagents-settings";
@@ -415,6 +416,7 @@ export function SettingsDialog({
           {section === "imagegen" ? <ImageGenSettings /> : null}
           {section === "websearch" ? <WebSearchSettings /> : null}
           {section === "im" ? <ImBridgeSettings /> : null}
+          {section === "bot-channel" ? <BotChannelSettings /> : null}
           {section === "decision" ? <DecisionSettings /> : null}
           {section === "memory" ? <MemorySettings models={models} /> : null}
           {section === "mcp" ? <McpSettings /> : null}
