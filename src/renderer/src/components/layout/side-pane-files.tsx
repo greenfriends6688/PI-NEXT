@@ -127,6 +127,16 @@ export function SidePaneFiles({
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   /** 树里的过滤词。空 = 原样的树。 */
   const [filter, setFilter] = useState("");
+  /** 搜索栏是否展开。用独立布尔量，不再拿「一个空格」当开关。 */
+  const [searchOpen, setSearchOpen] = useState(false);
+  /**
+   * 扁平文件清单（`workspace.listFiles`）。
+   *
+   * 惰加载的树只能筛已经展开的目录，搜一个还没展开的深层文件会一无所获 —— 那不是
+   * 「没找到」，是「没去看」。所以搜索打开时另取一份整棵项目的扁平清单来筛。
+   */
+  const [allFiles, setAllFiles] = useState<string[]>([]);
+  const [listingNonce, setListingNonce] = useState(0);
   /** 正在输入的「新增 / 重命名」目标：null = 没有在输入。 */
   const [naming, setNaming] = useState<{ kind: "mkdir" | "touch" | "rename"; parent: string; from?: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -174,6 +184,23 @@ export function SidePaneFiles({
     reset(cwd);
   }, [cwd, reset]);
 
+  // 搜索打开时才取扁平清单（它是整棵项目的遍历，不该在每次切目录时白跑）。
+  useEffect(() => {
+    if (!searchOpen || !cwd) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const listed = await window.pinext.workspace.listFiles(cwd);
+        if (!cancelled) setAllFiles(listed);
+      } catch {
+        if (!cancelled) setAllFiles([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchOpen, cwd, listingNonce]);
+
   // A preview click (or a file already on the tab when it mounts) reveals only that
   // file. A click inside this tree sets `openedHere` and leaves the folders as they are.
   useEffect(() => {
@@ -192,6 +219,7 @@ export function SidePaneFiles({
     if (!cwd) return;
     void loadDir(cwd);
     for (const dir of expanded) void loadDir(dir);
+    setListingNonce((value) => value + 1);
   }
 
   function toggleDir(path: string): void {
@@ -317,6 +345,11 @@ export function SidePaneFiles({
   }
 
   const dirty = new Set(Object.keys(drafts));
+  const searchNeedle = filter.trim().toLowerCase();
+  const searchResults =
+    searchNeedle.length > 0
+      ? allFiles.filter((file) => file.toLowerCase().includes(searchNeedle)).slice(0, 300)
+      : [];
 
   return (
     <div className="@container/files flex min-h-0 flex-1 flex-col">
@@ -374,11 +407,14 @@ export function SidePaneFiles({
               </IconButton>
               <IconButton
                 size="icon-xs"
-                variant="ghost"
+                variant={searchOpen ? "secondary" : "ghost"}
                 label={t("files.search")}
                 onClick={(event) => {
                   event.stopPropagation();
-                  setFilter((value) => (value ? "" : " "));
+                  setSearchOpen((open) => {
+                    if (open) setFilter("");
+                    return !open;
+                  });
                 }}
               >
                 <HugeiconsIcon strokeWidth={2} icon={Search01Icon} />
@@ -401,20 +437,31 @@ export function SidePaneFiles({
               <PathContextItems path={cwd} cwd={cwd} remote={remote} onRefresh={refreshTree} />
             </ContextMenuContent>
           </ContextMenu>
-          {filter.trim().length > 0 || filter === " " ? (
+          {searchOpen ? (
             <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-border px-2">
               <HugeiconsIcon strokeWidth={2} icon={Search01Icon} className="size-3.5 shrink-0 text-muted-foreground" />
               <Input
                 autoFocus
                 className="h-7 border-0 bg-transparent px-0 text-xs shadow-none focus-visible:ring-0"
                 placeholder={t("files.searchPlaceholder")}
-                value={filter.trim()}
-                onChange={(event) => setFilter(event.target.value.length > 0 ? event.target.value : " ")}
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Escape") setFilter("");
+                  if (event.key === "Escape") {
+                    setFilter("");
+                    setSearchOpen(false);
+                  }
                 }}
               />
-              <IconButton size="icon-xs" variant="ghost" label={t("files.searchClose")} onClick={() => setFilter("")}>
+              <IconButton
+                size="icon-xs"
+                variant="ghost"
+                label={t("files.searchClose")}
+                onClick={() => {
+                  setFilter("");
+                  setSearchOpen(false);
+                }}
+              >
                 <HugeiconsIcon strokeWidth={2} icon={Cancel01Icon} />
               </IconButton>
             </div>
@@ -438,28 +485,51 @@ export function SidePaneFiles({
           <ScrollArea className="h-full min-h-0 flex-1">
             <div className="flex min-h-full flex-col">
               <div className="py-1.5">
-                <TreeLevel
-                  dir={cwd}
-                  depth={0}
-                  children={children}
-                  expanded={expanded}
-                  selected={preview?.path}
-                  dirty={dirty}
-                  cwd={cwd}
-                  remote={remote}
-                  filter={filter}
-                  onRename={(path) => setNaming({ kind: "rename", parent: dirnameOf(path), from: path })}
-                  onDelete={(path) => {
-                    // 删除不是可撤销的动作，所以先问一句 —— 目录还会连带里面的东西。
-                    void (async () => {
-                      const ok = window.confirm(t("files.deleteConfirm", { name: baseName(path) }));
-                      if (ok) await mutate({ kind: "delete", path });
-                    })();
-                  }}
-                  onToggle={toggleDir}
-                  onOpen={openFile}
-                  onRefresh={refreshTree}
-                />
+                {searchNeedle.length > 0 ? (
+                  searchResults.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">{t("files.noResults")}</div>
+                  ) : (
+                    searchResults.map((file) => {
+                      const full = joinPath(cwd, file);
+                      const active = preview?.path === full;
+                      return (
+                        <button
+                          key={file}
+                          type="button"
+                          aria-current={active ? "true" : undefined}
+                          className={cn("chat-tree-row", active && "is-active")}
+                          title={full}
+                          onClick={() => void openFile(full)}
+                        >
+                          <FileIcon name={baseName(file)} kind="file" />
+                          <span className="min-w-0 flex-1 truncate">{file}</span>
+                        </button>
+                      );
+                    })
+                  )
+                ) : (
+                  <TreeLevel
+                    dir={cwd}
+                    depth={0}
+                    children={children}
+                    expanded={expanded}
+                    selected={preview?.path}
+                    dirty={dirty}
+                    cwd={cwd}
+                    remote={remote}
+                    onRename={(path) => setNaming({ kind: "rename", parent: dirnameOf(path), from: path })}
+                    onDelete={(path) => {
+                      // 删除不是可撤销的动作，所以先问一句 —— 目录还会连带里面的东西。
+                      void (async () => {
+                        const ok = window.confirm(t("files.deleteConfirm", { name: baseName(path) }));
+                        if (ok) await mutate({ kind: "delete", path });
+                      })();
+                    }}
+                    onToggle={toggleDir}
+                    onOpen={openFile}
+                    onRefresh={refreshTree}
+                  />
+                )}
               </div>
               {/* Blank space under the list is the project root, same menu as the header. */}
               <ContextMenu>
@@ -620,7 +690,6 @@ function TreeLevel({
   onToggle,
   onOpen,
   onRefresh,
-  filter,
   onRename,
   onDelete,
 }: {
@@ -635,18 +704,11 @@ function TreeLevel({
   onToggle: (path: string) => void;
   onOpen: (path: string) => void;
   onRefresh: () => void;
-  /** 过滤词；空 = 原样。命中的目录整棵保留，其余按名字筛。 */
-  filter?: string;
   onRename?: (path: string) => void;
   onDelete?: (path: string) => void;
 }): JSX.Element {
   const { t } = useTranslation("sidepane");
-  const needle = (filter ?? "").trim().toLowerCase();
-  const entries = (children[dir] ?? []).filter((entry) =>
-    // 目录始终保留：命中可能在它下面，而树是懒加载的 —— 按名字砍掉目录会让搜索结果
-    // 取决于哪些目录恰好被展开过。
-    needle.length === 0 || entry.kind === "directory" || entry.name.toLowerCase().includes(needle),
-  );
+  const entries = children[dir] ?? [];
   return (
     <>
       {entries.map((entry) => {
@@ -698,7 +760,6 @@ function TreeLevel({
                 children={children}
                 expanded={expanded}
                 selected={selected}
-                filter={filter}
                 onRename={onRename}
                 onDelete={onDelete}
                 dirty={dirty}

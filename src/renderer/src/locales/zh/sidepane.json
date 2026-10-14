@@ -84,7 +84,8 @@
     "deleteConfirm": "删除「{{name}}」？文件夹里的内容会一起删掉，这一步不能撤销。",
     "nameNoSlash": "名字里不能有斜杠",
     "mutateFailed": "操作失败",
-    "openInFinder": "在访达中打开"
+    "openInFinder": "在访达中打开",
+    "noResults": "没有匹配的文件"
   },
   "changes": {
     "count": "{{count}} 个文件",

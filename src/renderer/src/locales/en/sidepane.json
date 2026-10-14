@@ -84,7 +84,8 @@
     "deleteConfirm": "Delete “{{name}}”? Anything inside a folder goes with it, and this cannot be undone.",
     "nameNoSlash": "A name cannot contain a slash",
     "mutateFailed": "That did not work",
-    "openInFinder": "Show in file manager"
+    "openInFinder": "Show in file manager",
+    "noResults": "No matching files"
   },
   "changes": {
     "count": "{{count}} files",
