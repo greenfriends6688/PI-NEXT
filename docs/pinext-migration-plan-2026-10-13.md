@@ -86,17 +86,15 @@
 
 ### D1 · opencode-go 400（少请求头）
 
-**根因定位到文件**：
+**静态诊断已收窄（一个猜想被排除，剩两个候选）**
 
-```
-node_modules/@earendil-works/pi-ai/dist/providers/opencode-headers.js
-  const OPENCODE_SESSION_HEADER = "x-opencode-session";
-  // 仅在 options.sessionId 存在、且走「原生 opencode / opencode-go provider」时注入
-```
+- ~~FastVibe 把 opencode-go 物化进 `models.json` 导致丢头~~ —— **不成立**。`applyProviders()` 只把**改过模型的**原生供应商写进 `models.json`，而 `piProviderModelsEntry()` 对原生供应商只写 `{ modelOverrides }`（不写 baseUrl / api / models），SDK 仍用它自己的 provider（含 `x-opencode-session` 包装）。opencode-go 也确实能通过「添加供应商」以原生身份接入（`nativeProviderCatalog()`）。
+- **候选一（较可能）**：该条目其实是 **自定义**供应商（手填 baseUrl），所以走通用 OpenAI 客户端，没有那层包装。判据：设置 → 供应商里它显示为「内置」还是「自定义」。
+- **候选二**：`x-opencode-session` 只在 `options.sessionId` 存在时注入，而宿主是否把 sessionId 一路传进 stream options 尚未验证。
 
-FastVibe 的 `src/main/engine/providers.ts` 会把供应商**物化进 `models.json`**（`renderModelsJson()` / `migrateBuiltin()`）。一旦 opencode-go 成了「自定义供应商」，pi 就不再走原生 provider 的那层包装，头就丢了 → 上游按未知模型回 400，响应体回显 `{"model":"deepseek-v4.1-flash"}`。
+**定案所需的一条证据**：一次真实请求的出站头（`opencode.ai` 那条），加上设置里那个供应商是「内置」还是「自定义」。两条一起就能定案。
 
-**修**：让 `opencode` / `opencode-go` 永远以 `kind:"native"` 存在，`renderModelsJson` 跳过它们；兜底是在 engine 的模型请求路径上 `providerId.startsWith("opencode")` 且头缺失时显式补 `x-opencode-session`。
+**修**：先按候选一实现（成本最低）——保证 `opencode` / `opencode-go` 永远以 `kind:"native"` 存在、绝不被读成自定义供应商；若定案是候选二，则在 engine 的模型请求路径上 `providerId.startsWith("opencode")` 且头缺失时显式补 `x-opencode-session`。
 **验收**：opencode-go 真实跑通一轮对话；换别的供应商不受影响。
 
 ### D2 · 模型余额（含 opencode-go）
