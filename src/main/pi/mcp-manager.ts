@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { chmod, readFile, rename, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import {
   McpClient,
   StdioTransport,
@@ -102,13 +103,38 @@ export class McpManager {
     } catch { this.#configs = []; }
   }
 
+  /**
+   * Write the server table, with the two rules a credential file needs.
+   *
+   * **Atomic and private.** The bytes land in a temp file in the same directory, get `0600`,
+   * and are renamed over the original — so a crash cannot leave a half-written config, and a
+   * config holding API keys and auth headers is not world-readable. `writeFile` alone was
+   * both of those holes at once.
+   *
+   * **A masked secret means "keep what is stored".** The renderer never holds the real value
+   * (`list()` masks it), so the plaintext it sends back for an untouched row is the mask —
+   * and writing that would destroy the credential on the next save.
+   */
   async save(configs: McpServerConfig[]): Promise<void> {
-    this.#configs = configs.filter(isConfig);
-    await writeFile(this.#file, `${JSON.stringify(this.#configs, null, 2)}\n`, "utf8");
+    const previous = new Map(this.#configs.map((config) => [config.id, config]));
+    this.#configs = configs.filter(isConfig).map((config) => mergeMaskedSecrets(config, previous.get(config.id)));
+    const temp = join(dirname(this.#file), `.${process.pid}.${Date.now()}.tmp`);
+    await writeFile(temp, `${JSON.stringify(this.#configs, null, 2)}\n`, { mode: 0o600 });
+    await chmod(temp, 0o600);
+    await rename(temp, this.#file);
   }
 
   list(): McpServerStatus[] {
-    return this.#configs.map((config) => ({ ...config, connected: this.#connections.has(config.id), tools: this.#connections.get(config.id)?.tools.map((tool) => tool.name) ?? [], error: this.#errors.get(config.id) }));
+    // Masked on the way out. An MCP server's `env` and `headers` are where its API keys and
+    // bearer tokens live, and this object is handed to the renderer — which may be a browser
+    // on another machine. The connection itself still gets the real values: masking is a
+    // property of this reply, not of the stored config.
+    return this.#configs.map((config) => ({
+      ...maskServerSecrets(config),
+      connected: this.#connections.has(config.id),
+      tools: this.#connections.get(config.id)?.tools.map((tool) => tool.name) ?? [],
+      error: this.#errors.get(config.id),
+    }));
   }
 
   async connectAll(): Promise<void> {
@@ -234,4 +260,36 @@ function isConfig(value: unknown): value is McpServerConfig {
       && (item.args === undefined || Array.isArray(item.args));
   }
   return item.transport === "http" && typeof item.url === "string" && item.url.length > 0;
+}
+
+/** What a secret looks like to the renderer. Sending it back means "keep the stored one". */
+export const MCP_SECRET_MASK = "••••••••";
+
+function maskedRecord(values: Record<string, string> | undefined): Record<string, string> | undefined {
+  if (!values) return undefined;
+  return Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value ? MCP_SECRET_MASK : value]));
+}
+
+/** The same server, with every credential replaced by the mask. */
+export function maskServerSecrets(config: McpServerConfig): McpServerConfig {
+  return {
+    ...config,
+    ...(config.env ? { env: maskedRecord(config.env) } : {}),
+    ...(config.headers ? { headers: maskedRecord(config.headers) } : {}),
+  };
+}
+
+/** Put the stored secret back wherever the incoming value is the mask. */
+function mergeMaskedSecrets(config: McpServerConfig, previous: McpServerConfig | undefined): McpServerConfig {
+  const merge = (incoming: Record<string, string> | undefined, stored: Record<string, string> | undefined) => {
+    if (!incoming) return stored;
+    return Object.fromEntries(
+      Object.entries(incoming).map(([key, value]) => [key, value === MCP_SECRET_MASK ? stored?.[key] ?? "" : value]),
+    );
+  };
+  return {
+    ...config,
+    ...(config.env || previous?.env ? { env: merge(config.env, previous?.env) } : {}),
+    ...(config.headers || previous?.headers ? { headers: merge(config.headers, previous?.headers) } : {}),
+  };
 }

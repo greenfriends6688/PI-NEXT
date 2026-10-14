@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LATEST_PROTOCOL_VERSION, StdioTransport, StreamableHttpTransport } from "@earendil-works/pi-mcp";
 import { createInMemoryTransportPair, type InMemoryTransport } from "@earendil-works/pi-mcp/testing";
-import { McpManager, createTransport, normalizeConfigs, type McpServerConfig } from "../src/main/pi/mcp-manager.ts";
+import { McpManager, MCP_SECRET_MASK, createTransport, normalizeConfigs, type McpServerConfig } from "../src/main/pi/mcp-manager.ts";
 
 type Rpc = { id?: number; method?: string; params?: Record<string, any> };
 
@@ -280,4 +280,49 @@ test("a missing or unreadable file means no servers", async () => {
   const broken = new McpManager(join(dir, "bad.json"));
   await broken.load();
   assert.deepEqual(broken.list(), []);
+});
+
+test("the listing a renderer sees never carries a credential", async () => {
+  // `env` and `headers` are where an MCP server's API keys and bearer tokens live, and this
+  // reply can travel to a browser on another machine. The connection still gets the real
+  // values — masking is a property of the reply, not of the stored config.
+  const dir = mkdtempSync(join(tmpdir(), "mcp-"));
+  const file = join(dir, "mcp.json");
+  writeFileSync(file, JSON.stringify([
+    { id: "a", name: "A", transport: "stdio", command: "node", env: { API_KEY: "sk-real-secret" }, enabled: true },
+    { id: "b", name: "B", transport: "http", url: "https://example.test/mcp", headers: { Authorization: "Bearer real-token" }, enabled: false },
+  ]));
+  const manager = new McpManager(file);
+  await manager.load();
+  const listed = manager.list();
+  assert.equal(listed[0].env?.API_KEY, MCP_SECRET_MASK);
+  assert.equal(listed[1].headers?.Authorization, MCP_SECRET_MASK);
+  assert.doesNotMatch(JSON.stringify(listed), /real-secret|real-token/);
+});
+
+test("saving the mask back keeps the stored secret instead of writing the mask over it", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mcp-"));
+  const file = join(dir, "mcp.json");
+  writeFileSync(file, JSON.stringify([
+    { id: "a", name: "A", transport: "stdio", command: "node", env: { API_KEY: "sk-real-secret", PLAIN: "keep" }, enabled: true },
+  ]));
+  const manager = new McpManager(file);
+  await manager.load();
+  // Exactly what the settings pane sends back for a row nobody edited the secret on.
+  await manager.save(manager.list().map(({ connected: _c, tools: _t, error: _e, ...config }) => config as McpServerConfig));
+  const stored = JSON.parse(readFileSync(file, "utf8")) as Array<{ env: Record<string, string> }>;
+  assert.equal(stored[0].env.API_KEY, "sk-real-secret");
+  assert.equal(stored[0].env.PLAIN, "keep");
+});
+
+test("the config file is written private, and atomically", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mcp-"));
+  const file = join(dir, "mcp.json");
+  const manager = new McpManager(file);
+  await manager.load();
+  await manager.save([{ id: "a", name: "A", transport: "stdio", command: "node", env: { API_KEY: "sk-real-secret" }, enabled: true }] as McpServerConfig[]);
+  const mode = statSync(file).mode & 0o777;
+  assert.equal(mode, 0o600, `expected 0600, got ${mode.toString(8)}`);
+  // No temp file left behind.
+  assert.deepEqual(readdirSync(dir).filter((name) => name.endsWith(".tmp")), []);
 });
