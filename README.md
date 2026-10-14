@@ -3,7 +3,7 @@
 [中文 README](README.zh-CN.md) · English README
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Electron](https://img.shields.io/badge/Electron-44.4.0-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![Electron](https://img.shields.io/badge/Electron-43.7.10-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![pi coding agent](https://img.shields.io/badge/pi%20coding%20agent-1.1.0-6E56CF)](https://github.com/badlogic/pi-mono)
 [![Latest release](https://img.shields.io/github/v/release/YOUR_GITHUB_OWNER/pinext?display_name=tag&sort=semver)](https://github.com/YOUR_GITHUB_OWNER/pinext/releases/latest)
 

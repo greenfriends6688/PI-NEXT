@@ -47,7 +47,7 @@ export function createDesktopWindow(windows: Set<BrowserWindow>): void {
     height,
     minWidth: MIN_WINDOW_SIZE.width,
     minHeight: MIN_WINDOW_SIZE.height,
-    title: "Pinext",
+    title: "PI NEXT",
     icon: resolveAppIcon(),
     backgroundColor: windowBackgroundColor(glass),
     vibrancy: windowVibrancy(glass),

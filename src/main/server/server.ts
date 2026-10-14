@@ -1032,9 +1032,13 @@ const WEB_CONTENT_TYPES: Record<string, string> = {
  * server that quietly starts serving whatever happens to be in `out/renderer` would make
  * "is there a web client here?" depend on whether anybody ran a build — which is exactly
  * the kind of ambient state a test cannot pin down.
+ *
+ * `moduleUrl` is a parameter so the arithmetic can be tested: the first version of this
+ * was one level out (`../../renderer` from `out/main` lands on the repository root, not on
+ * the build output), and a test that only ever passed `webRoot` explicitly could not see it.
  */
-export function builtWebRoot(): string {
-  return resolve(dirname(fileURLToPath(import.meta.url)), "../../renderer");
+export function builtWebRoot(moduleUrl: string = import.meta.url): string {
+  return resolve(dirname(fileURLToPath(moduleUrl)), "../renderer");
 }
 
 function isFile(path: string): boolean {

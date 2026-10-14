@@ -80,6 +80,20 @@ export default defineConfig({
       },
     },
     plugins: [react(), tailwindcss(), katexWoff2Only()],
+    server: {
+      /**
+       * Dev-server bind address. `localhost` is the default and is right everywhere; this
+       * exists because a machine whose `/etc/hosts` has lost its `localhost` line cannot
+       * resolve it at all, and the dev server then fails with `ENOTFOUND localhost`
+       * before Electron is ever launched. Overriding it gets that machine running without
+       * touching the project:
+       *
+       *   PINEXT_DEV_HOST=127.0.0.1 pnpm dev
+       *
+       * The real fix is two lines in `/etc/hosts` — see the README.
+       */
+      host: process.env.PINEXT_DEV_HOST ?? "localhost",
+    },
     optimizeDeps: {
       /**
        * Dev-only, and only about the dep pre-bundle.

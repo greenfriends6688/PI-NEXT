@@ -639,6 +639,14 @@ test("the browser client logs in, upgrades from its own page, and completes the 
   });
 });
 
+test("the built web root is the renderer beside the main bundle, not the repository root", () => {
+  // Pinned as arithmetic, because the only other way to catch this is to run a packaged
+  // build: every test that exercises serving passes `webRoot` in by hand, so a wrong
+  // default would never be reached. It was wrong once — one level up.
+  assert.equal(builtWebRoot("file:///app/out/main/index.js"), "/app/out/renderer");
+  assert.equal(builtWebRoot("file:///app/out/main/agent.js"), "/app/out/renderer");
+});
+
 test("a socket that stops answering is dropped, and one that answers is kept", async () => {
   // A tunnel cuts a WebSocket that goes quiet (Cloudflare's edge at 100s, nginx's
   // `proxy_read_timeout` at 60), and quiet is the normal case: reading a transcript is a

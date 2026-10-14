@@ -72,7 +72,10 @@ import {
 } from "./pi/cua-bridge";
 import { cancelGrantFlow, grantFlowState, startGrantFlow } from "./pi/computer-grant-flow";
 
-app.setName("Pinext");
+// What the OS calls this app: the Dock, the menu bar, notifications. In development
+// the macOS menu-bar title still reads "Electron" — that comes from the bundle's
+// CFBundleName, which only `electron-builder.yml`'s productName can set.
+app.setName("PI NEXT");
 configurePinextUserData(app.getPath("userData"));
 process.env.PINEXT_RESOURCES_PATH = app.isPackaged
   ? process.resourcesPath
