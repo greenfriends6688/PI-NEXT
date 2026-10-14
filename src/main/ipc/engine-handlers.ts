@@ -130,6 +130,9 @@ export function registerEngineIpc(engine: PiProcessManager): void {
   handle(Ipc.websearchSet, async (payload: Record<string, unknown>) => engine.setWebSearch(payload ?? {}));
   handle(Ipc.botChannelGet, async () => engine.getBotChannels());
   handle(Ipc.botChannelSet, async (payload: { channels?: unknown }) => engine.setBotChannels(payload ?? {}));
+  handle(Ipc.botChannelRegisterBegin, async (payload: { id: string }) => engine.beginBotChannelRegistration(payload.id));
+  handle(Ipc.botChannelRegisterPoll, async (payload: { id: string }) => engine.pollBotChannelRegistration(payload.id));
+  handle(Ipc.botChannelRegisterCancel, async (payload: { id: string }) => engine.cancelBotChannelRegistration(payload.id));
   handle(Ipc.botChannelStart, async (payload: { id: string }) => engine.startBotChannel(payload.id));
   handle(Ipc.botChannelStop, async (payload: { id: string }) => engine.stopBotChannel(payload.id));
   handle(Ipc.imGet, async () => engine.getImBridge());

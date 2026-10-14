@@ -1074,6 +1074,14 @@
   "behaviourBusy": "会话正在跑时不注入",
   "behaviourBusyHint": "回一句「它现在在忙」，让人自己决定什么时候放机器人进来",
   "toolTitle": "启停",
-  "toolHint": "「启用」= 该不该在跑；开机按它自动拉起，显式停掉的不会自己回来"
+  "toolHint": "「启用」= 该不该在跑；开机按它自动拉起，显式停掉的不会自己回来",
+  "scan": "扫码绑定",
+  "scanHint": "用对应 App 扫这张码；扫完这里会自动填好凭证",
+  "scanPending": "等待扫码…",
+  "scanScanned": "已扫码，正在完成…",
+  "scanCancel": "取消",
+  "scanExpired": "二维码已过期，请重新获取",
+  "scanDone": "绑定成功",
+  "scanFailed": "扫码失败：{{error}}"
  }
 }

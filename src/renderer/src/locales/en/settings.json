@@ -1076,6 +1076,14 @@
   "behaviourBusy": "Never injected into a running turn",
   "behaviourBusyHint": "It answers “busy right now” instead, so the person decides when to let the bot in",
   "toolTitle": "Start / stop",
-  "toolHint": "“Enabled” means it should be running: brought back on launch, and a channel you stopped stays stopped"
+  "toolHint": "“Enabled” means it should be running: brought back on launch, and a channel you stopped stays stopped",
+  "scan": "Scan to connect",
+  "scanHint": "Scan this with the matching app; the credentials fill in here when it completes",
+  "scanPending": "Waiting for the scan…",
+  "scanScanned": "Scanned, finishing…",
+  "scanCancel": "Cancel",
+  "scanExpired": "That code expired — get a new one",
+  "scanDone": "Connected",
+  "scanFailed": "Scan failed: {{error}}"
  }
 }

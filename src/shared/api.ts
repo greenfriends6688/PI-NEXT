@@ -315,6 +315,11 @@ export function createPinextApi(t: ApiTransport) {
     set: (channels: Record<string, unknown>): Promise<ChatChannelConfig> => t.invoke(Ipc.botChannelSet, { channels }),
     start: (id: string): Promise<{ ok: boolean; error?: string }> => t.invoke(Ipc.botChannelStart, { id }),
     stop: (id: string): Promise<void> => t.invoke(Ipc.botChannelStop, { id }),
+    /** 扫码注册；`poll` 返回 success 时凭证已经落盘，前台只需刷新。 */
+    registerBegin: (id: string): Promise<{ ok: true; qrContent: string; expiresInSeconds: number; intervalSeconds: number } | { ok: false; error: string }> =>
+      t.invoke(Ipc.botChannelRegisterBegin, { id }),
+    registerPoll: (id: string): Promise<unknown> => t.invoke(Ipc.botChannelRegisterPoll, { id }),
+    registerCancel: (id: string): Promise<void> => t.invoke(Ipc.botChannelRegisterCancel, { id }),
   },
   providers: {
       list: (): Promise<ProviderConfig[]> => t.invoke(Ipc.providersList),

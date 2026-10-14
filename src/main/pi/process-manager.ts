@@ -139,6 +139,14 @@ import { hasOAuthCredential, OAuthCredentialStore, readOrCreateDeviceId } from "
 import { priceUsage } from "../engine/pricing";
 import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-quota";
 import { listWorkspaceFiles, mutateWorkspaceFile } from "../engine/workspace-mutate.ts";
+import {
+  beginRegistration,
+  cancelRegistration,
+  pollRegistration,
+  type RegistrationBeginResult,
+  type RegistrationPollResult,
+  type ScannableChannelId,
+} from "../pinext/bot-channel/chat-register.ts";
 import type { FileMutation } from "../../shared/file-mutation.ts";
 // ── 本 fork 加的东西（相对上游 0.19.6）────────────────────────────────────────
 // Kept in one block so the next upstream sync can find them again by eye: everything below
@@ -2104,6 +2112,38 @@ export class PiProcessManager {
       };
     }
     return writeChatChannelConfig({ version: 1, channels });
+  }
+
+  /** 扫码注册：开始 / 轮询 / 取消。在途会话在 `chat-register.ts` 的进程级 registry 里。 */
+  async beginBotChannelRegistration(id: string): Promise<RegistrationBeginResult> {
+    return beginRegistration(id as ScannableChannelId);
+  }
+
+  async pollBotChannelRegistration(id: string): Promise<RegistrationPollResult> {
+    const result = await pollRegistration(id as ScannableChannelId);
+    if (result.ok && result.status === "success") {
+      // 凭证落盘由这里负责 —— 前台只刷新一次配置，不需要知道该写哪些字段。
+      const current = readChatChannelConfig();
+      const entry = current.channels[id] ?? { allowFrom: [], enabled: false };
+      const credentials = result.credentials;
+      writeChatChannelConfig({
+        version: 1,
+        channels: {
+          ...current.channels,
+          [id]: {
+            ...entry,
+            token: credentials.token,
+            ...(credentials.appId ? { appId: credentials.appId } : {}),
+            ...(credentials.botUserId ? { botUserId: credentials.botUserId } : {}),
+          },
+        },
+      });
+    }
+    return result;
+  }
+
+  async cancelBotChannelRegistration(id: string): Promise<void> {
+    cancelRegistration(id as ScannableChannelId);
   }
 
   async startBotChannel(id: string): Promise<{ ok: boolean; error?: string }> {

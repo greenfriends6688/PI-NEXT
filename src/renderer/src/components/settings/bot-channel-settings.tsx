@@ -12,7 +12,11 @@ import {
   type ChatChannelEntry,
   type ChatChannelId,
 } from "@shared/chat-channel";
+import { QrCode } from "@/components/ui/qr-code";
 import { SettingsGroup, SettingsRow } from "./settings-group";
+
+/** 能扫码注册的三档：微信 iLink、飞书、Lark。 */
+const SCANNABLE = new Set(["wechat", "feishu", "lark"]);
 
 /**
  * 设置 → 机器人渠道 (fork:bot-channel).
@@ -40,6 +44,8 @@ export function BotChannelSettings(): JSX.Element {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [running, setRunning] = useState<Record<string, boolean>>({});
+  /** 在途扫码：二维码内容 + 已扫到哪一步。 */
+  const [scan, setScan] = useState<{ id: string; qr: string; status: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -77,6 +83,54 @@ export function BotChannelSettings(): JSX.Element {
       toast.error(t("botChannel.saveFailed", { error: cause instanceof Error ? cause.message : String(cause) }));
     } finally {
       setSaving(false);
+    }
+  };
+
+  /**
+   * 扫码绑定：开始 → 每 intervalSeconds 轮询一次 → 成功即刷新。
+   *
+   * 轮询由前台驱动，不是服务端推：注册会话是有寿命的（二维码会过期），前台看得见用户
+   * 什么时候把卡片关了，也就知道什么时候该停 —— 服务端只管那次注册本身在不在。
+   */
+  const startScan = async (id: ChatChannelId): Promise<void> => {
+    setBusy(id);
+    try {
+      const begun = await window.pinext.botChannel.registerBegin(id);
+      if (!begun.ok) {
+        toast.error(t("botChannel.scanFailed", { error: begun.error }));
+        return;
+      }
+      setScan({ id, qr: begun.qrContent, status: "pending" });
+      const intervalMs = Math.max(2, begun.intervalSeconds) * 1000;
+      const deadline = Date.now() + begun.expiresInSeconds * 1000;
+      const tick = async (): Promise<void> => {
+        const result = (await window.pinext.botChannel.registerPoll(id)) as
+          | { ok: false; error: string }
+          | { ok: true; status: "pending" | "scanned" | "expired" | "success" };
+        if (!result.ok) {
+          setScan(null);
+          toast.error(t("botChannel.scanFailed", { error: result.error }));
+          return;
+        }
+        if (result.status === "success") {
+          setScan(null);
+          await load();
+          toast.success(t("botChannel.scanDone"));
+          return;
+        }
+        if (result.status === "expired" || Date.now() > deadline) {
+          setScan(null);
+          toast.error(t("botChannel.scanExpired"));
+          return;
+        }
+        setScan((value) => (value ? { ...value, status: result.status } : value));
+        setTimeout(() => void tick(), intervalMs);
+      };
+      setTimeout(() => void tick(), intervalMs);
+    } catch (cause) {
+      toast.error(t("botChannel.scanFailed", { error: cause instanceof Error ? cause.message : String(cause) }));
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -195,6 +249,37 @@ export function BotChannelSettings(): JSX.Element {
                 />
               }
             />
+            {SCANNABLE.has(spec.id) ? (
+              <SettingsRow
+                title={t("botChannel.scan")}
+                description={t("botChannel.scanHint")}
+                control={
+                  scan?.id === spec.id ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <QrCode value={scan.qr} className="size-40 rounded-lg bg-white p-2" />
+                      <span className="text-xs text-muted-foreground">
+                        {scan.status === "scanned" ? t("botChannel.scanScanned") : t("botChannel.scanPending")}
+                      </span>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() => {
+                          void window.pinext.botChannel.registerCancel(spec.id);
+                          setScan(null);
+                        }}
+                      >
+                        {t("botChannel.scanCancel")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="outline" disabled={busy === spec.id} onClick={() => void startScan(spec.id)}>
+                      {busy === spec.id ? <HugeiconsIcon strokeWidth={2} icon={Loading03Icon} className="size-3.5 animate-spin" /> : null}
+                      {t("botChannel.scan")}
+                    </Button>
+                  )
+                }
+              />
+            ) : null}
             {missing.length > 0 ? (
               <SettingsRow
                 title={t("botChannel.notReady")}

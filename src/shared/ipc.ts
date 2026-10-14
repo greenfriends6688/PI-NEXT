@@ -127,6 +127,10 @@ export const Ipc = {
   botChannelSet: "bot-channel:set",
   botChannelStart: "bot-channel:start",
   botChannelStop: "bot-channel:stop",
+  /** 扫码注册：开始 / 轮询 / 取消（微信、飞书、Lark）。 */
+  botChannelRegisterBegin: "bot-channel:register-begin",
+  botChannelRegisterPoll: "bot-channel:register-poll",
+  botChannelRegisterCancel: "bot-channel:register-cancel",
 
   workspaceFilesExist: "workspace:files-exist",
   workspaceFileIcons: "workspace:file-icons",

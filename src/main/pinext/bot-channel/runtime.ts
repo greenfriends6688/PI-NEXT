@@ -24,6 +24,8 @@ import {
   type ChatChannelId,
 } from "./config.ts";
 import { chatChannelRunners, startTelegramRunner } from "./telegram.ts";
+import { startWeixinRunner } from "./weixin.ts";
+import { startFeishuRunner } from "./feishu.ts";
 
 
 /**
@@ -145,11 +147,44 @@ export async function startChatChannel(
   }
 
   if (id === "wechat") {
-    // Not ported yet. Saying so beats starting a loop that never delivers anything.
-    return { ok: false, error: "该渠道还没接上", status: 501 };
+    chatChannelRunners().set(id, startWeixinRunner({
+      token: entry.token,
+      fromBotId: entry.botUserId ?? "",
+      allowFrom: entry.allowFrom,
+      sessionId: entry.sessionId ?? "",
+      signal: controller.signal,
+      onLog,
+      deliver,
+      onBindFirstSender: persistBoundSender,
+      onCursor: (buf) => writeChatChannelState({ weixinGetUpdatesBuf: buf }),
+      initialBuf: readChatChannelState().weixinGetUpdatesBuf ?? "",
+    }));
+    return { ok: true };
   }
 
-  // 微信 / 飞书的入站长轮询还没接上。明说，而不是起一个永远送不出去东西的循环。
+  if (id === "feishu" || id === "lark") {
+    if (!entry.appId) return { ok: false, error: "app id is required", status: 400 };
+    // 动态 import：这个 SDK 只在这里用，浏览器依赖图不该看到它（SDK 不在就明说，不是静默失败）。
+    try {
+      await import("@larksuiteoapi/node-sdk");
+    } catch {
+      return { ok: false, error: "@larksuiteoapi/node-sdk is not installed", status: 501 };
+    }
+    chatChannelRunners().set(id, await startFeishuRunner({
+      appId: entry.appId,
+      appSecret: entry.token,
+      provider: id === "lark" ? "lark" : "feishu",
+      allowFrom: entry.allowFrom,
+      sessionId: entry.sessionId ?? "",
+      signal: controller.signal,
+      onLog,
+      deliver,
+      onBindFirstSender: persistBoundSender,
+    }));
+    return { ok: true };
+  }
+
+  // Discord / 华为：没有实现。明说，而不是起一个永远送不出去东西的循环。
   return { ok: false, error: "该渠道还没接上", status: 501 };
 }
 
