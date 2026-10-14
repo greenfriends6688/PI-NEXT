@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEve
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Add01Icon, ArrowDown01Icon, ArrowUp02Icon, AttachmentIcon, Cancel01Icon, ChartHistogramIcon, Folder01Icon, MagicWand02Icon, PlayIcon, ScissorIcon, Search01Icon, SparklesIcon, SquareIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, ArrowDown01Icon, ArrowUp02Icon, AttachmentIcon, Cancel01Icon, ChartHistogramIcon, Folder01Icon, MagicWand02Icon, PlayIcon, ScissorIcon, Search01Icon, SourceCodeIcon, SparklesIcon, SquareIcon } from "@hugeicons/core-free-icons";
 import { IconButton } from "@/components/icon-button";
 import { ModelThinkingSelect } from "@/components/model-thinking-select";
 import { Button } from "@/components/ui/button";
@@ -365,6 +365,16 @@ export function Composer({
   const [slashIndex, setSlashIndex] = useState(0);
   const [slashDismissed, setSlashDismissed] = useState(false);
   /**
+   * `@` 文件提及。
+   *
+   * 形状照抄斜杠菜单：一个正则认出触发词 → 过滤 → 键盘导航 → 插入。不同的是数据源 ——
+   * 文件清单来自 `workspace.listFiles`（扁平的相对路径），**进工作区时取一次**并按需刷新，
+   * 而不是每次按键都问一遍引擎。
+   */
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionDismissed, setMentionDismissed] = useState(false);
+  const [files, setFiles] = useState<string[]>([]);
+  /**
    * A `/handoff` writing this chat's summary owns its composer: the sentence goes in
    * the placeholder and nothing may be typed or sent, because the engine refuses
    * another prompt to this conversation until the command returns. The status belongs
@@ -443,7 +453,54 @@ export function Composer({
 
   useEffect(() => {
     setSlashIndex(0);
+    setMentionIndex(0);
   }, [value]);
+
+  // 清单随工作区变化重取；没有工作区就没有可提及的文件。
+  useEffect(() => {
+    let cancelled = false;
+    if (!project) {
+      setFiles([]);
+      return;
+    }
+    void (async () => {
+      try {
+        const listed = await window.pinext.workspace.listFiles(project);
+        if (!cancelled) setFiles(listed);
+      } catch {
+        // 拿不到清单就是没有提及可用 —— 输入框照常能用，不该因此报错。
+        if (!cancelled) setFiles([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [project]);
+
+  /**
+   * The `@…` token under the caret at the end of the draft.
+   *
+   * Only when the `@` starts a word: `user@example.com` is an address, not a mention, and
+   * matching it would put a file picker in the middle of somebody typing an email.
+   */
+  const mention = useMemo(() => {
+    if (mentionDismissed) return null;
+    const match = /(?:^|\s)@([^\s@]*)$/.exec(value);
+    if (!match) return null;
+    const query = match[1].toLowerCase();
+    const hits = files
+      .filter((file) => (query ? file.toLowerCase().includes(query) : true))
+      .slice(0, 8);
+    return hits.length > 0 || query.length > 0 ? { query, hits, start: match.index + match[0].indexOf("@") } : null;
+  }, [files, mentionDismissed, value]);
+
+  function applyMention(path: string): void {
+    if (!mention) return;
+    // 提及就是路径本身（agent 读得懂），后面留一个空格接着打字。
+    const next = `${value.slice(0, mention.start)}@${path} `;
+    setMentionDismissed(true);
+    onChange(next);
+  }
 
   function applySlash(command: SlashCommand): void {
     // Toggles like `/goal` act the moment they are chosen: clear the draft and run
@@ -462,6 +519,29 @@ export function Composer({
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
     if (event.nativeEvent.isComposing || event.key === "Process") return;
+
+    if (mention && mention.hits.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setMentionIndex((index) => (index + 1) % mention.hits.length);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setMentionIndex((index) => (index - 1 + mention.hits.length) % mention.hits.length);
+        return;
+      }
+      if (event.key === "Tab" || event.key === "Enter") {
+        event.preventDefault();
+        applyMention(mention.hits[mentionIndex] ?? mention.hits[0]);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMentionDismissed(true);
+        return;
+      }
+    }
 
     if (slash.length > 0) {
       if (event.key === "ArrowDown") {
@@ -644,6 +724,7 @@ export function Composer({
     // can tell a keystroke apart from a draft written in from outside.
     echoedValue.current = next;
     setSlashDismissed(false);
+    setMentionDismissed(false);
     setHistIndex(null);
     onChange(next);
   }
@@ -658,6 +739,32 @@ export function Composer({
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
     >
+      {mention && mention.hits.length > 0 ? (
+        <div className="overlay-surface mb-2 max-h-64 overflow-y-auto rounded-lg bg-popover/95" role="listbox">
+          {mention.hits.map((file, index) => (
+            <button
+              key={file}
+              type="button"
+              role="option"
+              aria-selected={index === mentionIndex}
+              className={cn(
+                "flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm",
+                index === mentionIndex ? "bg-muted" : "hover:bg-muted/60",
+              )}
+              // `onMouseDown` 而不是 `onClick`：点击会让 textarea 先失焦，草稿的
+              // 插入点随之一动，再插就插到别处去了。
+              onMouseDown={(event) => {
+                event.preventDefault();
+                applyMention(file);
+              }}
+            >
+              <HugeiconsIcon strokeWidth={2} icon={SourceCodeIcon} className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate font-mono text-xs">{file}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {slash.length > 0 ? (
         <div className="overlay-surface mb-2 overflow-hidden rounded-lg bg-popover/95" role="listbox">
           {slash.map((item, index) => (
