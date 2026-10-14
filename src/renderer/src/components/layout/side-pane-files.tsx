@@ -265,7 +265,9 @@ export function SidePaneFiles({
 
   return (
     <div className="@container/files flex min-h-0 flex-1 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col @min-[32rem]/files:flex-row">
+      {/* 预览在左、文件树在右（用户裁定）。`flex-row-reverse` 比搬 DOM 更稳：两个子块的
+            顺序、`listSide`、拖拽的符号都不动，只有绘制顺序反过来。窄屏仍是上下两段。 */}
+        <div className="flex min-h-0 flex-1 flex-col @min-[32rem]/files:flex-row-reverse">
         <div
           style={splitStyle(split.width)}
           className={cn(
@@ -311,7 +313,8 @@ export function SidePaneFiles({
             </div>
           </ScrollArea>
         </div>
-        <SplitHandle listSide="start" label={t("files.resize")} className="hidden @min-[32rem]/files:block" {...split} />
+        {/* 预览在左、文件树在右（用户裁定：0.19.6 把树挪到了左边，他更习惯原来那个）。
+            `listSide="end"` 是 SplitHandle 本来就有的那一档 —— 拖宽的仍是「列表那一列」。 */}
         {preview ? (
           <FilePreviewPane
             preview={preview}
@@ -330,6 +333,7 @@ export function SidePaneFiles({
             {t("files.pick")}
           </div>
         )}
+        <SplitHandle listSide="end" label={t("files.resize")} className="hidden @min-[32rem]/files:block" {...split} />
       </div>
     </div>
   );
