@@ -181,7 +181,8 @@
   "listModels": "获取模型列表",
   "modelsEmpty": "该端点没有返回任何模型",
   "modelsFailed": "获取模型失败：{{error}}",
-  "modelPicked": "已获取 {{count}} 个模型，点输入框可挑"
+  "modelPicked": "已获取 {{count}} 个模型，点输入框可挑",
+  "pickModels": "挑选（{{count}}）"
  },
  "sections": {
   "general": "偏好设置",
@@ -1060,7 +1061,7 @@
   "allowFrom": "白名单",
   "allowFromHint": "空 = 谁都不许（fail closed）；扫码渠道由首个发信人自动绑定",
   "allowFromPlaceholder": "逗号分隔，留空即自动绑定",
-  "notReady": "还缺东西",
+  "notReady": "还不能启用",
   "missing": "缺少：{{list}}",
   "save": "保存",
   "saved": "已保存",

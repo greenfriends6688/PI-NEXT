@@ -70,7 +70,20 @@
     "tablePreview": "表格预览",
     "sortBy": "按「{{column}}」排序",
     "emptyFile": "这个文件是空的。",
-    "viewSource": "查看源码"
+    "viewSource": "查看源码",
+    "newFile": "新建文件",
+    "newFolder": "新建文件夹",
+    "search": "搜索文件",
+    "searchPlaceholder": "按名字筛选…",
+    "searchClose": "关闭搜索",
+    "rename": "重命名",
+    "delete": "删除",
+    "renamePlaceholder": "新名字",
+    "newFilePlaceholder": "文件名（含扩展名）",
+    "newFolderPlaceholder": "文件夹名",
+    "deleteConfirm": "删除「{{name}}」？文件夹里的内容会一起删掉，这一步不能撤销。",
+    "nameNoSlash": "名字里不能有斜杠",
+    "mutateFailed": "操作失败"
   },
   "changes": {
     "count": "{{count}} 个文件",

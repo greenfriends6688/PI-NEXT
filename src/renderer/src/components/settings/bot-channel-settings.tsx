@@ -142,7 +142,10 @@ export function BotChannelSettings(): JSX.Element {
         await save();
         const result = await window.pinext.botChannel.start(id);
         if (!result.ok) {
+          // 走到这里说明 readiness 与 start 的判断不一致 —— 那是我们的 bug，所以把服务端
+          // 原话带出来（里面就有缺什么），而不是吞掉。
           toast.error(t("botChannel.startFailed", { error: result.error ?? "" }));
+          await load();
           return;
         }
         setRunning((value) => ({ ...value, [id]: true }));
@@ -184,9 +187,14 @@ export function BotChannelSettings(): JSX.Element {
                   {isRunning ? (
                     <span className="text-xs text-muted-foreground">{t("botChannel.running")}</span>
                   ) : null}
+                  {/*
+                    没配好就不给开。之前开关能打开、点下去才报「Not ready: 微信扫码获取 Bot
+                    Token」—— 那是把「缺少什么」当成运行期错误说了，而它在按下去之前就已知。
+                    开关的可用性由 readiness 决定；缺东西时由下面那行如实列出。
+                  */}
                   <Switch
                     checked={isRunning}
-                    disabled={busy === spec.id}
+                    disabled={busy === spec.id || (!isRunning && missing.length > 0)}
                     onCheckedChange={(checked) => void toggle(spec.id, checked)}
                   />
                 </div>

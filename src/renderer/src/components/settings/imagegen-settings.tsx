@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Loading03Icon } from "@hugeicons/core-free-icons";
+import { Loading03Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   IMAGEGEN_AGNES_2_0_SIZES,
@@ -202,16 +203,31 @@ export function ImageGenSettings(): JSX.Element {
                 className="w-64"
                 value={draft.model}
                 placeholder={meta.model}
-                list="imagegen-models"
                 onChange={(event) => setDraft((value) => ({ ...value, model: event.target.value }))}
               />
-              {/* A native datalist: the fetched names become suggestions without a second
-                  popup component, and typing a name that is not in the list still works. */}
-              <datalist id="imagegen-models">
-                {models.map((model) => (
-                  <option key={model} value={model} />
-                ))}
-              </datalist>
+              {models.length > 0 ? (
+                // A real list, not a `<datalist>`: the native suggestion box is drawn by the
+                // OS, cannot be styled, ignores the modal's stacking (it painted over the row
+                // below), and shows one line at a time. This is the same list, ours.
+                <Popover>
+                  <PopoverTrigger
+                    render={<Button size="sm" variant="outline">{t("imagegen.pickModels", { count: models.length })}</Button>}
+                  />
+                  <PopoverContent align="end" className="max-h-80 w-72 overflow-y-auto p-1">
+                    {models.map((model) => (
+                      <button
+                        key={model}
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-muted"
+                        onClick={() => setDraft((value) => ({ ...value, model }))}
+                      >
+                        <span className="min-w-0 flex-1 truncate font-mono text-xs">{model}</span>
+                        {model === draft.model ? <HugeiconsIcon strokeWidth={2} icon={Tick02Icon} className="size-3.5 shrink-0 text-primary" /> : null}
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              ) : null}
               <Button size="sm" variant="outline" disabled={listing} onClick={() => void listModels()}>
                 {listing ? <HugeiconsIcon strokeWidth={2} icon={Loading03Icon} className="size-3.5 animate-spin" /> : null}
                 {t("imagegen.listModels")}

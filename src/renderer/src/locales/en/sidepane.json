@@ -70,7 +70,20 @@
     "tablePreview": "Table preview",
     "sortBy": "Sort by {{column}}",
     "emptyFile": "This file is empty.",
-    "viewSource": "View source"
+    "viewSource": "View source",
+    "newFile": "New file",
+    "newFolder": "New folder",
+    "search": "Search files",
+    "searchPlaceholder": "Filter by name…",
+    "searchClose": "Close search",
+    "rename": "Rename",
+    "delete": "Delete",
+    "renamePlaceholder": "New name",
+    "newFilePlaceholder": "File name (with extension)",
+    "newFolderPlaceholder": "Folder name",
+    "deleteConfirm": "Delete “{{name}}”? Anything inside a folder goes with it, and this cannot be undone.",
+    "nameNoSlash": "A name cannot contain a slash",
+    "mutateFailed": "That did not work"
   },
   "changes": {
     "count": "{{count}} files",

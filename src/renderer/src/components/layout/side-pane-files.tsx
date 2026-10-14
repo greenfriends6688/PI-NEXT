@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, SourceCodeIcon, ViewIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, Cancel01Icon, FileAddIcon, FolderAddIcon, Search01Icon, SourceCodeIcon, ViewIcon } from "@hugeicons/core-free-icons";
 import { editableFileText, prefersSourceEditor } from "@shared/editable-preview";
 import { IconButton } from "@/components/icon-button";
+import { Input } from "@/components/ui/input";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -21,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { SplitHandle, splitStyle, useSplitWidth } from "@/components/layout/split-handle";
 import { useSidePaneStore, type SidePaneTab } from "@/stores/side-pane";
 import type { DirEntry, FilePreview } from "@shared/types";
+import type { FileMutation } from "@shared/file-mutation";
 
 import { createTextAttachment } from "@/lib/attachments";
 import { useSessionStore } from "@/stores/session";
@@ -33,6 +35,23 @@ function baseName(path: string): string {
 }
 
 /** Project-relative path, or null when `path` is the project root or outside it. */
+/**
+ * Join a child name onto a directory.
+ *
+ * Slash-aware on purpose: the paths this pane carries are POSIX-flavoured on every platform
+ * (`projectRelative` normalises the same way), so `node:path`'s `join` — which uses the host
+ * separator — is the wrong tool here.
+ */
+function joinPath(parent: string, name: string): string {
+  return `${parent.replace(/\/+$/, "")}/${name}`;
+}
+
+/** The parent of a path, POSIX-style — the paths here are slash-normalised. */
+function dirnameOf(path: string): string {
+  const cut = path.replace(/\/+$/, "").lastIndexOf("/");
+  return cut <= 0 ? "/" : path.slice(0, cut);
+}
+
 function projectRelative(cwd: string, path: string): string | null {
   const root = cwd.replace(/\\/g, "/").replace(/\/+$/, "");
   const file = path.replace(/\\/g, "/");
@@ -106,6 +125,10 @@ export function SidePaneFiles({
   const [children, setChildren] = useState<DirMap>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  /** 树里的过滤词。空 = 原样的树。 */
+  const [filter, setFilter] = useState("");
+  /** 正在输入的「新增 / 重命名」目标：null = 没有在输入。 */
+  const [naming, setNaming] = useState<{ kind: "mkdir" | "touch" | "rename"; parent: string; from?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const split = useSplitWidth("files", 224);
   const preview = tab.preview;
@@ -200,6 +223,38 @@ export function SidePaneFiles({
     }
   }
 
+  /**
+   * 树的新增 / 重命名 / 删除。
+   *
+   * 三条都走 `workspace.mutate`，授权在**引擎**那边（路径必须落在项目或会话的工作目录里）——
+   * 前台只负责把用户想要的那件事说清楚，并在他做错时如实报出来。
+   */
+  async function mutate(mutation: FileMutation): Promise<void> {
+    try {
+      await window.pinext.workspace.mutate(mutation);
+      await refreshTree();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : t("files.mutateFailed"));
+    }
+  }
+
+  /** 「新增 / 重命名」输入框提交。名字里出现分隔符就是越界，直接拦下。 */
+  async function submitName(name: string): Promise<void> {
+    const trimmed = name.trim();
+    const pending = naming;
+    setNaming(null);
+    if (!pending || trimmed.length === 0) return;
+    if (trimmed.includes("/") || trimmed.includes("\\")) {
+      onError(t("files.nameNoSlash"));
+      return;
+    }
+    if (pending.kind === "rename" && pending.from) {
+      await mutate({ kind: "rename", path: pending.from, to: joinPath(pending.parent, trimmed) });
+      return;
+    }
+    if (pending.kind !== "rename") await mutate({ kind: pending.kind, path: joinPath(pending.parent, trimmed) });
+  }
+
   function clearPreview(): void {
     patchTab(tab.id, { path: undefined, preview: undefined });
   }
@@ -281,11 +336,81 @@ export function SidePaneFiles({
               <span className="min-w-0 flex-1 truncate text-xs font-medium" title={cwd}>
                 {baseName(cwd)}
               </span>
+              {/* 新增与搜索都放在标题行右侧：它们作用于**整棵树**，不是某个条目。 */}
+              <IconButton
+                size="icon-xs"
+                variant="ghost"
+                label={t("files.newFile")}
+                disabled={Boolean(remote)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setNaming({ kind: "touch", parent: cwd });
+                }}
+              >
+                <HugeiconsIcon strokeWidth={2} icon={FileAddIcon} />
+              </IconButton>
+              <IconButton
+                size="icon-xs"
+                variant="ghost"
+                label={t("files.newFolder")}
+                disabled={Boolean(remote)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setNaming({ kind: "mkdir", parent: cwd });
+                }}
+              >
+                <HugeiconsIcon strokeWidth={2} icon={FolderAddIcon} />
+              </IconButton>
+              <IconButton
+                size="icon-xs"
+                variant="ghost"
+                label={t("files.search")}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setFilter((value) => (value ? "" : " "));
+                }}
+              >
+                <HugeiconsIcon strokeWidth={2} icon={Search01Icon} />
+              </IconButton>
             </ContextMenuTrigger>
             <ContextMenuContent className="w-44">
               <PathContextItems path={cwd} cwd={cwd} remote={remote} onRefresh={refreshTree} />
             </ContextMenuContent>
           </ContextMenu>
+          {filter.trim().length > 0 || filter === " " ? (
+            <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-border px-2">
+              <HugeiconsIcon strokeWidth={2} icon={Search01Icon} className="size-3.5 shrink-0 text-muted-foreground" />
+              <Input
+                autoFocus
+                className="h-7 border-0 bg-transparent px-0 text-xs shadow-none focus-visible:ring-0"
+                placeholder={t("files.searchPlaceholder")}
+                value={filter.trim()}
+                onChange={(event) => setFilter(event.target.value.length > 0 ? event.target.value : " ")}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setFilter("");
+                }}
+              />
+              <IconButton size="icon-xs" variant="ghost" label={t("files.searchClose")} onClick={() => setFilter("")}>
+                <HugeiconsIcon strokeWidth={2} icon={Cancel01Icon} />
+              </IconButton>
+            </div>
+          ) : null}
+          {naming ? (
+            <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-border bg-muted/30 px-2">
+              <FileIcon name={naming.kind === "mkdir" ? "folder" : "file"} kind={naming.kind === "mkdir" ? "folder" : "file"} />
+              <Input
+                autoFocus
+                className="h-7 border-0 bg-transparent px-0 text-xs shadow-none focus-visible:ring-0"
+                placeholder={naming.kind === "rename" ? t("files.renamePlaceholder") : naming.kind === "mkdir" ? t("files.newFolderPlaceholder") : t("files.newFilePlaceholder")}
+                defaultValue={naming.kind === "rename" && naming.from ? baseName(naming.from) : ""}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void submitName(event.currentTarget.value);
+                  if (event.key === "Escape") setNaming(null);
+                }}
+                onBlur={(event) => void submitName(event.currentTarget.value)}
+              />
+            </div>
+          ) : null}
           <ScrollArea className="h-full min-h-0 flex-1">
             <div className="flex min-h-full flex-col">
               <div className="py-1.5">
@@ -298,6 +423,15 @@ export function SidePaneFiles({
                   dirty={dirty}
                   cwd={cwd}
                   remote={remote}
+                  filter={filter}
+                  onRename={(path) => setNaming({ kind: "rename", parent: dirnameOf(path), from: path })}
+                  onDelete={(path) => {
+                    // 删除不是可撤销的动作，所以先问一句 —— 目录还会连带里面的东西。
+                    void (async () => {
+                      const ok = window.confirm(t("files.deleteConfirm", { name: baseName(path) }));
+                      if (ok) await mutate({ kind: "delete", path });
+                    })();
+                  }}
                   onToggle={toggleDir}
                   onOpen={openFile}
                   onRefresh={refreshTree}
@@ -459,6 +593,9 @@ function TreeLevel({
   onToggle,
   onOpen,
   onRefresh,
+  filter,
+  onRename,
+  onDelete,
 }: {
   dir: string;
   depth: number;
@@ -471,9 +608,18 @@ function TreeLevel({
   onToggle: (path: string) => void;
   onOpen: (path: string) => void;
   onRefresh: () => void;
+  /** 过滤词；空 = 原样。命中的目录整棵保留，其余按名字筛。 */
+  filter?: string;
+  onRename?: (path: string) => void;
+  onDelete?: (path: string) => void;
 }): JSX.Element {
   const { t } = useTranslation("sidepane");
-  const entries = children[dir] ?? [];
+  const needle = (filter ?? "").trim().toLowerCase();
+  const entries = (children[dir] ?? []).filter((entry) =>
+    // 目录始终保留：命中可能在它下面，而树是懒加载的 —— 按名字砍掉目录会让搜索结果
+    // 取决于哪些目录恰好被展开过。
+    needle.length === 0 || entry.kind === "directory" || entry.name.toLowerCase().includes(needle),
+  );
   return (
     <>
       {entries.map((entry) => {
@@ -513,6 +659,8 @@ function TreeLevel({
                   remote={remote}
                   onOpen={isDir ? undefined : () => onOpen(entry.path)}
                   onRefresh={onRefresh}
+                  onRename={onRename ? () => onRename(entry.path) : undefined}
+                  onDelete={onDelete ? () => onDelete(entry.path) : undefined}
                 />
               </ContextMenuContent>
             </ContextMenu>
@@ -523,6 +671,9 @@ function TreeLevel({
                 children={children}
                 expanded={expanded}
                 selected={selected}
+                filter={filter}
+                onRename={onRename}
+                onDelete={onDelete}
                 dirty={dirty}
                 cwd={cwd}
                 remote={remote}
@@ -545,12 +696,16 @@ function PathContextItems({
   remote,
   onOpen,
   onRefresh,
+  onRename,
+  onDelete,
 }: {
   path: string;
   cwd: string;
   remote?: boolean;
   onOpen?: () => void;
   onRefresh: () => void;
+  onRename?: () => void;
+  onDelete?: () => void;
 }): JSX.Element {
   const { t } = useTranslation("sidepane");
   const relative = projectRelative(cwd, path);
@@ -568,6 +723,13 @@ function PathContextItems({
       {relative ? (
         <ContextMenuItem onClick={() => void copyPath(relative, t("files.pathCopied"))}>
           {t("files.copyRelativePath")}
+        </ContextMenuItem>
+      ) : null}
+      {onRename || onDelete ? <ContextMenuSeparator /> : null}
+      {onRename ? <ContextMenuItem onClick={onRename}>{t("files.rename")}</ContextMenuItem> : null}
+      {onDelete ? (
+        <ContextMenuItem variant="destructive" onClick={onDelete}>
+          {t("files.delete")}
         </ContextMenuItem>
       ) : null}
       <ContextMenuSeparator />

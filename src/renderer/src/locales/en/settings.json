@@ -181,7 +181,8 @@
   "listModels": "Fetch models",
   "modelsEmpty": "The endpoint returned no models",
   "modelsFailed": "Could not fetch models: {{error}}",
-  "modelPicked": "{{count}} models fetched — click the field to pick"
+  "modelPicked": "{{count}} models fetched — click the field to pick",
+  "pickModels": "Pick ({{count}})"
  },
  "sections": {
   "general": "Preferences",
@@ -1062,7 +1063,7 @@
   "allowFrom": "Allow-list",
   "allowFromHint": "Empty lets nobody through (fail closed); the QR channels bind the first sender automatically",
   "allowFromPlaceholder": "Comma-separated; empty binds automatically",
-  "notReady": "Not ready",
+  "notReady": "Not ready yet",
   "missing": "Missing: {{list}}",
   "save": "Save",
   "saved": "Saved",
