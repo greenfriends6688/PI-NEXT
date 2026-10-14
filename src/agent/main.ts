@@ -88,7 +88,7 @@ const server = new RemoteServer({
   loopbackToken: process.env.PINEXT_AGENT_SYNC_TOKEN || undefined,
   dispatch: (method, payload, clientId) => dispatch(method, payload, { kind: "remote", window: null, origin: clientId }),
   // The built web client, so a browser can load the app from this very origin.
-  webRoot: builtWebRoot(),
+  webRoot: builtWebRoot(join(here, "../..")),
   subscribe,
   log: {
     info: (message) => console.info(`[pinext-agent] ${message}`),

@@ -639,12 +639,17 @@ test("the browser client logs in, upgrades from its own page, and completes the 
   });
 });
 
-test("the built web root is the renderer beside the main bundle, not the repository root", () => {
-  // Pinned as arithmetic, because the only other way to catch this is to run a packaged
-  // build: every test that exercises serving passes `webRoot` in by hand, so a wrong
-  // default would never be reached. It was wrong once — one level up.
-  assert.equal(builtWebRoot("file:///app/out/main/index.js"), "/app/out/renderer");
-  assert.equal(builtWebRoot("file:///app/out/main/agent.js"), "/app/out/renderer");
+test("the built web root is resolved from the app root, not from this module's own path", () => {
+  // Pinned as arithmetic because the other way to catch this is a real request against a
+  // real listener: every serving test here passes `webRoot` in by hand.
+  //
+  // It was wrong twice. First one level out (`../../renderer` from `out/main` lands on the
+  // repository root). Then, after that was fixed, it derived from this module's own
+  // `import.meta.url` — which is fine in a test and wrong in the bundle, where the bundler
+  // moves the function into `out/main/chunks` and the path resolved to `out/main/renderer`.
+  // The anchor is now the app root, which does not move.
+  assert.equal(builtWebRoot("/app"), "/app/out/renderer");
+  assert.equal(builtWebRoot("/Applications/PI NEXT.app/Contents/Resources/app.asar"), "/Applications/PI NEXT.app/Contents/Resources/app.asar/out/renderer");
 });
 
 test("a socket that stops answering is dropped, and one that answers is kept", async () => {

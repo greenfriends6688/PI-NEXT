@@ -1,4 +1,5 @@
 import { Ipc } from "@shared/ipc";
+import { app } from "electron";
 import type { RemoteServerState } from "@shared/ipc";
 import type { OfficialState } from "@shared/official";
 import { broadcast, subscribe } from "./ipc/broadcast";
@@ -61,7 +62,7 @@ function instance(): RemoteServer {
     subscribe: (client) => subscribe(client),
     onStatusChange: announceFromServer,
     // The built web client, so a browser can load the app from this very origin.
-    webRoot: builtWebRoot(),
+    webRoot: builtWebRoot(app.getAppPath()),
     log: {
       info: (message) => log.info(message),
       warn: (message) => log.warn(message),

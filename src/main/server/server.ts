@@ -1022,23 +1022,23 @@ const WEB_CONTENT_TYPES: Record<string, string> = {
 };
 
 /**
- * Where the built web client sits relative to this bundle.
+ * The built web client, given a base directory that is **stable at the caller**.
  *
- * Derived rather than hard-coded: this module ships as `out/main/index.js` (electron-vite
- * bundles main into a single file) and the renderer is built beside it as `out/renderer`,
- * so both the packaged app and a local build land on the same answer.
+ * Not derived from this module's own location, and that is the whole point: the bundler
+ * moves this function into a shared chunk, and `import.meta.url` inside a chunk is the
+ * chunk's path (`out/main/chunks`), so `../renderer` resolved to `out/main/renderer` —
+ * a directory that does not exist. The server then answered 404 with the web build
+ * sitting right beside the bundle. The test could not see it either, because it passed
+ * `webRoot` in by hand; only a real request over a real listener did.
  *
- * It is a function the caller passes in rather than a default inside the server, because a
- * server that quietly starts serving whatever happens to be in `out/renderer` would make
- * "is there a web client here?" depend on whether anybody ran a build — which is exactly
- * the kind of ambient state a test cannot pin down.
- *
- * `moduleUrl` is a parameter so the arithmetic can be tested: the first version of this
- * was one level out (`../../renderer` from `out/main` lands on the repository root, not on
- * the build output), and a test that only ever passed `webRoot` explicitly could not see it.
+ * So each caller names its own anchor, one that does not move:
+ *  - the Electron main process uses `app.getAppPath()` (the repository root in
+ *    development, `app.asar` when packaged), where the renderer is at `out/renderer`;
+ *  - the headless agent uses its own entry directory (`out/main`), which it already
+ *    relies on for `resources/`.
  */
-export function builtWebRoot(moduleUrl: string = import.meta.url): string {
-  return resolve(dirname(fileURLToPath(moduleUrl)), "../renderer");
+export function builtWebRoot(appRoot: string): string {
+  return resolve(appRoot, "out", "renderer");
 }
 
 function isFile(path: string): boolean {
