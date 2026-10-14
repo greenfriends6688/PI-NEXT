@@ -7,15 +7,17 @@ function capabilityOf(method: string): AppCapability | null {
   if (method.startsWith("projects:")) return "conversations";
   // 图属于会话，同一个能力。
   if (method.startsWith("dag:")) return "engine";
+  if (method.startsWith("schedule:")) return "engine";
   if (method.startsWith("workspace:terminal")) return "terminal";
   if (method.startsWith("workspace:git")) return "git";
   if (method.startsWith("workspace:")) return "workspace";
   if (method.startsWith("providers:")) return "providers";
   // 生图 is about which vendors this host can talk to — the same family.
   if (method.startsWith("imagegen:")) return "providers";
-  // 联网搜索 is a preference this host holds, like the rest of `settings:`.
+  // 联网搜索 / IM 推送 / 机器人渠道 are preferences this host holds.
   if (method.startsWith("websearch:")) return "settings";
   if (method.startsWith("im:")) return "settings";
+  if (method.startsWith("bot-channel:")) return "settings";
   if (method.startsWith("models-dev:")) return "providers";
   if (method.startsWith("settings:")) return "settings";
   if (method.startsWith("decision:")) return "settings";

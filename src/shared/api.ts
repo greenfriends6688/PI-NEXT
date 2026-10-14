@@ -1,6 +1,7 @@
 import { Ipc } from "@shared/ipc";
 import type { SubmitPromptRequest } from "./prompt-submission";
 import type { DagGraph, DagOutputPage } from "@shared/dag";
+import type { ScheduledTask, ScheduledTaskDraft, ScheduledTaskPatch, ScheduledTaskRun, ScheduledTaskSnapshot } from "@shared/schedules";
 import type {
   ChatMessage,
   TranscriptTail,
@@ -56,6 +57,7 @@ import type {
   QueuedPromptPreview,
 } from "@shared/types";
 import type { AccountState } from "@shared/account";
+// ── 本 fork 加的类型（相对上游 0.19.6）────────────────────────────────────────
 import type { ProviderUsageId, ProviderUsageResult } from "@shared/provider-usage";
 import type { ImageGenConfig, ImageGenTestResult } from "@shared/imagegen";
 import type { WebSearchSettings } from "@shared/websearch";
@@ -285,16 +287,19 @@ export function createPinextApi(t: ApiTransport) {
       onConversationReady: (listener: (payload: ConversationReadyEvent) => void): (() => void) => t.subscribe(Ipc.conversationReady, listener),
     },
     /**
-   * 生图 (fork:imagegen). A profile of its own, not part of the chat model list: it has
-   * its own endpoint, key, model and size per preset, and it never enters `enabledModels`.
-   * The key is only ever seen as a mask.
+   * 生图 (fork:imagegen). A profile of its own, not part of the chat model list: it has its
+   * own endpoint, key, model and size per preset, and it never enters `enabledModels`.
    */
-  /** 入站机器人渠道 (fork:bot-channel). Inbound: the channel drives a conversation here. */
-  botChannel: {
-    get: (): Promise<ChatChannelConfig> => t.invoke(Ipc.botChannelGet),
-    set: (channels: Record<string, unknown>): Promise<ChatChannelConfig> => t.invoke(Ipc.botChannelSet, { channels }),
-    start: (id: string): Promise<{ ok: boolean; error?: string }> => t.invoke(Ipc.botChannelStart, { id }),
-    stop: (id: string): Promise<void> => t.invoke(Ipc.botChannelStop, { id }),
+  imagegen: {
+    get: (): Promise<ImageGenConfig> => t.invoke(Ipc.imagegenGet),
+    set: (input: { active: string; providers: Record<string, unknown> }): Promise<ImageGenConfig> =>
+      t.invoke(Ipc.imagegenSet, input),
+    test: (provider?: string): Promise<ImageGenTestResult> => t.invoke(Ipc.imagegenTest, { provider }),
+  },
+  /** 联网搜索 (fork:websearch). Off by default: it goes out to the network. */
+  websearch: {
+    get: (): Promise<WebSearchSettings> => t.invoke(Ipc.websearchGet),
+    set: (patch: Partial<WebSearchSettings>): Promise<WebSearchSettings> => t.invoke(Ipc.websearchSet, patch),
   },
   /** IM 推送 (fork:im-bridge). URLs and secrets are credentials: the renderer sees hosts and masks. */
   im: {
@@ -302,16 +307,12 @@ export function createPinextApi(t: ApiTransport) {
     set: (targets: readonly ImTarget[]): Promise<ImTargetView[]> => t.invoke(Ipc.imSet, { targets }),
     test: (targetId: string): Promise<ImSendOutcome> => t.invoke(Ipc.imTest, { targetId }),
   },
-  /** 联网搜索 (fork:websearch). Off by default: it goes out to the network. */
-  websearch: {
-    get: (): Promise<WebSearchSettings> => t.invoke(Ipc.websearchGet),
-    set: (patch: Partial<WebSearchSettings>): Promise<WebSearchSettings> => t.invoke(Ipc.websearchSet, patch),
-  },
-  imagegen: {
-    get: (): Promise<ImageGenConfig> => t.invoke(Ipc.imagegenGet),
-    set: (input: { active: string; providers: Record<string, unknown> }): Promise<ImageGenConfig> =>
-      t.invoke(Ipc.imagegenSet, input),
-    test: (provider?: string): Promise<ImageGenTestResult> => t.invoke(Ipc.imagegenTest, { provider }),
+  /** 入站机器人渠道 (fork:bot-channel). Inbound: the channel drives a conversation here. */
+  botChannel: {
+    get: (): Promise<ChatChannelConfig> => t.invoke(Ipc.botChannelGet),
+    set: (channels: Record<string, unknown>): Promise<ChatChannelConfig> => t.invoke(Ipc.botChannelSet, { channels }),
+    start: (id: string): Promise<{ ok: boolean; error?: string }> => t.invoke(Ipc.botChannelStart, { id }),
+    stop: (id: string): Promise<void> => t.invoke(Ipc.botChannelStop, { id }),
   },
   providers: {
       list: (): Promise<ProviderConfig[]> => t.invoke(Ipc.providersList),
@@ -345,10 +346,10 @@ export function createPinextApi(t: ApiTransport) {
       remove: (id: string): Promise<ProviderConfig[]> => t.invoke(Ipc.providersRemove, { id }),
       refresh: (id: string): Promise<ProviderModel[]> =>
         t.invoke(Ipc.providersRefresh, { id }),
-      quota: (id: "openai" | "openai-codex", force = false): Promise<OpenAIAccountQuota> =>
-        t.invoke(Ipc.providersQuota, { id, force }),
       usage: (id: ProviderUsageId): Promise<ProviderUsageResult> =>
         t.invoke(Ipc.providersUsage, { id }),
+      quota: (id: "openai" | "openai-codex", force = false): Promise<OpenAIAccountQuota> =>
+        t.invoke(Ipc.providersQuota, { id, force }),
       /**
        * Which relay software answers at a Base URL. Undefined means "not identified",
        * which is the ordinary answer for any OpenAI-compatible gateway.
@@ -448,6 +449,16 @@ export function createPinextApi(t: ApiTransport) {
           listener({ conversationId: record.conversationId, graph: (record.graph as DagGraph | null) ?? null });
         }),
     },
+    schedules: {
+      list: (): Promise<ScheduledTaskSnapshot> => t.invoke(Ipc.scheduleList),
+      create: (draft: ScheduledTaskDraft): Promise<ScheduledTask> => t.invoke(Ipc.scheduleCreate, draft),
+      update: (id: string, patch: ScheduledTaskPatch): Promise<ScheduledTask> => t.invoke(Ipc.scheduleUpdate, { id, patch }),
+      remove: (id: string): Promise<boolean> => t.invoke(Ipc.scheduleRemove, { id }),
+      runNow: (id: string): Promise<ScheduledTaskRun> => t.invoke(Ipc.scheduleRunNow, { id }),
+      stopRun: (id: string): Promise<boolean> => t.invoke(Ipc.scheduleStopRun, { id }),
+      history: (id: string): Promise<ScheduledTaskRun[]> => t.invoke(Ipc.scheduleHistory, { id }),
+      onChanged: (listener: (snapshot: ScheduledTaskSnapshot) => void): (() => void) => t.subscribe(Ipc.scheduleChanged, listener),
+    },
     projects: {
       add: (): Promise<ProjectAddResult | null> => t.invoke(Ipc.projectsAdd),
       addRemote: (
@@ -467,19 +478,14 @@ export function createPinextApi(t: ApiTransport) {
         t.invoke(Ipc.workspacePick),
       reveal: (cwd: string): Promise<{ ok: boolean; reason?: "missing" | "invalid" } | void> =>
         t.invoke(Ipc.workspaceReveal, { cwd }),
-      /**
-       * Save the text of a file the tree already shows.
-       *
-       * The engine decides whether it may be written (it has to be inside a project or
-       * conversation working directory); this call is not the authorisation.
-       */
-      writeFile: (path: string, text: string): Promise<void> => t.invoke(Ipc.workspaceWriteFile, { path, text }),
       preview: (path: string): Promise<FilePreview> => t.invoke(Ipc.workspacePreview, { path }),
       /** Resolve a batch of candidate paths and return only paths that are regular files. */
       filesExist: (paths: string[], cwd?: string): Promise<string[]> =>
         t.invoke(Ipc.workspaceFilesExist, { paths, cwd }),
       fileIcons: (): Promise<FileIconMapping> => t.invoke(Ipc.workspaceFileIcons),
       readDir: (path: string): Promise<DirEntry[]> => t.invoke(Ipc.workspaceReadDir, { path }),
+      /** Replace a text file the file pane already has open. Refuses anything that is not a regular file. */
+      writeFile: (path: string, text: string): Promise<void> => t.invoke(Ipc.workspaceWriteFile, { path, text }),
       gitStatus: (cwd: string): Promise<GitStatus> => t.invoke(Ipc.workspaceGitStatus, { cwd }),
       openTerminal: (cwd: string): Promise<void> => t.invoke(Ipc.workspaceOpenTerminal, { cwd }),
       gitBranches: (cwd: string): Promise<GitBranch[]> => t.invoke(Ipc.workspaceGitBranches, { cwd }),
@@ -651,6 +657,13 @@ export function createPinextApi(t: ApiTransport) {
       getGrantFlow: (): Promise<import("@shared/types").GrantFlowState> => t.invoke(Ipc.computerGetGrantFlow),
       onGrantFlowState: (listener: (state: import("@shared/types").GrantFlowState) => void): (() => void) =>
         t.subscribe(Ipc.computerGrantFlowState, listener),
+      component: (): Promise<import("@shared/types").ComputerComponentStatus> => t.invoke(Ipc.computerComponent),
+      ensureComponent: (force?: boolean): Promise<import("@shared/types").ComputerComponentStatus> =>
+        t.invoke(Ipc.computerEnsureComponent, force ? { force: true } : {}),
+      cancelComponent: (): Promise<import("@shared/types").ComputerComponentStatus> =>
+        t.invoke(Ipc.computerCancelComponent),
+      onComponentState: (listener: (state: import("@shared/types").ComputerComponentStatus) => void): (() => void) =>
+        t.subscribe(Ipc.computerComponentState, listener),
     },
     browser: {
       listProfiles: (): Promise<BrowserProfileInfo[]> => t.invoke(Ipc.browserListProfiles),

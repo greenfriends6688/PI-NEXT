@@ -121,6 +121,16 @@ export function registerEngineIpc(engine: PiProcessManager): void {
   );
   handle(Ipc.engineListMcpServers, async () => engine.listMcpServers());
   handle(Ipc.engineSaveMcpServers, async (payload: { configs: import("@shared/types").McpServerConfig[] }) => engine.saveMcpServers(payload.configs));
+  handle(Ipc.providersUsage, async (payload: { id: string }) => engine.getProviderUsage(payload.id));
+  handle(Ipc.imagegenGet, async () => engine.getImageGen());
+  handle(Ipc.imagegenSet, async (payload: { active?: unknown; providers?: unknown }) => engine.setImageGen(payload ?? {}));
+  handle(Ipc.imagegenTest, async (payload: { provider?: string } | undefined) => engine.testImageGen(payload?.provider));
+  handle(Ipc.websearchGet, async () => engine.getWebSearch());
+  handle(Ipc.websearchSet, async (payload: Record<string, unknown>) => engine.setWebSearch(payload ?? {}));
+  handle(Ipc.botChannelGet, async () => engine.getBotChannels());
+  handle(Ipc.botChannelSet, async (payload: { channels?: unknown }) => engine.setBotChannels(payload ?? {}));
+  handle(Ipc.botChannelStart, async (payload: { id: string }) => engine.startBotChannel(payload.id));
+  handle(Ipc.botChannelStop, async (payload: { id: string }) => engine.stopBotChannel(payload.id));
   handle(Ipc.imGet, async () => engine.getImBridge());
   handle(Ipc.imSet, async (payload: { targets?: unknown }) => engine.setImBridge(payload ?? {}));
   handle(Ipc.imTest, async (payload: { targetId: string }) => engine.testImBridge(payload.targetId));

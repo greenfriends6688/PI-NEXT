@@ -8,11 +8,13 @@ import type { AgentConfigSyncPayload } from "@shared/agent-config";
 import type { CallerContext } from "../main/ipc/registry";
 import { broadcast, subscribe } from "../main/ipc/broadcast";
 import { registerDagIpc } from "../main/ipc/dag-handlers";
+import { registerScheduleIpc } from "../main/ipc/schedule-handlers";
 import { dispatch, handle, handlerChannels } from "../main/ipc/registry";
 import type { PiProcessManager } from "../main/pi/process-manager";
 import { readFilePreview } from "../main/engine/file-preview";
-import { readWorkspaceDir } from "../main/engine/workspace-fs";
+import { readWorkspaceDir, writeWorkspaceTextFile } from "../main/engine/workspace-fs";
 import { existingFiles } from "../main/engine/path-exists";
+import { conversationCwd, readFileForPayload } from "../main/engine/file-chunk";
 import { TerminalSessions } from "../main/engine/terminal-sessions";
 import { applyLanguages } from "../main/engine/ai-language";
 import { clearAppSettings, invalidateAppSettingsCache, readAppSettings, writeAppSettings } from "../main/engine/runtime-settings";
@@ -65,11 +67,18 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   handle(Ipc.engineListExtensionPackages, () => engine.listExtensionPackages());
   handle(Ipc.engineListMcpServers, () => engine.listMcpServers());
   handle(Ipc.engineSaveMcpServers, (payload: { configs: McpServerConfig[] }) => engine.saveMcpServers(payload.configs));
-  handle(Ipc.imGet, () => engine.getImBridge());
-  handle(Ipc.imSet, (payload: { targets?: unknown }) => engine.setImBridge(payload ?? {}));
-  handle(Ipc.imTest, (payload: { targetId: string }) => engine.testImBridge(payload.targetId));
   handle(Ipc.engineReadSkill, (payload: { name: string }) => engine.readSkill(payload.name));
   handle(Ipc.engineSaveSkill, (payload: { name: string; content: string }) => engine.saveSkill(payload.name, payload.content));
+  handle(Ipc.providersUsage, (payload: { id: string }) => engine.getProviderUsage(payload.id));
+  handle(Ipc.imagegenGet, () => engine.getImageGen());
+  handle(Ipc.imagegenSet, (payload: { active?: unknown; providers?: unknown }) => engine.setImageGen(payload ?? {}));
+  handle(Ipc.imagegenTest, (payload: { provider?: string } | undefined) => engine.testImageGen(payload?.provider));
+  handle(Ipc.websearchGet, () => engine.getWebSearch());
+  handle(Ipc.websearchSet, (payload: Record<string, unknown>) => engine.setWebSearch(payload ?? {}));
+  handle(Ipc.botChannelGet, () => engine.getBotChannels());
+  handle(Ipc.botChannelSet, (payload: { channels?: unknown }) => engine.setBotChannels(payload ?? {}));
+  handle(Ipc.botChannelStart, (payload: { id: string }) => engine.startBotChannel(payload.id));
+  handle(Ipc.botChannelStop, (payload: { id: string }) => engine.stopBotChannel(payload.id));
   handle(Ipc.engineListSkills, () => engine.listSkills());
   handle(Ipc.engineCreateSkill, (payload: SkillDraft) => engine.createSkill(payload));
   handle(Ipc.engineRemoveSkill, (payload: { name: string }) => engine.removeSkill(payload.name));
@@ -132,7 +141,7 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   handle(Ipc.engineGetConversationMessages, (payload: { id: string }) => engine.getConversationMessages(payload.id));
   // The sub-agent task graph runs inside this engine; the desktop reads and steers it through these.
   registerDagIpc(engine);
-
+  registerScheduleIpc(engine);
   handle(Ipc.conversationsList, () => engine.listWorkspace());
   handle(Ipc.conversationsCreate, (payload?: { project?: string; activate?: boolean; reuseEmpty?: boolean }) => engine.createConversation(payload?.project, {
     activate: payload?.activate !== false,
@@ -159,6 +168,12 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
     existingFiles(payload?.paths, payload?.cwd),
   );
   handle(Ipc.workspaceReadDir, (payload: { path: string }) => readWorkspaceDir(payload.path));
+  handle(Ipc.workspaceWriteFile, (payload: { path?: unknown; text?: unknown }) => {
+    writeWorkspaceTextFile(payload?.path, payload?.text);
+  });
+  handle(Ipc.workspaceReadFile, (payload: { path?: unknown; conversationId?: unknown; offset?: unknown; length?: unknown }) =>
+    readFileForPayload(payload, () => conversationCwd(engine.listWorkspace(), payload?.conversationId)),
+  );
   handle(Ipc.workspaceGitStatus, (payload: { cwd: string }) => readGitStatus(payload.cwd));
   handle(Ipc.workspaceGitBranches, (payload: { cwd: string }) => gitBranches(payload.cwd));
   handle(Ipc.workspaceGitCheckout, (payload: { cwd: string; branch: string }) => gitCheckout(payload.cwd, payload.branch));
@@ -201,12 +216,6 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   handle(Ipc.providersAddNative, (payload: { id: string; apiKey: string; models: ProviderModel[] }) => engine.addNativeProvider(payload.id, payload.apiKey, payload.models));
   handle(Ipc.providersLogout, (payload: { id: string }) => engine.logoutProvider(payload.id));
   handle(Ipc.providersQuota, (payload: { id: "openai" | "openai-codex"; force?: boolean }) => engine.getOpenAIAccountQuota(payload.id, payload.force === true));
-  handle(Ipc.providersUsage, (payload: { id: string }) => engine.getProviderUsage(payload.id));
-  handle(Ipc.websearchGet, () => engine.getWebSearch());
-  handle(Ipc.websearchSet, (payload: Record<string, unknown>) => engine.setWebSearch(payload ?? {}));
-  handle(Ipc.imagegenGet, () => engine.getImageGen());
-  handle(Ipc.imagegenSet, (payload: { active?: unknown; providers?: unknown }) => engine.setImageGen(payload ?? {}));
-  handle(Ipc.imagegenTest, (payload: { provider?: string } | undefined) => engine.testImageGen(payload?.provider));
   handle(Ipc.modelsDevUpdate, () => import("../main/engine/models-dev-update").then(({ updateModelsDevSnapshot }) => updateModelsDevSnapshot()));
 
   bindAgentPush(engine, terminals);
@@ -226,6 +235,7 @@ export function bindAgentPush(engine: PiProcessManager, terminals: TerminalSessi
     if (event.type === "extension_ui_request") void engine.handleExtensionUi(event);
     broadcast(Ipc.event, event);
   });
+  engine.onSchedulesChanged((snapshot) => broadcast(Ipc.scheduleChanged, snapshot));
 }
 
 function readFileOrEmpty(path: string): string {

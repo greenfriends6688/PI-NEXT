@@ -1,6 +1,6 @@
-# PI NEXT
+# Pinext
 
-Electron desktop client for agent work, code, office, and multi-agent cowork. The default engine is the embedded **`@earendil-works/pi-coding-agent` SDK** running in the Electron main process. Native pi state (`~/.pi`) is never used as the data root; PI NEXT keeps everything under its own userData directory.
+Electron desktop client for agent work, code, office, and multi-agent cowork. The default engine is the embedded **`@earendil-works/pi-coding-agent` SDK** running in the Electron main process. Native pi state (`~/.pi`) is never used as the data root; Pinext keeps everything under its own userData directory.
 
 ## Architecture
 
@@ -19,11 +19,11 @@ src/shared/        IPC channels and types used by main + renderer
 Runtime data lives under the app userData directory:
 
 ```
-~/Library/Application Support/PI NEXT/
+~/Library/Application Support/Pinext/
   settings.json          UI prefs (theme, chat behaviour) — not localStorage
   conversations.json
   providers.json
-  account.json           PI NEXT account sign-in (device token + who it is), 0600, never served
+  account.json           Pinext account sign-in (device token + who it is), 0600, never served
   mcp.json
   models-dev.json        models.dev snapshot refreshed hourly and from 设置 → 关于; wins over the bundled one
   runtime/engine/
@@ -105,9 +105,9 @@ another conversation.
 One switch (设置 → 远程访问) opens two ways into the same call table — the one the desktop
 windows use — so that a method cannot exist on the desktop and be missing on the phone:
 
-- **官方连接** (`rtc/`): a phone signed in to the **same PI NEXT account** finds this
+- **官方连接** (`rtc/`): a phone signed in to the **same Pinext account** finds this
   computer by itself and connects over WebRTC — directly (LAN, or across routers) when it
-  can, through PI NEXT's TURN relay when it cannot. No password, no address, nothing to
+  can, through Pinext's TURN relay when it cannot. No password, no address, nothing to
   configure. Needs only a signed-in account. See 官方连接 below.
 - **局域网地址 + 密码** (`server/`): the `RemoteServer` listener, which a phone on the same
   network reaches by scanning a QR code (or finding the computer by name, 局域网发现 below) and
@@ -392,6 +392,20 @@ or signed out → signaling closes and every phone is dropped.
   iOS 要 `NSBonjourServices`，Android 要 `CHANGE_WIFI_MULTICAST_STATE`。发现不可用（拒绝本地网络、
   网络过滤多播）时列表为空，扫码和手动输入照旧。原生手机客户端由 Flutter 实现。
 
+### 手机读取输出文件（`workspace:read-file`）
+
+手机上点开回复产出的文件、再下载，走调用表里的 `workspace:read-file`（`engine/file-chunk.ts`），**不走 `/api/media`**：
+官方连接只有一条 WebRTC 数据通道，没有 HTTP，所以文件字节只能以 base64 分片经调用通道来回。
+
+- **分片、不是整文件。** 一次最多 512 KiB（`MAX_CHUNK_BYTES`），应答 `{ size, mtimeMs, offset, data, eof }`；`length: 0` 只量大小。
+  单个大回复会让同一条有序通道上排在它后面的转写推送等一下，所以别调大；`mtimeMs` 让手机发现文件读到一半被改写。
+  超过 256 MiB（`MAX_DOWNLOAD_BYTES`）直接拒绝。
+- **相对路径由 Main 解析。** 工具写的 `out/report.md` 相对于会话目录，手机不知道那在哪。请求带 `conversationId`，
+  相对路径按该会话的 `cwd` 解析（`conversationCwd`，只在路径是相对时才查目录，避免每个分片都读一次目录快照）；
+  绝对路径不查。同一个 `conversationId` 也是网关把调用路由到 SSH 主机的依据，SSH Agent 注册了同一个方法。
+- **远程策略：允许。** 拿到密码的人本来就能让智能体跑命令，`workspace:preview` 也早就能读任意文本文件，所以这不是新的杠杆；
+  `server-policy.test.ts` 的覆盖检查会在漏分类时拒绝启动。
+
 ### SSH 主机的手机连接（`phoneAccess`）
 
 A server whose Agent was deployed over SSH is reachable from the desktop and nowhere else:
@@ -616,7 +630,7 @@ Main 每个会话一个 `AgentSession`，但引擎自己只有一个「当前会
 系统通知的总开关发通知。停止只在 composer；归档一个正在
 运行的会话会 `abort` 它，侧栏行不再提供停止按钮。
 
-Provider credentials are kept in PI NEXT's isolated runtime and injected into the SDK's in-memory auth storage. Do not export these variables into the user's login shell or the in-app terminal.
+Provider credentials are kept in Pinext's isolated runtime and injected into the SDK's in-memory auth storage. Do not export these variables into the user's login shell or the in-app terminal.
 
 ## UI: shadcn Nova
 
@@ -629,7 +643,7 @@ Provider credentials are kept in PI NEXT's isolated runtime and injected into th
 
 - Do **not** hand-write files under `src/renderer/src/components/ui/`. If a primitive already exists in shadcn (Button, Input, Textarea, Badge, Message, Bubble, Empty, Item, Alert, …), add it with the CLI and compose it.
 - Product screens (chat thread, workspace chrome, tool cards) live outside `components/ui/` and **compose** shadcn primitives. Custom markup is allowed only when shadcn has no matching primitive.
-- **A group part needs its group.** `DropdownMenuLabel` / `ContextMenuLabel` / `SelectLabel` are Base UI's `Menu.GroupLabel`, which throws `MenuGroupContext is missing` when rendered outside its group; the same applies to the other group-only parts. It is a **render-time** throw, so no typecheck catches it and it does not degrade gracefully — it unmounts the whole tree. That is how the composer's model menu, whose empty state drew a bare label, took PI NEXT down the instant it was opened on an install with no models. Wrap every label in `DropdownMenuGroup` / `ContextMenuGroup` / whichever group the surface has.
+- **A group part needs its group.** `DropdownMenuLabel` / `ContextMenuLabel` / `SelectLabel` are Base UI's `Menu.GroupLabel`, which throws `MenuGroupContext is missing` when rendered outside its group; the same applies to the other group-only parts. It is a **render-time** throw, so no typecheck catches it and it does not degrade gracefully — it unmounts the whole tree. That is how the composer's model menu, whose empty state drew a bare label, took Pinext down the instant it was opened on an install with no models. Wrap every label in `DropdownMenuGroup` / `ContextMenuGroup` / whichever group the surface has.
 - Wrap the tree with `TooltipProvider`.
 - `vite.config.ts` exists so the shadcn CLI can detect Vite. The Electron app builds through `electron.vite.config.ts`.
 
@@ -649,9 +663,12 @@ and the future project file tree.
   `img-src` when a new surface loads these icons.
 - The right pane's **文件** tab (`components/layout/side-pane-files.tsx`) is the
   consumer: a lazily-loaded project tree (`workspace:read-dir`, hiding `.git` and
-  `node_modules`). Narrow panes swap between the tree and a file preview; when
-  the pane is wide enough (`@min-[32rem]/files`) the preview sits on the left
-  and the tree stays on the right. Clicking a file anywhere in a conversation
+  `node_modules`). Narrow panes swap between the tree and the open file; when
+  the pane is wide enough (`@min-[32rem]/files`) the tree stays on the left and
+  the file on the right. Text that is the file itself (code, Markdown, HTML,
+  diff) can be edited there and saved with `workspace:write-file`; a rendered
+  office document, image, or other binary stays view-only, because writing it
+  back would replace the original. Clicking a file anywhere in a conversation
   routes through `openPreview` → `openFilePreview`, so it opens in this same
   view rather than a separate tab.
 
@@ -660,7 +677,7 @@ and the future project file tree.
 A built-in provider (内置供应商) is drawn with its own brand mark, and with a
 neutral glyph when there is no brand to draw — never with nothing, so a provider
 list keeps one visual rhythm. `components/provider-icon.tsx` is the only place
-that decides; it is keyed by the **SDK's** provider id, so a built-in PI NEXT
+that decides; it is keyed by the **SDK's** provider id, so a built-in Pinext
 starts offering is already covered the day it appears.
 
 - The marks are **vendored from LobeHub's icon set** (https://lobehub.com/icons,
@@ -817,6 +834,9 @@ is only offered where there is a blur to show (`HAS_VIBRANCY`). `src/shared/glas
 - **The renderer only goes translucent where there is a blur to show** (`HAS_VIBRANCY`: a
   desktop window on macOS that is actually Electron — the preview harness reports `darwin`
   too). Elsewhere every theme keeps its solid palette.
+- **Floating layers are much more opaque than the panes** (`glass-overlay`: 84% dark / 90% light). Menus, popovers and
+  dialogs hold the densest text on screen and float over whatever the page shows; at the 62–70% they once had, a chip or a
+  paragraph behind a list read straight through it. The page's own alpha is a balance, a floating layer's is not.
 - **Fills stack, so only the bottom layer is a real alpha.** `body` is transparent under
   `data-glass`, the app root paints `--background` once, and `glassTokens` makes the sidebar
   and cards tints *over* that layer. `--code-bg` stays solid, since the terminal reads it.
@@ -860,6 +880,9 @@ is only offered where there is a blur to show (`HAS_VIBRANCY`). `src/shared/glas
   row, output/parameter blocks, diffs, thinking, todo and question cards) so the
   transcript reads at one size. `text-xs` is for chrome — timestamps, chips,
   badges, menus, dense stats.
+- The UI sans is **Instrument Sans** (bundled, OFL), set once as `--font-sans`. There is
+  no font picker. Chinese is not in that face, so it falls through to the system sans
+  (苹方 on macOS). Code stays `--font-mono`.
 - Sizes are **rem-based** and the root font size is a setting: 通用 → 外观 →
   界面字号 writes `--ui-root-font-size` inline on `<html>`, and `html { font-size:
   var(--ui-root-font-size, 16px) }` turns that one number into an interface-wide
@@ -909,7 +932,7 @@ holds the line — every string in `settings.json` is capped (130 characters of 
 of English; Chinese says the same thing in ~3/4 the length), and it fails on a new
 paragraph before it is ever looked at on screen.
 
-The same pass removed copy that names a *file inside the data directory* — 「写入 PI NEXT
+The same pass removed copy that names a *file inside the data directory* — 「写入 Pinext
 独立的数据目录，不写入你自己的 ~/.pi」, 「读取 ~/.pi、~/.claude、~/.codex 的数据」 — since
 the reader does not know where `~/.pi` is or that it matters. Say what happens, not where
 it is stored.
@@ -925,9 +948,11 @@ history has nothing to fall back to — a reload on `/settings/providers` would 
 - `#/` — the workspace shell (sidebar + thread + composer). Always mounted.
 - `#/c/<id>` — a conversation. Switching chats, new chats, and the sidebar's
   back/forward buttons walk this as real HashRouter history (mouse side buttons too).
+- `#/plugins` — a page of the main column, not a settings overlay. The
+  sidebar stays and every chat keeps running. `#/settings/extensions` redirects to
+  `#/plugins`.
 - `#/settings/<section>` — a settings pane, rendered **over** the shell so app state
-  survives. Sections come from `SETTINGS_SECTIONS` in `settings-dialog.tsx`
-  (currently `general | shortcuts | archived | usage | providers | mcp | skills | extensions | import | about`);
+  survives. Sections come from `SETTINGS_SECTIONS` in `settings-sections.tsx`;
   `App.tsx` derives the valid set from that export, so adding a pane needs no routing change.
   Section switches `replace`; opening settings pushes, so back returns to the chat.
 - Unknown or missing sections normalise to `#/settings/general` via a redirect effect
@@ -947,7 +972,7 @@ so the sidebar's `h-11` row is built around them: the clearance, then 收起侧�
 to inset, and a native title bar above an app that already has a top row is two bars with one of
 them empty.
 
-So on Windows and Linux PI NEXT draws the whole bar itself
+So on Windows and Linux Pinext draws the whole bar itself
 (`components/layout/title-bar.tsx`): the brand, 后退 / 前进, and minimise / maximise / close —
 one `h-10` row above the sidebar/main split, whose single switch is `HAS_CUSTOM_TITLE_BAR`
 (`lib/platform.ts`). A bar **spanning the window**, rather than controls floated over whichever
@@ -1006,9 +1031,9 @@ and no separate 「not configured」 engine state. An install with no provider b
 ordinary engine whose model list is empty, and that empty list is the whole signal. The
 composer reads it — it goes read-only and its placeholder asks for a model — and the model
 chip's popover says 暂无模型 above the 管理模型 entry that leads to Settings → 供应商, where
-the user adds an SDK provider or any compatible endpoint of their own. The PI NEXT relay
+the user adds an SDK provider or any compatible endpoint of their own. The Pinext relay
 (`pinext.dev`, a Sub2API deployment) is just one such endpoint; it used to be a
-code-owned built-in entry and is not any more. The PI NEXT *account* (登录, below) is a
+code-owned built-in entry and is not any more. The Pinext *account* (登录, below) is a
 separate thing and does not configure a provider.
 
 A provider ships **no models** until the user connects it: configuring a provider
@@ -1044,7 +1069,7 @@ z.ai's `.../coding/paas/v4` is the endpoint path, so it is never rewritten, and 
 api's base is never rewritten either way.
 
 `providers.json` carries a `version` (`PROVIDERS_VERSION`). **v3 removed the built-in
-PI NEXT provider.** A `kind: "builtin"` entry from an older file is read as a custom provider
+Pinext provider.** A `kind: "builtin"` entry from an older file is read as a custom provider
 in place (`migrateBuiltin`): the id stays `pinext` and the key stays in
 `PINEXT_API_KEY`, so the pasted key and every conversation that recorded
 `pinext/<model>` keep working, and it can now be renamed, re-pointed and deleted like any
@@ -1214,7 +1239,7 @@ one reverted before the next prompt). The divider is therefore tied to the reply
 Only `models.json` is written; the `models.yml` / `config.yml` pair from the old RPC
 engine is gone because the SDK never read them.
 
-## 账号登录（PI NEXT 账号，`engine/account.ts`）
+## 账号登录（Pinext 账号，`engine/account.ts`）
 
 桌面端可以登录 `app.pinext.dev` 的账号（服务端在私有仓库 `tyuan511/pinext-services`，
 `services/cloud`，设计见该仓库 `docs/cloud-service.md`）。目前登录只表明「这台电脑是谁的」，
@@ -1255,7 +1280,8 @@ engine is gone because the SDK never read them.
 
 ## Plugins & extensions
 
-PI NEXT hosts pi extensions (the SDK's plugin system) and bridges their
+The 插件 page (`#/plugins`, `components/plugins/plugins-page.tsx`) is a page of the
+main column — not a settings pane. Pinext hosts pi extensions (the SDK's plugin system) and bridges their
 terminal-only surface onto the GUI. **Built-in** extensions ship with the app
 (`resources/extensions/goal.ts`, `handoff.ts`, `todo.ts`, `question.ts`, `folder-consent.ts`, `session-title.ts`,
 `browser-use.ts`, `computer-use.ts`, `web-search.ts`, `conversation-search.ts`, `worktree.ts`,
@@ -1306,12 +1332,12 @@ conversation the composer sends to, not as a line above it.
 **内置技能是另一套东西**：`resources/skills/<name>/SKILL.md`，由 `builtinSkillPaths()`（`BUILTIN_SKILLS`，
 新增一个就要在那里加一行）列进每个会话的 `additionalSkillPaths`。它们只是提示词，不注册工具，也不需要
 `extraResources` 之外的处理（`resources/skills` 已经整目录拷到 `resourcesPath/skills`）。目前五个：
-`browser-use`、`computer-use`、`pinext-setup`、`skill-creator`、`find-skills`。前两个是 PI NEXT 自写；
+`browser-use`、`computer-use`、`pinext-setup`、`skill-creator`、`find-skills`。前两个是 Pinext 自写；
 后三个是 vendored：`skill-creator` 来自 anthropics/claude-plugins-official（Apache-2.0），`find-skills` 来自
 vercel-labs/skills（MIT）——各自目录里带 `LICENSE.txt`，`SKILL.md` 的 description 都改成了中文，并加了
-「你运行在 PI NEXT 里」一节纠正原文里不成立的部分（`skill-creator`：`claude -p` 子进程、评测 HTML
+「你运行在 Pinext 里」一节纠正原文里不成立的部分（`skill-creator`：`claude -p` 子进程、评测 HTML
 viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`：`npx skills add` 默认装到
-`~/.claude/skills` 这类目录，PI NEXT 读不到，必须加 `--agent universal`）。它们不可删除：`SkillManager`
+`~/.claude/skills` 这类目录，Pinext 读不到，必须加 `--agent universal`）。它们不可删除：`SkillManager`
 的 `removable` 只看 `agentDir/skills`，所以内置技能在 设置 → 技能 里显示为全局且没有删除按钮。
 
 **同名技能会静默遮蔽，且用户目录胜出。** `loadSkills` 按名称去重（`addSkills`），先到先得：`additionalSkillPaths`
@@ -1320,18 +1346,18 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
 组合（用户目录里有一个 `find-skills`）。所以新增内置技能前先确认没有常用名字会被用户版本盖住；真要确认
 生效，得看 `filePath` 指向哪个目录，不能只看列表里有这一行。
 
-**人写的技能落在 `.agents/skills/`，这是 SDK 原生发现路径，不是 PI NEXT 自己加的**（`package-manager.js`
+**人写的技能落在 `.agents/skills/`，这是 SDK 原生发现路径，不是 Pinext 自己加的**（`package-manager.js`
 的 `resolve()`：`~/.agents/skills` 恒为 user，`<cwd>/.agents/skills` 及各级祖先目录为 project——后者还要
-过项目信任，`SettingsManager.create` 默认 `projectTrusted: true`，PI NEXT 不开 preTrust 那套）。所以
+过项目信任，`SettingsManager.create` 默认 `projectTrusted: true`，Pinext 不开 preTrust 那套）。所以
 「技能放哪」有四种答案，而 设置 → 技能 只能把前三个里的一部分标成「全局」/「项目」：
 
-| 路径 | scope | PI NEXT 里可见 | 备注 |
+| 路径 | scope | Pinext 里可见 | 备注 |
 | --- | --- | --- | --- |
 | `~/.agents/skills/<name>/` | user | ✅ | 全局，机器上每个项目（**推荐**） |
 | `<cwd>/.agents/skills/<name>/` | project | ✅ | 只在该项目及子目录（**推荐**） |
 | `<cwd>/.pi/skills/<name>/` | project | ✅ | pi CLI 的位置；能用但没人知道，别用 |
-| `~/.pi/agent/skills/<name>/` | user | ❌ | agentDir 被指到 PI NEXT 自己的目录，读不到 |
-| `runtime/engine/agent/skills/` | user | ✅ | PI NEXT 私有（`paths.skillsDir`），设置里可删 |
+| `~/.pi/agent/skills/<name>/` | user | ❌ | agentDir 被指到 Pinext 自己的目录，读不到 |
+| `runtime/engine/agent/skills/` | user | ✅ | Pinext 私有（`paths.skillsDir`），设置里可删 |
 | `resources/skills/` | user | ✅ | 内置，随包发布，不可删 |
 
 祖先目录里的 `.agents/skills` 也会被扫（到 git 仓库根为止），但会盖到同项目下一堆无关子目录上，几乎总是弄错。
@@ -1339,7 +1365,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
 `skill-creator` 的「技能写到哪里」一节把这件事写成了一条硬规则：**先问用户全局还是项目，再动手写**，
 不能默认往 `.agents/` 里塞。
 
-- **Built-ins** — `goal.ts` is PI NEXT's own replacement for the `pi-goal-x`
+- **Built-ins** — `goal.ts` is Pinext's own replacement for the `pi-goal-x`
   package (deliberately not bundled as a dependency). Only `/goal` is registered.
   There is no plan mode: the harness plans on its own.
   `todo.ts` is always on
@@ -1410,11 +1436,11 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
       rather than sitting at `0/N` until that step closes. The completed count stays
       reachable as the badge's `title`. The tool card's row (`tool-presentation.tsx`)
       uses the same helpers, so the transcript and the panel cannot drift apart.
-- **No approvals.** PI NEXT never asks the user to approve a tool call: there is no
+- **No approvals.** Pinext never asks the user to approve a tool call: there is no
   permission mode, no sandbox extension, no 始终允许 list and no 完全访问 warning, and a
   tool runs as soon as the model calls it. What still reaches the user is a *question*
   (`question`, `ctx.ui.select` / `input` / `confirm` from a plugin), which is the agent
-  or a plugin asking for information, not PI NEXT gating an action. `folder-consent.ts`
+  or a plugin asking for information, not Pinext gating an action. `folder-consent.ts`
   is the one extension that hooks `tool_call`, and it never blocks or asks: it stats a
   macOS-protected folder (Desktop, Documents, iCloud…) from the main thread before a
   tool touches it, because the OS only remembers its own folder dialog when the access
@@ -1523,7 +1549,8 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
     there). Parent cancellation releases prompts scoped to the run before awaiting abort,
     and late prompts after cancellation return their fallback. Setup and transcript-mapping
     failures still produce a terminal lifecycle and release the session/control in cleanup.
-- **Browser use** — `browser-use.ts` is the tool surface for PI NEXT's own side-pane
+- **Computer use** downloads its engine the first time 设置 → 电脑操控 → 允许操作电脑 is turned on. The installer does not carry the `cua-driver` worker or the `@trycua/cua-driver-*` native library (together ~80 MB). The small JS bindings stay, so the platform package can be resolved from the data directory after the download. A dev tree still fetches the worker in `predev`. Do not put either artifact back into `electron-builder.yml`.
+- **Browser use** — `browser-use.ts` is the tool surface for Pinext's own side-pane
   `<webview>`; it holds no browser code. Every call crosses `browser:request` /`browser:response`
   (`src/main/pi/browser-bridge.ts`, one pending map keyed by request id, 30s default budget) into
   `handleBrowserRequest` (`components/layout/side-pane-browser.tsx`), which owns the webview
@@ -1603,7 +1630,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
   rules live in the shape (`engine/decision/batch.ts`) and the prompt guidelines, and
   low-confidence items come back as `review` for the agent to judge itself. See docs/decision-layer.md §7.10.
 - **App config** — `app-config.ts` registers `pinext_config_get` / `pinext_config_apply`, the
-  agent's hands on PI NEXT's *own* settings panes; the built-in skill `resources/skills/pinext-setup`
+  agent's hands on Pinext's *own* settings panes; the built-in skill `resources/skills/pinext-setup`
   is the playbook (how remote access, MCP servers and the UI settings are filled in for the user).
   The extension holds no settings code: `ctx.ui.appConfig` reaches `runAppConfig`
   (`src/main/app-config.ts`, injected with `engine.setAppConfigHost` so an SSH Agent runtime answers
@@ -1633,7 +1660,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
   TUI-first plugins gate on `ctx.mode`, and `"print"` makes them refuse to run;
   `rpc` also makes them fall back to string widgets / select-editor dialogs.
 - **Dialogs** — `select/confirm/input/editor` flow through `extension_ui_request`
-  / `respondPermission`, and PI NEXT adds a non-SDK `questions` method to the UI
+  / `respondPermission`, and Pinext adds a non-SDK `questions` method to the UI
   context (`#extensionUi` → `PinextExtensionUIContext`) for single-panel
   multi-question prompts; `questions` answers ride `respondPermission.answers`.
   `confirm` (a yes / no question), `select` (pick an option), `input` (free-form answer)
@@ -1648,7 +1675,7 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
 - **Fire-and-forget UI** — `notify`, `setStatus`, `setWidget` (string lines) and
   `set_editor_text` reach the renderer store and render as toasts, a status row, a
   panel above the composer, and composer prefill (`ExtensionWidgets`,
-  `ExtensionNotices`). A status key PI NEXT draws with its own chrome is listed in
+  `ExtensionNotices`). A status key Pinext draws with its own chrome is listed in
   `BADGE_STATUS_KEYS` (`extension-surface.tsx`) so the same sentence is not printed
   twice: `goal` is the `GoalPanel`, `goal-armed` a badge, and `handoff` the composer's
   own placeholder. A surface that knows which chat it belongs to reads a named status by
@@ -1677,9 +1704,26 @@ viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`
 - **猜测要克制。** 只扫图片/视频，**从不猜 HTML**（构建日志里全是 `index.html`）；`ls/find/git/grep/file/du…` 这类
   列文件的命令整个跳过；`node_modules`、`.git` 之类目录跳过；猜出来加载失败就静默不画（`explicit: false`），
   明确要求的失败才写一行“无法加载”。`read` / `browser_*` / `computer_*` 的图片是输入或截屏，不展示。
-- **图片块随转写走。** `toolImagesOf`（`shared/tool-result.ts`，主进程映射和渲染层实时事件共用）把工具结果里的
-  image 块变成 `ToolCallBlock.images`（data URL，单张 12M 字符、一次 4 张封顶）；手机用的摘要形态会丢掉它
-  （`omitted.images`）。实时路径在 `tool_execution_end` 就带上，不用等 `agent_end` 重读转写。
+- **图片落盘，转写只带路径。** MCP 生图直接返回 base64，没有文件。Main 在两处把它存成
+  `runtime/engine/tool-images/<会话>/<toolCallId>-<n>.<ext>`（`engine/tool-images.ts`，文件名由调用决定，重复写只是
+  一次存在性检查）：转写映射前（`projectSessionMessages`）和实时的 `tool_execution_end` 事件，都把 image 块换成
+  `{ type: "image", mimeType, path }`。`toolImagesOf`（`shared/tool-result.ts`）见 `path` 就只带路径，渲染层按路径走
+  `pinext-media://`；写不了盘的才退回 data URL（单张 12M 字符、一次 4 张封顶）。**不要把图片字节放回转写**：
+  每次读转写、每条 IPC、渲染层 store 都会背着几十 MB。删会话时一并删这个目录；手机用的摘要形态仍丢掉它
+  （`omitted.images`）。
+- **发给模型的图：进入历史时缩一次，请求前只留字节兜底。** SDK 每次请求都把全部历史工具结果（含图）重发，而它自己的
+  规范化（`normalizeToolResultImages`：长边 ≤2000px、单张 <4.5MB）只是单张的上限，3.8MB 的图照样放行——一个生了
+  26 张图的会话请求体 58MB，网关回 413 / 502 / 超时，换哪个上游都一样。隐藏扩展 `pinext-tool-images`：
+  - **`tool_result` 钩子**：图一到就把**原图存盘**（`tool-images/`，界面显示用），历史里换成缩小的副本
+    （`shrinkToolResultImages`；SDK 导出的 `resizeImage`，Photon 跑在 worker 线程，不卡主线程；长边 1568、512KB
+    以内，生成图基本变成 JPEG，实测 3.8MB → 233KB）。缩不动或失败就保持原样。此后每次请求、重载、分叉带的都是小图。
+    转写里图是 JPEG、原图是 PNG，所以按调用 id + 序号找文件时**不看扩展名**（`findSaved`）。
+  - **`context` 钩子**：每次请求前按字节兜底（`dropOldToolImages`，`engine/context-images.ts`），总量超过 4MB
+    （base64 字符）就从最旧的开始丢，最新一张总是保留。没有按张数的裁剪：缩小后单张只有几百 KB。
+    它保护的是缩小机制出现之前的旧会话（图还是原尺寸）和特别长的会话。被丢的图换成一行说明，**带着落盘路径**
+    （没存过就当场存），模型要看就用 `read` 再读；存不了才写「重新生成」。
+  - 只改请求与历史里的副本，用户自己附的图不动。**不要把 `ToolCallBlock.images` 换回 data URL**，也不要引
+    Electron 的 `nativeImage` 来缩图：引擎层要能在无头 Agent 里跑。
 - **HTML 走独立文档，不走 `srcdoc`。** `srcdoc` 框架会继承应用的 CSP（`script-src 'self'`），脚本永远跑不起来。
   所以 `pinext-media://` 也能服务本地 `.html`（`authorizeMediaMime`：请求名和真实路径必须同属“页面”或同属
   “媒体”，不能用 `.png` 符号链接去读页面）；`media-protocol.ts` 对 `text/html` 响应**自己**加
@@ -1757,7 +1801,7 @@ Deliberately deferred. Plugin authors are expected to degrade via `ctx.mode` /
 
 MCP servers are configured in 设置 → MCP 工具 and stored in `mcp.json`. The wire protocol is
 **`@earendil-works/pi-mcp`** (the standalone library pi's own MCP support is built on): `McpClient`,
-`StdioTransport`, `StreamableHttpTransport`, `toLlmContent`. PI NEXT's `McpManager` stays the owner
+`StdioTransport`, `StreamableHttpTransport`, `toLlmContent`. Pinext's `McpManager` stays the owner
 of connections, config and the settings pane's status.
 
 - **Not pi's built-in MCP extension, on purpose.** `createMcpExtension()` keeps its state inside the
@@ -1874,7 +1918,7 @@ pnpm shadcn add <component> -y
 - `scripts/check-packaged-deps.cjs`（`electron-builder.yml` 的 `afterPack`）：打出来的
   `app.asar` 里每个包声明的 `dependencies` 都得能按 Node 的规则找到，缺一个就让构建失败，
   这时还没有任何安装包或 Release。也可以对已安装的应用直接跑：
-  `node scripts/check-packaged-deps.cjs /Applications/PI NEXT.app/Contents/Resources/app.asar`。
+  `node scripts/check-packaged-deps.cjs /Applications/Pinext.app/Contents/Resources/app.asar`。
 
 升级依赖后要确认：`pnpm typecheck` 通过，并且本地 `electron-builder --dir` 的日志里没有
 `cannot find path for dependency`。
@@ -1930,7 +1974,7 @@ pnpm shadcn add <component> -y
 - Prices are not display-only. `cost` is written to `models.json`, where pi's
   `calculateCost` multiplies it by the turn's tokens; the ladder cannot be expressed
   there (pi prices a run with one rate), so `src/main/engine/pricing.ts` picks the tier
-  from the request's prompt size whenever PI NEXT reports money itself — the live
+  from the request's prompt size whenever Pinext reports money itself — the live
   composer stat and 统计 — and `models.json` keeps the entry rate.
 - Prices are never user-editable, so `hydrateModels` back-fills `cost`/`costTiers` from
   the bundled catalog for any model that has none. Without that, a `providers.json`
@@ -1993,7 +2037,7 @@ multi-select picker of that agent's sessions; nothing is imported until the user
   pointing at `~/.claude` would destroy the user's real data. Every foreign root is opened
   read-only (Codex/opencode SQLite via `node:sqlite` `{ readOnly: true }`; the opencode DB is
   copied aside only when a live WAL refuses the read) and each session is converted into
-  PI NEXT's own `runtime/engine/agent/sessions`.
+  Pinext's own `runtime/engine/agent/sessions`.
 - **Candidates are only as expensive as they must be.** The picker must open instantly, so
   `importCandidates` skips what it cannot get cheaply: Codex leaves `messageCount` undefined
   rather than counting 1000+ rollouts (that alone cost 4.5s), and opencode reports a message
@@ -2031,7 +2075,7 @@ One direction, and not a shared data root. `syncPinextConfigToPi`
 (`src/main/engine/sync-pi-config.ts`) writes connected providers, the default model,
 thinking level and MCP into `~/.pi/agent`. The confirm offers both: merge replaces a
 shared provider or MCP server and keeps one that exists only in pi; replace drops
-those. Sessions, UI preferences and PI NEXT's own runtime stay put either way. API keys are written as pi
+those. Sessions, UI preferences and Pinext's own runtime stay put either way. API keys are written as pi
 config literals — `escapePiConfigSecret`, because a raw `$` is interpolated and a
 leading `!` is a shell command. Existing files are copied under `backups/` before a
 real change. A file that is not valid JSON stops the sync before anything is written.
@@ -2293,6 +2337,26 @@ timestamps always show.
 - **Collapsed by default, and entirely the reader's afterwards** — nothing re-folds it under
   them. Every transcript draws it the same way: the main thread, 辅助对话, and 子 Agent.
 
+## 连续工具折叠
+
+Consecutive quiet tools between two stretches of prose fold into one row, collapsed by
+default (`collapseToolRuns` in `src/renderer/src/lib/tool-run.ts`). While a call in the
+batch is in flight the line is that call's own description. Once the batch has settled
+and the reply has moved on to the next sentence, the line is a summary of at most five
+categories, in the order they first appeared: 命令 (shell calls only, always counted),
+读取, 写入 (write / edit / delete), 搜索 (search / web / list), 工具 (MCP, browser,
+scripts, skills, anything else). One call inside a category names the file or query
+(「已读取 process-manager.ts」); several say how many (「已读取 3 个文件」).
+「(N 个失败)」 sits at the end when any call failed. A thought between two calls does not
+split the run. Prose does. Expanding the row shows the calls and the thoughts that only
+separated them.
+
+Questions, todos, sub-agents, presented files, decision tasks and the task graph stay on
+their own line and break the run — the row is the status. A single tool is never folded;
+it already is its own description. The two folds are separate: this one is while the run is
+going; once it settles, the outer 「用时」 fold takes the whole run — thoughts, calls, and these
+summary rows alike — and leaves only the final answer on screen.
+
 ## 思考耗时（思考块的「持续了 N 秒」）
 
 A thinking block's duration is measured, not derived from the transcript: pi records one timestamp
@@ -2485,7 +2549,7 @@ from an event payload. So it is as fresh as the last `reloadActiveState()`.
 
 ## 单窗口
 
-PI NEXT 是一个窗口、一个进程：`app.requestSingleInstanceLock()` 在模块作用域取（输的那个进程
+Pinext 是一个窗口、一个进程：`app.requestSingleInstanceLock()` 在模块作用域取（输的那个进程
 要在开窗之前就没了），`second-instance` 把已有的窗口恢复并聚焦——再点 Dock 图标不是再开一个
 窗口，而是回到原来那个。`window:new` 同样折进已有窗口而不是 `createWindow()`：每个 push、
 每个不说「谁的」就操作「当前会话」的方法都是按一个客户端设计的。
@@ -2595,4 +2659,4 @@ markdown renderer when a feed does hand us markdown.
 
 - Code / Office / Cowork are first-class; pi-coding-agent is the default backend.
 - Office and extra ACP agents come later; keep Host adapters (RPC/ACP) decoupled from the renderer.
-- There is no built-in model provider. The user adds one (a pi built-in or any compatible endpoint, e.g. the PI NEXT relay at `https://pinext.dev/v1`) by pasting an API key; PI NEXT fetches `/models`, writes isolated `models.json`, then starts the embedded engine. Do not mention the backend runtime in the UI.
+- There is no built-in model provider. The user adds one (a pi built-in or any compatible endpoint, e.g. the Pinext relay at `https://pinext.dev/v1`) by pasting an API key; Pinext fetches `/models`, writes isolated `models.json`, then starts the embedded engine. Do not mention the backend runtime in the UI.

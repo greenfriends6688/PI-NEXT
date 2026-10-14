@@ -1,6 +1,6 @@
-# 消息与工具展示：zcode 逆向分析与 PI NEXT 改造方案
+# 消息与工具展示：zcode 逆向分析与 Pinext 改造方案
 
-> 结论先行：PI NEXT 现在"工具全堆在最前面 + 显示 `tool tool`"不是样式问题，是**数据模型丢了顺序、流式事件读错了字段**。zcode 的做法是——保留引擎返回的**有序 content parts**、按 **verb + object** 的句子渲染每个工具、把连续的同类工具**折叠成组**、每组再给**分类详情渲染器**。下面给出证据、差距和分阶段改造方案。
+> 结论先行：Pinext 现在"工具全堆在最前面 + 显示 `tool tool`"不是样式问题，是**数据模型丢了顺序、流式事件读错了字段**。zcode 的做法是——保留引擎返回的**有序 content parts**、按 **verb + object** 的句子渲染每个工具、把连续的同类工具**折叠成组**、每组再给**分类详情渲染器**。下面给出证据、差距和分阶段改造方案。
 
 ---
 
@@ -9,12 +9,12 @@
 | 现象 | 真实原因 | 定位 |
 |---|---|---|
 | 工具全部堆在消息最前面，正文在后 | `ChatMessage` 被扁平化成 `{text, thinking, tools[]}`，**丢失了引擎 content 数组的顺序**；渲染时又硬编码"工具 → 正文" | `src/shared/types.ts:82`、`src/renderer/src/components/chat/message-list.tsx:201` |
-| 工具显示成 `tool tool`（标签和摘要都是 "tool"） | 流式 `toolcall_start` 事件**不携带** `id`/`name`，PI NEXT 却去读 `inner.id`/`inner.name`，落到 `"tool"` 兜底；真正的名字在 `inner.partial.content[inner.contentIndex]` | `src/renderer/src/lib/apply-engine-event.ts:239`、`tool-card.tsx:50,103` |
+| 工具显示成 `tool tool`（标签和摘要都是 "tool"） | 流式 `toolcall_start` 事件**不携带** `id`/`name`，Pinext 却去读 `inner.id`/`inner.name`，落到 `"tool"` 兜底；真正的名字在 `inner.partial.content[inner.contentIndex]` | `src/renderer/src/lib/apply-engine-event.ts:239`、`tool-card.tsx:50,103` |
 | 每个工具一行原始 JSON，读不下去 | 没有"动词化摘要"，没有分类详情渲染器，没有分组 | `tool-card.tsx:97-174` |
 
 ---
 
-## 1. PI NEXT 现状：问题出在哪一层
+## 1. Pinext 现状：问题出在哪一层
 
 ### 1.1 数据模型丢顺序（核心）
 
@@ -32,7 +32,7 @@ export interface ToolCall { type: "toolCall"; id: string; name: string; argument
 
 一次典型的 turn 是 `[thinking, toolCall, text, toolCall, toolCall, text]`。
 
-但 PI NEXT 把它拍平了：
+但 Pinext 把它拍平了：
 
 ```ts
 // src/shared/types.ts:82
@@ -73,7 +73,7 @@ pi-ai 的流式事件定义（`pi-ai/dist/types.d.ts:219-231`）：
 | { type: "toolcall_end";   contentIndex: number; toolCall: ToolCall; partial: AssistantMessage }  // 名字在这里
 ```
 
-`toolcall_start` 的载荷只有 `contentIndex` + `partial`。PI NEXT 却这么读：
+`toolcall_start` 的载荷只有 `contentIndex` + `partial`。Pinext 却这么读：
 
 ```ts
 // src/renderer/src/lib/apply-engine-event.ts:239-248
@@ -115,7 +115,7 @@ const summary = argString(tool.args, [...]) || tool.name;        // summary = "t
 | `ls` | `{path?, limit?}` | 列目录 |
 | MCP/扩展工具 | 动态 | 动态 |
 
-这些名字**已经**能区分 read/edit/bash/search/list，问题纯粹是 PI NEXT 没接住。
+这些名字**已经**能区分 read/edit/bash/search/list，问题纯粹是 Pinext 没接住。
 
 ---
 
@@ -308,7 +308,7 @@ function q8e(intl, statuses) {
 | `chat.message.bodyPreview.notice` | `This reply is large. Showing a preview only ({previewBytes} / {fullBytes}).` | `这条回复较大，当前只显示预览（{previewBytes} / {fullBytes}）。` |
 | `chat.message.copy.requiresFull` | Load full message before copying | 加载完整消息后复制 |
 
-**长会话的性能设计**：工具调用**默认只渲染最近 N 条**，更早的用"加载更多"按需拉取；单条工具的巨型字段也先给 preview。这是 PI NEXT 目前完全缺失的一层。
+**长会话的性能设计**：工具调用**默认只渲染最近 N 条**，更早的用"加载更多"按需拉取；单条工具的巨型字段也先给 preview。这是 Pinext 目前完全缺失的一层。
 
 ### 2.6 Turn 级聚合
 
@@ -374,7 +374,7 @@ function kD({showBottom, showTop}) { /* TD = 24px 渐隐 */ }
 
 ## 3. 差距对照
 
-| 维度 | zcode | PI NEXT 现状 |
+| 维度 | zcode | Pinext 现状 |
 |---|---|---|
 | 数据模型 | 有序 content parts → `toolCallNode[]`，带 `childToolCalls` | `{text, thinking, tools[]}`，**顺序丢失** |
 | 渲染顺序 | 按 parts 顺序，连续同类归组 | 硬编码 thinking → tools → text |
@@ -580,7 +580,7 @@ function groupParts(parts: MessagePart[]): RenderPart[] { ... }
 | P0.2 有序 parts | `shared/types.ts`、`main/engine/map-messages.ts`、`lib/apply-engine-event.ts` | ✅ 新增 `MessagePart`；`ChatMessage.parts?`（可选，旧会话回退到 `resolveParts`） |
 | P1 动词化 | `lib/tool-presentation.tsx` | ✅ `familyOf()` 家族分类 + `describeTool()` 动词变位（读取/正在读取…）+ 图标 + `subject`/`context` 拆分 |
 | P1 工具行 | `components/chat/tool-row.tsx` | ✅ zcode `ToolLayout` 结构：`[图标][动词][宾语][灰色上下文][失败提示][hover 才出现的箭头]`；展开态按 toolId 记忆（`EXPANDED` Map，上限 800） |
-| P2 分组 | `lib/group-parts.tsx`、`components/chat/tool-group.tsx` | ✅ 相邻同类归并：查阅 / 更改 / 终端；汇总句与失败计数；组内子项 `border-l` 缩进 + `showIcon: false` |
+| P2 分组 | `lib/tool-run.ts`、`lib/group-parts.tsx`、`components/chat/tool-group.tsx` | ✅ 连续安静工具折成一行（思考不打断，正文打断）；运行中显示当前工具描述，结束后按五个大类汇总（命令 / 读取 / 写入 / 搜索 / 工具）；提问 / 待办 / 子 Agent 等仍独占一行 |
 | P3 详情渲染 | `components/chat/diff-view.tsx`、`tool-card.tsx` | ✅ `edit` 优先用引擎 `details.diff`；终端用 `$ command` + 输出面板；其余参数 + 结果 |
 | P4 运行态 | `index.css`、`tool-row.tsx` | ✅ 运行中标签用 `.animated-gradient-text`（同色相微光扫过，非换色） |
 | P4 推理样式 | `components/chat/thinking-block.tsx`、`index.css` | ✅ 见 §6.3 |
@@ -602,7 +602,7 @@ function groupParts(parts: MessagePart[]): RenderPart[] { ... }
 | 滚动 | 硬边裁剪 | 上下 24px 渐隐遮罩 |
 | 图标 | `BrainIcon` 14px | `BrainIcon` 16px |
 
-**一处偏离 zcode**：duration 未知时（历史回放没有 `durationMs`），zcode 显示「持续了几秒」。但 PI NEXT 不持久化耗时，**所有历史推理块**都会命中这个回退，满屏重复「持续了几秒」。因此改为**只显示「思考」**；只有真正测到耗时的块才带 `· N 秒`。
+**一处偏离 zcode**：duration 未知时（历史回放没有 `durationMs`），zcode 显示「持续了几秒」。但 Pinext 不持久化耗时，**所有历史推理块**都会命中这个回退，满屏重复「持续了几秒」。因此改为**只显示「思考」**；只有真正测到耗时的块才带 `· N 秒`。
 
 `.animated-gradient-text` 按 zcode 原样实现（§2.7）：同色相、`background-size: 300% 100%`、`gradient-flow 4s linear infinite`、soft = strong 的 22% alpha。工具行的运行态标签也换用它（zcode 里两者本就是同一个 class）。
 
@@ -681,7 +681,7 @@ pnpm build              # 通过
 - **运行期无闪烁**：按 `agent-loop.js` 的真实顺序（3 次工具调用）逐事件喂入 `applyEngineEvent`，`streaming` 全程**只有 1 次翻转**，且发生在 `done(stop)`；3 次 `tool_execution_start` 时 `streaming` 均为 true
 - 运行中断时：流式那一行**没有页脚**（只有用户行保留），且不含时间戳/操作按钮的 DOM
 - 运行结束后：页脚恢复（2 个）
-- **真实会话回放**：扫描 `~/Library/Application Support/PI NEXT/runtime/engine/agent/sessions/` 全部会话，116 个工具调用中未命名工具 = **0**（修复前全部是 `tool`）
+- **真实会话回放**：扫描 `~/Library/Application Support/Pinext/runtime/engine/agent/sessions/` 全部会话，116 个工具调用中未命名工具 = **0**（修复前全部是 `tool`）
 - **真实 Electron DOM**：`data-slot="tool-row"` 7 行、`data-slot="message-footer"` 2 个、5 个思考块、0 控制台错误
 
 推理样式额外验证（`pnpm build` 后对真实 Electron 渲染进程取 `getComputedStyle`）：
@@ -719,7 +719,7 @@ pnpm build              # 通过
 | P0.2 | `src/renderer/src/components/chat/message-list.tsx` | 改遍历 `parts`；`parts` 缺失时回退旧顺序 |
 | P1 | `src/renderer/src/components/chat/tool-card.tsx` | `toolMeta` → `ToolPresentation`（动词短语 + 状态变位 + 参数提取 + 详情渲染钩子） |
 | P1 | 新增 `src/renderer/src/lib/tool-presentation.tsx` | 分类表、`basename`、参数提取、（可选）i18n 词表 |
-| P2 | 新增 `src/renderer/src/lib/group-parts.ts` | 相邻同类归并 + 汇总句 |
+| P2 | 新增 `src/renderer/src/lib/group-parts.ts`、`tool-run.ts` | 连续安静工具折成一行；思考不打断，正文打断；结束后是「已运行 N 个命令」 |
 | P2 | 新增 `src/renderer/src/components/chat/tool-group.tsx` | 组摘要行 + 缩进子项容器 |
 | P3 | `src/main/pi/process-manager.ts` | 工具结果大字段截断 + 按需全量 IPC |
 | P3 | `src/renderer/src/components/chat/tool-card.tsx` | 用引擎 `details.diff` 替代 `looksLikeDiff` 猜测 |
@@ -731,7 +731,7 @@ pnpm build              # 通过
 
 ## 附录 A：证据索引
 
-**PI NEXT（本仓库）**
+**Pinext（本仓库）**
 
 - `src/shared/types.ts:59-91` — `ToolCallBlock`、`ChatMessage`（顺序丢失处）
 - `src/main/engine/map-messages.ts:46-108` — `extractContent` 分类累加

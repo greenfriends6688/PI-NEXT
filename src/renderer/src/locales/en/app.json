@@ -14,8 +14,8 @@
   "sidebarChecking": "Checking",
   "sidebarDownloading": "Downloading",
   "sidebarRestart": "Restart",
-  "sidebarUpdateTitle": "Update to PI NEXT {{version}}",
-  "sidebarRestartTitle": "Restart to finish updating to PI NEXT {{version}}"
+  "sidebarUpdateTitle": "Update to Pinext {{version}}",
+  "sidebarRestartTitle": "Restart to finish updating to Pinext {{version}}"
  },
  "errors": {
   "cannotStart": "Could not start a chat. Please try again shortly.",
@@ -131,6 +131,7 @@
   "forward": "Forward",
   "search": "Search",
   "plugins": "Extensions",
+  "tasks": "Scheduled tasks",
   "expandSubTasks": "Show sub-tasks ({{count}})",
   "collapseSubTasks": "Hide sub-tasks",
   "newProject": "New project",
@@ -160,7 +161,7 @@
   "connect": "Connect SSH",
   "connecting": "Connecting…",
   "initializing": "Initializing…",
-  "initializingDescription": "Uploading, installing, and starting the remote PI NEXT Agent over SSH.",
+  "initializingDescription": "Uploading, installing, and starting the remote Pinext Agent over SSH.",
   "noHosts": "No SSH hosts are configured yet.",
   "addHost": "Add one in Settings",
   "manageHosts": "No SSH host? Add one in Settings",
@@ -216,7 +217,7 @@
   "sectionRunning": "Running",
   "sectionRecent": "Recent",
   "waiting": "Waiting",
-  "placeholder": "Message PI NEXT",
+  "placeholder": "Message Pinext",
   "placeholderQueue": "Queue a message for when this turn ends",
   "needModel": "No model is available yet — add one on the desktop",
   "send": "Send",
@@ -259,7 +260,7 @@
  },
  "account": {
   "signIn": "Sign in",
-  "signedOutTitle": "Sign in to PI NEXT",
+  "signedOutTitle": "Sign in to Pinext",
   "signedOutDesc": "Sign in from your browser.",
   "waiting": "Finish signing in in your browser.",
   "cancel": "Cancel sign-in",

@@ -75,6 +75,9 @@ const DENIED = new Map<string, string>([
   [Ipc.computerStartGrantFlow, "\u62d6\u62fd\u6388\u6743\u53ea\u80fd\u5728\u684c\u9762\u7aef\u5b8c\u6210"],
   [Ipc.computerCancelGrantFlow, "\u62d6\u62fd\u6388\u6743\u53ea\u80fd\u5728\u684c\u9762\u7aef\u5b8c\u6210"],
   [Ipc.computerGetGrantFlow, "\u62d6\u62fd\u6388\u6743\u53ea\u80fd\u5728\u684c\u9762\u7aef\u5b8c\u6210"],
+  [Ipc.computerComponent, "\u7535\u8111\u64cd\u63a7\u7ec4\u4ef6\u53ea\u80fd\u5728\u672c\u673a\u4e0b\u8f7d"],
+  [Ipc.computerEnsureComponent, "\u7535\u8111\u64cd\u63a7\u7ec4\u4ef6\u53ea\u80fd\u5728\u672c\u673a\u4e0b\u8f7d"],
+  [Ipc.computerCancelComponent, "\u7535\u8111\u64cd\u63a7\u7ec4\u4ef6\u53ea\u80fd\u5728\u672c\u673a\u4e0b\u8f7d"],
   // A subscription login opens the system browser on the server's machine and waits on
   // a loopback callback there. Nothing about it can complete from another device.
   [Ipc.providersOAuthLogin, "\u8ba2\u9605\u767b\u5f55\u9700\u8981\u5728\u672c\u673a\u6d4f\u89c8\u5668\u4e2d\u5b8c\u6210"],
@@ -167,6 +170,13 @@ const ALLOWED = new Set<string>([
   Ipc.dagCancel,
   Ipc.dagRetry,
   Ipc.dagResume,
+  Ipc.scheduleList,
+  Ipc.scheduleCreate,
+  Ipc.scheduleUpdate,
+  Ipc.scheduleRemove,
+  Ipc.scheduleRunNow,
+  Ipc.scheduleStopRun,
+  Ipc.scheduleHistory,
   Ipc.engineAbort,
   Ipc.engineAbortSubagent,
   Ipc.engineBranch,
@@ -204,10 +214,6 @@ const ALLOWED = new Set<string>([
   Ipc.engineListMarketPackages,
   Ipc.engineListMcpServers,
   Ipc.engineListSkills,
-  // A skill is prompt text this host owns, and `SkillManager.save` refuses anything it
-  // does not manage — bundled skills and other runtimes' files stay read-only.
-  Ipc.engineReadSkill,
-  Ipc.engineSaveSkill,
   Ipc.engineNewSession,
   Ipc.enginePermissionRespond,
   Ipc.enginePrompt,
@@ -254,24 +260,23 @@ const ALLOWED = new Set<string>([
   Ipc.providersGatewayBalance,
   Ipc.providersGatewayCredentials,
   Ipc.providersQuota,
-  // Same bargain as the quota above: it reports a number the account already has, and it
-  // sends a credential this side holds to the provider's own published endpoint — the
-  // endpoint comes from a fixed table, so a key cannot be aimed anywhere else.
+  // 本 fork 加的：余额查询与生图是供应商侧的读数 / 出图；联网搜索、IM 推送、机器人渠道
+  // 与技能读写都是这台机器自己的配置与凭证，和上面的 providers:* 同一档。
   Ipc.providersUsage,
-  // 生图. `get` returns the masked view, `set` writes a key the person just typed on this
-  // machine, and `test` spends one small generation — the same bargain the usage query
-  // above makes. All three are about this host's own configuration, not the account's.
-  // 联网搜索 is this host's own preference file, and the tool reads it on every call.
-  Ipc.websearchGet,
-  // IM 推送: the settings are this host's own, and `test` sends through a bot the person
-  // configured with their own credentials.
-  Ipc.imGet,
-  Ipc.imSet,
-  Ipc.imTest,
-  Ipc.websearchSet,
   Ipc.imagegenGet,
   Ipc.imagegenSet,
   Ipc.imagegenTest,
+  Ipc.websearchGet,
+  Ipc.websearchSet,
+  Ipc.imGet,
+  Ipc.imSet,
+  Ipc.imTest,
+  Ipc.botChannelGet,
+  Ipc.botChannelSet,
+  Ipc.botChannelStart,
+  Ipc.botChannelStop,
+  Ipc.engineReadSkill,
+  Ipc.engineSaveSkill,
   Ipc.providersRefresh,
   Ipc.providersRemove,
   Ipc.providersUpdate,
@@ -295,11 +300,10 @@ const ALLOWED = new Set<string>([
   Ipc.workspaceGitStatus,
   Ipc.workspaceGitUnstage,
   Ipc.workspacePreview,
-  // A file editor is a remote client's write access to the project, which is why the
-  // engine's own guard (not this list) decides what may be written.
-  Ipc.workspaceWriteFile,
   Ipc.workspaceFilesExist,
   Ipc.workspaceReadDir,
+  Ipc.workspaceReadFile,
+  Ipc.workspaceWriteFile,
   Ipc.workspaceTerminalKill,
   Ipc.workspaceTerminalResize,
   Ipc.workspaceTerminalStart,

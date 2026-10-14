@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type JSX, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Add01Icon, ArrowDown01Icon, ArrowUp02Icon, AttachmentIcon, Cancel01Icon, ChartHistogramIcon, Folder01Icon, MagicWand02Icon, PlayIcon, ScissorIcon, Search01Icon, SparklesIcon, SquareIcon } from "@hugeicons/core-free-icons";
 import { IconButton } from "@/components/icon-button";
 import { ModelThinkingSelect } from "@/components/model-thinking-select";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { isTouchOnly } from "@/lib/platform";
-import { useResizableHeight } from "@/lib/use-resizable-height";
 import { engine } from "@/lib/engine-client";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -29,7 +30,7 @@ import { formatDuration } from "@/lib/time";
 import { matchChord, resolveBinding } from "@/lib/shortcuts";
 import { useShortcutLabel } from "@/lib/use-shortcuts";
 import { useSettingsStore } from "@/stores/settings";
-import { useExtensionStatusValue } from "@/stores/session";
+import { useExtensionStatusValue, useSessionStore } from "@/stores/session";
 import { GitBranchChip } from "./git-branch-chip";
 import { AttachmentChip } from "./attachment-chip";
 import { MessageQueue } from "./message-queue";
@@ -57,21 +58,6 @@ const CONTEXT_RING_SIZE = 14;
 const CONTEXT_RING_STROKE = 2;
 const CONTEXT_RING_RADIUS = (CONTEXT_RING_SIZE - CONTEXT_RING_STROKE) / 2;
 const CONTEXT_RING_CIRCUMFERENCE = 2 * Math.PI * CONTEXT_RING_RADIUS;
-
-/**
- * The composer card is drag-resizable from its top edge (PI NEXT's `fork:pr23-resize`).
- *
- * The textarea's own growth has to stop somewhere — a chat box that keeps growing eats
- * the transcript — and wherever it stops, a long paste wants more room than that. The
- * handle is the answer; these are its limits.
- */
-const COMPOSER_MIN_MANUAL_HEIGHT = 104;
-const COMPOSER_MAX_MANUAL_HEIGHT = 480;
-/** Never taller than this share of the window: the transcript has to stay readable. */
-const COMPOSER_MAX_MANUAL_FRACTION = 0.55;
-const COMPOSER_HEIGHT_STORAGE_KEY = "pinext-composer-height";
-/** Where the textarea stops growing on its own — the same 14rem as `max-h-56`. */
-const COMPOSER_TEXTAREA_MAX_PX = 224;
 
 function ContextUsageRing({ percent }: { percent: number }): JSX.Element {
   const clamped = Math.min(100, Math.max(0, percent));
@@ -144,11 +130,18 @@ function ContextUsagePanel({
   used,
   window: windowTokens,
   stats,
+  canCompact = false,
+  compactBusy = false,
+  onCompact,
 }: {
   percent: number;
   used: number | null;
   window: number;
   stats?: SessionStats | null;
+  canCompact?: boolean;
+  /** Working, so the disabled button can say why. Other disables stay silent. */
+  compactBusy?: boolean;
+  onCompact?: () => void;
 }): JSX.Element {
   const { t } = useTranslation("chat");
   const clamped = Math.min(100, Math.max(0, percent));
@@ -186,6 +179,22 @@ function ContextUsagePanel({
             {t("composer.remaining", { remaining: formatCount(remaining), window: formatCount(windowTokens) })}
           </span>
         </div>
+        {onCompact ? (
+          // The disabled button drops pointer events, so the reason has to sit on a wrapper.
+          <span className="block" title={compactBusy ? t("composer.compactBusy") : undefined}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full"
+              disabled={!canCompact}
+              onClick={onCompact}
+            >
+              <HugeiconsIcon strokeWidth={2} icon={ScissorIcon} className="size-3.5" />
+              {t("composer.compact")}
+            </Button>
+          </span>
+        ) : null}
       </div>
 
       {stats ? (
@@ -352,43 +361,6 @@ export function Composer({
   const { t } = useTranslation("chat");
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  /** The composer card: the element the resize handle drives. */
-  const cardRef = useRef<HTMLDivElement>(null);
-  // A touch screen has no room for this and no way to use it: the handle is hidden there,
-  // and a height remembered on the desktop must not be applied to it either.
-  const [coarsePointer] = useState(() => isTouchOnly());
-  const inputResizer = useResizableHeight({
-    ariaLabel: t("composer.resizeHandle"),
-    minHeight: COMPOSER_MIN_MANUAL_HEIGHT,
-    getMaxHeight: () =>
-      typeof window === "undefined"
-        ? COMPOSER_MAX_MANUAL_HEIGHT
-        : Math.max(
-            COMPOSER_MIN_MANUAL_HEIGHT,
-            Math.min(COMPOSER_MAX_MANUAL_HEIGHT, Math.floor(window.innerHeight * COMPOSER_MAX_MANUAL_FRACTION)),
-          ),
-    storageKey: COMPOSER_HEIGHT_STORAGE_KEY,
-    targetRef: cardRef,
-  });
-  // `null` means the content still decides the height; a number means the person took over.
-  const manualMode = inputResizer.height !== null && !coarsePointer && !readOnly;
-
-  /**
-   * Grow the textarea to fit what has been typed, up to `COMPOSER_TEXTAREA_MAX_PX`.
-   *
-   * `field-sizing: content` would say this in one declaration, but it is Chromium-only:
-   * in the browser build — and in Safari generally — the box would stay one line tall
-   * forever. Measuring is a few lines and behaves the same everywhere.
-   *
-   * Skipped in manual mode, where the stylesheet gives the textarea `height: 100%` and the
-   * handle owns the card's height; an inline height written here would only fight it.
-   */
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el || manualMode) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, COMPOSER_TEXTAREA_MAX_PX)}px`;
-  }, [manualMode, value, attachments.length]);
   const [dragging, setDragging] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
   const [slashDismissed, setSlashDismissed] = useState(false);
@@ -404,6 +376,13 @@ export function Composer({
   const [histIndex, setHistIndex] = useState<number | null>(null);
   const [projectOpen, setProjectOpen] = useState(false);
   const [projectQuery, setProjectQuery] = useState("");
+  const [contextOpen, setContextOpen] = useState(false);
+  const [compacting, setCompacting] = useState(false);
+  const compactingRef = useRef(false);
+  // The ring reads the active conversation's usage. A side chat passes its own id
+  // but that same usage, so compacting there would shrink the wrong transcript.
+  const activeId = useSessionStore((state) => state.activeId);
+  const showCompact = !readOnly && conversationId != null && conversationId === activeId;
   const histDraft = useRef("");
   const sendBinding = useSettingsStore((state) => resolveBinding("send", state.settings.shortcuts));
   const sendShortcut = useShortcutLabel("send");
@@ -601,6 +580,28 @@ export function Composer({
   );
   const contextWindow = contextUsage?.contextWindow ?? 0;
   const contextUsedPercent = typeof contextPercent === "number" ? Math.round(contextPercent) : null;
+  // A run and a standalone compaction are both not idle. The local flag covers the
+  // gap before `working` flips, so a second click cannot start another compact.
+  const compactBusy = working || compacting;
+  const canCompact = showCompact && !locked && !compactBusy;
+
+  async function compactContext(): Promise<void> {
+    if (!conversationId || !canCompact || compactingRef.current) return;
+    compactingRef.current = true;
+    setCompacting(true);
+    setContextOpen(false);
+    try {
+      const next = await engine.compact(undefined, conversationId);
+      if (useSessionStore.getState().activeId === conversationId) {
+        useSessionStore.getState().setSession(next);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      compactingRef.current = false;
+      setCompacting(false);
+    }
+  }
 
   async function addFiles(list: FileList | File[]): Promise<void> {
     const next = await filesToAttachments([...list]);
@@ -806,22 +807,11 @@ export function Composer({
       />
 
       <div
-        ref={cardRef}
         className={cn(
-          "pn-composer-card glass-rim relative z-10 rounded-[22px] border border-border bg-card shadow-sm transition-colors focus-within:border-ring",
+          "glass-rim relative z-10 rounded-[22px] border border-border bg-card shadow-sm transition-colors focus-within:border-ring",
           dragging && "ring-2 ring-ring",
-          manualMode && "is-manual-height",
         )}
-        style={manualMode ? { height: inputResizer.height ?? undefined } : undefined}
       >
-        {/* fork:pr23-resize — the handle rides the card's top edge; drag up to grow.
-            Hidden on a touch screen, where there is no pointer to drag it with. */}
-        {coarsePointer || readOnly ? null : (
-          <div
-            {...inputResizer.separatorProps}
-            className={cn("pn-composer-resize", inputResizer.isResizing && "is-resizing")}
-          />
-        )}
         <input
           ref={fileRef}
           type="file"
@@ -852,7 +842,7 @@ export function Composer({
           disabled={locked || readOnly}
           placeholder={notice ?? (!readOnly && streaming ? t("composer.placeholderQueued") : placeholder ?? t("composer.placeholder"))}
           className={cn(
-            "field-sizing-fixed max-h-56 min-h-13 resize-none border-0 bg-transparent px-4 text-sm leading-6 shadow-none focus-visible:ring-0 disabled:bg-transparent disabled:opacity-100 dark:bg-transparent dark:disabled:bg-transparent",
+            "field-sizing-content max-h-56 min-h-13 resize-none border-0 bg-transparent px-4 text-sm leading-6 shadow-none focus-visible:ring-0 disabled:bg-transparent disabled:opacity-100 dark:bg-transparent dark:disabled:bg-transparent",
             attachments.length > 0 ? "pt-2" : "pt-3.5",
           )}
           onChange={(event) => handleChange(event.target.value)}
@@ -880,7 +870,7 @@ export function Composer({
 
           {contextUsedPercent != null && contextWindow > 0 ? (
             <span className="hidden @min-[27.5rem]/composer:contents">
-              <Popover>
+              <Popover open={contextOpen} onOpenChange={setContextOpen}>
                 <PopoverTrigger
                   render={
                     <button
@@ -898,6 +888,9 @@ export function Composer({
                     used={contextUsed}
                     window={contextWindow}
                     stats={stats}
+                    canCompact={canCompact}
+                    compactBusy={compactBusy}
+                    onCompact={showCompact ? () => void compactContext() : undefined}
                   />
                 </PopoverContent>
               </Popover>

@@ -109,11 +109,28 @@ export const Ipc = {
   projectsReorder: "projects:reorder",
   workspaceReveal: "workspace:reveal",
   workspacePreview: "workspace:preview",
-  /** 保存一个文本文件（只允许项目目录内，见 workspace-fs.ts 的写入门槛）。 */
-  workspaceWriteFile: "workspace:write-file",
+  /** 生图档案：读（掩码）/ 写 / 真出一张图的测试。 */
+  imagegenGet: "imagegen:get",
+  imagegenSet: "imagegen:set",
+  imagegenTest: "imagegen:test",
+  /** 联网搜索偏好：读（掩码）/ 写。 */
+  websearchGet: "websearch:get",
+  websearchSet: "websearch:set",
+  /** IM 推送目标：读（掩码）/ 写 / 真发一条测试。 */
+  imGet: "im:get",
+  imSet: "im:set",
+  imTest: "im:test",
+  /** 机器人渠道：读 / 写 / 启动 / 停止。 */
+  botChannelGet: "bot-channel:get",
+  botChannelSet: "bot-channel:set",
+  botChannelStart: "bot-channel:start",
+  botChannelStop: "bot-channel:stop",
+
   workspaceFilesExist: "workspace:files-exist",
   workspaceFileIcons: "workspace:file-icons",
   workspaceReadDir: "workspace:read-dir",
+  workspaceWriteFile: "workspace:write-file",
+  workspaceReadFile: "workspace:read-file",
   workspaceGitStatus: "workspace:git-status",
   workspaceOpenTerminal: "workspace:open-terminal",
   workspaceGitBranches: "workspace:git-branches",
@@ -155,6 +172,11 @@ export const Ipc = {
    * Settings pane opened mid-sequence would otherwise show nothing for 1.5 seconds. */
   computerGetGrantFlow: "computer:get-grant-flow",
   computerGrantFlowState: "computer:grant-flow-state",
+  /** On-demand component: not in the installer, fetched when computer control is turned on. */
+  computerComponent: "computer:component",
+  computerEnsureComponent: "computer:ensure-component",
+  computerCancelComponent: "computer:cancel-component",
+  computerComponentState: "computer:component-state",
   enginePromptConversation: "engine:prompt-conversation",
   engineGetConversationMessages: "engine:get-conversation-messages",
   conversationsCreateSide: "conversations:create-side",
@@ -199,24 +221,8 @@ export const Ipc = {
   providersRemove: "providers:remove",
   providersRefresh: "providers:refresh",
   providersQuota: "providers:quota",
-  /** Balance / quota for the providers with a published usage endpoint. */
+  /** 余额 / 用量：十家供应商里那些公布了用量端点的。 */
   providersUsage: "providers:usage",
-  /** 生图档案：读（掩码）/ 写 / 真出一张图的测试。 */
-  /** 联网搜索偏好：读（掩码）/ 写。 */
-  /** IM 推送目标：读（掩码）/ 写 / 真发一条测试。 */
-  /** 机器人渠道：读 / 写 / 启动 / 停止。 */
-  botChannelGet: "bot-channel:get",
-  botChannelSet: "bot-channel:set",
-  botChannelStart: "bot-channel:start",
-  botChannelStop: "bot-channel:stop",
-  imGet: "im:get",
-  imSet: "im:set",
-  imTest: "im:test",
-  websearchGet: "websearch:get",
-  websearchSet: "websearch:set",
-  imagegenGet: "imagegen:get",
-  imagegenSet: "imagegen:set",
-  imagegenTest: "imagegen:test",
   /** Identify the relay software behind a custom Base URL (添加供应商). */
   providersProbeGateway: "providers:probe-gateway",
   /** Read a custom provider's panel balance; the kind decides which endpoint. */
@@ -287,6 +293,14 @@ export const Ipc = {
   dagCancel: "dag:cancel",
   dagRetry: "dag:retry",
   dagResume: "dag:resume",
+  scheduleList: "schedule:list",
+  scheduleCreate: "schedule:create",
+  scheduleUpdate: "schedule:update",
+  scheduleRemove: "schedule:remove",
+  scheduleRunNow: "schedule:run-now",
+  scheduleStopRun: "schedule:stop-run",
+  scheduleHistory: "schedule:history",
+  scheduleChanged: "schedule:changed",
   /** 远程访问（手机）: the switch, this computer's name, the LAN password and devices, and the account connection. */
   remoteGetState: "remote:get-state",
   remoteSetPassword: "remote:set-password",

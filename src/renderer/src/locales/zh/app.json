@@ -14,8 +14,8 @@
   "sidebarChecking": "检查中",
   "sidebarDownloading": "下载中",
   "sidebarRestart": "重启",
-  "sidebarUpdateTitle": "更新到 PI NEXT {{version}}",
-  "sidebarRestartTitle": "重启以完成更新到 PI NEXT {{version}}"
+  "sidebarUpdateTitle": "更新到 Pinext {{version}}",
+  "sidebarRestartTitle": "重启以完成更新到 Pinext {{version}}"
  },
  "errors": {
   "cannotStart": "暂时无法开始对话，请稍后重试。",
@@ -131,6 +131,7 @@
   "forward": "前进",
   "search": "搜索",
   "plugins": "插件",
+  "tasks": "定时任务",
   "expandSubTasks": "展开子任务（{{count}}）",
   "collapseSubTasks": "收起子任务",
   "newProject": "新项目",
@@ -160,7 +161,7 @@
   "connect": "确定并连接",
   "connecting": "连接中…",
   "initializing": "初始化中…",
-  "initializingDescription": "正在通过 SSH 上传、安装并启动远程 PI NEXT Agent。",
+  "initializingDescription": "正在通过 SSH 上传、安装并启动远程 Pinext Agent。",
   "noHosts": "还没有配置 SSH 主机。",
   "addHost": "前往设置添加",
   "manageHosts": "没有找到 SSH 主机？去设置添加 SSH 配置",
@@ -216,7 +217,7 @@
   "sectionRunning": "运行中",
   "sectionRecent": "最近",
   "waiting": "等你",
-  "placeholder": "给 PI NEXT 发消息",
+  "placeholder": "给 Pinext 发消息",
   "placeholderQueue": "追加到队列，当前回合结束后发送",
   "needModel": "还没有可用的模型，请先在电脑上添加",
   "send": "发送",
@@ -259,7 +260,7 @@
  },
  "account": {
   "signIn": "登录",
-  "signedOutTitle": "登录 PI NEXT",
+  "signedOutTitle": "登录 Pinext",
   "signedOutDesc": "在浏览器中完成登录。",
   "waiting": "请在浏览器中完成登录。",
   "cancel": "取消登录",

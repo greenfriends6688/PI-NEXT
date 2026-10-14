@@ -1,21 +1,20 @@
 import type { JSX } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
+  AiImageIcon,
   Analytics01Icon,
+  SentIcon,
+  Search01Icon,
   Archive04Icon,
   BotIcon,
   BoxesIcon,
   BrainCircuitIcon,
   ComputerIcon,
   Globe02Icon,
-  AiImageIcon,
-  Search01Icon,
-  SentIcon,
   ImportIcon,
   InformationCircleIcon,
   KeyboardIcon,
   Plug01Icon,
-  PuzzleIcon,
   Router01Icon,
   Settings02Icon,
   ServerStack01Icon,
@@ -41,15 +40,14 @@ export type SectionId =
   | "archived"
   | "usage"
   | "providers"
+  | "subagents"
   | "imagegen"
   | "websearch"
   | "im"
-  | "subagents"
   | "decision"
   | "memory"
   | "mcp"
   | "skills"
-  | "extensions"
   | "import"
   | "remote"
   | "ssh"
@@ -91,15 +89,14 @@ export const SETTINGS_SECTIONS: Array<{
     group: "integrations",
     items: [
       { id: "providers", icon: <HugeiconsIcon strokeWidth={2} icon={BoxesIcon} /> },
-      { id: "im", icon: <HugeiconsIcon strokeWidth={2} icon={SentIcon} /> },
-      { id: "websearch", icon: <HugeiconsIcon strokeWidth={2} icon={Search01Icon} /> },
-      { id: "imagegen", icon: <HugeiconsIcon strokeWidth={2} icon={AiImageIcon} /> },
       { id: "subagents", icon: <HugeiconsIcon strokeWidth={2} icon={BotIcon} /> },
+      { id: "imagegen", icon: <HugeiconsIcon strokeWidth={2} icon={AiImageIcon} /> },
+      { id: "websearch", icon: <HugeiconsIcon strokeWidth={2} icon={Search01Icon} /> },
+      { id: "im", icon: <HugeiconsIcon strokeWidth={2} icon={SentIcon} /> },
       { id: "decision", icon: <HugeiconsIcon strokeWidth={2} icon={BrainCircuitIcon} /> },
       { id: "memory", icon: <HugeiconsIcon strokeWidth={2} icon={StickyNote01Icon} /> },
       { id: "mcp", icon: <HugeiconsIcon strokeWidth={2} icon={Plug01Icon} /> },
       { id: "skills", icon: <HugeiconsIcon strokeWidth={2} icon={SparklesIcon} /> },
-      { id: "extensions", icon: <HugeiconsIcon strokeWidth={2} icon={PuzzleIcon} /> },
     ],
   },
   {

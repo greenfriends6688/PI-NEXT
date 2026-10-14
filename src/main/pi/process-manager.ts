@@ -22,6 +22,7 @@ import {
   type LoadExtensionsResult,
   type SessionStartEvent,
   type ToolDefinition,
+  resizeImage,
 } from "@earendil-works/pi-coding-agent";
 import type {
   ChatMessage,
@@ -91,6 +92,8 @@ import {
 import { readAppSettings, readDefaultModel, readPreferredModelSettings } from "../engine/runtime-settings";
 import { submitPrompt } from "../engine/prompt-submission";
 import type { SubmitPromptRequest } from "../../shared/prompt-submission";
+import { dropOldToolImages } from "../engine/context-images";
+import { externalizeToolEndEvent, savedToolImagePath, shrinkToolResultImages, toolImageFolder, type ImageResizer } from "../engine/tool-images";
 import { applyToolModes, toolModes } from "../engine/tool-modes";
 import { currentAiLanguageDirective, currentCustomSystemPrompt } from "../engine/ai-language";
 import { uiText } from "../engine/ui-text";
@@ -135,23 +138,30 @@ import { findNativeProvider } from "../engine/native-providers";
 import { hasOAuthCredential, OAuthCredentialStore, readOrCreateDeviceId } from "../engine/oauth-store";
 import { priceUsage } from "../engine/pricing";
 import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-quota";
-import { writeWorkspaceFile } from "../engine/workspace-fs";
+// ── 本 fork 加的东西（相对上游 0.19.6）────────────────────────────────────────
+// Kept in one block so the next upstream sync can find them again by eye: everything below
+// this line is *not* upstream's, and everything above it is.
+import { isProviderUsageId, queryProviderUsage, type ProviderUsageResult } from "../engine/provider-usage";
 import { createImageGenExtension } from "../pinext/imagegen/extension.ts";
 import { createWebSearchExtension } from "../pinext/websearch/extension.ts";
 import { createImExtension } from "../pinext/im-bridge/extension.ts";
-import { startChatChannel, startConfiguredChatChannels, stopChatChannel, type BotChannelHost } from "../pinext/bot-channel/runtime.ts";
-import { CHANNELS, channelReadiness, readChatChannelConfig, writeChatChannelConfig, type ChatChannelConfig, type ChatChannelId } from "../pinext/bot-channel/config.ts";
 import {
-  maskedImTargets,
   readImBridgeConfig,
+  maskedImTargets,
   resolveImTargets,
   sendImMessage,
   writeImBridgeConfig,
-  type ImBridgeConfig,
   type ImSendOutcome,
 } from "../pinext/im-bridge/index.ts";
-import type { ImTarget, ImTargetView } from "../../shared/im-bridge.ts";
-import { maskedWebSearchSettings, readWebSearchSettings, writeWebSearchSettings, type WebSearchSettings } from "../pinext/websearch/settings.ts";
+import { startChatChannel, stopChatChannel, type BotChannelHost } from "../pinext/bot-channel/runtime.ts";
+import {
+  CHANNELS,
+  readChatChannelConfig,
+  writeChatChannelConfig,
+  type ChatChannelConfig,
+  type ChatChannelEntry,
+  type ChatChannelId,
+} from "../pinext/bot-channel/config.ts";
 import {
   emptyImageGenStatus,
   ensureGeneratedImagesRootRegistered,
@@ -169,7 +179,8 @@ import {
   type ImageGenPreset,
   type ImageGenStatus,
 } from "../../shared/imagegen.ts";
-import { isProviderUsageId, queryProviderUsage, type ProviderUsageResult } from "../engine/provider-usage";
+import { maskedWebSearchSettings, readWebSearchSettings, writeWebSearchSettings, type WebSearchSettings } from "../pinext/websearch/settings.ts";
+import type { ImTarget, ImTargetView } from "../../shared/im-bridge.ts";
 import { fetchGatewayBalance, gatewayTargets, probeGateway, readGatewayCredentials, writeGatewayCredentials } from "../engine/gateway-probe";
 import { ensureScratchWorkspace, getPinextPaths, scratchWorkspace, type PinextPaths } from "../engine/paths";
 import { DisabledMemoryHost, type MemoryHost } from "../engine/memory-host";
@@ -212,12 +223,26 @@ import type { DagHostRequest, DagHostResult } from "@shared/dag-tools";
 import { DAG_TOOLS, canonicalDagId, dagNodeFinished, dagNodeTools, isDagNodeId, type DagGraph, type DagNode, type DagOutputPage } from "@shared/dag";
 import { buildPrompt, DagScheduler, type DagNodeRun, type DagRunner } from "./dag-scheduler";
 import { DagStore } from "../engine/dag-store";
+import { ScheduledTaskManager } from "./scheduled-task-manager";
+import type { ScheduledTask, ScheduledTaskDraft, ScheduledTaskPatch, ScheduledTaskRun, ScheduledTaskSnapshot } from "@shared/schedules";
 import { runDagTool } from "../dag-tools";
 import { builtinExtensionFile, builtinExtensionPaths, builtinSkillPaths, ExtensionManager } from "./extension-manager";
 import { branchExists, createGitWorktree, gitBranch, gitCommonRoot, gitToplevel, listGitWorktrees, removeGitWorktree } from "./git-worktree";
 import { bindBrowserConversation, bindComputerConversation } from "./conversation-binding";
 import { createTuiWidget, renderTuiComponent, type TuiComponent } from "./tui-bridge";
 import { ActivationTicket } from "./activation-ticket";
+
+/**
+ * What a model is sent of a picture a tool returned: the SDK's own resizer (Photon in a worker
+ * thread, so the main thread keeps running) at the long edge a model scales to anyway, and a size
+ * that picks JPEG over PNG for a generated image. The SDK's default is 2000px and 4.5MB, which is
+ * only a ceiling for one picture.
+ */
+const MODEL_IMAGE_LIMITS = { maxWidth: 1568, maxHeight: 1568, maxBytes: 512 * 1024, jpegQuality: 80 };
+const resizeForModel: ImageResizer = async (bytes, mimeType) => {
+  const resized = await resizeImage(bytes, mimeType, MODEL_IMAGE_LIMITS);
+  return resized ? { data: resized.data, mimeType: resized.mimeType } : null;
+};
 
 /** The last assistant message's text parts, joined — what a finished sub-agent run reports. */
 function lastAssistantText(messages: unknown[]): string {
@@ -255,7 +280,14 @@ type PinextExtensionUIContext = ExtensionUIContext & {
   appConfig(request: AppConfigHostRequest): Promise<AppConfigHostResult>;
   /** The DAG of sub-agent tasks, for the built-in `dag` extension (`src/main/dag-tools.ts`). */
   dag(request: DagHostRequest, signal?: AbortSignal): Promise<DagHostResult>;
+  schedules(request: ScheduleHostRequest): Promise<unknown>;
 };
+
+type ScheduleHostRequest =
+  | { action: "list" }
+  | { action: "create"; draft: ScheduledTaskDraft }
+  | { action: "update"; id: string; patch: ScheduledTaskPatch }
+  | { action: "remove" | "runNow" | "stopRun" | "history"; id: string }; 
 
 type ConversationSearchHostRequest = ConversationTranscriptSearchRequest & {
   conversationId: string;
@@ -579,6 +611,7 @@ export class PiProcessManager {
   #memory: MemoryHost;
   readonly #promptPreparations = new PromptPreparations();
   #subagentManager: SubagentManager;
+  readonly #scheduledTasks: ScheduledTaskManager;
   /** Live subagent registry and bounded transcript cache. */
   #subagents = new Map<string, SubagentInfo>();
   /**
@@ -629,6 +662,8 @@ export class PiProcessManager {
     this.#skills = new SkillManager(this.#paths.agentDir, this.#paths.skillsDir);
     this.#extensions = new ExtensionManager(this.#paths.agentDir, this.#paths.scratchDir);
     this.#subagentManager = new SubagentManager(this.#paths);
+    this.#scheduledTasks = new ScheduledTaskManager(this.#paths.schedulesFile, (task, signal, onConversation) =>
+      this.#runScheduledTask(task, signal, onConversation));
     this.#memory.attach({
       conversations: () => this.#catalog.list(),
       loadBranch: (file, cwd) => loadConversationTranscriptBranch(file, cwd),
@@ -667,22 +702,6 @@ export class PiProcessManager {
   get memory(): MemoryHost { return this.#memory; }
 
   listWorkspace(): WorkspaceSnapshot { return this.#catalog.snapshot(); }
-
-  /**
-   * Write a text file, if it is inside a directory this host already knows about.
-   *
-   * Those directories are the authorisation: the renderer may be a different machine, so
-   * the path it sends cannot be trusted on its own. `writeWorkspaceFile` does the check
-   * (realpath on both sides, so symlinks and `..` cannot carry a write out of a root).
-   */
-  async writeWorkspaceFile(path: string, text: string): Promise<void> {
-    const snapshot = this.listWorkspace();
-    const roots = [
-      ...snapshot.projects.map((project) => project.cwd),
-      ...snapshot.conversations.map((conversation) => conversation.cwd),
-    ];
-    writeWorkspaceFile(path, text, roots);
-  }
   searchConversations(query: string): Promise<ConversationSearchHit[]> {
     return searchConversationContent(query, this.#catalog.list());
   }
@@ -727,6 +746,7 @@ export class PiProcessManager {
     this.#reasoning.flush();
     this.#usage.flush();
     this.#dagStore.flush();
+    this.#scheduledTasks.flush();
     // A node still running when the app quits keeps what it had done so far: its transcript is
     // what 恢复 / 重启后 shows for that run.
     for (const [runId, session] of this.#subagentSessions) {
@@ -747,6 +767,58 @@ export class PiProcessManager {
   /** The conversation/project catalog moved: a chat created, renamed, deleted, opened. */
   onWorkspaceChange(listener: (snapshot: WorkspaceSnapshot) => void): () => void { this.#workspaceListeners.add(listener); return () => this.#workspaceListeners.delete(listener); }
   onEvent(listener: (event: Record<string, unknown>) => void): () => void { this.#eventListeners.add(listener); return () => this.#eventListeners.delete(listener); }
+  onSchedulesChanged(listener: (snapshot: ScheduledTaskSnapshot) => void): () => void { return this.#scheduledTasks.onChange(listener); }
+  listSchedules(): ScheduledTaskSnapshot { return this.#scheduledTasks.list(); }
+  scheduleHistory(id: string): ScheduledTaskRun[] { return this.#scheduledTasks.history(id); }
+  hasEnabledSchedules(): boolean { return this.#scheduledTasks.hasEnabledTasks(); }
+  createSchedule(draft: ScheduledTaskDraft): ScheduledTask {
+    this.#assertScheduleProject(draft.project);
+    return this.#scheduledTasks.create(draft);
+  }
+  updateSchedule(id: string, patch: ScheduledTaskPatch): ScheduledTask {
+    if (patch.project !== undefined) this.#assertScheduleProject(patch.project || undefined);
+    return this.#scheduledTasks.update(id, patch);
+  }
+  removeSchedule(id: string): boolean { return this.#scheduledTasks.remove(id); }
+  runScheduleNow(id: string): ScheduledTaskRun { return this.#scheduledTasks.runNow(id); }
+  stopScheduledRun(id: string): boolean { return this.#scheduledTasks.stopRun(id); }
+  wakeSchedules(): void { this.#scheduledTasks.wake(); }
+
+  #assertScheduleProject(project: string | undefined): void {
+    if (!project) return;
+    if (!this.#catalog.listProjects().some((item) => item.cwd === project) || !existsSync(project)) {
+      throw new Error(uiText("定时任务的项目目录不存在，请重新选择项目", "The scheduled task's project is unavailable; choose it again"));
+    }
+  }
+
+  async #runScheduledTask(task: ScheduledTask, signal: AbortSignal, onConversation: (id: string) => void): Promise<void> {
+    let conversationId: string | undefined;
+    const abort = (): void => { if (conversationId) void this.abort(conversationId).catch(() => undefined); };
+    signal.addEventListener("abort", abort, { once: true });
+    try {
+      if (signal.aborted) throw new Error("任务已停止");
+      this.#assertScheduleProject(task.project);
+      // Every occurrence gets a fresh ordinary transcript. Do not reuse a blank draft,
+      // activate the chat, or consume the model pick pending on the user's empty hero.
+      const opened = await this.createConversation(task.project, { activate: false, reuseEmpty: false, scheduledTaskId: task.id });
+      conversationId = opened.conversation.id;
+      onConversation(conversationId);
+      this.renameConversation(conversationId, `${uiText("定时任务", "Scheduled task")} · ${task.name}`);
+      if (signal.aborted) { abort(); throw new Error("任务已停止"); }
+      await this.promptConversation(conversationId, task.prompt, undefined, signal);
+      const managed = this.#sessions.get(conversationId);
+      if (!managed) throw new Error("定时任务的会话没有启动");
+      await managed.session.waitForIdle();
+      if (signal.aborted) throw new Error("任务已停止");
+      const assistant = [...managed.session.messages].reverse().find((message): message is AssistantMessage => message.role === "assistant");
+      if (!assistant) throw new Error("Agent 没有返回结果");
+      if (assistant.stopReason === "error" || assistant.stopReason === "aborted" || assistant.stopReason === "length") {
+        throw new Error(assistant.errorMessage || `Agent 已停止：${assistant.stopReason}`);
+      }
+    } finally {
+      signal.removeEventListener("abort", abort);
+    }
+  }
   /**
    * Deliver a background conversation's live stream to whoever asked for it by name.
    *
@@ -1019,6 +1091,7 @@ export class PiProcessManager {
       if (active) await this.#ensureSession(active);
       this.#dagScheduler.start();
       this.#setStatus({ state: "ready", cwd: this.#cwd });
+      this.#scheduledTasks.start();
       // Durable work belongs to every conversation, not only whichever chat happened
       // to be active when Main restarted. Drains lazily create background sessions.
       for (const conversationId of this.#messageQueue.conversationIds()) this.#scheduleQueueDrain(conversationId);
@@ -1031,6 +1104,7 @@ export class PiProcessManager {
     this.#promptPreparations.cancel();
     this.#queueShutdown = true;
     this.#dagScheduler.stop(uiText("引擎已停止", "The engine was stopped"));
+    this.#scheduledTasks.stop();
     this.#stopSessionSweep();
     await this.#queue(async () => {
       const sessions = [...this.#sessions.values()];
@@ -1172,11 +1246,12 @@ export class PiProcessManager {
     }
   }
 
-  async promptConversation(id: string, message: string, images?: Array<{ type: "image"; data: string; mimeType: string }>): Promise<void> {
+  async promptConversation(id: string, message: string, images?: Array<{ type: "image"; data: string; mimeType: string }>, signal?: AbortSignal): Promise<void> {
     const conversation = this.#catalog.get(id);
     if (!conversation) throw new Error("conversation not found");
     await this.#ensureReady();
     const managed = await this.#ensureSession(conversation);
+    if (signal?.aborted) throw new Error("任务已停止");
     if (await this.#compactIfCommand(managed.session, message)) return;
     // Same rule as prompt(): only a pause over an empty queue is cleared here.
     if (this.#messageQueue.releaseEmptyPause(id)) this.#emitQueue(id);
@@ -1184,7 +1259,7 @@ export class PiProcessManager {
     this.#beginTurn(id);
     await this.#flushModelRebind(id);
     try {
-      await this.#promptWhenIdle(managed.session, message, images, id);
+      await this.#promptWhenIdle(managed.session, message, images, id, signal);
     } catch (error) {
       // Same contract as prompt(): an AbortError is the result of Stop, not a send
       // failure. Real failures continue across IPC unchanged.
@@ -1847,9 +1922,182 @@ export class PiProcessManager {
     void this.#scheduleMcpReload();
     return this.#mcp.list();
   }
-  async listSkills(): Promise<SkillInfo[]> { return this.#skills.list(this.#cwd); }
-  async createSkill(draft: SkillDraft): Promise<SkillInfo[]> { const skills = await this.#skills.create(this.#cwd, draft); await this.#reloadSkills(); return skills; }
-  async importSkill(sourceDir: string): Promise<SkillInfo[]> { const skills = await this.#skills.importFrom(this.#cwd, sourceDir); await this.#reloadSkills(); return skills; }
+  /**
+   * Balance / quota for a provider with a published usage endpoint.
+   *
+   * The credential is resolved here, the same call `providers:quota` makes, and handed to
+   * `queryProviderUsage` — which keeps that module a pure function of the auth it is given,
+   * and therefore testable without a network.
+   */
+  async getProviderUsage(id: string): Promise<ProviderUsageResult> {
+    if (!isProviderUsageId(id)) {
+      throw new Error(uiText("该供应商不支持用量查询", "This provider does not support usage queries."));
+    }
+    await this.#ensureReady();
+    const auth = await this.#runtime?.getAuth(id, { signal: AbortSignal.timeout(20_000) });
+    const entry = (await this.listProviders()).find((provider) => provider.id === id);
+    // Catalog providers such as opencode-go carry their base URL on the model rather than on
+    // the provider, so fall back to the first model before deciding this is not them.
+    const baseUrl = entry?.baseUrl ?? (entry?.models?.[0] as { baseUrl?: string } | undefined)?.baseUrl;
+    return queryProviderUsage(id, {
+      ...(auth?.auth.apiKey ? { apiKey: auth.auth.apiKey } : {}),
+      ...(auth?.auth.headers ? { headers: auth.auth.headers } : {}),
+      ...(baseUrl ? { baseUrl } : {}),
+    });
+  }
+
+  /** 生图档案：读（掩码视图）/ 写（掩码值 = 沿用已存密钥）/ 测试（真的出一张图）。 */
+  async getImageGen(): Promise<ImageGenConfig> {
+    return maskedImageGenConfig(readImageGenConfig(this.#paths.agentDir));
+  }
+
+  async setImageGen(input: { active?: unknown; providers?: unknown }): Promise<ImageGenConfig> {
+    const active = typeof input.active === "string" && (IMAGEGEN_PRESET_IDS as readonly string[]).includes(input.active)
+      ? input.active as ImageGenPreset
+      : null;
+    if (!active) throw new Error(uiText("请选择一个生图服务商", "Choose an image provider first."));
+    const current = readImageGenConfig(this.#paths.agentDir);
+    const incoming = (input.providers ?? {}) as Record<string, Record<string, unknown>>;
+    const providers = {} as ImageGenConfig["providers"];
+    for (const preset of IMAGEGEN_PRESET_IDS as readonly ImageGenPreset[]) {
+      const patch = incoming[preset] ?? {};
+      providers[preset] = {
+        ...current.providers[preset],
+        ...(typeof patch.baseUrl === "string" ? { baseUrl: patch.baseUrl.trim() } : {}),
+        ...(typeof patch.apiKey === "string" ? { apiKey: patch.apiKey } : {}),
+        ...(typeof patch.model === "string" ? { model: patch.model.trim() } : {}),
+        ...(typeof patch.size === "string" && patch.size.trim() ? { size: patch.size.trim() } : {}),
+        ...(typeof patch.concurrency === "number" && Number.isFinite(patch.concurrency)
+          ? { concurrency: Math.min(4, Math.max(1, Math.floor(patch.concurrency))) }
+          : {}),
+      } as ImageGenConfig["providers"][typeof preset];
+    }
+    return maskedImageGenConfig(writeImageGenConfig({ version: 3, active, providers }, this.#paths.agentDir));
+  }
+
+  async testImageGen(preset?: string): Promise<{ ok: boolean; status: ImageGenStatus; image?: string; path?: string; error?: string }> {
+    const config = readImageGenConfig(this.#paths.agentDir);
+    const target = typeof preset === "string" && (IMAGEGEN_PRESET_IDS as readonly string[]).includes(preset)
+      ? preset as ImageGenPreset
+      : config.active;
+    const profile = config.providers[target];
+    if (!profileIsConfigured(profile)) {
+      throw new Error(uiText("这一档还缺端点、密钥或模型名", "This profile needs a base URL, an API key and a model name before it can be tested."));
+    }
+    const root = ensureGeneratedImagesRootRegistered(this.#paths.agentDir);
+    const outcome = await generateImagesWithProfile(target, profile, {
+      prompt: "a single small blue circle on a white background, minimal test image",
+      size: profile.size,
+    }, {
+      saveImage: (data: Buffer, mimeType: string) => saveGeneratedImageSync(root, data, mimeType),
+    });
+    const status: ImageGenStatus = outcome.ok
+      ? { state: "available", testedAt: new Date().toISOString(), lastError: null, lastDurationMs: outcome.durationMs }
+      : { ...emptyImageGenStatus(), state: "unavailable", testedAt: new Date().toISOString(), lastError: outcome.error ?? "unknown error" };
+    writeImageGenStatus(target, status, this.#paths.agentDir);
+    if (!outcome.ok) return { ok: false, status, error: outcome.error ?? "provider error" };
+    const first = outcome.images[0];
+    return {
+      ok: true,
+      status,
+      path: first.path,
+      image: `data:${first.mimeType};base64,${readFileSync(first.path).toString("base64")}`,
+    };
+  }
+
+  /** 联网搜索偏好. The token is masked on the way out and merged on the way in. */
+  async getWebSearch(): Promise<WebSearchSettings> {
+    return maskedWebSearchSettings(readWebSearchSettings());
+  }
+
+  async setWebSearch(patch: Record<string, unknown>): Promise<WebSearchSettings> {
+    return maskedWebSearchSettings(writeWebSearchSettings(patch as Partial<WebSearchSettings>));
+  }
+
+  /** IM 推送目标：掩码读出、整表写回。URL 与 secret 都是凭证。 */
+  async getImBridge(): Promise<ImTargetView[]> {
+    return maskedImTargets();
+  }
+
+  async setImBridge(input: { targets?: unknown }): Promise<ImTargetView[]> {
+    const targets = Array.isArray(input.targets) ? (input.targets as ImTarget[]) : [];
+    return maskedImTargets(writeImBridgeConfig({ version: 1, targets }));
+  }
+
+  /** 「测试」真的发一条 —— 配置对了没有，只有真发出去才知道。 */
+  async testImBridge(targetId: string): Promise<ImSendOutcome> {
+    const config = readImBridgeConfig();
+    const target = resolveImTargets(config, targetId)[0];
+    if (!target) throw new Error(uiText("找不到这个推送目标", "No such push target."));
+    return sendImMessage(target, { title: "PI NEXT", text: uiText("这是一条测试消息。", "This is a test message.") });
+  }
+
+  /** 机器人渠道：配置读写 + 启停（长轮询是进程内的，所以由引擎持有）。 */
+  async getBotChannels(): Promise<ChatChannelConfig> {
+    return readChatChannelConfig();
+  }
+
+  async setBotChannels(input: { channels?: unknown }): Promise<ChatChannelConfig> {
+    const current = readChatChannelConfig();
+    const incoming = (input.channels ?? {}) as Record<string, Partial<ChatChannelEntry>>;
+    const channels = { ...current.channels };
+    for (const spec of CHANNELS) {
+      const patch = incoming[spec.id];
+      if (!patch) continue;
+      const previous = channels[spec.id];
+      channels[spec.id] = {
+        ...previous,
+        ...patch,
+        // 凭证的掩码值 = 沿用已存值，与生图 / IM / 联网搜索同一条铁律。
+        token: typeof patch.token === "string" && patch.token.length > 0 ? patch.token : previous.token,
+      };
+    }
+    return writeChatChannelConfig({ version: 1, channels });
+  }
+
+  async startBotChannel(id: string): Promise<{ ok: boolean; error?: string }> {
+    return startChatChannel(id as ChatChannelId, this.botChannelHost());
+  }
+
+  async stopBotChannel(id: string): Promise<void> {
+    stopChatChannel(id as ChatChannelId);
+  }
+
+  /**
+   * The bot-channel host, wired to this engine rather than to an HTTP surface.
+   *
+   * PI NEXT delivered over `POST /api/agent/<id>`; this host has no such face, so the same
+   * four questions arrive as methods. What is preserved is the guarantee that mattered —
+   * one path into a conversation, the same one the composer uses — not the transport.
+   */
+  botChannelHost(): BotChannelHost {
+    return {
+      isBusy: async (conversationId) => (await this.getSnapshot(conversationId)).running,
+      lastReply: async (conversationId) => {
+        const messages = (await this.getSnapshot(conversationId)).messages;
+        for (let index = messages.length - 1; index >= 0; index -= 1) {
+          const message = messages[index];
+          if (message.role === "assistant" && message.text.trim().length > 0) return message.text;
+        }
+        return "";
+      },
+      submit: async (conversationId, text) => {
+        // `enqueue: false` — the runtime already refused to inject into a running turn, so a
+        // queue here would only hide that decision from the person who made it.
+        await this.submitPrompt({ conversationId, text, enqueue: false });
+      },
+      workspaceConversation: async () => {
+        // A conversation with no project, which is what the scratch workspace is for. Never
+        // "the most recent one": a message from a phone must not land in whatever project is
+        // open on the desk.
+        const existing = this.listWorkspace().conversations.find((conversation) => !conversation.project);
+        if (existing) return existing.id;
+        const created = await this.createConversation(undefined, { activate: false });
+        return created.conversation.id;
+      },
+    };
+  }
+
   async readSkill(name: string): Promise<{ name: string; content: string; editable: boolean }> {
     return this.#skills.read(this.#cwd, name);
   }
@@ -1859,6 +2107,9 @@ export class PiProcessManager {
     await this.#reloadSkills();
     return skills;
   }
+  async listSkills(): Promise<SkillInfo[]> { return this.#skills.list(this.#cwd); }
+  async createSkill(draft: SkillDraft): Promise<SkillInfo[]> { const skills = await this.#skills.create(this.#cwd, draft); await this.#reloadSkills(); return skills; }
+  async importSkill(sourceDir: string): Promise<SkillInfo[]> { const skills = await this.#skills.importFrom(this.#cwd, sourceDir); await this.#reloadSkills(); return skills; }
   async removeSkill(name: string): Promise<SkillInfo[]> { const skills = await this.#skills.remove(this.#cwd, name); await this.#reloadSkills(); return skills; }
 
   /**
@@ -1998,7 +2249,7 @@ export class PiProcessManager {
     }
   }
 
-  async createConversation(project?: string, options?: { activate?: boolean; reuseEmpty?: boolean }): Promise<ConversationOpenResult> {
+  async createConversation(project?: string, options?: { activate?: boolean; reuseEmpty?: boolean; scheduledTaskId?: string }): Promise<ConversationOpenResult> {
       // An unfinished chat is the project's composer workspace. Keep it around when
       // the user opens another chat, and reuse it instead of creating a second empty
       // session for the same project. The old global cleanup deleted the only place
@@ -2011,7 +2262,7 @@ export class PiProcessManager {
       // another create/open can finish first. The activation ticket decides which one
       // is allowed to become the engine's current conversation.
       const activation = activate ? this.#activationTicket.begin() : undefined;
-      const conversation = existing ?? this.#catalog.create(project, undefined, { activate: false });
+      const conversation = existing ?? this.#catalog.create(project, undefined, { activate: false, scheduledTaskId: options?.scheduledTaskId });
       if (activate) return this.#openFresh(conversation, activation!);
       // The phone page's 新对话. The engine's active id is one value every desktop window
       // follows, so a chat started on the phone must not move it: the desktop would jump
@@ -2094,6 +2345,7 @@ export class PiProcessManager {
     this.#resolvePendingUi(id);
     this.#runTouchedFiles.delete(id);
     clearCheckpoint(id);
+    await rm(join(this.#paths.toolImagesDir, toolImageFolder(id)), { recursive: true, force: true }).catch(() => undefined);
     return { ...this.#catalog.snapshot(), nextId: wasActive ? (this.#catalog.activeId ?? null) : null };
   }
   async setConversationProject(id: string, project: string | null): Promise<WorkspaceSnapshot> {
@@ -2819,192 +3071,6 @@ export class PiProcessManager {
     this.#openAIQuotaCache.set(id, { quota, expiresAt: Date.now() + 5 * 60_000 });
     return quota;
   }
-  /**
-   * Balance / quota for a provider with a published usage endpoint.
-   *
-   * The credential is resolved here, the same call `providers:quota` makes, and handed to
-   * `queryProviderUsage` — which keeps that module a pure function of the auth it is given,
-   * and therefore testable without a network.
-   */
-  async getProviderUsage(id: string): Promise<ProviderUsageResult> {
-    if (!isProviderUsageId(id)) {
-      throw new Error(uiText("该供应商不支持用量查询", "This provider does not support usage queries."));
-    }
-    await this.#ensureReady();
-    const auth = await this.#runtime?.getAuth(id, { signal: AbortSignal.timeout(20_000) });
-    const entry = (await this.listProviders()).find((provider) => provider.id === id);
-    // Catalog providers such as opencode-go carry their base URL on the model rather than
-    // on the provider, so fall back to the first model before deciding this is not them.
-    const baseUrl = entry?.baseUrl ?? (entry?.models?.[0] as { baseUrl?: string } | undefined)?.baseUrl;
-    return queryProviderUsage(id, {
-      ...(auth?.auth.apiKey ? { apiKey: auth.auth.apiKey } : {}),
-      ...(auth?.auth.headers ? { headers: auth.auth.headers } : {}),
-      ...(baseUrl ? { baseUrl } : {}),
-    });
-  }
-
-  /**
-   * 生图配置：读（掩码视图）、写（整表替换，掩码值 = 沿用已存密钥）、测试（真的出一张图）。
-   *
-   * The plaintext key never crosses the bridge in either direction: `maskedImageGenConfig`
-   * replaces it on the way out, and `writeImageGenConfig` treats the mask as "keep what is
-   * stored". Testing is a real generation rather than a reachability probe, because
-   * "looks configured" is not the same claim as "works" — and the status it records is the
-   * only thing that lets anything else rely on this profile.
-   */
-  /** IM 推送目标：掩码读出、整表写回。URL 与 secret 都是凭证。 */
-  async getImBridge(): Promise<ImTargetView[]> {
-    return maskedImTargets();
-  }
-
-  async setImBridge(input: { targets?: unknown }): Promise<ImTargetView[]> {
-    const targets = Array.isArray(input.targets) ? (input.targets as ImTarget[]) : [];
-    return maskedImTargets(writeImBridgeConfig({ version: 1, targets }));
-  }
-
-  /** 「测试」真的发一条 —— 配置对了没有，只有真发出去才知道。 */
-  async testImBridge(targetId: string): Promise<ImSendOutcome> {
-    const config = readImBridgeConfig();
-    const target = resolveImTargets(config, targetId)[0];
-    if (!target) throw new Error(uiText("找不到这个推送目标", "No such push target."));
-    return sendImMessage(target, { title: "PI NEXT", text: uiText("这是一条测试消息。", "This is a test message.") });
-  }
-
-  /** 联网搜索偏好. The token is masked on the way out and merged on the way in. */
-  async getWebSearch(): Promise<WebSearchSettings> {
-    return maskedWebSearchSettings(readWebSearchSettings());
-  }
-
-  async setWebSearch(patch: Record<string, unknown>): Promise<WebSearchSettings> {
-    return maskedWebSearchSettings(writeWebSearchSettings(patch as Partial<WebSearchSettings>));
-  }
-
-  /**
-   * The bot-channel host, wired to this engine rather than to an HTTP surface.
-   *
-   * PI NEXT delivered over `POST /api/agent/<id>`; this host has no such face, so the same
-   * four questions arrive as methods. What is preserved is the guarantee that mattered —
-   * one path into a conversation, the same one the composer uses — not the transport.
-   */
-  botChannelHost(): BotChannelHost {
-    return {
-      isBusy: async (conversationId) => (await this.getSnapshot(conversationId)).running,
-      lastReply: async (conversationId) => {
-        const messages = (await this.getSnapshot(conversationId)).messages;
-        for (let index = messages.length - 1; index >= 0; index -= 1) {
-          const message = messages[index];
-          if (message.role === "assistant" && message.text.trim().length > 0) return message.text;
-        }
-        return "";
-      },
-      submit: async (conversationId, text) => {
-        // `enqueue: false` — the runtime already refused to inject into a running turn, so a
-        // queue here would only hide that decision from the person who made it.
-        await this.submitPrompt({ conversationId, text, enqueue: false });
-      },
-      workspaceConversation: async () => {
-        // A conversation with no project, which is what the scratch workspace is for. Never
-        // "the most recent one": a message from a phone must not land in whatever project is
-        // open on the desk.
-        const existing = this.listWorkspace().conversations.find((conversation) => !conversation.project);
-        if (existing) return existing.id;
-        const created = await this.createConversation(undefined, { activate: false });
-        return created.conversation.id;
-      },
-    };
-  }
-
-  /** 机器人渠道：配置读写 + 启停（长轮询是进程内的，所以由引擎持有）。 */
-  async getBotChannels(): Promise<ChatChannelConfig> {
-    return readChatChannelConfig();
-  }
-
-  async setBotChannels(input: { channels?: unknown }): Promise<ChatChannelConfig> {
-    const current = readChatChannelConfig();
-    const incoming = (input.channels ?? {}) as Record<string, Partial<ChatChannelConfig["channels"][ChatChannelId]>>;
-    const channels = { ...current.channels };
-    for (const spec of CHANNELS) {
-      const patch = incoming[spec.id];
-      if (!patch) continue;
-      const previous = channels[spec.id];
-      channels[spec.id] = {
-        ...previous,
-        ...patch,
-        // 凭证的掩码值 = 沿用已存值，与生图 / IM / 联网搜索同一条铁律。
-        token: typeof patch.token === "string" && patch.token.length > 0 ? patch.token : previous.token,
-      };
-    }
-    return writeChatChannelConfig({ version: 1, channels });
-  }
-
-  async startBotChannel(id: string): Promise<{ ok: boolean; error?: string }> {
-    return startChatChannel(id as ChatChannelId, this.botChannelHost());
-  }
-
-  async stopBotChannel(id: string): Promise<void> {
-    stopChatChannel(id as ChatChannelId);
-  }
-
-  async getImageGen(): Promise<ImageGenConfig> {
-    return maskedImageGenConfig(readImageGenConfig(this.#paths.agentDir));
-  }
-
-  async setImageGen(input: { active?: unknown; providers?: unknown }): Promise<ImageGenConfig> {
-    const active = typeof input.active === "string" && (IMAGEGEN_PRESET_IDS as readonly string[]).includes(input.active)
-      ? input.active as ImageGenPreset
-      : null;
-    if (!active) throw new Error(uiText("请选择一个生图服务商", "Choose an image provider first."));
-    const current = readImageGenConfig(this.#paths.agentDir);
-    const incoming = (input.providers ?? {}) as Record<string, Record<string, unknown>>;
-    const providers = {} as ImageGenConfig["providers"];
-    for (const preset of IMAGEGEN_PRESET_IDS as readonly ImageGenPreset[]) {
-      const patch = incoming[preset] ?? {};
-      providers[preset] = {
-        ...current.providers[preset],
-        ...(typeof patch.baseUrl === "string" ? { baseUrl: patch.baseUrl.trim() } : {}),
-        ...(typeof patch.apiKey === "string" ? { apiKey: patch.apiKey } : {}),
-        ...(typeof patch.model === "string" ? { model: patch.model.trim() } : {}),
-        ...(typeof patch.size === "string" && patch.size.trim() ? { size: patch.size.trim() } : {}),
-        ...(typeof patch.concurrency === "number" && Number.isFinite(patch.concurrency)
-          ? { concurrency: Math.min(4, Math.max(1, Math.floor(patch.concurrency))) }
-          : {}),
-      } as ImageGenConfig["providers"][typeof preset];
-    }
-    return maskedImageGenConfig(writeImageGenConfig({ version: 3, active, providers }, this.#paths.agentDir));
-  }
-
-  async testImageGen(preset?: string): Promise<{ ok: boolean; status: ImageGenStatus; image?: string; path?: string; error?: string }> {
-    const config = readImageGenConfig(this.#paths.agentDir);
-    const target = typeof preset === "string" && (IMAGEGEN_PRESET_IDS as readonly string[]).includes(preset)
-      ? preset as ImageGenPreset
-      : config.active;
-    const profile = config.providers[target];
-    if (!profileIsConfigured(profile)) {
-      throw new Error(uiText("这一档还缺端点、密钥或模型名", "This profile needs a base URL, an API key and a model name before it can be tested."));
-    }
-    const root = ensureGeneratedImagesRootRegistered(this.#paths.agentDir);
-    const outcome = await generateImagesWithProfile(target, profile, {
-      prompt: "a single small blue circle on a white background, minimal test image",
-      size: profile.size,
-    }, {
-      saveImage: (data: Buffer, mimeType: string) => saveGeneratedImageSync(root, data, mimeType),
-    });
-    const status: ImageGenStatus = outcome.ok
-      ? { state: "available", testedAt: new Date().toISOString(), lastError: null, lastDurationMs: outcome.durationMs }
-      : { ...emptyImageGenStatus(), state: "unavailable", testedAt: new Date().toISOString(), lastError: outcome.error ?? "unknown error" };
-    writeImageGenStatus(target, status, this.#paths.agentDir);
-    if (!outcome.ok) return { ok: false, status, error: outcome.error ?? "provider error" };
-    // The one place base64 crosses the bridge: this single test image, in this one reply.
-    // Neither the transcript nor the config file ever holds it.
-    const first = outcome.images[0];
-    return {
-      ok: true,
-      status,
-      path: first.path,
-      image: `data:${first.mimeType};base64,${readFileSync(first.path).toString("base64")}`,
-    };
-  }
-
   async addProvider(
     draft: { name: string; baseUrl: string; apiKey: string; api?: import("@shared/types").ProviderApi; gateway?: GatewayKind },
     models: ProviderModel[],
@@ -3594,18 +3660,34 @@ export class PiProcessManager {
         hidden: true,
         factory: createToolSearchExtension(),
       },
-      // 生图. A tool rather than a skill on purpose: it spends money and writes files, so
-      // it has to be nameable by the approval engine, countable, and configurable from
-      // Settings — none of which a skill can offer.
+      // 生图. A tool rather than a skill on purpose: it spends money and writes files, so it
+      // has to be nameable by the approval engine, countable, and configurable from Settings.
       createImageGenExtension(cwd),
-      // 联网搜索. Replaces the built-in `web-search` extension, which registered the same
-      // tool name but could only work on `openai-responses` models — it asked the provider
-      // to run the search. This one has its own provider chain (SearXNG / Bing / DuckDuckGo
-      // / Mojeek / an aggregate), so any model can use it.
+      // 联网搜索. Replaces the built-in `web-search` extension, which registered the same tool
+      // name but could only work on `openai-responses` models.
       createWebSearchExtension(),
-      // IM 推送. A tool, not a skill: it sends a message out of the machine and spends the
-      // person's own bot quota, so it has to be nameable by the approval engine.
+      // IM 推送. Sends a message out of the machine and spends the person's own bot quota.
       createImExtension(), {
+        name: "pinext-tool-images",
+        hidden: true,
+        factory: (pi) => {
+          const dir = this.#paths.toolImagesDir;
+          // As a tool's pictures arrive: the full-size file is saved for the chat to show, and the
+          // history keeps a smaller copy. The SDK normalizes each picture on its own, which a
+          // 3 MB one passes, so a chat that made many still sent tens of MB with every request.
+          pi.on("tool_result", async (event) => {
+            const content = await shrinkToolResultImages(event.content, dir, conversation.id, event.toolCallId, resizeForModel);
+            return content ? { content: content as unknown as typeof event.content } : undefined;
+          });
+          // What is still too much, bounded before each request. Request-only: the transcript keeps it.
+          pi.on("context", (event) => {
+            const trimmed = dropOldToolImages(event.messages, {
+              locate: (message, index, block) => savedToolImagePath(dir, conversation.id, String(message.toolCallId ?? ""), index, block),
+            });
+            return trimmed === event.messages ? undefined : { messages: trimmed as typeof event.messages };
+          });
+        },
+      }, {
         // Switches codemode, tool_search and the dag_* tools on or off from the settings
         // as they are at `session_start`, which a reload emits again — the SDK's
         // `defaultTools` setting can only add.
@@ -3859,7 +3941,7 @@ export class PiProcessManager {
         });
       }
       const payload: Record<string, unknown> = {
-        ...slimStreamEvent(event as unknown as Record<string, unknown>),
+        ...externalizeToolEndEvent(slimStreamEvent(event as unknown as Record<string, unknown>), this.#paths?.toolImagesDir, conversation.id),
         conversationId: conversation.id,
       };
       // 立即 cut this reply short so the next message can run. A client reads the two
@@ -3922,7 +4004,7 @@ export class PiProcessManager {
     // conversation passes. Skipped when it already matches, since writing touches the file.
     if (!result.session.autoCompactionEnabled) result.session.setAutoCompactionEnabled(true);
     // A conversation with no history yet starts on the user's pinned 默认模型.
-    if (result.session.messages.length === 0) await this.#applyPreferredModel(result.session, conversation.project);
+    if (result.session.messages.length === 0) await this.#applyPreferredModel(result.session, conversation.project, Boolean(conversation.scheduledTaskId));
     const payload: ConversationReadyEvent = {
       id: conversation.id,
       messages: this.#messages(result.session, conversation.id),
@@ -4142,17 +4224,23 @@ export class PiProcessManager {
     message: string,
     images?: Array<{ type: "image"; data: string; mimeType: string }>,
     conversationId?: string,
+    signal?: AbortSignal,
   ): Promise<void> {
     const held = this.#holdCommand(conversationId, message);
     try {
+      if (signal?.aborted) throw new Error("任务已停止");
       if (await this.#compactIfCommand(session, message)) return;
       if (!session.isIdle) await session.waitForIdle();
+      if (signal?.aborted) throw new Error("任务已停止");
       // Same acceptance contract as `prompt()`: the call resolves once the SDK has
       // taken the message, not once the run finishes. The queue drain sends the next
       // row when this one returns, and waiting out the whole answer kept every later
       // 立即 behind the reply it had already interrupted.
       await promptAccepted(
-        (preflightResult) => session.prompt(message, { images, preflightResult }),
+        (preflightResult) => {
+          if (signal?.aborted) throw new Error("任务已停止");
+          return session.prompt(message, { images, preflightResult });
+        },
         {
           isAbort: isAbortOutcome,
           onLateFailure: (error) => {
@@ -4992,6 +5080,20 @@ export class PiProcessManager {
       listWorktrees: () => this.#listGitWorktrees(conversationId),
       appConfig: (request) =>
         this.#appConfigHost ? this.#appConfigHost(request) : Promise.resolve({ ok: false, error: uiText("当前宿主不支持修改 Pinext 设置", "This host cannot change Pinext settings") }),
+      schedules: async (request) => {
+        switch (request.action) {
+          case "list": return this.listSchedules();
+          case "create": {
+            const project = request.draft.project ?? this.#catalog.get(conversationId)?.project;
+            return this.createSchedule({ ...request.draft, ...(project ? { project } : {}) });
+          }
+          case "update": return this.updateSchedule(request.id, request.patch);
+          case "remove": return this.removeSchedule(request.id);
+          case "runNow": return this.runScheduleNow(request.id);
+          case "stopRun": return this.stopScheduledRun(request.id);
+          case "history": return this.scheduleHistory(request.id);
+        }
+      },
       dag: async (request, signal) => {
         const model = this.#sessions.get(conversationId)?.session.model;
         if (model) this.#dagParentModel.set(conversationId, `${model.provider}/${model.id}`);
@@ -5251,6 +5353,7 @@ export class PiProcessManager {
       fromEntryId,
       page,
       reasoning: this.#reasoning,
+      toolImagesDir: this.#paths?.toolImagesDir,
       widgetWidth: this.#widgetWidth,
       running: this.#running,
       compacting: this.#compacting,
@@ -5420,11 +5523,11 @@ export class PiProcessManager {
    * pin whose provider was removed or whose key is gone leaves the engine default in
    * place rather than blocking the session.
    */
-  async #applyPreferredModel(session: AgentSession, project?: string): Promise<void> {
-    const pending = this.#pendingModel;
-    const pendingThinking = this.#pendingThinking;
+  async #applyPreferredModel(session: AgentSession, project?: string, background = false): Promise<void> {
+    const pending = background ? undefined : this.#pendingModel;
+    const pendingThinking = background ? undefined : this.#pendingThinking;
     const preferred = readPreferredModelSettings(this.#paths, project);
-    this.#clearPendingPick();
+    if (!background) this.#clearPendingPick();
     // The pick made on the hero wins; the project pin overrides the global preference
     // for project conversations, and the global pin is the fallback for all others.
     const model =
