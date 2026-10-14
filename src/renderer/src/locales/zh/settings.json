@@ -705,6 +705,13 @@
   }
  },
  "skills": {
+  "detailDesc": "直接编辑这个技能自己的 markdown；保存后下一次对话即可生效。",
+  "detailReadOnly": "这是内置或其它运行时的技能，只读。",
+  "close": "关闭",
+  "save": "保存",
+  "saved": "已保存",
+  "saveFailed": "保存失败",
+  "openFailed": "读取失败",
   "addFailed": "添加失败，请重试",
   "importFailed": "导入失败，请重试",
   "deleteFailed": "删除失败，请重试",

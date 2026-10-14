@@ -1837,6 +1837,15 @@ export class PiProcessManager {
   async listSkills(): Promise<SkillInfo[]> { return this.#skills.list(this.#cwd); }
   async createSkill(draft: SkillDraft): Promise<SkillInfo[]> { const skills = await this.#skills.create(this.#cwd, draft); await this.#reloadSkills(); return skills; }
   async importSkill(sourceDir: string): Promise<SkillInfo[]> { const skills = await this.#skills.importFrom(this.#cwd, sourceDir); await this.#reloadSkills(); return skills; }
+  async readSkill(name: string): Promise<{ name: string; content: string; editable: boolean }> {
+    return this.#skills.read(this.#cwd, name);
+  }
+  async saveSkill(name: string, content: string): Promise<SkillInfo[]> {
+    const skills = await this.#skills.save(this.#cwd, name, content);
+    // The agent must see the new text on its next turn, not on its next session.
+    await this.#reloadSkills();
+    return skills;
+  }
   async removeSkill(name: string): Promise<SkillInfo[]> { const skills = await this.#skills.remove(this.#cwd, name); await this.#reloadSkills(); return skills; }
 
   /**

@@ -204,6 +204,10 @@ const ALLOWED = new Set<string>([
   Ipc.engineListMarketPackages,
   Ipc.engineListMcpServers,
   Ipc.engineListSkills,
+  // A skill is prompt text this host owns, and `SkillManager.save` refuses anything it
+  // does not manage — bundled skills and other runtimes' files stay read-only.
+  Ipc.engineReadSkill,
+  Ipc.engineSaveSkill,
   Ipc.engineNewSession,
   Ipc.enginePermissionRespond,
   Ipc.enginePrompt,

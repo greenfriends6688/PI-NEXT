@@ -707,6 +707,13 @@
   }
  },
  "skills": {
+  "detailDesc": "Edit this skill's own markdown; it takes effect on the next turn.",
+  "detailReadOnly": "This skill belongs to a bundle or to another runtime, so it is read-only.",
+  "close": "Close",
+  "save": "Save",
+  "saved": "Saved",
+  "saveFailed": "Could not save",
+  "openFailed": "Could not open",
   "addFailed": "Could not add. Please try again.",
   "importFailed": "Import failed. Please try again.",
   "deleteFailed": "Could not delete. Please try again.",

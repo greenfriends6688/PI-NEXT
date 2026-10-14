@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import { DefaultResourceLoader, loadSkillsFromDir } from "@earendil-works/pi-coding-agent";
@@ -6,6 +6,9 @@ import type { SkillDraft, SkillInfo } from "@shared/types";
 import { builtinSkillPaths } from "./extension-manager";
 
 const NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** A skill is prompt text; anything larger is a mistake, not a document. */
+const MAX_SKILL_BYTES = 256 * 1024;
 
 export class SkillManager {
   #agentDir: string;
@@ -70,6 +73,45 @@ export class SkillManager {
       await cp(skill.baseDir, dest, { recursive: true });
     }
     return this.list(cwd);
+  }
+
+  /**
+   * The skill's own markdown, as it sits on disk.
+   *
+   * Read from `filePath` rather than through the loader: the loader parses the frontmatter
+   * into fields, and an editor has to show the file the person is about to edit — including
+   * whatever formatting and comments the loader threw away.
+   */
+  async read(cwd: string, name: string): Promise<{ name: string; content: string; editable: boolean }> {
+    const skill = await this.#require(cwd, name);
+    return { name: skill.name, content: readFileSync(skill.filePath, "utf8"), editable: skill.removable };
+  }
+
+  /**
+   * Write a skill back.
+   *
+   * Only what Pinext itself manages. A bundled skill, another runtime's skill, or a project
+   * skill under `.agents/` is somebody else's file — the same line `remove` draws, and it has
+   * to be drawn here too, or "editable" would quietly mean "anything in the list".
+   *
+   * The frontmatter is checked before the write, because the failure it prevents is silent:
+   * a body-only file still writes fine and then simply stops appearing in the skill list.
+   */
+  async save(cwd: string, name: string, content: string): Promise<SkillInfo[]> {
+    const skill = await this.#require(cwd, name);
+    if (!skill.removable) throw new Error("只能编辑 Pinext 中添加的技能");
+    if (content.length > MAX_SKILL_BYTES) throw new Error("技能内容过大（上限 256 KB）");
+    if (!/^---\r?\n[\s\S]*?\r?\ndescription:/.test(content)) {
+      throw new Error("技能必须以 frontmatter 开头，并且含有 description");
+    }
+    await writeFile(skill.filePath, content, "utf8");
+    return this.list(cwd);
+  }
+
+  async #require(cwd: string, name: string): Promise<SkillInfo> {
+    const skill = (await this.list(cwd)).find((item) => item.name === name);
+    if (!skill) throw new Error("技能不存在");
+    return skill;
   }
 
   async remove(cwd: string, name: string): Promise<SkillInfo[]> {

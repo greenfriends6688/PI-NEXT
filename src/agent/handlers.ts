@@ -65,6 +65,8 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   handle(Ipc.engineListExtensionPackages, () => engine.listExtensionPackages());
   handle(Ipc.engineListMcpServers, () => engine.listMcpServers());
   handle(Ipc.engineSaveMcpServers, (payload: { configs: McpServerConfig[] }) => engine.saveMcpServers(payload.configs));
+  handle(Ipc.engineReadSkill, (payload: { name: string }) => engine.readSkill(payload.name));
+  handle(Ipc.engineSaveSkill, (payload: { name: string; content: string }) => engine.saveSkill(payload.name, payload.content));
   handle(Ipc.engineListSkills, () => engine.listSkills());
   handle(Ipc.engineCreateSkill, (payload: SkillDraft) => engine.createSkill(payload));
   handle(Ipc.engineRemoveSkill, (payload: { name: string }) => engine.removeSkill(payload.name));

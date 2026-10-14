@@ -186,6 +186,11 @@ export function createPinextApi(t: ApiTransport) {
         t.invoke(Ipc.engineListMarketPackages, query),
       listMcpServers: (): Promise<McpServerStatus[]> => t.invoke(Ipc.engineListMcpServers),
       saveMcpServers: (configs: McpServerConfig[]): Promise<McpServerStatus[]> => t.invoke(Ipc.engineSaveMcpServers, { configs }),
+      readSkill: (name: string): Promise<{ name: string; content: string; editable: boolean }> =>
+        t.invoke(Ipc.engineReadSkill, { name }),
+      /** Writing back is refused for a skill Pinext does not manage — see `SkillManager.save`. */
+      saveSkill: (name: string, content: string): Promise<SkillInfo[]> =>
+        t.invoke(Ipc.engineSaveSkill, { name, content }),
       listSkills: (): Promise<SkillInfo[]> => t.invoke(Ipc.engineListSkills),
       createSkill: (draft: SkillDraft): Promise<SkillInfo[]> => t.invoke(Ipc.engineCreateSkill, draft),
       importSkill: (): Promise<SkillInfo[] | null> => t.invoke(Ipc.engineImportSkill),

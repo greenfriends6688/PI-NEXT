@@ -28,6 +28,9 @@ export const Ipc = {
   engineListMcpServers: "engine:list-mcp-servers",
   engineSaveMcpServers: "engine:save-mcp-servers",
   engineListSkills: "engine:list-skills",
+  /** 读 / 写一个技能自身的 markdown（只允许 Pinext 自己管理的那些）。 */
+  engineReadSkill: "engine:read-skill",
+  engineSaveSkill: "engine:save-skill",
   engineCreateSkill: "engine:create-skill",
   engineImportSkill: "engine:import-skill",
   engineRemoveSkill: "engine:remove-skill",

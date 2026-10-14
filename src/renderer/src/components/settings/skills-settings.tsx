@@ -55,6 +55,41 @@ export function SkillsSettings(): JSX.Element {
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState<SkillDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [detail, setDetail] = useState<{ name: string; content: string; editable: boolean } | null>(null);
+  const [detailDraft, setDetailDraft] = useState("");
+  const [detailSaving, setDetailSaving] = useState(false);
+
+  /**
+   * Open a skill's own markdown.
+   *
+   * The loader hands back parsed fields; this reads the file, because an editor has to show
+   * what is on disk — including the formatting and comments the parse drops.
+   */
+  async function openDetail(skill: SkillInfo): Promise<void> {
+    try {
+      const next = await window.pinext.engine.readSkill(skill.name);
+      setDetail(next);
+      setDetailDraft(next.content);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("skills.openFailed"));
+    }
+  }
+
+  async function saveDetail(): Promise<void> {
+    if (!detail) return;
+    setDetailSaving(true);
+    try {
+      setSkills(await window.pinext.engine.saveSkill(detail.name, detailDraft));
+      setDetail(null);
+      toast.success(t("skills.saved"));
+    } catch (error) {
+      // The refusal is the point: a bundled skill, or another runtime's file, is not ours
+      // to write. Say which, rather than dropping the edit.
+      toast.error(error instanceof Error ? error.message : t("skills.saveFailed"));
+    } finally {
+      setDetailSaving(false);
+    }
+  }
 
   async function refresh(): Promise<void> {
     try {
@@ -177,6 +212,7 @@ export function SkillsSettings(): JSX.Element {
             <SkillCard
               key={`${skill.scope}:${skill.filePath}`}
               skill={skill}
+              onOpen={() => void openDetail(skill)}
               onRemove={() => void remove(skill.name)}
             />
           ))}
@@ -195,6 +231,15 @@ export function SkillsSettings(): JSX.Element {
         </Empty>
       )}
 
+      <SkillDetailDialog
+        detail={detail}
+        draft={detailDraft}
+        saving={detailSaving}
+        onChange={setDetailDraft}
+        onClose={() => setDetail(null)}
+        onSave={() => void saveDetail()}
+      />
+
       <AddSkillDialog
         draft={draft}
         saving={saving}
@@ -207,7 +252,7 @@ export function SkillsSettings(): JSX.Element {
   );
 }
 
-function SkillCard({ skill, onRemove }: { skill: SkillInfo; onRemove: () => void }): JSX.Element {
+function SkillCard({ skill, onOpen, onRemove }: { skill: SkillInfo; onOpen: () => void; onRemove: () => void }): JSX.Element {
   const { t } = useTranslation("settings");
   const scopeLabel =
     skill.scope === "project"
@@ -216,7 +261,12 @@ function SkillCard({ skill, onRemove }: { skill: SkillInfo; onRemove: () => void
         ? t("skills.scopeSystem")
         : t("skills.scopeGlobal");
   return (
-    <Item variant="outline" size="sm" className="items-start gap-3 bg-card/80 p-3 transition-colors hover:border-primary/30 hover:bg-muted/20">
+    <Item
+    variant="outline"
+    size="sm"
+    className="cursor-pointer items-start gap-3 bg-card/80 p-3 transition-colors hover:border-primary/30 hover:bg-muted/20"
+    onClick={onOpen}
+  >
       <ItemMedia variant="icon" className="mt-0.5 size-9 rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
         <HugeiconsIcon strokeWidth={2} icon={MagicWand02Icon} className="size-4" />
       </ItemMedia>
@@ -229,7 +279,11 @@ function SkillCard({ skill, onRemove }: { skill: SkillInfo; onRemove: () => void
       </ItemContent>
       {skill.removable ? (
         <ItemActions className="ml-auto shrink-0 self-center">
-          <IconButton label={t("skills.delete")} size="icon-xs" variant="ghost" onClick={onRemove}>
+          <IconButton label={t("skills.delete")} size="icon-xs" variant="ghost" onClick={(event) => {
+            // The row itself opens the detail; deleting is a deliberate hit on its own button.
+            event.stopPropagation();
+            onRemove();
+          }}>
             <HugeiconsIcon strokeWidth={2} icon={Delete02Icon} />
           </IconButton>
         </ItemActions>
@@ -304,6 +358,56 @@ function AddSkillDialog({
             {saving ? <HugeiconsIcon strokeWidth={2} icon={Loading03Icon} className="size-3.5 animate-spin" /> : null}
             {t("skills.add")}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SkillDetailDialog({
+  detail,
+  draft,
+  saving,
+  onChange,
+  onClose,
+  onSave,
+}: {
+  detail: { name: string; content: string; editable: boolean } | null;
+  draft: string;
+  saving: boolean;
+  onChange: (next: string) => void;
+  onClose: () => void;
+  onSave: () => void;
+}): JSX.Element {
+  const { t } = useTranslation("settings");
+  return (
+    <Dialog open={detail !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{detail?.name ?? ""}</DialogTitle>
+          <DialogDescription>
+            {/* Why a skill can be read but not written: it belongs to a bundle or to another
+                runtime, and editing somebody else's file is not this pane's business. */}
+            {detail?.editable ? t("skills.detailDesc") : t("skills.detailReadOnly")}
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          value={draft}
+          readOnly={!detail?.editable}
+          spellCheck={false}
+          className="min-h-96 resize-y font-mono text-xs leading-5"
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>
+            {t("skills.close")}
+          </Button>
+          {detail?.editable ? (
+            <Button disabled={saving} onClick={onSave}>
+              {saving ? <HugeiconsIcon strokeWidth={2} icon={Loading03Icon} className="size-3.5 animate-spin" /> : null}
+              {t("skills.save")}
+            </Button>
+          ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>
