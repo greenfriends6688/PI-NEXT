@@ -19,6 +19,7 @@
     "newProject": "新建项目",
     "placeholder": "随心输入",
     "placeholderQueued": "继续输入以排队后续修改",
+    "resizeHandle": "拖动调整输入框高度",
     "attach": "添加附件",
     "pastedTextFile": "粘贴的文本.txt",
     "contextStats": "查看上下文与轮次统计",

@@ -19,6 +19,7 @@
     "newProject": "New project",
     "placeholder": "Ask anything",
     "placeholderQueued": "Keep typing to queue a follow-up",
+    "resizeHandle": "Drag to resize the composer",
     "attach": "Add attachment",
     "pastedTextFile": "pasted-text.txt",
     "contextStats": "View context and turn stats",

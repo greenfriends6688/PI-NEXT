@@ -6,6 +6,7 @@ import { IconButton } from "@/components/icon-button";
 import { ModelThinkingSelect } from "@/components/model-thinking-select";
 import { Textarea } from "@/components/ui/textarea";
 import { isTouchOnly } from "@/lib/platform";
+import { useResizableHeight } from "@/lib/use-resizable-height";
 import { engine } from "@/lib/engine-client";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -56,6 +57,21 @@ const CONTEXT_RING_SIZE = 14;
 const CONTEXT_RING_STROKE = 2;
 const CONTEXT_RING_RADIUS = (CONTEXT_RING_SIZE - CONTEXT_RING_STROKE) / 2;
 const CONTEXT_RING_CIRCUMFERENCE = 2 * Math.PI * CONTEXT_RING_RADIUS;
+
+/**
+ * The composer card is drag-resizable from its top edge (PI NEXT's `fork:pr23-resize`).
+ *
+ * The textarea's own growth has to stop somewhere — a chat box that keeps growing eats
+ * the transcript — and wherever it stops, a long paste wants more room than that. The
+ * handle is the answer; these are its limits.
+ */
+const COMPOSER_MIN_MANUAL_HEIGHT = 104;
+const COMPOSER_MAX_MANUAL_HEIGHT = 480;
+/** Never taller than this share of the window: the transcript has to stay readable. */
+const COMPOSER_MAX_MANUAL_FRACTION = 0.55;
+const COMPOSER_HEIGHT_STORAGE_KEY = "pinext-composer-height";
+/** Where the textarea stops growing on its own — the same 14rem as `max-h-56`. */
+const COMPOSER_TEXTAREA_MAX_PX = 224;
 
 function ContextUsageRing({ percent }: { percent: number }): JSX.Element {
   const clamped = Math.min(100, Math.max(0, percent));
@@ -336,6 +352,43 @@ export function Composer({
   const { t } = useTranslation("chat");
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  /** The composer card: the element the resize handle drives. */
+  const cardRef = useRef<HTMLDivElement>(null);
+  // A touch screen has no room for this and no way to use it: the handle is hidden there,
+  // and a height remembered on the desktop must not be applied to it either.
+  const [coarsePointer] = useState(() => isTouchOnly());
+  const inputResizer = useResizableHeight({
+    ariaLabel: t("composer.resizeHandle"),
+    minHeight: COMPOSER_MIN_MANUAL_HEIGHT,
+    getMaxHeight: () =>
+      typeof window === "undefined"
+        ? COMPOSER_MAX_MANUAL_HEIGHT
+        : Math.max(
+            COMPOSER_MIN_MANUAL_HEIGHT,
+            Math.min(COMPOSER_MAX_MANUAL_HEIGHT, Math.floor(window.innerHeight * COMPOSER_MAX_MANUAL_FRACTION)),
+          ),
+    storageKey: COMPOSER_HEIGHT_STORAGE_KEY,
+    targetRef: cardRef,
+  });
+  // `null` means the content still decides the height; a number means the person took over.
+  const manualMode = inputResizer.height !== null && !coarsePointer && !readOnly;
+
+  /**
+   * Grow the textarea to fit what has been typed, up to `COMPOSER_TEXTAREA_MAX_PX`.
+   *
+   * `field-sizing: content` would say this in one declaration, but it is Chromium-only:
+   * in the browser build — and in Safari generally — the box would stay one line tall
+   * forever. Measuring is a few lines and behaves the same everywhere.
+   *
+   * Skipped in manual mode, where the stylesheet gives the textarea `height: 100%` and the
+   * handle owns the card's height; an inline height written here would only fight it.
+   */
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el || manualMode) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, COMPOSER_TEXTAREA_MAX_PX)}px`;
+  }, [manualMode, value, attachments.length]);
   const [dragging, setDragging] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
   const [slashDismissed, setSlashDismissed] = useState(false);
@@ -753,11 +806,22 @@ export function Composer({
       />
 
       <div
+        ref={cardRef}
         className={cn(
-          "glass-rim relative z-10 rounded-[22px] border border-border bg-card shadow-sm transition-colors focus-within:border-ring",
+          "pn-composer-card glass-rim relative z-10 rounded-[22px] border border-border bg-card shadow-sm transition-colors focus-within:border-ring",
           dragging && "ring-2 ring-ring",
+          manualMode && "is-manual-height",
         )}
+        style={manualMode ? { height: inputResizer.height ?? undefined } : undefined}
       >
+        {/* fork:pr23-resize — the handle rides the card's top edge; drag up to grow.
+            Hidden on a touch screen, where there is no pointer to drag it with. */}
+        {coarsePointer || readOnly ? null : (
+          <div
+            {...inputResizer.separatorProps}
+            className={cn("pn-composer-resize", inputResizer.isResizing && "is-resizing")}
+          />
+        )}
         <input
           ref={fileRef}
           type="file"
@@ -788,7 +852,7 @@ export function Composer({
           disabled={locked || readOnly}
           placeholder={notice ?? (!readOnly && streaming ? t("composer.placeholderQueued") : placeholder ?? t("composer.placeholder"))}
           className={cn(
-            "field-sizing-content max-h-56 min-h-13 resize-none border-0 bg-transparent px-4 text-sm leading-6 shadow-none focus-visible:ring-0 disabled:bg-transparent disabled:opacity-100 dark:bg-transparent dark:disabled:bg-transparent",
+            "field-sizing-fixed max-h-56 min-h-13 resize-none border-0 bg-transparent px-4 text-sm leading-6 shadow-none focus-visible:ring-0 disabled:bg-transparent disabled:opacity-100 dark:bg-transparent dark:disabled:bg-transparent",
             attachments.length > 0 ? "pt-2" : "pt-3.5",
           )}
           onChange={(event) => handleChange(event.target.value)}
