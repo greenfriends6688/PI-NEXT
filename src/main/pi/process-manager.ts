@@ -135,6 +135,7 @@ import { findNativeProvider } from "../engine/native-providers";
 import { hasOAuthCredential, OAuthCredentialStore, readOrCreateDeviceId } from "../engine/oauth-store";
 import { priceUsage } from "../engine/pricing";
 import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-quota";
+import { createImageGenExtension } from "../pinext/imagegen/extension.ts";
 import { isProviderUsageId, queryProviderUsage, type ProviderUsageResult } from "../engine/provider-usage";
 import { fetchGatewayBalance, gatewayTargets, probeGateway, readGatewayCredentials, writeGatewayCredentials } from "../engine/gateway-probe";
 import { ensureScratchWorkspace, getPinextPaths, scratchWorkspace, type PinextPaths } from "../engine/paths";
@@ -3372,7 +3373,11 @@ export class PiProcessManager {
         name: "pinext-tool-search",
         hidden: true,
         factory: createToolSearchExtension(),
-      }, {
+      },
+      // 生图. A tool rather than a skill on purpose: it spends money and writes files, so
+      // it has to be nameable by the approval engine, countable, and configurable from
+      // Settings — none of which a skill can offer.
+      createImageGenExtension(cwd), {
         // Switches codemode, tool_search and the dag_* tools on or off from the settings
         // as they are at `session_start`, which a reload emits again — the SDK's
         // `defaultTools` setting can only add.
