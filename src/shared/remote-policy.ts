@@ -311,6 +311,11 @@ const ALLOWED = new Set<string>([
   // 文件树的新增 / 重命名 / 删除与清单：引擎自己的门槛说了算，不是这张表。
   Ipc.workspaceMutate,
   Ipc.workspaceListFiles,
+  // web 端的启停是本机配置，与远程访问那条路无关。
+  Ipc.webServerGet,
+  Ipc.webServerStart,
+  Ipc.webServerStop,
+  Ipc.webServerPort,
   Ipc.workspaceTerminalKill,
   Ipc.workspaceTerminalResize,
   Ipc.workspaceTerminalStart,

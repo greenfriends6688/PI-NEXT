@@ -64,6 +64,7 @@ import type { WebSearchSettings } from "@shared/websearch";
 import type { ImSendOutcome, ImTarget, ImTargetView } from "@shared/im-bridge";
 import type { ChatChannelConfig } from "@shared/chat-channel";
 import type { FileMutation } from "@shared/file-mutation";
+import type { WebServerState } from "@shared/web-server";
 import type { RemoteHostProfile, RemoteHostConnectionState, RemoteHostTestResult, SshHostKeyScan } from "@shared/remote-host";
 import type {
   AppUpdateState,
@@ -499,6 +500,13 @@ export function createPinextApi(t: ApiTransport) {
       mutate: (mutation: FileMutation): Promise<void> => t.invoke(Ipc.workspaceMutate, mutation),
       /** A flat relative listing of one root, for the `@` menu. */
       listFiles: (root: string): Promise<string[]> => t.invoke(Ipc.workspaceListFiles, { root }),
+      /** 独立 web 端：自己一个端口、自己启停，和手机那条远程访问互不牵连。 */
+      webServer: {
+        get: (): Promise<WebServerState> => t.invoke(Ipc.webServerGet),
+        start: (): Promise<WebServerState> => t.invoke(Ipc.webServerStart),
+        stop: (): Promise<WebServerState> => t.invoke(Ipc.webServerStop),
+        setPort: (port: number): Promise<WebServerState> => t.invoke(Ipc.webServerPort, { port }),
+      },
       writeFile: (path: string, text: string): Promise<void> => t.invoke(Ipc.workspaceWriteFile, { path, text }),
       gitStatus: (cwd: string): Promise<GitStatus> => t.invoke(Ipc.workspaceGitStatus, { cwd }),
       openTerminal: (cwd: string): Promise<void> => t.invoke(Ipc.workspaceOpenTerminal, { cwd }),

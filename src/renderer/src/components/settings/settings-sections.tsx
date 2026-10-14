@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { AiImageIcon, Analytics01Icon, Archive04Icon, BotIcon, BoxesIcon, BrainCircuitIcon, Clock01Icon, ComputerIcon, Globe02Icon, ImportIcon, InformationCircleIcon, KeyboardIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Router01Icon, Search01Icon, SentIcon, ServerStack01Icon, Settings02Icon, SparklesIcon, StickyNote01Icon, Wifi01Icon } from "@hugeicons/core-free-icons";
+import { AiImageIcon, Analytics01Icon, Archive04Icon, BotIcon, BoxesIcon, BrainCircuitIcon, Clock01Icon, ComputerIcon, Globe02Icon, ImportIcon, InformationCircleIcon, KeyboardIcon, Link01Icon, Plug01Icon, PuzzleIcon, Robot01Icon, Router01Icon, Search01Icon, SentIcon, ServerStack01Icon, Settings02Icon, SparklesIcon, StickyNote01Icon, Wifi01Icon } from "@hugeicons/core-free-icons";
 import { i18n } from "@/lib/i18n";
 
 /**
@@ -25,6 +25,7 @@ export type SectionId =
   | "bots"
   | "plugins"
   | "tasks"
+  | "web-server"
   | "decision"
   | "memory"
   | "mcp"
@@ -74,6 +75,7 @@ export const SETTINGS_SECTIONS: Array<{
       { id: "imagegen", icon: <HugeiconsIcon strokeWidth={2} icon={AiImageIcon} /> },
       { id: "websearch", icon: <HugeiconsIcon strokeWidth={2} icon={Search01Icon} /> },
       { id: "plugins", icon: <HugeiconsIcon strokeWidth={2} icon={PuzzleIcon} /> },
+      { id: "web-server", icon: <HugeiconsIcon strokeWidth={2} icon={Link01Icon} /> },
       { id: "tasks", icon: <HugeiconsIcon strokeWidth={2} icon={Clock01Icon} /> },
       { id: "bots", icon: <HugeiconsIcon strokeWidth={2} icon={Robot01Icon} /> },
       { id: "decision", icon: <HugeiconsIcon strokeWidth={2} icon={BrainCircuitIcon} /> },

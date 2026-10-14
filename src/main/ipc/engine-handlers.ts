@@ -3,6 +3,7 @@ import { Ipc } from "@shared/ipc";
 import type { ImportSourceId } from "@shared/types";
 import { handle } from "./registry";
 import { uiText } from "../engine/ui-text";
+import { setWebServerPort, startWebServer, stopWebServer, webServerState } from "../engine/web-server.ts";
 import { fetchPackageCatalog } from "../pi/package-catalog";
 import { getPinextPaths } from "../engine/paths";
 import { syncPinextConfigToPi } from "../engine/sync-pi-config";

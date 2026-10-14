@@ -23,6 +23,10 @@ import type { Project } from "@shared/types";
 
 const SCRATCH = "__scratch__";
 
+/** 24 小时制的时与分；分钟按 5 步长，够用又不用滚过 60 项。 */
+const HOURS = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0"));
+const MINUTES = Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, "0"));
+
 export function TaskForm({
   form,
   projects,
@@ -42,6 +46,7 @@ export function TaskForm({
 }): JSX.Element {
   const { t } = useTranslation("schedules");
   const zones = useMemo(() => timeZoneOptions(form.timeZone), [form.timeZone]);
+  const [hour, minute] = normalizeHm(form.time).split(":");
   const projectOptions = useMemo(
     () =>
       projectChoices(projects, form.project, {
@@ -152,15 +157,46 @@ export function TaskForm({
         <>
           <div className="grid gap-4 @min-[28rem]/tasks:grid-cols-2">
             <Field label={t("time")} htmlFor="schedule-time" error={error === "time" ? t("errors.time") : undefined}>
-              <Input
-                id="schedule-time"
-                type="time"
-                step={60}
-                value={form.time}
-                disabled={saving}
-                aria-invalid={error === "time" || undefined}
-                onChange={(event) => onChange({ time: normalizeHm(event.target.value) })}
-              />
+              {/*
+                两个下拉，不是一个 `<input type="time">`。后者在 macOS 上弹的是系统自带的
+                双列滚轮，样式改不了、与这个界面完全不搭（用户 2026-10-14 截图指出）。
+                小时/分钟分开选，用的是本页其余地方同一个 Select。
+              */}
+              <div className="flex items-center gap-2" id="schedule-time">
+                <Select
+                  value={hour}
+                  disabled={saving}
+                  onValueChange={(next) => onChange({ time: `${next ?? hour}:${minute}` })}
+                >
+                  <SelectTrigger size="sm" className="w-20" aria-label={t("hour")}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOURS.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-muted-foreground">:</span>
+                <Select
+                  value={minute}
+                  disabled={saving}
+                  onValueChange={(next) => onChange({ time: `${hour}:${next ?? minute}` })}
+                >
+                  <SelectTrigger size="sm" className="w-20" aria-label={t("minute")}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MINUTES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </Field>
             <Field label={t("timeZone")} error={error === "timeZone" ? t("errors.timeZone") : undefined}>
               {zones.length > 1 ? (

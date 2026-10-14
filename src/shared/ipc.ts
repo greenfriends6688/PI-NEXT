@@ -140,6 +140,11 @@ export const Ipc = {
   workspaceMutate: "workspace:mutate",
   /** `@` 菜单的扁平文件清单。 */
   workspaceListFiles: "workspace:list-files",
+  /** 独立 web 端：读状态 / 启 / 停 / 改端口。 */
+  webServerGet: "web-server:get",
+  webServerStart: "web-server:start",
+  webServerStop: "web-server:stop",
+  webServerPort: "web-server:port",
   workspaceReadFile: "workspace:read-file",
   workspaceGitStatus: "workspace:git-status",
   workspaceOpenTerminal: "workspace:open-terminal",

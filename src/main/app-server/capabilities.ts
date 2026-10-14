@@ -16,6 +16,7 @@ function capabilityOf(method: string): AppCapability | null {
   if (method.startsWith("imagegen:")) return "providers";
   // 联网搜索 / IM 推送 / 机器人渠道 are preferences this host holds.
   if (method.startsWith("websearch:")) return "settings";
+  if (method.startsWith("web-server:")) return "settings";
   if (method.startsWith("im:")) return "settings";
   if (method.startsWith("bot-channel:")) return "settings";
   if (method.startsWith("models-dev:")) return "providers";

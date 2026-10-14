@@ -208,7 +208,8 @@
   "browser": "Browser control",
   "bots": "Chat bots",
   "plugins": "Plugins",
-  "tasks": "Scheduled tasks"
+  "tasks": "Scheduled tasks",
+  "web-server": "Web"
  },
  "backToApp": "Back to app",
  "personalization": {
@@ -1088,5 +1089,28 @@
   "scanExpired": "That code expired — get a new one",
   "scanDone": "Connected",
   "scanFailed": "Scan failed: {{error}}"
+ },
+ "webServer": {
+  "title": "Web client",
+  "enable": "Enabled",
+  "enableHint": "Opens the same workspace in a browser; its own port, independent of the phone's remote access",
+  "running": "Running",
+  "port": "Port",
+  "portHint": "1024–65535",
+  "address": "Address",
+  "addressHint": "Open it to use the workbench in a browser",
+  "copy": "Copy",
+  "notRunning": "Not running",
+  "working": "Working…",
+  "loadFailed": "Could not read: {{error}}",
+  "failed": "That did not work: {{error}}",
+  "loading": "Reading…",
+  "behaviourTitle": "Its boundaries",
+  "loopback": "Loopback only",
+  "loopbackHint": "This is the way in for a browser on this machine, not another outward-facing door — that one is under Remote access, with its own token and gate",
+  "credential": "Shares credentials with remote access",
+  "credentialHint": "The same device token, so signing in here is also recognised there",
+  "build": "Needs a build",
+  "buildHint": "It serves the built renderer; with none, starting says “no web build found” rather than opening a listener that only answers 404"
  }
 }

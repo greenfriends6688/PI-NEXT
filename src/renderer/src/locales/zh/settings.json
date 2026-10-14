@@ -208,7 +208,8 @@
   "browser": "浏览器控制",
   "bots": "机器人",
   "plugins": "插件",
-  "tasks": "定时任务"
+  "tasks": "定时任务",
+  "web-server": "Web 端"
  },
  "backToApp": "返回应用",
  "personalization": {
@@ -1086,5 +1087,28 @@
   "scanExpired": "二维码已过期，请重新获取",
   "scanDone": "绑定成功",
   "scanFailed": "扫码失败：{{error}}"
+ },
+ "webServer": {
+  "title": "Web 端",
+  "enable": "启用",
+  "enableHint": "在浏览器里打开同一个工作台；自己一个端口，与手机那条远程访问互不牵连",
+  "running": "运行中",
+  "port": "端口",
+  "portHint": "1024–65535",
+  "address": "地址",
+  "addressHint": "点开即在浏览器里使用",
+  "copy": "复制",
+  "notRunning": "未运行",
+  "working": "处理中…",
+  "loadFailed": "读取失败：{{error}}",
+  "failed": "操作失败：{{error}}",
+  "loading": "正在读取…",
+  "behaviourTitle": "它的边界",
+  "loopback": "只听本机",
+  "loopbackHint": "这是本机浏览器打开的入口，不是又一条对外入口 —— 对外那条在「远程访问」里，有自己的令牌与闸门",
+  "credential": "凭据与远程访问共用",
+  "credentialHint": "同一份设备令牌，所以在 web 端登录后手机那条路也认",
+  "build": "需要先构建",
+  "buildHint": "它服务的是构建产物；没有产物时启动会明确报「找不到 web 产物」，而不是起一个只回 404 的监听器"
  }
 }
