@@ -3816,3 +3816,28 @@ body {
   from { opacity: 1; }
   to   { opacity: 0; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * fork:fastvibe-stack (L9) —— 大模态 / 浮层容器的圆角与阴影对齐 FastVibe
+ *
+ * 规格取自 `fastvibe-main/src/renderer/src/components/ui/dialog.tsx:58`：
+ *   `rounded-lg bg-popover/95 p-4 text-sm shadow-sm`（+ overlay-surface 的
+ *   `0 10px 24px -18px rgb(0 0 0/14%), 0 2px 6px rgb(0 0 0/5%)`）
+ * 它的 `rounded-lg` 在 10px 基准下是 **10px**，不是 18px。
+ *
+ * 本仓旧值：`--nx-radius-sheet`（18px）+ `--shadow-lg`（最重那一档）。
+ * 18px 对 900px 宽的大面板来说偏圆（FastVibe 的大面板也是 10px），
+ * 阴影也太重 —— 它的阴影**刻意很轻**（-18px 的负 spread，几乎只在底部一条）。
+ *
+ * 只改这两个属性，不动结构与类名（`.config-panel-root` / `.config-panel-surface`
+ * 有对位测试与多个调用点）。
+ * ═════════════════════════════════════════════════════════════════════════ */
+.config-panel-root.is-modal > .config-panel-surface {
+  border-radius: var(--nx-radius-control);
+  /* FastVibe 的 overlay-surface 阴影：两层、都很轻。
+     旧值 --shadow-lg 是「模态」那一档（更重），而它把这个尺寸的面板也归到
+     「浮层」而不是「模态」—— 面板本身不挡交互，只是浮在上面。 */
+  box-shadow:
+    0 10px 24px -18px rgb(0 0 0 / 14%),
+    0 2px 6px rgb(0 0 0 / 5%);
+}

@@ -254,10 +254,17 @@
   max-height: calc(100dvh - 16px);
   overflow: hidden;
   border: 1px solid var(--border);
-  /* fork:boardui — 主设置面板走 BoardUI 的 rounded-3xl（setting modal 同款）*/
-  border-radius: var(--nx-radius-sheet);
+  /* fork:fastvibe-stack (L9) —— 圆角与阴影对齐 FastVibe 的 dialog。
+     规格：`rounded-lg bg-popover/95 … shadow-sm`（dialog.tsx:58）+
+     `.overlay-surface` 的两层轻阴影（index.css:340-346）。
+     本仓旧值是 `--nx-radius-sheet`（18px）+ `--shadow-lg`：18px 对 1080×84vh 的
+     大面板偏圆，而 `--shadow-lg` 是「模态」那一档（更重）—— FastVibe 把这种
+     浮在上面但不挡交互的面归到**浮层**，阴影刻意很轻（负 spread，几乎只在底部一条）。 */
+  border-radius: var(--nx-radius-control);
   background: var(--bg);
-  box-shadow: var(--shadow-lg);
+  box-shadow:
+    0 10px 24px -18px rgb(0 0 0 / 14%),
+    0 2px 6px rgb(0 0 0 / 5%);
 }
 
 /* fork:settings-modal-2026-10-02（用户裁定）—— 设置壳是**弹窗**，不是整屏页面。
