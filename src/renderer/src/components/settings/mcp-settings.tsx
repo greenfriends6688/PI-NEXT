@@ -3,7 +3,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Add01Icon, AlertCircleIcon, CheckmarkCircle02Icon, Delete02Icon, Download01Icon, Edit02Icon, Loading03Icon, Plug01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, AlertCircleIcon, CheckmarkCircle02Icon, Delete02Icon, Download01Icon, Edit02Icon, Loading03Icon, PlayIcon, Plug01Icon } from "@hugeicons/core-free-icons";
 import { IconButton } from "@/components/icon-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatMap, mergeServers, parseMap, parseMcpJson, serializeMcpJson, type McpJsonError } from "@shared/mcp-config";
 import type { McpExposure, McpServerConfig, McpServerStatus } from "@shared/types";
-import type { McpDiscoveredServer } from "@shared/mcp-discovery";
+import type { McpDiscoveredServer, McpTestResult } from "@shared/mcp-discovery";
 
 /**
  * The server form's draft; also doubles as the dialog's open state. `id` is set while
@@ -404,6 +404,9 @@ function ServerRow({
   onRemove: () => void;
 }): JSX.Element {
   const { t } = useTranslation("settings");
+  /** 「测试连接」的结果；null = 还没测。 */
+  const [probe, setProbe] = useState<McpTestResult | null>(null);
+  const [probing, setProbing] = useState(false);
   const status = server.connected ? (
     <Badge variant="secondary" className="shrink-0">
       <HugeiconsIcon strokeWidth={2} icon={CheckmarkCircle02Icon} className="size-3" />
@@ -459,7 +462,54 @@ function ServerRow({
               : server.url)}
         </ItemDescription>
       </ItemContent>
+      {probe ? (
+        <div className="mt-2 w-full rounded-md border border-border bg-muted/30 p-2 text-xs">
+          {probe.ok ? (
+            <>
+              <p className="font-medium">{t("mcp.testOk", { count: probe.tools.length })}</p>
+              <ul className="mt-1 space-y-0.5">
+                {probe.tools.slice(0, 12).map((tool) => (
+                  <li key={tool.name} className="flex items-center gap-2 font-mono">
+                    <span className="truncate">{tool.name}</span>
+                    {tool.readOnly ? <Badge variant="outline" className="shrink-0">{t("mcp.testReadOnly")}</Badge> : null}
+                  </li>
+                ))}
+                {probe.tools.length > 12 ? <li className="text-muted-foreground">{t("mcp.testMore", { count: probe.tools.length - 12 })}</li> : null}
+              </ul>
+            </>
+          ) : (
+            <>
+              <p className="font-medium text-destructive">
+                {probe.state === "timedOut" ? t("mcp.testTimedOut") : t("mcp.testFailed")}
+              </p>
+              {/* 失败原因原样摊开：里面既有服务端的话，也有它 stderr 的尾巴。 */}
+              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono">{probe.error}</pre>
+            </>
+          )}
+        </div>
+      ) : null}
+
       <ItemActions className="ml-auto shrink-0 self-center">
+        <IconButton
+          size="icon-xs"
+          variant="ghost"
+          label={t("mcp.test")}
+          disabled={probing}
+          onClick={() => {
+            void (async () => {
+              setProbing(true);
+              try {
+                setProbe(await window.pinext.engine.testMcp(server.id));
+              } catch (error) {
+                setProbe({ id: server.id, ok: false, state: "failed", tools: [], error: error instanceof Error ? error.message : String(error) });
+              } finally {
+                setProbing(false);
+              }
+            })();
+          }}
+        >
+          <HugeiconsIcon strokeWidth={2} icon={probing ? Loading03Icon : PlayIcon} className={probing ? "size-3.5 animate-spin" : "size-3.5"} />
+        </IconButton>
         <Switch checked={server.enabled} onCheckedChange={onToggle} />
         <IconButton label={t("mcp.edit")} size="icon-xs" variant="ghost" onClick={onEdit}>
           <HugeiconsIcon strokeWidth={2} icon={Edit02Icon} />

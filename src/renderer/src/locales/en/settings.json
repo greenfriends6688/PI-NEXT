@@ -762,7 +762,13 @@
   "importDisabled": "off in its source file",
   "importPick": "Import {{count}}",
   "imported": "Imported {{count}}",
-  "discoverFailed": "Discovery failed"
+  "discoverFailed": "Discovery failed",
+  "test": "Test connection",
+  "testOk": "Connected — {{count}} tools",
+  "testFailed": "Could not connect",
+  "testTimedOut": "Connection timed out",
+  "testReadOnly": "read-only",
+  "testMore": "{{count}} more…"
  },
  "skills": {
   "detailDesc": "Edit this skill's own markdown; it takes effect on the next turn.",

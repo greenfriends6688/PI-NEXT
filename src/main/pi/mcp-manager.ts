@@ -11,6 +11,7 @@ import {
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { McpServerConfig, McpServerStatus } from "@shared/types";
 import { isStringRecord, serverFromEntry } from "../../shared/mcp-config.ts";
+import type { McpTestResult } from "../../shared/mcp-discovery.ts";
 import { uiText } from "../engine/ui-text.ts";
 export type { McpServerConfig, McpServerStatus } from "@shared/types";
 
@@ -188,6 +189,56 @@ export class McpManager {
     const connections = [...this.#connections.values()];
     this.#connections.clear();
     await Promise.all(connections.map((connection) => connection.client.close().catch(() => undefined)));
+  }
+
+  /**
+   * Try one server, right now, and report what happened.
+   *
+   * The connection loop already does every part of this (`#connect`), so a separate test
+   * harness would be a second implementation of the same thing — and the two would drift on
+   * exactly the details a person reads when something fails: the timeout, the stderr tail,
+   * and whether an error is "the server said no" or "we could not get there".
+   *
+   * It **does not touch the live connection map**: a test must not disturb the servers the
+   * agent is using, and a failed test must not leave a child process behind.
+   */
+  async test(id: string): Promise<McpTestResult> {
+    const config = this.#configs.find((item) => item.id === id);
+    if (!config) return { id, ok: false, state: "failed", error: uiText("找不到这个 server", "No such server"), tools: [] };
+    const client = new McpClient({ name: "Pinext", version: "0.1.0", requestTimeoutMs: REQUEST_TIMEOUT_MS });
+    let stderr = "";
+    try {
+      const transport = this.#createTransport(config, (chunk) => {
+        stderr = `${stderr}${chunk}`.slice(-12_000);
+      });
+      await withTimeout(client.connect(transport), uiText("连接超时", "Connection timed out"));
+      const tools = await withTimeout(client.listTools(), uiText("读取工具列表超时", "Listing tools timed out"));
+      return {
+        id,
+        ok: true,
+        state: "connected",
+        tools: tools.slice(0, 500).map((tool) => ({
+          name: tool.name,
+          ...(tool.description ? { description: tool.description } : {}),
+          // 只读提示是 MCP 自己给的，读得到就说出来 —— 会话的只读策略靠它。
+          ...(tool.annotations?.readOnlyHint === true ? { readOnly: true } : {}),
+        })),
+        ...(client.instructions ? { instructions: client.instructions } : {}),
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const details = stderr.trim();
+      return {
+        id,
+        ok: false,
+        state: /timed out|超时/i.test(message) ? "timedOut" : "failed",
+        error: details ? `${message}\n\n${details}` : message,
+        tools: [],
+      };
+    } finally {
+      // stdio servers are child processes this app owns: a test that fails must still let go.
+      await client.close().catch(() => undefined);
+    }
   }
 
   async #connect(config: McpServerConfig): Promise<void> {

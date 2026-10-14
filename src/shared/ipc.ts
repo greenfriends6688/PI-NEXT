@@ -28,6 +28,8 @@ export const Ipc = {
   engineListMcpServers: "engine:list-mcp-servers",
   /** 从 Claude Code / Codex / Cursor / VS Code 等已配好的地方发现 MCP server。 */
   engineDiscoverMcp: "engine:discover-mcp",
+  /** 真的连一次这个 server，报出工具清单或失败原因。 */
+  engineTestMcp: "engine:test-mcp",
   engineSaveMcpServers: "engine:save-mcp-servers",
   engineListSkills: "engine:list-skills",
   /** 读 / 写一个技能自身的 markdown（只允许 Pinext 自己管理的那些）。 */

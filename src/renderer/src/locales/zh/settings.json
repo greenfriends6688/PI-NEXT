@@ -760,7 +760,13 @@
   "importDisabled": "源文件里是关闭的",
   "importPick": "导入 {{count}} 个",
   "imported": "已导入 {{count}} 个",
-  "discoverFailed": "发现失败"
+  "discoverFailed": "发现失败",
+  "test": "测试连接",
+  "testOk": "连接成功，{{count}} 个工具",
+  "testFailed": "连接失败",
+  "testTimedOut": "连接超时",
+  "testReadOnly": "只读",
+  "testMore": "还有 {{count}} 个…"
  },
  "skills": {
   "detailDesc": "直接编辑这个技能自己的 markdown；保存后下一次对话即可生效。",

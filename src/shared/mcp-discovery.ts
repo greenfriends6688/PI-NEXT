@@ -20,3 +20,20 @@ export interface McpDiscoveredServer {
   /** True when a higher-priority source defines the same name (project wins). */
   shadowed: boolean;
 }
+
+/** What one on-demand connection attempt found. */
+export interface McpTestTool {
+  name: string;
+  description?: string;
+  /** The server's own `readOnlyHint`; the read-only session policy reads it. */
+  readOnly?: boolean;
+}
+
+export interface McpTestResult {
+  id: string;
+  ok: boolean;
+  state: "connected" | "needs-auth" | "failed" | "timedOut";
+  error?: string;
+  tools: McpTestTool[];
+  instructions?: string;
+}

@@ -64,7 +64,7 @@ import type { WebSearchSettings } from "@shared/websearch";
 import type { ImSendOutcome, ImTarget, ImTargetView } from "@shared/im-bridge";
 import type { ChatChannelConfig } from "@shared/chat-channel";
 import type { FileMutation } from "@shared/file-mutation";
-import type { McpDiscoveredServer } from "@shared/mcp-discovery";
+import type { McpDiscoveredServer, McpTestResult } from "@shared/mcp-discovery";
 import type { WebServerState } from "@shared/web-server";
 import type { RemoteHostProfile, RemoteHostConnectionState, RemoteHostTestResult, SshHostKeyScan } from "@shared/remote-host";
 import type {
@@ -199,6 +199,13 @@ export function createPinextApi(t: ApiTransport) {
        * adopt it here.
        */
       discoverMcp: (): Promise<McpDiscoveredServer[]> => t.invoke(Ipc.engineDiscoverMcp),
+      /**
+       * Connect one server right now and report what happened.
+       *
+       * Bypasses the live connections on purpose: a test must not disturb the servers the
+       * agent is using.
+       */
+      testMcp: (id: string): Promise<McpTestResult> => t.invoke(Ipc.engineTestMcp, { id }),
       listMcpServers: (): Promise<McpServerStatus[]> => t.invoke(Ipc.engineListMcpServers),
       saveMcpServers: (configs: McpServerConfig[]): Promise<McpServerStatus[]> => t.invoke(Ipc.engineSaveMcpServers, { configs }),
       readSkill: (name: string): Promise<{ name: string; content: string; editable: boolean }> =>

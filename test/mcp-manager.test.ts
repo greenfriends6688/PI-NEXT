@@ -326,3 +326,51 @@ test("the config file is written private, and atomically", async () => {
   // No temp file left behind.
   assert.deepEqual(readdirSync(dir).filter((name) => name.endsWith(".tmp")), []);
 });
+
+test("a live test reports the tools, and does not touch the servers in use", async () => {
+  const { manager } = await managerWith([configOf("a")], (_c, server) => fakeServer(server, {
+    tools: [
+      { name: "read_one", description: "Read", annotations: { readOnlyHint: true }, inputSchema: { type: "object", properties: {} } },
+      { name: "write_one", description: "Write", inputSchema: { type: "object", properties: {} } },
+    ],
+  }));
+  const before = manager.list().find((server) => server.id === "a");
+  const result = await manager.test("a");
+  assert.equal(result.ok, true);
+  assert.equal(result.state, "connected");
+  assert.deepEqual(result.tools.map((tool) => tool.name), ["read_one", "write_one"]);
+  // 只读提示如实带出来 —— 会话的只读策略靠它，猜不得。
+  assert.equal(result.tools[0].readOnly, true);
+  assert.equal(result.tools[1].readOnly, undefined);
+  // 测试是旁路：正在用的连接一个字节都不该动。
+  const after = manager.list().find((server) => server.id === "a");
+  assert.equal(after?.connected, before?.connected);
+  assert.deepEqual(after?.tools, before?.tools);
+});
+
+test("a test of a server that is not there says so instead of throwing", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mcp-"));
+  const manager = new McpManager(join(dir, "mcp.json"));
+  await manager.load();
+  const result = await manager.test("nope");
+  assert.equal(result.ok, false);
+  assert.equal(result.state, "failed");
+  assert.deepEqual(result.tools, []);
+});
+
+test("a test that fails still lets the child process go", async () => {
+  // A stdio server is a process this app owns: a failed test that leaves it running would
+  // be a leak that only shows up as a stray process later.
+  const dir = mkdtempSync(join(tmpdir(), "mcp-"));
+  const manager = new McpManager(join(dir, "mcp.json"), {
+    createTransport: () => {
+      const { client } = createInMemoryTransportPair();
+      // Never answers the handshake, so the connect times out.
+      return client;
+    },
+  });
+  await manager.load();
+  await manager.save([configOf("a")] as McpServerConfig[]);
+  const result = await manager.test("a");
+  assert.equal(result.ok, false);
+});
