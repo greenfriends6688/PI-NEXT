@@ -194,6 +194,8 @@ export const Ipc = {
   providersRemove: "providers:remove",
   providersRefresh: "providers:refresh",
   providersQuota: "providers:quota",
+  /** Balance / quota for the providers with a published usage endpoint. */
+  providersUsage: "providers:usage",
   /** Identify the relay software behind a custom Base URL (添加供应商). */
   providersProbeGateway: "providers:probe-gateway",
   /** Read a custom provider's panel balance; the kind decides which endpoint. */

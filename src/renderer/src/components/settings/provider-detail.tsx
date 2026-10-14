@@ -38,6 +38,7 @@ import { ProviderIcon } from "@/components/provider-icon";
 import { PROVIDER_APIS, type CcSwitchCandidate, type CcSwitchScan, type EngineModel, type PinextModel, type GatewayKind, type Project, type ProjectModelDefault, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel } from "@shared/types";
 import { OAuthExtraUsageNote } from "./oauth-extra-usage-note";
 import { GatewayBalance } from "./gateway-balance";
+import { ProviderUsage } from "./provider-usage";
 import { EMPTY_ADD, PROVIDER_API_ITEMS, PROVIDER_API_SHORT, type AddMode, type AddState, type PickerState } from "./providers-settings-types";
 import { OpenAIQuota } from "./openai-quota";
 import {
@@ -323,6 +324,7 @@ export function ProviderDetail({
           </Button>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <ProviderUsage provider={provider} />
           <GatewayBalance provider={provider} onConfigure={onConfigureGateway} onIdentified={onIdentified} />
           <Button size="icon-xs" variant="ghost" onClick={() => void remove()} aria-label={t("providers.delete")}>
             <HugeiconsIcon strokeWidth={2} icon={Delete02Icon} />

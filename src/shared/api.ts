@@ -56,6 +56,7 @@ import type {
   QueuedPromptPreview,
 } from "@shared/types";
 import type { AccountState } from "@shared/account";
+import type { ProviderUsageId, ProviderUsageResult } from "@shared/provider-usage";
 import type { RemoteHostProfile, RemoteHostConnectionState, RemoteHostTestResult, SshHostKeyScan } from "@shared/remote-host";
 import type {
   AppUpdateState,
@@ -308,6 +309,8 @@ export function createPinextApi(t: ApiTransport) {
         t.invoke(Ipc.providersRefresh, { id }),
       quota: (id: "openai" | "openai-codex", force = false): Promise<OpenAIAccountQuota> =>
         t.invoke(Ipc.providersQuota, { id, force }),
+      usage: (id: ProviderUsageId): Promise<ProviderUsageResult> =>
+        t.invoke(Ipc.providersUsage, { id }),
       /**
        * Which relay software answers at a Base URL. Undefined means "not identified",
        * which is the ordinary answer for any OpenAI-compatible gateway.

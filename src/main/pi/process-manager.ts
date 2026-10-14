@@ -135,6 +135,7 @@ import { findNativeProvider } from "../engine/native-providers";
 import { hasOAuthCredential, OAuthCredentialStore, readOrCreateDeviceId } from "../engine/oauth-store";
 import { priceUsage } from "../engine/pricing";
 import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-quota";
+import { isProviderUsageId, queryProviderUsage, type ProviderUsageResult } from "../engine/provider-usage";
 import { fetchGatewayBalance, gatewayTargets, probeGateway, readGatewayCredentials, writeGatewayCredentials } from "../engine/gateway-probe";
 import { ensureScratchWorkspace, getPinextPaths, scratchWorkspace, type PinextPaths } from "../engine/paths";
 import { DisabledMemoryHost, type MemoryHost } from "../engine/memory-host";
@@ -2759,6 +2760,30 @@ export class PiProcessManager {
     this.#openAIQuotaCache.set(id, { quota, expiresAt: Date.now() + 5 * 60_000 });
     return quota;
   }
+  /**
+   * Balance / quota for a provider with a published usage endpoint.
+   *
+   * The credential is resolved here, the same call `providers:quota` makes, and handed to
+   * `queryProviderUsage` — which keeps that module a pure function of the auth it is given,
+   * and therefore testable without a network.
+   */
+  async getProviderUsage(id: string): Promise<ProviderUsageResult> {
+    if (!isProviderUsageId(id)) {
+      throw new Error(uiText("该供应商不支持用量查询", "This provider does not support usage queries."));
+    }
+    await this.#ensureReady();
+    const auth = await this.#runtime?.getAuth(id, { signal: AbortSignal.timeout(20_000) });
+    const entry = (await this.listProviders()).find((provider) => provider.id === id);
+    // Catalog providers such as opencode-go carry their base URL on the model rather than
+    // on the provider, so fall back to the first model before deciding this is not them.
+    const baseUrl = entry?.baseUrl ?? (entry?.models?.[0] as { baseUrl?: string } | undefined)?.baseUrl;
+    return queryProviderUsage(id, {
+      ...(auth?.auth.apiKey ? { apiKey: auth.auth.apiKey } : {}),
+      ...(auth?.auth.headers ? { headers: auth.auth.headers } : {}),
+      ...(baseUrl ? { baseUrl } : {}),
+    });
+  }
+
   async addProvider(
     draft: { name: string; baseUrl: string; apiKey: string; api?: import("@shared/types").ProviderApi; gateway?: GatewayKind },
     models: ProviderModel[],

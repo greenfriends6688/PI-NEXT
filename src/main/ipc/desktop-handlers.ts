@@ -202,6 +202,9 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
   handle(Ipc.providersQuota, async (payload: { id: string; force?: boolean }) => {
     return engine.getOpenAIAccountQuota(payload.id, payload.force === true);
   });
+  handle(Ipc.providersUsage, async (payload: { id: string }) => {
+    return engine.getProviderUsage(payload.id);
+  });
   handle(Ipc.providersCcSwitchScan, async () => {
     return engine.scanCcSwitch();
   });

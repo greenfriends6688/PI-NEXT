@@ -196,6 +196,7 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   handle(Ipc.providersAddNative, (payload: { id: string; apiKey: string; models: ProviderModel[] }) => engine.addNativeProvider(payload.id, payload.apiKey, payload.models));
   handle(Ipc.providersLogout, (payload: { id: string }) => engine.logoutProvider(payload.id));
   handle(Ipc.providersQuota, (payload: { id: "openai" | "openai-codex"; force?: boolean }) => engine.getOpenAIAccountQuota(payload.id, payload.force === true));
+  handle(Ipc.providersUsage, (payload: { id: string }) => engine.getProviderUsage(payload.id));
   handle(Ipc.modelsDevUpdate, () => import("../main/engine/models-dev-update").then(({ updateModelsDevSnapshot }) => updateModelsDevSnapshot()));
 
   bindAgentPush(engine, terminals);

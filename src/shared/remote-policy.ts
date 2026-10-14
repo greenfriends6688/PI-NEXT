@@ -250,6 +250,10 @@ const ALLOWED = new Set<string>([
   Ipc.providersGatewayBalance,
   Ipc.providersGatewayCredentials,
   Ipc.providersQuota,
+  // Same bargain as the quota above: it reports a number the account already has, and it
+  // sends a credential this side holds to the provider's own published endpoint — the
+  // endpoint comes from a fixed table, so a key cannot be aimed anywhere else.
+  Ipc.providersUsage,
   Ipc.providersRefresh,
   Ipc.providersRemove,
   Ipc.providersUpdate,
