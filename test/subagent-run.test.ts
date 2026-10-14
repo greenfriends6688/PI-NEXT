@@ -51,6 +51,13 @@ function fixture(options: { setup?: () => Promise<void>; create?: () => Promise<
   };
   const deps = {
     SubagentControl, DAG_WORKER_TOOLS, DAG_COORDINATOR_TOOLS, dagReportExtension, dagInputAllowance, estimateDagTokens,
+    // 子代理现在还会装一个 agent_mail 扩展；harness 注入一个真的工厂，让 registerTool 走到
+    // 同一套假 api 上 —— 这样「装了哪些工具」这件事在测试里也是真的。
+    createAgentMailExtension: (identity: { self: string; parent?: string; label: string }) =>
+      ({ name: "agent-mail", hidden: true, factory: (api: { registerTool: (tool: { name: string }) => void }) => {
+        api.registerTool({ name: "agent_mail" });
+        void identity;
+      } }),
     SettingsManager: { create: () => ({}) },
     builtinExtensionFile: () => undefined,
     currentAiLanguageDirective: () => "", currentCustomSystemPrompt: () => "",
@@ -83,6 +90,8 @@ function fixture(options: { setup?: () => Promise<void>; create?: () => Promise<
     timeReasoning() {}, withThinkingTiming() {}, fileSubagentReasoning() {},
     resolvePendingUi: (_: unknown, owner: string) => { cleared.push(owner); },
     publishSubagentState: (subagentId: string, conversationId: string) => host.emit({ type: "subagent_state", subagentId, conversationId, model: session.model, thinkingLevel: "high" }),
+    // 信箱投递的落点；这个 harness 里没有真会话，所以只记录调用。
+    wakeSession: async () => undefined,
     emit: (event: any) => {
       event.seq = phases.length + 1;
       host.info = reduceSubagent(host.info, event);

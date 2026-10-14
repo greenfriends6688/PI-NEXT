@@ -32,6 +32,8 @@ import {
   type SubagentHostUsage,
 } from "./process-manager-events";
 import { builtinExtensionFile } from "./extension-manager";
+import { createAgentMailExtension } from "../pinext/agent-mail/extension.ts";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export type SubagentHostRequest = {
   /** `${parentToolCallId}:${index}` — the same id the tool-call tracker mints. */
@@ -86,6 +88,13 @@ export type SubagentRunHost = {
   resolvePendingUi(conversationId?: string, owner?: string): void;
   extensionUi(conversationId: string, owner: string): ExtensionUIContext;
   publishSubagentState(subagentId: string, conversationId: string, session: AgentSession): void;
+  /**
+   * Deliver a message into a live session, as a follow-up turn.
+   *
+   * The mailbox stores first and calls this second, so a target that has already finished
+   * still has the message waiting rather than losing it.
+   */
+  wakeSession(sessionId: string, text: string): Promise<void>;
   timeReasoning(
     key: string,
     event: AgentSessionEvent,
@@ -214,13 +223,26 @@ export class SubagentTurnRunner {
         noPromptTemplates: true,
         noSkills: !request.dag?.skills,
         additionalExtensionPaths: [folderConsent, ...(request.dag ? [builtinExtensionFile("dag.ts")] : [])].filter((path): path is string => Boolean(path)),
-        ...(request.dag ? { extensionFactories: [{ name: "dag-report", factory: dagReportExtension({
-          acceptance: request.dag.acceptance,
-          report: (value) => { report = value; },
-          childrenReady: request.dag.childrenReady,
-        }) }, { name: "dag-granted-tools", factory: (pi) => {
-          for (const tool of request.dag?.tools ?? []) pi.registerTool({ ...tool, exposure: "direct" });
-        } }] } : {}),
+        // agent ↔ agent 的信箱 (fork:agent-mail)。子代理能拿到的三个既有工具都只能
+        // 「被父操作」；这一个让它能主动说话 —— 问一句、报告一个发现、给兄弟提个醒。
+        extensionFactories: [
+          ...(request.dag ? [{ name: "dag-report", factory: dagReportExtension({
+            acceptance: request.dag.acceptance,
+            report: (value) => { report = value; },
+            childrenReady: request.dag.childrenReady,
+          }) }, { name: "dag-granted-tools", factory: (pi: ExtensionAPI) => {
+            for (const tool of request.dag?.tools ?? []) pi.registerTool({ ...tool, exposure: "direct" });
+          } }] : []),
+          createAgentMailExtension({
+            self: subagentId,
+            parent: conversationId,
+            label: request.agent,
+            // 唤醒父会话：与其它注入同一条路。
+            wake: async (sessionId, text) => {
+              await this.#host.wakeSession(sessionId, text);
+            },
+          }),
+        ],
         ...(appendSystemPrompt.length > 0 ? { appendSystemPrompt } : {}),
       });
       await loader.reload();

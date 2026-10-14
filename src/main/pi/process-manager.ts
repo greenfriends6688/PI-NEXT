@@ -158,6 +158,7 @@ import { createImageGenExtension } from "../pinext/imagegen/extension.ts";
 import { imageGenPresetMeta } from "../../shared/imagegen.ts";
 import { createWebSearchExtension } from "../pinext/websearch/extension.ts";
 import { createImExtension } from "../pinext/im-bridge/extension.ts";
+import { createAgentMailExtension } from "../pinext/agent-mail/extension.ts";
 import {
   readImBridgeConfig,
   maskedImTargets,
@@ -3769,7 +3770,23 @@ export class PiProcessManager {
       // name but could only work on `openai-responses` models.
       createWebSearchExtension(),
       // IM 推送. Sends a message out of the machine and spends the person's own bot quota.
-      createImExtension(), {
+      createImExtension(),
+      // agent ↔ agent 的信箱 (fork:agent-mail)。既有的三个工具只能父 → 子；这一个把
+      // 其余方向补上（子→父 / 子→兄弟 / 父→全体），用的是同一条进程内通道。
+      createAgentMailExtension({
+        self: conversation.id,
+        label: conversation.title,
+        siblings: [],
+        // 父侧唤醒一个还在跑的子会话：与其它注入同一条路（sendCustomMessage + followUp）。
+        wake: async (sessionId, text) => {
+          const managed = this.#sessions.get(sessionId);
+          if (!managed) throw new Error("session not running");
+          await managed.session.sendCustomMessage({ role: "user", content: text } as never, {
+            triggerTurn: true,
+            deliverAs: "followUp",
+          });
+        },
+      }), {
         name: "pinext-tool-images",
         hidden: true,
         factory: (pi) => {
@@ -5130,6 +5147,15 @@ export class PiProcessManager {
       resolvePendingUi: (conversationId, owner) => this.#resolvePendingUi(conversationId, owner),
       extensionUi: (conversationId, owner) => this.#extensionUi(conversationId, owner),
       publishSubagentState: (subagentId, conversationId, session) => this.#publishSubagentState(subagentId, conversationId, session),
+      // 信箱投递的落点：与其它注入同一条路（sendCustomMessage + followUp）。
+      wakeSession: async (sessionId, text) => {
+        const managed = this.#sessions.get(sessionId);
+        if (!managed) throw new Error("session not running");
+        await managed.session.sendCustomMessage({ role: "user", content: text } as never, {
+          triggerTurn: true,
+          deliverAs: "followUp",
+        });
+      },
       timeReasoning: (key, event, session, now, file) => this.#timeReasoning(key, event, session, now, file),
       fileSubagentReasoning: (subagentId, entryId, blocks) => this.#fileSubagentReasoning(subagentId, entryId, blocks),
       withThinkingTiming: (key, event, payload) => this.#withThinkingTiming(key, event, payload),
