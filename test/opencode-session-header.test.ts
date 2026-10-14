@@ -3,19 +3,28 @@ import assert from "node:assert/strict";
 import { opencodeGoProvider } from "@earendil-works/pi-ai/providers/opencode-go";
 
 /**
- * Does the native opencode-go provider actually send `x-opencode-session`?
+ * What `x-opencode-session` depends on — and what it therefore cannot explain.
  *
- * The header is what makes an OpenCode request routable, and `pi-ai` adds it in
- * `withOpenCodeSessionHeader` **only when `options.sessionId` is set**. So the question is
- * never whether the provider can do it — it is whether anything upstream ever passes a
- * session id. Without one the upstream answers 400 with the model id echoed back, which
- * reads like "unknown model" and sends you looking at model ids instead of headers.
+ * The header is added by `pi-ai`'s `withOpenCodeSessionHeader`, and only when
+ * `options.sessionId` is set. This test pins both halves of that, with no network and no
+ * key, because `buildBaseOptions` copies `options.fetch` straight through: a stub sees
+ * exactly what would have gone out.
  *
- * That question is answerable with no network and no key, because `buildBaseOptions` copies
- * `options.fetch` straight through: a stub sees exactly what would have gone out.
+ * The reason it exists is a wrong guess that took three passes to kill. A 400 from
+ * OpenCode that echoes the model id reads like a missing routing header, and it is not:
+ * the session id does reach the provider. The chain, each link read in the shipped
+ * bundles rather than assumed:
  *
- * This pins the SDK's half of the contract. If it ever fails, the SDK changed and the fix
- * belongs in `pi-ai`, not in this app.
+ *   Agent.createLoopConfig()      → sessionId: this.sessionId   (pi-agent-core/agent.js)
+ *   runAgentLoop → streamFunction → { ...config, apiKey, signal }  (agent-loop.js)
+ *   ModelRuntime.prepareRequest   → { ...providerOptions, … }    (model-runtime.js)
+ *   buildBaseOptions              → sessionId: options?.sessionId (pi-ai)
+ *   withOpenCodeSessionHeader     → sets the header
+ *
+ * So a 400 naming the model is about the *model* — most likely one this account's plan
+ * does not serve — and looking at headers is looking in the wrong place. What this test
+ * protects is the other direction: if the SDK ever stops threading the session id, the
+ * symptom would look exactly like the thing we were chasing.
  */
 
 type Captured = { url: string; headers: Record<string, string> };
