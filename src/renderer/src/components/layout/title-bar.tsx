@@ -42,8 +42,8 @@ export function TitleBar(): JSX.Element {
     >
       <div className="no-drag flex min-w-0 items-center gap-3">
         <div className="flex shrink-0 items-center gap-2">
-          <AppLogo className="size-5 shrink-0 rounded-md" />
-          <span className="truncate text-sm font-semibold tracking-tight">Pinext</span>
+          <AppLogo className="size-7 shrink-0" />
+          <span className="truncate text-sm font-semibold tracking-[0.08em]">PI NEXT</span>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <IconButton

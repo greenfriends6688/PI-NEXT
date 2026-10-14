@@ -1679,7 +1679,6 @@ export function App(): JSX.Element {
   });
   const onSidebarReorderProjects = useStable((cwds: string[]) => void handleReorderProjects(cwds));
   const onSidebarOpenSettings = useStable(() => navigate("/settings/general"));
-  const onSidebarOpenMarket = useStable(() => navigate("/settings/extensions"));
   const onSidebarSearch = useStable(() => setCommandOpen(true));
   const onSidebarOpenSubTask = useStable((conversationId: string, node: DagNode) => {
     void (async () => {
@@ -1811,7 +1810,6 @@ export function App(): JSX.Element {
             onRevealProject={onSidebarRevealProject}
             onReorderProjects={onSidebarReorderProjects}
             onOpenSettings={onSidebarOpenSettings}
-            onOpenMarket={onSidebarOpenMarket}
             onOpenSubTask={onSidebarOpenSubTask}
             onSearch={onSidebarSearch}
           />

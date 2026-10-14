@@ -64,6 +64,17 @@ write_many("src/renderer/src/assets/app-icon-light.png", 256)
 write_many("src/renderer/src/assets/app-icon-dark.png", 256)
 write_many("src/renderer/src/assets/pinext-mark.png", 256)
 
+print("renderer favicons (what a browser tab shows)")
+# `public/` is copied verbatim into the build and served at the site root; these are the
+# three files `index.html` / `web.html` name as the tab icon.
+write_many("src/renderer/public/icon-light.png", 256)
+write_many("src/renderer/public/icon-dark.png", 256)
+write_many("src/renderer/public/icon.png", 256)
+# Browsers ask for `/favicon.ico` on their own whenever a page has no icon link they can
+# use, and a JSON 404 in that slot is the kind of thing that shows up as a broken tab.
+composed(64, True).save(f"{ROOT}/src/renderer/public/favicon.ico", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
+print(f"  {'src/renderer/public/favicon.ico':72s} multi-size")
+
 print("mobile sources")
 write_many("apps/mobile_flutter/assets/brand/icon.png", 1024)
 write_many("apps/mobile_flutter/assets/ios/icon.png", 1024)

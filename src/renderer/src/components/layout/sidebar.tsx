@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Add01Icon, Alert02Icon, AlertCircleIcon, Archive04Icon, ArrowLeft01Icon, ArrowRight01Icon, Delete02Icon, Folder01Icon, Folder02Icon, FolderRootIcon, Link01Icon, MessageSquarePlusIcon, MoreHorizontalIcon, PanelLeftCloseIcon, PencilEdit02Icon, PinIcon, PuzzleIcon, Search01Icon, Settings01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Alert02Icon, AlertCircleIcon, Archive04Icon, ArrowLeft01Icon, ArrowRight01Icon, Delete02Icon, Folder01Icon, Folder02Icon, FolderRootIcon, Link01Icon, MessageSquarePlusIcon, MoreHorizontalIcon, PanelLeftCloseIcon, PencilEdit02Icon, PinIcon, Search01Icon, Settings01Icon } from "@hugeicons/core-free-icons";
 import {
   DndContext,
   DragOverlay,
@@ -101,7 +101,6 @@ export const Sidebar = memo(function Sidebar({
   onRevealProject,
   onReorderProjects,
   onOpenSettings,
-  onOpenMarket,
   onOpenSubTask,
   onSearch,
 }: {
@@ -128,7 +127,6 @@ export const Sidebar = memo(function Sidebar({
   /** Persists a drag-reordered project list; the catalog owns the order. */
   onReorderProjects: (cwds: string[]) => void;
   onOpenSettings: () => void;
-  onOpenMarket: () => void;
   /** Open a chat and show one of its sub-agent tasks in the side pane. */
   onOpenSubTask: (conversationId: string, node: DagNode) => void;
   onSearch: () => void;
@@ -553,8 +551,8 @@ export const Sidebar = memo(function Sidebar({
               </div>
             ) : (
               <div className="flex items-center gap-2 px-2">
-                <AppLogo className="size-5 shrink-0 rounded-md" />
-                <span className="text-sm font-semibold tracking-tight">Pinext</span>
+                <AppLogo className="size-7 shrink-0" />
+                <span className="text-sm font-semibold tracking-[0.08em]">PI NEXT</span>
               </div>
             )}
             <div className="flex items-center gap-0.5">
@@ -585,17 +583,6 @@ export const Sidebar = memo(function Sidebar({
             >
               <HugeiconsIcon strokeWidth={2} icon={MessageSquarePlusIcon} className="size-3.5 text-muted-foreground" />
               {t("workspace.newChat")}
-            </button>
-            <button
-              type="button"
-              className="flex h-8 pointer-coarse:h-10 w-full items-center gap-2.5 rounded-md px-2 text-sm hover:bg-sidebar-accent/50"
-              onClick={() => {
-                onOpenMarket();
-                dismissDrawer();
-              }}
-            >
-              <HugeiconsIcon strokeWidth={2} icon={PuzzleIcon} className="size-3.5 text-muted-foreground" />
-              {t("sidebar.plugins")}
             </button>
           </div>
         </div>
