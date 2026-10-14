@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, Copy01Icon, Folder01Icon, RefreshIcon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, Cancel01Icon, Copy01Icon, Folder01Icon, PencilEdit02Icon, RefreshIcon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { IconButton } from "@/components/icon-button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileIcon } from "@/components/file-icon";
@@ -133,7 +133,7 @@ export function SidePaneFiles({
 
   if (!cwd) {
     if (tab.preview) {
-      return <FilePreviewPane preview={tab.preview} onBack={clearPreview} />;
+      return <FilePreviewPane preview={tab.preview} onBack={clearPreview} onSaved={openFile} />;
     }
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center px-8 text-center text-xs leading-5 text-muted-foreground">
@@ -148,7 +148,7 @@ export function SidePaneFiles({
     <div className="@container/files flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1 flex-col @min-[32rem]/files:flex-row">
         {preview ? (
-          <FilePreviewPane preview={preview} onBack={clearPreview} backClassName="@min-[32rem]/files:hidden" />
+          <FilePreviewPane preview={preview} onBack={clearPreview} onSaved={openFile} backClassName="@min-[32rem]/files:hidden" />
         ) : (
           <div className="hidden min-h-0 min-w-0 flex-1 items-center justify-center px-8 text-center text-xs leading-5 text-muted-foreground @min-[32rem]/files:flex">
             {t("files.pick")}
@@ -203,15 +203,24 @@ export function SidePaneFiles({
 function FilePreviewPane({
   preview,
   onBack,
+  onSaved,
   backClassName,
 }: {
   preview: FilePreview;
   onBack: () => void;
+  /** Re-read the file after a save, so the pane shows what is on disk rather than the draft. */
+  onSaved?: (path: string) => Promise<void>;
   backClassName?: string;
 }): JSX.Element {
   const { t } = useTranslation("sidepane");
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
   const text = previewText(preview);
+  // Anything the preview could show as text can be edited. Images and PDFs are not text,
+  // and a diff is a *view* of a file rather than the file.
+  const editable = text !== undefined && preview.kind !== "diff";
 
   async function copyContent(): Promise<void> {
     if (text === undefined) return;
@@ -257,6 +266,56 @@ function FilePreviewPane({
             <HugeiconsIcon strokeWidth={2} icon={copied ? Tick02Icon : Copy01Icon} />
           </IconButton>
         ) : null}
+        {editable && !editing ? (
+          <IconButton
+            size="icon-xs"
+            variant="ghost"
+            label={t("files.edit")}
+            onClick={() => {
+              setDraft(text ?? "");
+              setEditing(true);
+            }}
+          >
+            <HugeiconsIcon strokeWidth={2} icon={PencilEdit02Icon} />
+          </IconButton>
+        ) : null}
+        {editing ? (
+          <>
+            <IconButton
+              size="icon-xs"
+              variant="ghost"
+              disabled={saving}
+              label={t("files.cancel")}
+              onClick={() => setEditing(false)}
+            >
+              <HugeiconsIcon strokeWidth={2} icon={Cancel01Icon} />
+            </IconButton>
+            <IconButton
+              size="icon-xs"
+              variant="ghost"
+              disabled={saving}
+              label={t("files.save")}
+              onClick={() => {
+                void (async () => {
+                  setSaving(true);
+                  try {
+                    await window.pinext.workspace.writeFile(preview.path, draft);
+                    setEditing(false);
+                    await onSaved?.(preview.path);
+                  } catch (error) {
+                    // The engine refuses anything outside the project's own directories, and
+                    // that refusal is the whole point — say why rather than dropping the edit.
+                    toast.error(error instanceof Error ? error.message : t("files.saveFailed"));
+                  } finally {
+                    setSaving(false);
+                  }
+                })();
+              }}
+            >
+              <HugeiconsIcon strokeWidth={2} icon={Tick02Icon} />
+            </IconButton>
+          </>
+        ) : null}
         {preview.kind !== "error" && !isRemoteRef(preview.path) ? (
           <IconButton
             size="icon-xs"
@@ -270,10 +329,19 @@ function FilePreviewPane({
           </IconButton>
         ) : null}
       </div>
-      <PreviewSurface
-        preview={preview}
-        onQuote={preview.kind === "code" || preview.kind === "diff" ? quoteCode : undefined}
-      />
+      {editing ? (
+        <textarea
+          className="min-h-0 flex-1 resize-none bg-transparent p-3 font-mono text-xs leading-5 outline-none"
+          value={draft}
+          spellCheck={false}
+          onChange={(event) => setDraft(event.target.value)}
+        />
+      ) : (
+        <PreviewSurface
+          preview={preview}
+          onQuote={preview.kind === "code" || preview.kind === "diff" ? quoteCode : undefined}
+        />
+      )}
     </div>
   );
 }

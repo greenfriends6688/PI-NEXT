@@ -286,6 +286,9 @@ const ALLOWED = new Set<string>([
   Ipc.workspaceGitStatus,
   Ipc.workspaceGitUnstage,
   Ipc.workspacePreview,
+  // A file editor is a remote client's write access to the project, which is why the
+  // engine's own guard (not this list) decides what may be written.
+  Ipc.workspaceWriteFile,
   Ipc.workspaceFilesExist,
   Ipc.workspaceReadDir,
   Ipc.workspaceTerminalKill,

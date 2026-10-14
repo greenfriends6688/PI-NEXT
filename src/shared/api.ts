@@ -447,6 +447,13 @@ export function createPinextApi(t: ApiTransport) {
         t.invoke(Ipc.workspacePick),
       reveal: (cwd: string): Promise<{ ok: boolean; reason?: "missing" | "invalid" } | void> =>
         t.invoke(Ipc.workspaceReveal, { cwd }),
+      /**
+       * Save the text of a file the tree already shows.
+       *
+       * The engine decides whether it may be written (it has to be inside a project or
+       * conversation working directory); this call is not the authorisation.
+       */
+      writeFile: (path: string, text: string): Promise<void> => t.invoke(Ipc.workspaceWriteFile, { path, text }),
       preview: (path: string): Promise<FilePreview> => t.invoke(Ipc.workspacePreview, { path }),
       /** Resolve a batch of candidate paths and return only paths that are regular files. */
       filesExist: (paths: string[], cwd?: string): Promise<string[]> =>

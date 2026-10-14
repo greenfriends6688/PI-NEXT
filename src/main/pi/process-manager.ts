@@ -135,6 +135,7 @@ import { findNativeProvider } from "../engine/native-providers";
 import { hasOAuthCredential, OAuthCredentialStore, readOrCreateDeviceId } from "../engine/oauth-store";
 import { priceUsage } from "../engine/pricing";
 import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-quota";
+import { writeWorkspaceFile } from "../engine/workspace-fs";
 import { createImageGenExtension } from "../pinext/imagegen/extension.ts";
 import { createWebSearchExtension } from "../pinext/websearch/extension.ts";
 import { maskedWebSearchSettings, readWebSearchSettings, writeWebSearchSettings, type WebSearchSettings } from "../pinext/websearch/settings.ts";
@@ -653,6 +654,22 @@ export class PiProcessManager {
   get memory(): MemoryHost { return this.#memory; }
 
   listWorkspace(): WorkspaceSnapshot { return this.#catalog.snapshot(); }
+
+  /**
+   * Write a text file, if it is inside a directory this host already knows about.
+   *
+   * Those directories are the authorisation: the renderer may be a different machine, so
+   * the path it sends cannot be trusted on its own. `writeWorkspaceFile` does the check
+   * (realpath on both sides, so symlinks and `..` cannot carry a write out of a root).
+   */
+  async writeWorkspaceFile(path: string, text: string): Promise<void> {
+    const snapshot = this.listWorkspace();
+    const roots = [
+      ...snapshot.projects.map((project) => project.cwd),
+      ...snapshot.conversations.map((conversation) => conversation.cwd),
+    ];
+    writeWorkspaceFile(path, text, roots);
+  }
   searchConversations(query: string): Promise<ConversationSearchHit[]> {
     return searchConversationContent(query, this.#catalog.list());
   }

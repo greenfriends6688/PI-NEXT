@@ -106,6 +106,8 @@ export const Ipc = {
   projectsReorder: "projects:reorder",
   workspaceReveal: "workspace:reveal",
   workspacePreview: "workspace:preview",
+  /** 保存一个文本文件（只允许项目目录内，见 workspace-fs.ts 的写入门槛）。 */
+  workspaceWriteFile: "workspace:write-file",
   workspaceFilesExist: "workspace:files-exist",
   workspaceFileIcons: "workspace:file-icons",
   workspaceReadDir: "workspace:read-dir",

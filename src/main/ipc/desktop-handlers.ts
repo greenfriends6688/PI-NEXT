@@ -315,6 +315,9 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     if (!payload.path) return { kind: "error", path: "", name: "", message: uiText("路径无效", "Invalid path") };
     return readFilePreview(payload.path);
   });
+  handle(Ipc.workspaceWriteFile, async (payload: { path: string; text: string }) => {
+    await engine.writeWorkspaceFile(payload.path, payload.text);
+  });
   handle(Ipc.workspaceFilesExist, (payload: { paths?: unknown; cwd?: unknown }) =>
     existingFiles(payload?.paths, payload?.cwd),
   );

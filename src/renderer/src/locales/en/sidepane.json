@@ -44,7 +44,11 @@
     "copied": "Copied",
     "copyFailed": "Copy failed",
     "quoted": "Code added to the conversation",
-    "previewFailed": "Could not preview this file"
+    "previewFailed": "Could not preview this file",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saveFailed": "Could not save"
   },
   "changes": {
     "count": "{{count}} files",
