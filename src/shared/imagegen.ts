@@ -412,3 +412,13 @@ export function describeHttpError(status: number, bodyText: string): string {
   }
   return clip(`HTTP ${status}${message ? ` ${message}` : ""}`);
 }
+
+/** What `imagegen:test` answers with — one real generation, and what it proved. */
+export interface ImageGenTestResult {
+  ok: boolean;
+  status: ImageGenStatus;
+  /** The test image as a data URL. The only place base64 crosses the bridge. */
+  image?: string;
+  path?: string;
+  error?: string;
+}

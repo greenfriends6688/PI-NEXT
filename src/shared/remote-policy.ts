@@ -254,6 +254,12 @@ const ALLOWED = new Set<string>([
   // sends a credential this side holds to the provider's own published endpoint — the
   // endpoint comes from a fixed table, so a key cannot be aimed anywhere else.
   Ipc.providersUsage,
+  // 生图. `get` returns the masked view, `set` writes a key the person just typed on this
+  // machine, and `test` spends one small generation — the same bargain the usage query
+  // above makes. All three are about this host's own configuration, not the account's.
+  Ipc.imagegenGet,
+  Ipc.imagegenSet,
+  Ipc.imagegenTest,
   Ipc.providersRefresh,
   Ipc.providersRemove,
   Ipc.providersUpdate,

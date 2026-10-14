@@ -197,6 +197,9 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   handle(Ipc.providersLogout, (payload: { id: string }) => engine.logoutProvider(payload.id));
   handle(Ipc.providersQuota, (payload: { id: "openai" | "openai-codex"; force?: boolean }) => engine.getOpenAIAccountQuota(payload.id, payload.force === true));
   handle(Ipc.providersUsage, (payload: { id: string }) => engine.getProviderUsage(payload.id));
+  handle(Ipc.imagegenGet, () => engine.getImageGen());
+  handle(Ipc.imagegenSet, (payload: { active?: unknown; providers?: unknown }) => engine.setImageGen(payload ?? {}));
+  handle(Ipc.imagegenTest, (payload: { provider?: string } | undefined) => engine.testImageGen(payload?.provider));
   handle(Ipc.modelsDevUpdate, () => import("../main/engine/models-dev-update").then(({ updateModelsDevSnapshot }) => updateModelsDevSnapshot()));
 
   bindAgentPush(engine, terminals);

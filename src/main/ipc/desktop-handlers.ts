@@ -205,6 +205,9 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
   handle(Ipc.providersUsage, async (payload: { id: string }) => {
     return engine.getProviderUsage(payload.id);
   });
+  handle(Ipc.imagegenGet, async () => engine.getImageGen());
+  handle(Ipc.imagegenSet, async (payload: { active?: unknown; providers?: unknown }) => engine.setImageGen(payload ?? {}));
+  handle(Ipc.imagegenTest, async (payload: { provider?: string } | undefined) => engine.testImageGen(payload?.provider));
   handle(Ipc.providersCcSwitchScan, async () => {
     return engine.scanCcSwitch();
   });

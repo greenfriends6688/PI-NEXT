@@ -57,6 +57,7 @@ import type {
 } from "@shared/types";
 import type { AccountState } from "@shared/account";
 import type { ProviderUsageId, ProviderUsageResult } from "@shared/provider-usage";
+import type { ImageGenConfig, ImageGenTestResult } from "@shared/imagegen";
 import type { RemoteHostProfile, RemoteHostConnectionState, RemoteHostTestResult, SshHostKeyScan } from "@shared/remote-host";
 import type {
   AppUpdateState,
@@ -275,7 +276,18 @@ export function createPinextApi(t: ApiTransport) {
       onStatus: (listener: (status: EngineStatus) => void): (() => void) => t.subscribe(Ipc.status, listener),
       onConversationReady: (listener: (payload: ConversationReadyEvent) => void): (() => void) => t.subscribe(Ipc.conversationReady, listener),
     },
-    providers: {
+    /**
+   * 生图 (fork:imagegen). A profile of its own, not part of the chat model list: it has
+   * its own endpoint, key, model and size per preset, and it never enters `enabledModels`.
+   * The key is only ever seen as a mask.
+   */
+  imagegen: {
+    get: (): Promise<ImageGenConfig> => t.invoke(Ipc.imagegenGet),
+    set: (input: { active: string; providers: Record<string, unknown> }): Promise<ImageGenConfig> =>
+      t.invoke(Ipc.imagegenSet, input),
+    test: (provider?: string): Promise<ImageGenTestResult> => t.invoke(Ipc.imagegenTest, { provider }),
+  },
+  providers: {
       list: (): Promise<ProviderConfig[]> => t.invoke(Ipc.providersList),
       native: (): Promise<NativeProviderConfig[]> => t.invoke(Ipc.providersNative),
       addNative: (payload: {

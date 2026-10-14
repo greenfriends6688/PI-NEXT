@@ -36,7 +36,7 @@ import {
   type ImageGenProfile,
   type ImageGenProviderEntry,
   type ImageGenStatus,
-} from "./shared.ts";
+} from "../../../shared/imagegen.ts";
 
 // 服务端只记一个 import 路径：从 `-shared` 再导出一份。
 export {
@@ -70,7 +70,7 @@ export {
   type ImageGenStatusState,
   type ParsedImageOutput,
   type ParsedImagesResponse,
-} from "./shared.ts";
+} from "../../../shared/imagegen.ts";
 
 function imagegenConfigPath(agentDir?: string): string {
   return join(agentDir ?? getPinextPaths().agentDir, "imagegen.json");

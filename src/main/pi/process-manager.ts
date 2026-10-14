@@ -136,6 +136,23 @@ import { hasOAuthCredential, OAuthCredentialStore, readOrCreateDeviceId } from "
 import { priceUsage } from "../engine/pricing";
 import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-quota";
 import { createImageGenExtension } from "../pinext/imagegen/extension.ts";
+import {
+  emptyImageGenStatus,
+  ensureGeneratedImagesRootRegistered,
+  generateImagesWithProfile,
+  maskedImageGenConfig,
+  readImageGenConfig,
+  saveGeneratedImageSync,
+  writeImageGenConfig,
+  writeImageGenStatus,
+  type ImageGenConfig,
+} from "../pinext/imagegen/config.ts";
+import {
+  IMAGEGEN_PRESET_IDS,
+  profileIsConfigured,
+  type ImageGenPreset,
+  type ImageGenStatus,
+} from "../../shared/imagegen.ts";
 import { isProviderUsageId, queryProviderUsage, type ProviderUsageResult } from "../engine/provider-usage";
 import { fetchGatewayBalance, gatewayTargets, probeGateway, readGatewayCredentials, writeGatewayCredentials } from "../engine/gateway-probe";
 import { ensureScratchWorkspace, getPinextPaths, scratchWorkspace, type PinextPaths } from "../engine/paths";
@@ -2783,6 +2800,75 @@ export class PiProcessManager {
       ...(auth?.auth.headers ? { headers: auth.auth.headers } : {}),
       ...(baseUrl ? { baseUrl } : {}),
     });
+  }
+
+  /**
+   * 生图配置：读（掩码视图）、写（整表替换，掩码值 = 沿用已存密钥）、测试（真的出一张图）。
+   *
+   * The plaintext key never crosses the bridge in either direction: `maskedImageGenConfig`
+   * replaces it on the way out, and `writeImageGenConfig` treats the mask as "keep what is
+   * stored". Testing is a real generation rather than a reachability probe, because
+   * "looks configured" is not the same claim as "works" — and the status it records is the
+   * only thing that lets anything else rely on this profile.
+   */
+  async getImageGen(): Promise<ImageGenConfig> {
+    return maskedImageGenConfig(readImageGenConfig(this.#paths.agentDir));
+  }
+
+  async setImageGen(input: { active?: unknown; providers?: unknown }): Promise<ImageGenConfig> {
+    const active = typeof input.active === "string" && (IMAGEGEN_PRESET_IDS as readonly string[]).includes(input.active)
+      ? input.active as ImageGenPreset
+      : null;
+    if (!active) throw new Error(uiText("请选择一个生图服务商", "Choose an image provider first."));
+    const current = readImageGenConfig(this.#paths.agentDir);
+    const incoming = (input.providers ?? {}) as Record<string, Record<string, unknown>>;
+    const providers = {} as ImageGenConfig["providers"];
+    for (const preset of IMAGEGEN_PRESET_IDS as readonly ImageGenPreset[]) {
+      const patch = incoming[preset] ?? {};
+      providers[preset] = {
+        ...current.providers[preset],
+        ...(typeof patch.baseUrl === "string" ? { baseUrl: patch.baseUrl.trim() } : {}),
+        ...(typeof patch.apiKey === "string" ? { apiKey: patch.apiKey } : {}),
+        ...(typeof patch.model === "string" ? { model: patch.model.trim() } : {}),
+        ...(typeof patch.size === "string" && patch.size.trim() ? { size: patch.size.trim() } : {}),
+        ...(typeof patch.concurrency === "number" && Number.isFinite(patch.concurrency)
+          ? { concurrency: Math.min(4, Math.max(1, Math.floor(patch.concurrency))) }
+          : {}),
+      } as ImageGenConfig["providers"][typeof preset];
+    }
+    return maskedImageGenConfig(writeImageGenConfig({ version: 3, active, providers }, this.#paths.agentDir));
+  }
+
+  async testImageGen(preset?: string): Promise<{ ok: boolean; status: ImageGenStatus; image?: string; path?: string; error?: string }> {
+    const config = readImageGenConfig(this.#paths.agentDir);
+    const target = typeof preset === "string" && (IMAGEGEN_PRESET_IDS as readonly string[]).includes(preset)
+      ? preset as ImageGenPreset
+      : config.active;
+    const profile = config.providers[target];
+    if (!profileIsConfigured(profile)) {
+      throw new Error(uiText("这一档还缺端点、密钥或模型名", "This profile needs a base URL, an API key and a model name before it can be tested."));
+    }
+    const root = ensureGeneratedImagesRootRegistered(this.#paths.agentDir);
+    const outcome = await generateImagesWithProfile(target, profile, {
+      prompt: "a single small blue circle on a white background, minimal test image",
+      size: profile.size,
+    }, {
+      saveImage: (data: Buffer, mimeType: string) => saveGeneratedImageSync(root, data, mimeType),
+    });
+    const status: ImageGenStatus = outcome.ok
+      ? { state: "available", testedAt: new Date().toISOString(), lastError: null, lastDurationMs: outcome.durationMs }
+      : { ...emptyImageGenStatus(), state: "unavailable", testedAt: new Date().toISOString(), lastError: outcome.error ?? "unknown error" };
+    writeImageGenStatus(target, status, this.#paths.agentDir);
+    if (!outcome.ok) return { ok: false, status, error: outcome.error ?? "provider error" };
+    // The one place base64 crosses the bridge: this single test image, in this one reply.
+    // Neither the transcript nor the config file ever holds it.
+    const first = outcome.images[0];
+    return {
+      ok: true,
+      status,
+      path: first.path,
+      image: `data:${first.mimeType};base64,${readFileSync(first.path).toString("base64")}`,
+    };
   }
 
   async addProvider(

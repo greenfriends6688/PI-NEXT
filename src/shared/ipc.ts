@@ -196,6 +196,10 @@ export const Ipc = {
   providersQuota: "providers:quota",
   /** Balance / quota for the providers with a published usage endpoint. */
   providersUsage: "providers:usage",
+  /** 生图档案：读（掩码）/ 写 / 真出一张图的测试。 */
+  imagegenGet: "imagegen:get",
+  imagegenSet: "imagegen:set",
+  imagegenTest: "imagegen:test",
   /** Identify the relay software behind a custom Base URL (添加供应商). */
   providersProbeGateway: "providers:probe-gateway",
   /** Read a custom provider's panel balance; the kind decides which endpoint. */

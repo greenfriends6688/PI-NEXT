@@ -11,6 +11,8 @@ function capabilityOf(method: string): AppCapability | null {
   if (method.startsWith("workspace:git")) return "git";
   if (method.startsWith("workspace:")) return "workspace";
   if (method.startsWith("providers:")) return "providers";
+  // 生图 is about which vendors this host can talk to — the same family.
+  if (method.startsWith("imagegen:")) return "providers";
   if (method.startsWith("models-dev:")) return "providers";
   if (method.startsWith("settings:")) return "settings";
   if (method.startsWith("decision:")) return "settings";
