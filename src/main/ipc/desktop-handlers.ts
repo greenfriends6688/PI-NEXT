@@ -357,9 +357,9 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     existingFiles(payload?.paths, payload?.cwd),
   );
   handle(Ipc.workspaceFileIcons, () => getFileIconMapping());
-  handle(Ipc.workspaceReadDir, (payload: { path: string }) => {
+  handle(Ipc.workspaceReadDir, async (payload: { path: string }) => {
     try {
-      return readWorkspaceDir(payload.path);
+      return await readWorkspaceDir(payload.path);
     } catch {
       return [];
     }
