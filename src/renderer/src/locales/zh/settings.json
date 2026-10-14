@@ -206,7 +206,9 @@
   "computer": "电脑操控",
   "proxy": "网络代理",
   "browser": "浏览器控制",
-  "bots": "机器人"
+  "bots": "机器人",
+  "plugins": "插件",
+  "tasks": "定时任务"
  },
  "backToApp": "返回应用",
  "personalization": {

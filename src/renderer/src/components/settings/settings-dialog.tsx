@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import type { PinextModel, ImportRunResult, WorkspaceSnapshot } from "@shared/types";
+import type { PinextModel, ImportRunResult, Project, WorkspaceSnapshot } from "@shared/types";
 import { notificationsEnabled } from "@shared/notifications";
 import { useSettingsStore } from "@/stores/settings";
 import { useIsNarrowViewport } from "@/lib/sidebar-visibility";
@@ -46,6 +46,8 @@ import { ImageGenSettings } from "./imagegen-settings";
 import { BotChannelSettings } from "./bot-channel-settings";
 import { ImBridgeSettings } from "./im-settings";
 import { WebSearchSettings } from "./websearch-settings";
+import { PluginsPage } from "@/components/plugins/plugins-page";
+import { TasksPage } from "@/components/schedules/tasks-page";
 import { SubagentsSettings } from "./subagents-settings";
 import { SettingsGroup as Group, SettingsRow as Row } from "./settings-group";
 import {
@@ -76,6 +78,8 @@ export function SettingsDialog({
   onDeleteConversations,
   onImported,
   models = [],
+  projects = [],
+  onOpenConversation,
   section: controlledSection,
 }: {
   open: boolean;
@@ -87,6 +91,10 @@ export function SettingsDialog({
   onImported?: (snapshot: WorkspaceSnapshot, result: ImportRunResult) => void;
   /** Model catalog, for the 默认模型 picker. */
   models?: PinextModel[];
+  /** Project list, for Settings → 定时任务 (a task runs in one of them). */
+  projects?: Project[];
+  /** The shell's own open-chat path, so a scheduled run's chat is a normal navigation. */
+  onOpenConversation?: (conversationId: string) => void;
   /** Active sub-route, e.g. "providers". */
   section?: SectionId;
 }): JSX.Element | null {
@@ -427,6 +435,18 @@ export function SettingsDialog({
           {section === "subagents" ? <SubagentsSettings models={models} /> : null}
           {section === "imagegen" ? <ImageGenSettings /> : null}
           {section === "websearch" ? <WebSearchSettings /> : null}
+          {/* 插件与定时任务：原来在侧栏，用户 2026-10-14 裁定挪进设置 —— 它们是配置，
+              不是每天要点的入口，而侧栏那两行挤掉了会话列表的位置。 */}
+          {/* 弹窗里没有侧栏可展开，所以那两个 shell 属性给恒定值；打开会话仍走 shell 的路径。 */}
+          {section === "plugins" ? <PluginsPage sidebarCollapsed={false} onExpandSidebar={() => undefined} /> : null}
+          {section === "tasks" ? (
+            <TasksPage
+              projects={projects}
+              sidebarCollapsed={false}
+              onExpandSidebar={() => undefined}
+              onOpenConversation={onOpenConversation ?? (() => undefined)}
+            />
+          ) : null}
           {section === "bots" ? (
             // 出站推送（im_send）与入站渠道同属一件事，放在同一页的上下两半。
             <div className="space-y-8">

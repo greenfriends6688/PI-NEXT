@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, Cancel01Icon, FileAddIcon, FolderAddIcon, Search01Icon, SourceCodeIcon, ViewIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, Cancel01Icon, FileAddIcon, FolderAddIcon, FolderOpenIcon, RefreshIcon, Search01Icon, SourceCodeIcon, ViewIcon } from "@hugeicons/core-free-icons";
 import { editableFileText, prefersSourceEditor } from "@shared/editable-preview";
 import { IconButton } from "@/components/icon-button";
 import { Input } from "@/components/ui/input";
@@ -364,6 +364,17 @@ export function SidePaneFiles({
               <IconButton
                 size="icon-xs"
                 variant="ghost"
+                label={t("files.refresh")}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void refreshTree();
+                }}
+              >
+                <HugeiconsIcon strokeWidth={2} icon={RefreshIcon} />
+              </IconButton>
+              <IconButton
+                size="icon-xs"
+                variant="ghost"
                 label={t("files.search")}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -371,6 +382,19 @@ export function SidePaneFiles({
                 }}
               >
                 <HugeiconsIcon strokeWidth={2} icon={Search01Icon} />
+              </IconButton>
+              {/* 打开项目所在的文件夹（macOS 是访达）。走引擎的 reveal —— 它认得的路径才放行。 */}
+              <IconButton
+                size="icon-xs"
+                variant="ghost"
+                label={t("files.openInFinder")}
+                disabled={Boolean(remote)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void window.pinext.workspace.reveal(cwd);
+                }}
+              >
+                <HugeiconsIcon strokeWidth={2} icon={FolderOpenIcon} />
               </IconButton>
             </ContextMenuTrigger>
             <ContextMenuContent className="w-44">
@@ -447,8 +471,12 @@ export function SidePaneFiles({
             </div>
           </ScrollArea>
         </div>
-        {/* 预览在左、文件树在右（用户裁定：0.19.6 把树挪到了左边，他更习惯原来那个）。
-            `listSide="end"` 是 SplitHandle 本来就有的那一档 —— 拖宽的仍是「列表那一列」。 */}
+        {/* 手柄夹在**树与预览之间**（上游的位置）。DOM 顺序仍是 [树][手柄][预览]，
+            只是父级 `flex-row-reverse` 让它画成 [预览][手柄][树] —— 把 `listSide` 改成
+            `end` 之后，拖宽的依然是「列表那一列」。
+            之前把它挪到行尾是错的：画出来手柄跑到最左，中间夹着预览，树的
+            `hidden @min-[32rem]/files:flex` 也就跟着错位。 */}
+        <SplitHandle listSide="end" label={t("files.resize")} className="hidden @min-[32rem]/files:block" {...split} />
         {preview ? (
           <FilePreviewPane
             preview={preview}
@@ -467,7 +495,6 @@ export function SidePaneFiles({
             {t("files.pick")}
           </div>
         )}
-        <SplitHandle listSide="end" label={t("files.resize")} className="hidden @min-[32rem]/files:block" {...split} />
       </div>
     </div>
   );

@@ -206,7 +206,9 @@
   "computer": "Computer control",
   "proxy": "Network proxy",
   "browser": "Browser control",
-  "bots": "Chat bots"
+  "bots": "Chat bots",
+  "plugins": "Plugins",
+  "tasks": "Scheduled tasks"
  },
  "backToApp": "Back to app",
  "personalization": {

@@ -2014,6 +2014,8 @@ export function App(): JSX.Element {
             }}
             section={settingsSection}
             models={models}
+            projects={projects}
+            onOpenConversation={(id) => void handleOpen(id, "user")}
             onDeleteConversations={handleDeleteConversations}
             onImported={(snapshot) => applySnapshot(snapshot)}
             onProvidersChanged={() => {

@@ -595,36 +595,6 @@ export const Sidebar = memo(function Sidebar({
               <HugeiconsIcon strokeWidth={2} icon={MessageSquarePlusIcon} className="size-3.5 text-muted-foreground" />
               {t("workspace.newChat")}
             </button>
-            <button
-              type="button"
-              aria-current={pluginsActive ? "page" : undefined}
-              className={cn(
-                "flex h-8 pointer-coarse:h-10 w-full items-center gap-2.5 rounded-md px-2 text-sm hover:bg-sidebar-accent/50",
-                pluginsActive && "bg-sidebar-accent font-medium",
-              )}
-              onClick={() => {
-                onOpenMarket();
-                dismissDrawer();
-              }}
-            >
-              <HugeiconsIcon strokeWidth={2} icon={PuzzleIcon} className="size-3.5 text-muted-foreground" />
-              {t("sidebar.plugins")}
-            </button>
-            <button
-              type="button"
-              aria-current={tasksActive ? "page" : undefined}
-              className={cn(
-                "flex h-8 pointer-coarse:h-10 w-full items-center gap-2.5 rounded-md px-2 text-sm hover:bg-sidebar-accent/50",
-                tasksActive && "bg-sidebar-accent font-medium",
-              )}
-              onClick={() => {
-                onOpenTasks();
-                dismissDrawer();
-              }}
-            >
-              <HugeiconsIcon strokeWidth={2} icon={Clock01Icon} className="size-3.5 text-muted-foreground" />
-              {t("sidebar.tasks")}
-            </button>
           </div>
         </div>
 

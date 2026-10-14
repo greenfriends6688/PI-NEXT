@@ -83,7 +83,8 @@
     "newFolderPlaceholder": "Folder name",
     "deleteConfirm": "Delete “{{name}}”? Anything inside a folder goes with it, and this cannot be undone.",
     "nameNoSlash": "A name cannot contain a slash",
-    "mutateFailed": "That did not work"
+    "mutateFailed": "That did not work",
+    "openInFinder": "Show in file manager"
   },
   "changes": {
     "count": "{{count}} files",
