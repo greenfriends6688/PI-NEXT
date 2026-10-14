@@ -14,6 +14,7 @@ import { normalizeNotificationSettings } from "@shared/notifications";
 import { DEFAULT_AUTO_ARCHIVE_DAYS, isAutoArchiveDays } from "@shared/auto-archive";
 import { detectSystemLanguage, isUiLanguage, type UiLanguage } from "@/lib/language";
 import { sanitizeShortcutOverrides, type ShortcutOverrides } from "@/lib/shortcuts";
+import { resolveIdentity, type AgentIdentity } from "@shared/identity";
 
 import { DEFAULT_PROXY_SETTINGS, proxySettingsOf, type ProxySettings } from "@shared/proxy";
 
@@ -161,6 +162,11 @@ export type AppSettings = ProxySettings & {
    * `null` unbinds. Only deviations are stored so a later default change still lands.
    */
   shortcuts?: ShortcutOverrides;
+  /**
+   * 设置 → AI 身份: 聊天里那个助手叫什么、长什么样。
+   * 只影响显示；agent 在系统提示词里的自我描述不由这里决定。
+   */
+  agentIdentity?: AgentIdentity;
 };
 
 const DEFAULTS: AppSettings = {
@@ -258,6 +264,9 @@ function sanitize(parsed: Partial<AppSettings>): Partial<AppSettings> {
   const shortcuts = sanitizeShortcutOverrides(next.shortcuts);
   if (shortcuts) next.shortcuts = shortcuts;
   else delete next.shortcuts;
+  // 坏值/超长头像落回空态，不让一个几 MB 的字符串或非法协议进聊天渲染。
+  if (next.agentIdentity) next.agentIdentity = resolveIdentity(next.agentIdentity);
+  else delete next.agentIdentity;
   return next;
 }
 

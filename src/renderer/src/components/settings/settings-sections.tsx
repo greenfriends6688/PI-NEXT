@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { AiImageIcon, Analytics01Icon, Archive04Icon, BotIcon, BoxesIcon, BrainCircuitIcon, Clock01Icon, ComputerIcon, Globe02Icon, ImportIcon, InformationCircleIcon, KeyboardIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Router01Icon, Search01Icon, SentIcon, ServerStack01Icon, Settings02Icon, SparklesIcon, StickyNote01Icon, Wifi01Icon } from "@hugeicons/core-free-icons";
+import { AiImageIcon, Analytics01Icon, Archive04Icon, BotIcon, BoxesIcon, BrainCircuitIcon, Clock01Icon, ComputerIcon, Globe02Icon, ImportIcon, InformationCircleIcon, KeyboardIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Router01Icon, Search01Icon, SentIcon, ServerStack01Icon, Settings02Icon, SparklesIcon, StickyNote01Icon, UserCircle02Icon, Wifi01Icon } from "@hugeicons/core-free-icons";
 import { i18n } from "@/lib/i18n";
 
 /**
@@ -15,6 +15,7 @@ import { i18n } from "@/lib/i18n";
 export type SectionId =
   | "general"
   | "personalization"
+  | "identity"
   | "shortcuts"
   | "archived"
   | "usage"
@@ -55,6 +56,7 @@ export const SETTINGS_SECTIONS: Array<{
     items: [
       { id: "general", icon: <HugeiconsIcon strokeWidth={2} icon={Settings02Icon} /> },
       { id: "personalization", icon: <HugeiconsIcon strokeWidth={2} icon={SparklesIcon} /> },
+      { id: "identity", icon: <HugeiconsIcon strokeWidth={2} icon={UserCircle02Icon} /> },
       { id: "shortcuts", icon: <HugeiconsIcon strokeWidth={2} icon={KeyboardIcon} /> },
     ],
   },

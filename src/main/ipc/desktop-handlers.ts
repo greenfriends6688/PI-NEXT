@@ -7,7 +7,7 @@ import {
   shell,
 } from "electron";
 import { statSync } from "node:fs";
-import { homedir } from "node:os";
+import { homedir, userInfo } from "node:os";
 import { VERSION as piVersion } from "@earendil-works/pi-coding-agent";
 import { Ipc, type AppModelsDevInfo } from "@shared/ipc";
 import { broadcast } from "./broadcast";
@@ -503,6 +503,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       userData: paths.userData,
       runtimeRoot: paths.runtimeRoot,
       platform: process.platform,
+      userName: readUserName(),
       modelsDev: modelsDevInfo(loadModelsDev().stats),
     };
   });
@@ -625,4 +626,13 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     await engine.start(cwd);
     return { cwd, status: engine.status };
   });
+}
+
+/** `os.userInfo()` throws in a sandbox without a passwd entry; an empty name just disables sync. */
+function readUserName(): string {
+  try {
+    return userInfo().username.trim();
+  } catch {
+    return "";
+  }
 }

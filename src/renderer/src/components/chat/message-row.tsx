@@ -27,6 +27,7 @@ import { InlinePreviews, InlineThumbStrip } from "./inline-preview";
 import { MarkdownView } from "./markdown-view";
 import { ThinkingBlock } from "./thinking-block";
 import { ToolCard } from "./tool-card";
+import { AgentIdentityHead } from "./agent-identity-head";
 import { ToolGroupRow } from "./tool-group";
 import { ToolRow } from "./tool-row";
 import { CompactNotice } from "./compact-notice";
@@ -763,6 +764,8 @@ function ChatMessageRowImpl({
   return (
     <Message align={isUser ? "end" : "start"} className="group/row">
       <MessageContent className={isUser ? "items-end" : "items-start"}>
+        {/* fork:ai-identity —— 助手那一行先亮身份（头像 + 名字），再上正文。 */}
+        {!isUser ? <AgentIdentityHead /> : null}
         {message.attachments?.length ? <AttachmentStrip items={message.attachments} /> : null}
 
         {streaming && !isUser ? <RunProgress startedAt={runStart} /> : null}

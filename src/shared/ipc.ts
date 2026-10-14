@@ -352,6 +352,11 @@ export type AppInfo = {
   userData: string;
   runtimeRoot: string;
   platform: string;
+  /**
+   * 本机用户名（`os.userInfo().username`），供「AI 身份 → 同步用户资料」画 initials。
+   * 取不到时回退到空串（那一态就退回名字/头像，界面不变形）。
+   */
+  userName: string;
   modelsDev?: AppModelsDevInfo;
 };
 

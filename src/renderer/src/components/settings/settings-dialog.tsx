@@ -42,6 +42,7 @@ import { UsageSettings } from "./usage-settings";
 import { ShortcutsSettings } from "./shortcuts-settings";
 import { AboutSettings } from "./about-settings";
 import { PersonalizationSettings } from "./personalization-settings";
+import { IdentitySettings } from "./identity-settings";
 import { ImageGenSettings } from "./imagegen-settings";
 import { BotChannelSettings } from "./bot-channel-settings";
 import { ImBridgeSettings } from "./im-settings";
@@ -422,6 +423,7 @@ export function SettingsDialog({
           ) : null}
 
           {section === "personalization" ? <PersonalizationSettings /> : null}
+          {section === "identity" ? <IdentitySettings /> : null}
           {section === "shortcuts" ? <ShortcutsSettings /> : null}
           {section === "providers" ? <ProvidersSettings models={models} onChanged={() => onProvidersChanged?.()} /> : null}
           {section === "archived" ? <ArchivedSettings onDeleteConversations={onDeleteConversations} /> : null}

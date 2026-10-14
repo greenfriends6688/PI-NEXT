@@ -266,6 +266,7 @@ const APP_INFO: AppInfo = {
   userData: "/Users/dev/Library/Application Support/Pinext",
   runtimeRoot: "/Users/dev/Library/Application Support/Pinext/runtime/engine",
   platform,
+  userName: "dev",
   modelsDev: { models: 1_284, aliases: 3_910, generatedAt: Date.now() - 36 * 60 * 60 * 1000, path: "resources/models-dev/index.json" },
 };
 
