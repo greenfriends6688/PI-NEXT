@@ -1,0 +1,916 @@
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type JSX, type KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Add01Icon, ArrowDown01Icon, ArrowUp02Icon, AttachmentIcon, Cancel01Icon, ChartHistogramIcon, Folder01Icon, MagicWand02Icon, PlayIcon, ScissorIcon, Search01Icon, SparklesIcon, SquareIcon } from "@hugeicons/core-free-icons";
+import { IconButton } from "@/components/icon-button";
+import { ModelThinkingSelect } from "@/components/model-thinking-select";
+import { Textarea } from "@/components/ui/textarea";
+import { isTouchOnly } from "@/lib/platform";
+import { engine } from "@/lib/engine-client";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import type {
+  ChatAttachment,
+  ContextUsage,
+  FastVibeModel,
+  Project,
+  QueuePauseReason,
+  QueuedPrompt,
+  SessionStats,
+  SlashCommand,
+} from "@shared/types";
+import { filesToAttachments, pastedTextAttachmentName, shouldAttachPastedText } from "@/lib/attachments";
+import { randomUUID } from "../../../../shared/random.ts";
+import { useGitStatus } from "@/lib/use-git-status";
+import { cn } from "@/lib/utils";
+import { formatDuration } from "@/lib/time";
+import { matchChord, resolveBinding } from "@/lib/shortcuts";
+import { useShortcutLabel } from "@/lib/use-shortcuts";
+import { useSettingsStore } from "@/stores/settings";
+import { useExtensionStatusValue } from "@/stores/session";
+import { GitBranchChip } from "./git-branch-chip";
+import { AttachmentChip } from "./attachment-chip";
+import { MessageQueue } from "./message-queue";
+import { ExtensionStatusBadges } from "./extension-surface";
+
+/**
+ * Icons for the slash palette. Skills are offered alongside the engine's own
+ * commands, and each kind gets a glyph so the list is scannable: `/skill:<name>`
+ * forces a skill.
+ */
+const COMMAND_ICONS: Record<string, typeof SparklesIcon> = {
+  skill: MagicWand02Icon,
+  builtin: ScissorIcon,
+};
+
+/**
+ * Extension commands that are state toggles rather than prompts. Picking one from
+ * the palette fires it immediately (the mode badge flips) instead of parking the
+ * command in the draft for a second Enter. A bare `/goal` only arms goal mode; the
+ * user's next message becomes the objective.
+ */
+const INSTANT_COMMANDS = new Set(["goal"]);
+
+const CONTEXT_RING_SIZE = 14;
+const CONTEXT_RING_STROKE = 2;
+const CONTEXT_RING_RADIUS = (CONTEXT_RING_SIZE - CONTEXT_RING_STROKE) / 2;
+const CONTEXT_RING_CIRCUMFERENCE = 2 * Math.PI * CONTEXT_RING_RADIUS;
+
+function ContextUsageRing({ percent }: { percent: number }): JSX.Element {
+  const clamped = Math.min(100, Math.max(0, percent));
+  const offset = CONTEXT_RING_CIRCUMFERENCE * (1 - clamped / 100);
+  const color =
+    clamped >= 90 ? "text-destructive" : clamped >= 70 ? "text-warning" : "text-muted-foreground";
+
+  return (
+    <svg
+      viewBox={`0 0 ${CONTEXT_RING_SIZE} ${CONTEXT_RING_SIZE}`}
+      className="size-3.5 -rotate-90"
+      aria-hidden="true"
+    >
+      <circle
+        cx={CONTEXT_RING_SIZE / 2}
+        cy={CONTEXT_RING_SIZE / 2}
+        r={CONTEXT_RING_RADIUS}
+        fill="none"
+        stroke="var(--muted-foreground)"
+        strokeOpacity={0.2}
+        strokeWidth={CONTEXT_RING_STROKE}
+      />
+      {clamped > 0 ? (
+        <circle
+          cx={CONTEXT_RING_SIZE / 2}
+          cy={CONTEXT_RING_SIZE / 2}
+          r={CONTEXT_RING_RADIUS}
+          fill="none"
+          className={color}
+          stroke="currentColor"
+          strokeWidth={CONTEXT_RING_STROKE}
+          strokeLinecap="round"
+          strokeDasharray={CONTEXT_RING_CIRCUMFERENCE}
+          strokeDashoffset={offset}
+        />
+      ) : null}
+    </svg>
+  );
+}
+
+/** Compact `45.5K` / `1.2M` counts for the statistics rows. */
+function formatCount(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return String(Math.round(value));
+}
+
+function formatSpeed(tokens: number, ms: number | undefined): string {
+  if (!ms || ms <= 0 || tokens <= 0) return "—";
+  return `~${Math.round(tokens / (ms / 1000))} tok/s`;
+}
+
+function StatRow({ label, value, className }: { label: string; value: string; className?: string }): JSX.Element {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={cn("font-medium tabular-nums", className)}>{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * The context ring's popover: context-window usage on top, then the current
+ * conversation's turn statistics (speed, timing, tokens, cache hit, cost).
+ */
+function ContextUsagePanel({
+  percent,
+  used,
+  window: windowTokens,
+  stats,
+}: {
+  percent: number;
+  used: number | null;
+  window: number;
+  stats?: SessionStats | null;
+}): JSX.Element {
+  const { t } = useTranslation("chat");
+  const clamped = Math.min(100, Math.max(0, percent));
+  const barColor = clamped >= 90 ? "bg-destructive" : clamped >= 70 ? "bg-warning" : "bg-primary";
+  const remaining = Math.max(0, windowTokens - (used ?? 0));
+
+  const tokens = stats?.tokens;
+  const input = tokens?.input ?? 0;
+  const output = tokens?.output ?? 0;
+  const cacheRead = tokens?.cacheRead ?? 0;
+  const timing = stats?.timing;
+  const cacheBase = input + cacheRead;
+  const cacheHit = cacheBase > 0 ? Math.round((cacheRead / cacheBase) * 100) : null;
+
+  return (
+    <div className="space-y-2.5">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">{t("composer.contextWindow")}</span>
+          <span
+            className={cn(
+              "text-sm font-semibold tabular-nums",
+              clamped >= 90 ? "text-destructive" : clamped >= 70 ? "text-warning" : "text-foreground",
+            )}
+          >
+            {percent}%
+          </span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div className={cn("h-full rounded-full transition-[width]", barColor)} style={{ width: `${clamped}%` }} />
+        </div>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="tabular-nums">{t("composer.used", { count: formatCount(used) })}</span>
+          <span className="tabular-nums">
+            {t("composer.remaining", { remaining: formatCount(remaining), window: formatCount(windowTokens) })}
+          </span>
+        </div>
+      </div>
+
+      {stats ? (
+        <>
+          <Separator />
+          <div className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground">
+            <HugeiconsIcon strokeWidth={2} icon={ChartHistogramIcon} className="size-3.5" />
+            {t("composer.turnStats")}
+          </div>
+          <dl className="space-y-1.5 text-xs">
+            <StatRow label={t("composer.speed")} value={formatSpeed(output, timing?.modelMs)} />
+            <StatRow label={t("composer.modelTime")} value={formatDuration(timing?.modelMs) || "—"} />
+            <StatRow label={t("composer.toolTime")} value={formatDuration(timing?.toolMs) || "—"} />
+            <StatRow label={t("composer.steps")} value={stats.steps != null ? String(stats.steps) : "—"} />
+            <StatRow label="Token" value={`${formatCount(input)} ↑ · ${formatCount(output)} ↓`} />
+            <StatRow
+              label={t("composer.cacheHit")}
+              value={cacheHit != null ? `${cacheHit}%` : "—"}
+              className={cacheHit != null && cacheHit > 0 ? "text-success" : undefined}
+            />
+            <StatRow label={t("composer.cost")} value={`$${(stats.cost ?? 0).toFixed(3)}`} />
+          </dl>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+export function Composer({
+  value,
+  disabled,
+  streaming,
+  working,
+  placeholder,
+  conversationId,
+  models,
+  model,
+  thinkingLevel,
+  workspaceLabel,
+  projects,
+  project,
+  newSession,
+  hideProjectPicker = false,
+  commands,
+  queued,
+  queuePause,
+  attachments,
+  history,
+  contextPercent,
+  contextUsage,
+  stats,
+  onChange,
+  onSubmit,
+  onAbort,
+  onPickWorkspace,
+  onSelectProject,
+  onModelChange,
+  onManageModels,
+  onThinkingChange,
+  onAttachmentsChange,
+  onRemoveQueued,
+  onEditQueued,
+  onSendQueuedNow,
+  onRecallQueued,
+  onReorderQueued,
+  onResumeQueue,
+  canResume = false,
+  onResumeRun,
+  sendOnEnter = true,
+  focusSignal,
+  className,
+  readOnly = false,
+}: {
+  value: string;
+  disabled: boolean;
+  /**
+   * A run is in flight for this conversation, so a send is *queued* rather than
+   * started as a fresh turn. This is the flag the send path itself uses (the send
+   * button's label and the placeholder describe where the message will go), not the
+   * busy mark — see `working`.
+   */
+  streaming: boolean;
+  /**
+   * 「this conversation is still working」 — the same verdict the sidebar's 运行中 mark
+   * carries: a run (through its retries and the compaction that follows it) *or* a
+   * compaction with no run at all. Drives the stop button and the badges, so a chat
+   * is never shown as busy in one place and idle in another.
+   */
+  working: boolean;
+  placeholder?: string;
+  models: FastVibeModel[];
+  model?: { provider: string; id: string };
+  thinkingLevel?: string;
+  workspaceLabel: string;
+  projects: Project[];
+  project?: string;
+  /** New sessions have no top bar, so the project binding is shown above the input. */
+  newSession?: boolean;
+  /** Hide the project chip entirely (auxiliary chats inherit the parent workspace). */
+  hideProjectPicker?: boolean;
+  commands: SlashCommand[];
+  queued: QueuedPrompt[];
+  queuePause: QueuePauseReason | null;
+  attachments: ChatAttachment[];
+  /**
+   * Past prompts for ↑/↓ recall, read on demand.
+   *
+   * A getter rather than an array: deriving it means walking the whole transcript,
+   * and as a subscribed value that ran on every store update — so every keystroke
+   * (the draft lives in the same store) and every streamed batch allocated a fresh
+   * array of every prompt in the conversation for a list only these two keys read.
+   */
+  history: () => string[];
+  contextPercent?: number | null;
+  contextUsage?: ContextUsage | null;
+  /** Turn statistics for the active conversation; shown under the context ring. */
+  stats?: SessionStats | null;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  onAbort: () => void;
+  onPickWorkspace: () => void;
+  onSelectProject: (project: string | null) => void;
+  onModelChange: (provider: string, modelId: string) => void;
+  /** Opens Settings → 模型与默认, where providers, models and the new-chat default are configured. */
+  onManageModels: () => void;
+  onThinkingChange: (level: string) => void;
+  onAttachmentsChange: (attachments: ChatAttachment[]) => void;
+  onRemoveQueued: (id: string) => void;
+  onEditQueued: (id: string) => void;
+  onSendQueuedNow: (id: string) => void;
+  onRecallQueued: (id: string) => void;
+  onReorderQueued: (ids: string[]) => void;
+  onResumeQueue: () => void;
+  /**
+   * The primary action is 继续, not 发送: the transcript is parked on a message the
+   * engine can continue from (an abnormal stop — a failure, a user abort, an
+   * output-limit truncation — or a turn cut off before its reply), and Main says so
+   * from the transcript itself (`EngineSessionState.canResume`). It is drawn only while
+   * the caret is empty, so a follow-up is never sent in place of the resume, and only
+   * while the chat is idle — the caller pairs it with `working`.
+   */
+  canResume?: boolean;
+  /** Continue the interrupted turn from the transcript, with no new user message. */
+  onResumeRun?: () => void;
+  sendOnEnter?: boolean;
+  /** Increment to move the caret into the textarea (new sessions focus the composer). */
+  focusSignal?: number;
+  className?: string;
+  /**
+   * The conversation this composer sends to. Read for the one piece of per-chat state
+   * the composer draws itself (a handoff owning the input); omitted by surfaces that
+   * have no conversation of their own.
+   */
+  conversationId?: string;
+  /**
+   * The composer is being shown for a run the user cannot steer — a delegated run's
+   * pane. The input is locked and every control that would change the run (attach,
+   * the model / thinking menus) is dropped; what stays is what is
+   * *readable*: the context ring with its popover, the model and thinking chips as
+   * plain labels, and the stop button while the run is in flight.
+   */
+  readOnly?: boolean;
+}): JSX.Element {
+  const { t } = useTranslation("chat");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [slashDismissed, setSlashDismissed] = useState(false);
+  /**
+   * A `/handoff` writing this chat's summary owns its composer: the sentence goes in
+   * the placeholder and nothing may be typed or sent, because the engine refuses
+   * another prompt to this conversation until the command returns. The status belongs
+   * to a conversation, so it is the caller's `conversationId` — not the chat on screen.
+   */
+  const handoff = useExtensionStatusValue(conversationId, "handoff");
+  const notice = readOnly ? undefined : handoff;
+  const locked = disabled || Boolean(notice);
+  const [histIndex, setHistIndex] = useState<number | null>(null);
+  const [projectOpen, setProjectOpen] = useState(false);
+  const [projectQuery, setProjectQuery] = useState("");
+  const histDraft = useRef("");
+  const sendBinding = useSettingsStore((state) => resolveBinding("send", state.settings.shortcuts));
+  const sendShortcut = useShortcutLabel("send");
+  const stopShortcut = useShortcutLabel("stop");
+
+  // The composer survives session switches, so a plain autoFocus never re-fires.
+  // A changing signal (new chat, app launch) pulls focus back to the input.
+  //
+  // Focusing is also where the caret gets placed. A draft that arrives from outside
+  // the textarea — a suggestion chip, an ↑ history recall, a restored draft on chat
+  // switch, a plugin's `setEditorText` — is assigned as the value, and the browser
+  // parks the caret at offset 0 for that. The one case a value comparison cannot see
+  // is coming *back* to a draft: switching chats renders the empty draft first (the
+  // caret collapses to 0) and the restored text second, and that second value is the
+  // one this composer already holds, so nothing looks like it changed. A programmatic
+  // focus is exactly "the user is being put into this draft", so the caret belongs at
+  // the end of whatever is there — but only when focus actually moves in. A re-render
+  // while the user is typing focuses an element that is already focused, and must not
+  // drag a mid-text caret to the end.
+  useEffect(() => {
+    if (focusSignal === undefined) return;
+    const frame = requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      const entering = document.activeElement !== el;
+      el.focus();
+      if (entering) {
+        const end = el.value.length;
+        el.setSelectionRange(end, end);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusSignal]);
+
+  // Same caret rule for a draft written in while the textarea is already focused.
+  // Typing never reaches the branch: `handleChange` records the value the keystroke
+  // just produced, so it compares equal and the caret the user placed stays put.
+  const echoedValue = useRef(value);
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el || echoedValue.current === value) return;
+    echoedValue.current = value;
+    if (document.activeElement !== el) return;
+    const end = value.length;
+    el.setSelectionRange(end, end);
+  }, [value]);
+
+  const slash = useMemo(() => {
+    if (slashDismissed || !/^\/[^\s]*$/.test(value)) return [];
+    const q = value.slice(1).toLowerCase();
+    return commands
+      .filter((item) => {
+        const hay = `${item.name} ${item.description ?? ""} ${(item.aliases ?? []).join(" ")}`.toLowerCase();
+        return !q || hay.includes(q);
+      })
+      .slice(0, 8);
+  }, [commands, slashDismissed, value]);
+
+  useEffect(() => {
+    setSlashIndex(0);
+  }, [value]);
+
+  function applySlash(command: SlashCommand): void {
+    // Toggles like `/goal` act the moment they are chosen: clear the draft and run
+    // the command so the mode badge appears below the composer, instead of leaving
+    // `/goal` in the box for the user to send.
+    if (command.source === "extension" && INSTANT_COMMANDS.has(command.name)) {
+      onChange("");
+      setSlashDismissed(true);
+      void engine.prompt(`/${command.name}`).catch(() => undefined);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+      return;
+    }
+    onChange(`/${command.name} `);
+    setSlashDismissed(true);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
+    if (event.nativeEvent.isComposing || event.key === "Process") return;
+
+    if (slash.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setSlashIndex((index) => (index + 1) % slash.length);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setSlashIndex((index) => (index - 1 + slash.length) % slash.length);
+        return;
+      }
+      if (event.key === "Tab" || event.key === "Enter") {
+        event.preventDefault();
+        const item = slash[slashIndex] ?? slash[0];
+        // While the palette is open Enter/Tab confirms the highlighted suggestion.
+        // A state toggle runs at once; anything else lands in the draft so its
+        // arguments can be typed, and a second Enter sends it.
+        applySlash(item);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSlashDismissed(true);
+        return;
+      }
+    }
+
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      const el = event.currentTarget;
+      const atFirstLine = !value.slice(0, el.selectionStart).includes("\n");
+      const atLastLine = !value.slice(el.selectionEnd).includes("\n");
+      const past = history();
+      if (event.key === "ArrowUp" && atFirstLine && past.length > 0) {
+        event.preventDefault();
+        if (histIndex === null) {
+          histDraft.current = value;
+          const next = past.length - 1;
+          setHistIndex(next);
+          onChange(past[next] ?? "");
+        } else if (histIndex > 0) {
+          const next = histIndex - 1;
+          setHistIndex(next);
+          onChange(past[next] ?? "");
+        }
+        return;
+      }
+      if (event.key === "ArrowDown" && atLastLine && histIndex !== null) {
+        event.preventDefault();
+        if (histIndex < past.length - 1) {
+          const next = histIndex + 1;
+          setHistIndex(next);
+          onChange(past[next] ?? "");
+        } else {
+          setHistIndex(null);
+          onChange(histDraft.current);
+        }
+        return;
+      }
+    }
+
+    if (sendBinding && matchChord(event.nativeEvent, sendBinding)) {
+      event.preventDefault();
+      // A held Enter repeats the keydown: the first one sends, the rest must not
+      // queue the same prompt again.
+      if (!event.repeat) submit();
+      return;
+    }
+    // A phone's on-screen keyboard has no Shift+Enter to fall back on, so there Enter
+    // is a newline and the send button sends — otherwise a multi-line prompt could not
+    // be typed at all, and the Return key sent every half-written thought.
+    if (
+      sendOnEnter &&
+      !isTouchOnly() &&
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey
+    ) {
+      event.preventDefault();
+      if (!event.repeat) submit();
+    }
+  }
+
+  function submit(): void {
+    onSubmit();
+    setHistIndex(null);
+    setSlashDismissed(false);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
+  const hasContent = Boolean(value.trim() || attachments.length > 0);
+  const filteredProjects = useMemo(() => {
+    const query = projectQuery.trim().toLowerCase();
+    if (!query) return projects;
+    return projects.filter((item) => `${item.name} ${item.cwd}`.toLowerCase().includes(query));
+  }, [projectQuery, projects]);
+  // `project` is the workspace cwd, so it is also what git answers for. The
+  // refresh key covers both a finished turn (the agent may have committed or
+  // created a branch) and an explicit switch from the branch picker.
+  const [gitEpoch, setGitEpoch] = useState(0);
+  // The persistent header owns status after the first message. Stop polling here
+  // at that point so one visible repository never starts two git processes.
+  const gitStatus = useGitStatus(newSession ? project : undefined, `${streaming ? "streaming" : "idle"}:${gitEpoch}`);
+  const git = gitStatus?.isRepository && gitStatus.branch ? gitStatus : null;
+  // Project/branch chips only belong to an empty conversation. Once a message
+  // has been sent the top bar carries the title, so the chips are dropped.
+  const showWorkspace = Boolean(newSession);
+  const showProjectPicker = showWorkspace && !hideProjectPicker;
+
+  const contextUsed = contextUsage?.tokens ?? (
+    contextUsage?.contextWindow && typeof contextPercent === "number"
+      ? (contextPercent / 100) * contextUsage.contextWindow
+      : null
+  );
+  const contextWindow = contextUsage?.contextWindow ?? 0;
+  const contextUsedPercent = typeof contextPercent === "number" ? Math.round(contextPercent) : null;
+
+  async function addFiles(list: FileList | File[]): Promise<void> {
+    const next = await filesToAttachments([...list]);
+    if (next.length === 0) return;
+    onAttachmentsChange([...attachments, ...next]);
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>): void {
+    event.preventDefault();
+    setDragging(false);
+    if (event.dataTransfer.files.length > 0) void addFiles(event.dataTransfer.files);
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>): void {
+    const files = [...event.clipboardData.files];
+    if (files.length > 0) {
+      event.preventDefault();
+      void addFiles(files);
+      return;
+    }
+
+    const text = event.clipboardData.getData("text/plain");
+    if (!shouldAttachPastedText(text)) return;
+
+    event.preventDefault();
+    onAttachmentsChange([
+      ...attachments,
+      {
+        id: randomUUID(),
+        kind: "file",
+        name: pastedTextAttachmentName(text) || t("composer.pastedTextFile"),
+        mimeType: "text/plain",
+        text,
+      },
+    ]);
+  }
+
+  function handleChange(next: string): void {
+    // Claim the value before it round-trips through state, so the caret effect above
+    // can tell a keystroke apart from a draft written in from outside.
+    echoedValue.current = next;
+    setSlashDismissed(false);
+    setHistIndex(null);
+    onChange(next);
+  }
+
+  return (
+    <div
+      className={cn("@container/composer mx-auto w-full max-w-3xl px-6 pb-5", className)}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={handleDrop}
+    >
+      {slash.length > 0 ? (
+        <div className="overlay-surface mb-2 overflow-hidden rounded-lg bg-popover/95" role="listbox">
+          {slash.map((item, index) => (
+            <button
+              key={item.name}
+              type="button"
+              role="option"
+              aria-selected={index === slashIndex}
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
+                index === slashIndex ? "bg-muted" : "hover:bg-muted/60",
+              )}
+              onMouseEnter={() => setSlashIndex(index)}
+              onClick={() => applySlash(item)}
+            >
+              <HugeiconsIcon
+                strokeWidth={2}
+                icon={COMMAND_ICONS[item.source ?? ""] ?? SparklesIcon}
+                className="size-3.5 shrink-0 text-muted-foreground"
+              />
+              <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                <span className="shrink-0 font-medium">/{item.name}</span>
+                {item.description ? (
+                  <span className="min-w-0 truncate text-xs text-muted-foreground">{item.description}</span>
+                ) : null}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {showWorkspace && (showProjectPicker || git) ? (
+        <div className="mb-2 flex items-center gap-0.5 px-1.5">
+          {showProjectPicker ? (
+            <Popover
+              open={projectOpen}
+              onOpenChange={(open) => {
+                setProjectOpen(open);
+                if (!open) setProjectQuery("");
+              }}
+            >
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    className="group flex h-7 max-w-56 items-center gap-1.5 rounded-full px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground"
+                  />
+                }
+              >
+                <span
+                  className={cn("relative size-3.5 shrink-0", project && "cursor-pointer rounded-full hover:bg-muted-foreground/20")}
+                  aria-label={project ? t("composer.clearProject") : undefined}
+                  title={project ? t("composer.clearProject") : undefined}
+                  onClick={project ? (event) => {
+                    // On a touchscreen the × never shows (no hover), so this icon is just
+                    // the left half of the chip: a tap there has to open the picker like
+                    // the rest of it, not silently unbind the project. The picker carries
+                    // its own 清除项目 row for touch.
+                    if (isTouchOnly()) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onSelectProject(null);
+                  } : undefined}
+                >
+                  <HugeiconsIcon strokeWidth={1.8} icon={Folder01Icon} className={cn("absolute inset-0 size-3.5 transition-opacity", project && "group-hover:opacity-0")} />
+                  {project ? <HugeiconsIcon strokeWidth={1.8} icon={Cancel01Icon} className="absolute inset-0 size-3.5 opacity-0 transition-opacity group-hover:opacity-100" /> : null}
+                </span>
+                <span className="max-w-44 truncate">{project ? projects.find((item) => item.cwd === project)?.name ?? workspaceLabel : t("composer.pickProject")}</span>
+                <HugeiconsIcon strokeWidth={1.8} icon={ArrowDown01Icon} className="size-3 shrink-0" />
+              </PopoverTrigger>
+              <PopoverContent align="start" side="top" sideOffset={12} className="w-70 max-h-(--available-height) gap-0 overflow-hidden rounded-xl p-1 shadow-lg">
+                <div className="relative mb-0.5 shrink-0 px-0.5 pt-0.5">
+                  <HugeiconsIcon strokeWidth={2} icon={Search01Icon} className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    autoFocus
+                    value={projectQuery}
+                    placeholder={t("composer.searchProject")}
+                    className="h-7 rounded-md border-0 bg-transparent pl-6.5 text-sm shadow-none focus-visible:ring-0"
+                    onChange={(event) => setProjectQuery(event.target.value)}
+                  />
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  {filteredProjects.length > 0 ? filteredProjects.map((item) => (
+                    <button
+                      key={item.cwd}
+                      type="button"
+                      className={cn(
+                        "flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-muted",
+                        item.cwd === project && "bg-muted font-medium",
+                      )}
+                      onClick={() => {
+                        onSelectProject(item.cwd);
+                        setProjectOpen(false);
+                      }}
+                    >
+                      <HugeiconsIcon strokeWidth={2} icon={Folder01Icon} className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{item.name}</span>
+                    </button>
+                  )) : (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">{t("composer.noProject")}</div>
+                  )}
+                </div>
+                <div className="my-0.5 shrink-0 border-t border-border" />
+                {project ? (
+                  <button
+                    type="button"
+                    className="hidden w-full shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:flex"
+                    onClick={() => {
+                      setProjectOpen(false);
+                      onSelectProject(null);
+                    }}
+                  >
+                    <HugeiconsIcon strokeWidth={2} icon={Cancel01Icon} className="size-3.5" />
+                    <span>{t("composer.clearProject")}</span>
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="flex w-full shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                  onClick={() => {
+                    setProjectOpen(false);
+                    onPickWorkspace();
+                  }}
+                >
+                  <HugeiconsIcon strokeWidth={2} icon={Add01Icon} className="size-3.5" />
+                  <span>{t("composer.newProject")}</span>
+                </button>
+              </PopoverContent>
+            </Popover>
+          ) : null}
+          {git ? (
+            <GitBranchChip status={git} onBranchChange={() => setGitEpoch((value) => value + 1)} />
+          ) : null}
+        </div>
+      ) : null}
+
+      <MessageQueue
+        items={queued}
+        pauseReason={queuePause}
+        draft={value}
+        onRemove={onRemoveQueued}
+        onEdit={onEditQueued}
+        onSendNow={onSendQueuedNow}
+        onRecall={onRecallQueued}
+        onReorder={onReorderQueued}
+        onResume={onResumeQueue}
+      />
+
+      <div
+        className={cn(
+          "glass-rim relative z-10 rounded-[22px] border border-border bg-card shadow-sm transition-colors focus-within:border-ring",
+          dragging && "ring-2 ring-ring",
+        )}
+      >
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(event) => {
+            if (event.target.files) void addFiles(event.target.files);
+            event.target.value = "";
+          }}
+        />
+
+        {attachments.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5 px-3 pt-3">
+            {attachments.map((item) => (
+              <AttachmentChip
+                key={item.id}
+                item={item}
+                onRemove={() => onAttachmentsChange(attachments.filter((entry) => entry.id !== item.id))}
+              />
+            ))}
+          </div>
+        ) : null}
+
+        <Textarea
+          ref={textareaRef}
+          rows={1}
+          value={value}
+          disabled={locked || readOnly}
+          placeholder={notice ?? (!readOnly && streaming ? t("composer.placeholderQueued") : placeholder ?? t("composer.placeholder"))}
+          className={cn(
+            "field-sizing-content max-h-56 min-h-13 resize-none border-0 bg-transparent px-4 text-sm leading-6 shadow-none focus-visible:ring-0 disabled:bg-transparent disabled:opacity-100 dark:bg-transparent dark:disabled:bg-transparent",
+            attachments.length > 0 ? "pt-2" : "pt-3.5",
+          )}
+          onChange={(event) => handleChange(event.target.value)}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+        />
+
+        <div className="flex items-center gap-1 px-2.5 pb-2.5">
+          {readOnly ? null : (
+            <IconButton
+              size="icon-sm"
+              variant="ghost"
+              className="rounded-full text-muted-foreground"
+              label={t("composer.attach")}
+              disabled={locked}
+              onClick={() => fileRef.current?.click()}
+            >
+              <HugeiconsIcon strokeWidth={2} icon={AttachmentIcon} />
+            </IconButton>
+          )}
+
+          {readOnly ? null : <ExtensionStatusBadges disabled={working} />}
+
+          <div className="flex-1" />
+
+          {contextUsedPercent != null && contextWindow > 0 ? (
+            <span className="hidden @min-[27.5rem]/composer:contents">
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground"
+                      aria-label={t("composer.contextStats")}
+                    />
+                  }
+                >
+                  <ContextUsageRing percent={contextUsedPercent} />
+                </PopoverTrigger>
+                <PopoverContent side="top" align="end" sideOffset={10} className="w-72 gap-0 p-3.5">
+                  <ContextUsagePanel
+                    percent={contextUsedPercent}
+                    used={contextUsed}
+                    window={contextWindow}
+                    stats={stats}
+                  />
+                </PopoverContent>
+              </Popover>
+            </span>
+          ) : null}
+
+          <ModelThinkingSelect
+            models={models}
+            model={model}
+            thinkingLevel={thinkingLevel}
+            readOnly={readOnly}
+            emptyModelLabel={models.length === 0 ? t("composer.addModel") : t("composer.pickModel")}
+            onManageModels={onManageModels}
+            onModelChange={(next) => {
+              if (next) onModelChange(next.provider, next.id);
+            }}
+            onThinkingChange={(level) => {
+              if (level !== "auto") onThinkingChange(level);
+            }}
+          />
+
+          {/* A run and a compaction are stopped the same way, so the mark that decides
+              whether there is something to stop is `working`, not `streaming`: a manual
+              `/compact` has no run behind it and used to leave nothing to click. */}
+          {readOnly ? (
+            working && !hasContent ? (
+              <IconButton
+                size="icon-sm"
+                variant="destructive"
+                className="rounded-full"
+                label={t("composer.stop")}
+                data-fv-action="stop"
+                shortcut={stopShortcut}
+                onClick={onAbort}
+              >
+                <HugeiconsIcon strokeWidth={2} icon={SquareIcon} className="size-3.5 fill-current" />
+              </IconButton>
+            ) : null
+          ) : (working && !hasContent) ? (
+            <IconButton
+              size="icon-sm"
+              variant="destructive"
+              className="rounded-full"
+              label={t("composer.stop")}
+              data-fv-action="stop"
+              shortcut={stopShortcut}
+              onClick={onAbort}
+            >
+              <HugeiconsIcon strokeWidth={2} icon={SquareIcon} className="size-3.5 fill-current" />
+            </IconButton>
+          ) : canResume && !hasContent ? (
+            // An interrupted run leaves the caret empty; the primary action resumes
+            // the turn instead of sending, so a follow-up is never sent in its place.
+            <IconButton
+              size="icon-sm"
+              variant="default"
+              className="rounded-full"
+              label={t("composer.resume")}
+              onClick={() => onResumeRun?.()}
+            >
+              <HugeiconsIcon strokeWidth={2} icon={PlayIcon} className="size-3.5 fill-current" />
+            </IconButton>
+          ) : (
+            <IconButton
+              size="icon-sm"
+              variant="default"
+              className="rounded-full"
+              label={streaming ? t("composer.queue") : t("composer.send")}
+              data-fv-action="send"
+              shortcut={sendShortcut}
+              disabled={locked || !hasContent}
+              onClick={submit}
+            >
+              <HugeiconsIcon strokeWidth={2} icon={ArrowUp02Icon} />
+            </IconButton>
+          )}
+        </div>      </div>
+    </div>
+  );
+}

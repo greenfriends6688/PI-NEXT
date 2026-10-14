@@ -1,0 +1,357 @@
+import type { ChatAttachment, ChatMessage, DagSettledInfo, MessagePart, ThinkingTiming, ToolCallBlock, TuiRun } from "@shared/types";
+import { extractPromptAttachments } from "../../shared/attachment-metadata.ts";
+import { stripMemoryCitation } from "../../shared/memory-citation.ts";
+import { toolImagesOf, toolResultStatus } from "../../shared/tool-result.ts";
+import { uiText } from "./ui-text.ts";
+
+/**
+ * Ceiling on the tool output that crosses into the renderer.
+ *
+ * Nothing capped it before: a `read` of a large file, or a command that printed a
+ * build log, was structured-cloned over IPC in full and then held in the transcript
+ * store for the life of the conversation — while the card that shows it clips at
+ * 4000 characters. The headroom here is deliberate and generous, so a real diff or a
+ * long test run still arrives whole; it is only the pathological case that is cut.
+ * The engine's own copy is untouched: the model still sees the full result.
+ */
+const MAX_TOOL_RESULT_CHARS = 256_000;
+
+export function capToolResult(text: string): string {
+  if (text.length <= MAX_TOOL_RESULT_CHARS) return text;
+  const dropped = text.length - MAX_TOOL_RESULT_CHARS;
+  return `${text.slice(0, MAX_TOOL_RESULT_CHARS)}\n${uiText(
+    `… 已截断 ${dropped} 个字符`,
+    `… truncated ${dropped} characters`,
+  )}`;
+}
+
+/**
+ * `idOf` resolves the stable session-tree entry id for a raw engine message. The
+ * engine's plain message objects carry no id, so without it every mapping minted a
+ * fresh random id and the renderer could never branch (edit/retry) back into the
+ * session tree.
+ *
+ * `timings` carries the thinking bounds Main timed while the reply streamed, keyed
+ * by that same entry id; the transcript itself has no per-block timing, so without
+ * it a reloaded block could only say 「思考」 with no duration.
+ *
+ * `completedAtOf` is the instant each message's session entry was persisted — the end
+ * of the reply, since the engine stamps a message with its *request* start and only
+ * appends the entry once streaming is over. Keyed by the same entry id.
+ */
+export function mapEngineMessages(
+  raw: unknown,
+  idOf?: (message: unknown) => string | undefined,
+  timings?: ReadonlyMap<string, ThinkingTiming[]>,
+  customRuns?: (message: Record<string, unknown>) => TuiRun[][] | undefined,
+  completedAtOf?: ReadonlyMap<string, number>,
+): ChatMessage[] {
+  if (!Array.isArray(raw)) return [];
+  const output: ChatMessage[] = [];
+  const toolsById = new Map<string, ToolCallBlock>();
+  for (const entry of raw) {
+    const message = unwrapMessage(entry);
+    if (!message) continue;
+    // Extension custom messages carry a `customType` and a plugin renderer. Hidden
+    // ones (`display: false`) are context injections and never belong in the thread.
+    if (message.role === "custom") {
+      // The settled notice is a prompt for the model (the task list and the
+      // dag_result instruction). The thread draws one system event instead — the
+      // same weight as a model switch — whether or not an older copy was visible.
+      if (message.customType === "dag-settled") {
+        const createdAt = typeof message.timestamp === "number" ? message.timestamp : Date.now();
+        output.push({
+          id: idOf?.(entry) ?? String(message.id ?? `dag:${createdAt}`),
+          role: "system",
+          text: "",
+          tools: [],
+          parts: [],
+          createdAt,
+          kind: "dag",
+          dag: dagSettledInfo(message.details),
+        });
+        continue;
+      }
+      if (message.display === false) continue;
+      const customType = typeof message.customType === "string" ? message.customType : undefined;
+      const { text, parts } = extractContent(message.content);
+      output.push({
+        id: idOf?.(entry) ?? String(message.id ?? crypto.randomUUID()),
+        role: "system",
+        text,
+        tools: [],
+        parts,
+        createdAt: typeof message.timestamp === "number" ? message.timestamp : Date.now(),
+        kind: "custom",
+        customType,
+        runs: customRuns?.(message),
+      });
+      continue;
+    }
+    if (message.role === "compactionSummary") {
+      const summary = typeof message.summary === "string" ? message.summary : "";
+      const tokensBefore = typeof message.tokensBefore === "number" ? message.tokensBefore : undefined;
+      const createdAt = typeof message.timestamp === "number" ? message.timestamp : Date.now();
+      const id = idOf?.(entry) ?? `compact:${createdAt}`;
+      const compact = { status: "done" as const, tokensBefore };
+      const compactPart = { kind: "compact" as const, text: summary, compact };
+      const previous = output.at(-1);
+      if (previous?.role === "assistant") {
+        output[output.length - 1] = {
+          ...previous,
+          parts: [...(previous.parts ?? []), compactPart],
+        };
+      } else {
+        output.push({
+          id,
+          role: "system",
+          text: summary,
+          tools: [],
+          parts: [compactPart],
+          createdAt,
+          kind: "compact",
+          compact,
+        });
+      }
+      continue;
+    }
+    if (message.role === "toolResult") {
+      const id = String(message.toolCallId ?? "");
+      const result = toolText(message.content ?? message.result ?? message.output);
+      if (id) {
+        const tool = toolsById.get(id);
+        if (tool) {
+          if (result) tool.result = result;
+          const images = toolImagesOf(message.content);
+          if (images.length > 0) tool.images = images;
+          if (message.details !== undefined) tool.details = message.details;
+          tool.status = toolResultStatus(tool.name, message.isError === true, message.details);
+        }
+      }
+      continue;
+    }
+    const role = message.role === "assistant" || message.role === "system" ? message.role : "user";
+    const { text, thinking, tools, attachments, parts } = extractContent(message.content);
+    if (role === "user") attachments.push(...extractPromptAttachments(text));
+    const id = idOf?.(entry) ?? String(message.id ?? crypto.randomUUID());
+    applyThinkingTimings(parts, id ? timings?.get(id) : undefined);
+    const error = assistantError(message);
+    const stop = error ? undefined : assistantStop(message);
+    if (!text && !thinking && tools.length === 0 && attachments.length === 0 && !error && role !== "assistant") continue;
+    output.push({
+        id,
+        role,
+        text,
+        thinking,
+        tools,
+        parts,
+        createdAt: typeof message.timestamp === "number" ? message.timestamp : Date.now(),
+        // Only a reply has an end distinct from its start; a user row's entry is
+        // written at send time, so its timestamp already is the whole story.
+        completedAt: role === "assistant" ? (id ? completedAtOf?.get(id) : undefined) : undefined,
+        kind: role === "system" ? "notice" : "message",
+        attachments: attachments.length > 0 ? attachments : undefined,
+        error,
+        stop,
+      });
+    if (role === "assistant") {
+      for (const tool of tools) toolsById.set(tool.id, tool);
+    }
+  }
+  return output;
+}
+
+/** Hand each measured block to the thinking part it belongs to, in content order. */
+function applyThinkingTimings(parts: MessagePart[], timings: ThinkingTiming[] | undefined): void {
+  if (!timings || timings.length === 0) return;
+  let index = 0;
+  for (const part of parts) {
+    if (part.kind !== "thinking") continue;
+    const timing = timings[index];
+    index += 1;
+    if (!timing) continue;
+    part.startedAt = timing.startedAt;
+    if (timing.endedAt !== undefined) part.endedAt = timing.endedAt;
+  }
+}
+
+/** Surface a failed model request as an error on the assistant turn. */
+function assistantError(message: Record<string, unknown>): string | undefined {
+  if (message.role !== "assistant" || message.stopReason !== "error") return undefined;
+  const text = typeof message.errorMessage === "string" ? message.errorMessage.trim() : "";
+  return text || "请求失败";
+}
+
+/**
+ * A reply that ended early without failing. Not an error bubble — a truncation or a stop
+ * is not a failed request — but not silence either: an abort the user did not ask for
+ * (and an output-limit cut) used to end the run with nothing on screen at all.
+ */
+function assistantStop(message: Record<string, unknown>): ChatMessage["stop"] {
+  if (message.role !== "assistant") return undefined;
+  return message.stopReason === "length" || message.stopReason === "aborted" ? message.stopReason : undefined;
+}
+
+function unwrapMessage(entry: unknown): Record<string, unknown> | null {
+  if (!isRecord(entry)) return null;
+  if (isRecord(entry.message)) {
+    // A user row's own `timestamp` is when the message was *built*, which is not when
+    // it was sent: a queued prompt keeps the instant it was composed, and the entry is
+    // what records the delivery. The entry's stamp wins, and only for a user row — an
+    // assistant message's own timestamp is its request start, which the entry cannot
+    // say because the entry is written when the reply finishes.
+    const delivered = entry.message.role === "user" ? entryTimestamp(entry.timestamp) : undefined;
+    return {
+      ...entry.message,
+      id: entry.id ?? entry.message.id,
+      _messageId: entry.message.id,
+      timestamp: delivered ?? entry.message.timestamp ?? entry.timestamp,
+    };
+  }
+  if (typeof entry.role === "string") return entry;
+  return null;
+}
+
+/** A session entry's `timestamp` is an ISO string; a bare message's is already epoch ms. */
+function entryTimestamp(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
+  if (typeof value !== "string") return undefined;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function extractContent(content: unknown): {
+  text: string;
+  thinking?: string;
+  tools: ToolCallBlock[];
+  attachments: ChatAttachment[];
+  parts: MessagePart[];
+} {
+  if (typeof content === "string") {
+    return { text: content, tools: [], attachments: [], parts: content ? [{ kind: "text", text: content }] : [] };
+  }
+  if (!Array.isArray(content)) return { text: "", tools: [], attachments: [], parts: [] };
+  const texts: string[] = [];
+  const thoughts: string[] = [];
+  const tools: ToolCallBlock[] = [];
+  const attachments: ChatAttachment[] = [];
+  const parts: MessagePart[] = [];
+  const results = new Map<string, string>();
+  /** Position of the next image in this message, which is what names it. */
+  let images = 0;
+
+  for (const part of content) {
+    if (typeof part === "string") {
+      const text = stripMemoryCitation(part);
+      texts.push(text);
+      if (text) parts.push({ kind: "text", text });
+      continue;
+    }
+    if (!isRecord(part)) continue;
+    const type = String(part.type ?? "");
+    if (type === "thinking") {
+      const thought = typeof part.thinking === "string" ? part.thinking : typeof part.text === "string" ? part.text : "";
+      if (thought) {
+        thoughts.push(thought);
+        parts.push({ kind: "thinking", text: thought });
+      }
+      continue;
+    }
+    if (typeof part.text === "string") {
+      // The memory citation block is for the pipeline, not for the person reading.
+      const text = stripMemoryCitation(part.text);
+      texts.push(text);
+      if (text) parts.push({ kind: "text", text });
+    }
+    if (type === "tool_use" || type === "toolcall" || type === "tool_call" || type === "toolCall") {
+      const id = String(part.id ?? crypto.randomUUID());
+      tools.push({
+        id,
+        name: String(part.name ?? "tool"),
+        args: part.arguments ?? part.input ?? part.args,
+        status: "done",
+      });
+      parts.push({ kind: "tool", toolId: id });
+    }
+    if (type === "image" && typeof part.data === "string") {
+      const mime = typeof part.mimeType === "string" ? part.mimeType : "image/png";
+      attachments.push({
+        // Positional, not random: this mapping runs again at the end of every turn,
+        // and a fresh id made the message structurally different from the one already
+        // on screen — so `reconcileMessages` could never reuse a row that carries an
+        // image, and that row re-rendered (re-decoding its base64) at every turn end.
+        // Ids only have to be unique within their own message; they are React keys
+        // for one attachment strip.
+        id: `image:${images}`,
+        kind: "image",
+        name: "image",
+        mimeType: mime,
+        dataUrl: `data:${mime};base64,${part.data}`,
+      });
+      images += 1;
+    }
+    if (type === "tool_result") {
+      const id = String(part.tool_use_id ?? part.toolCallId ?? part.id ?? "");
+      const text = toolText(part.content ?? part.output ?? part.result);
+      if (id && text) results.set(id, text);
+    }
+  }
+
+  for (const tool of tools) {
+    const result = results.get(tool.id);
+    if (result) tool.result = result;
+  }
+
+  return {
+    text: texts.join("\n"),
+    thinking: thoughts.length > 0 ? thoughts.join("\n") : undefined,
+    tools,
+    attachments,
+    parts,
+  };
+}
+
+function toolText(value: unknown): string | undefined {
+  const text = rawToolText(value);
+  return text === undefined ? undefined : capToolResult(text);
+}
+
+function rawToolText(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    return value
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (isRecord(part) && typeof part.text === "string") return part.text;
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+  if (isRecord(value) && typeof value.text === "string") return value.text;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/** Counts from the notice's `details.nodes`. Anything still running is not an outcome. */
+function dagSettledInfo(details: unknown): DagSettledInfo {
+  const info: DagSettledInfo = { completed: 0, failed: 0, skipped: 0, cancelled: 0 };
+  if (isRecord(details) && typeof details.settled === "boolean") info.settled = details.settled;
+  const nodes = isRecord(details) && Array.isArray(details.nodes) ? details.nodes : [];
+  for (const node of nodes) {
+    if (!isRecord(node)) continue;
+    const status = node.status;
+    if (status === "blocked") info.blocked = (info.blocked ?? 0) + 1;
+    if (status === "completed" || status === "failed" || status === "skipped" || status === "cancelled") {
+      info[status] += 1;
+    }
+  }
+  return info;
+}

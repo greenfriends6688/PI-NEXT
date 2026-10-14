@@ -1,0 +1,433 @@
+import type { OfficialState } from "./official";
+export const Ipc = {
+  engineGetStatus: "engine:get-status",
+  engineStart: "engine:start",
+  engineStop: "engine:stop",
+  enginePrompt: "engine:prompt",
+  engineSubmitPrompt: "engine:submit-prompt",
+  engineSteer: "engine:steer",
+  engineFollowUp: "engine:follow-up",
+  engineAbort: "engine:abort",
+  engineAbortSubagent: "engine:abort-subagent",
+  engineContinue: "engine:continue",
+  engineClearQueue: "engine:clear-queue",
+  engineReplaceSteering: "engine:replace-steering",
+  engineQueueAdd: "engine:queue-add",
+  engineQueueCancel: "engine:queue-cancel",
+  engineQueueRecall: "engine:queue-recall",
+  engineQueueSendNow: "engine:queue-send-now",
+  engineQueueReorder: "engine:queue-reorder",
+  engineQueueResume: "engine:queue-resume",
+  engineCompact: "engine:compact",
+  engineGetCommands: "engine:get-commands",
+  engineGetExtensions: "engine:get-extensions",
+  engineListExtensionPackages: "engine:list-extension-packages",
+  engineInstallExtensionPackage: "engine:install-extension-package",
+  engineRemoveExtensionPackage: "engine:remove-extension-package",
+  engineListMarketPackages: "engine:list-market-packages",
+  engineListMcpServers: "engine:list-mcp-servers",
+  engineSaveMcpServers: "engine:save-mcp-servers",
+  engineListSkills: "engine:list-skills",
+  engineCreateSkill: "engine:create-skill",
+  engineImportSkill: "engine:import-skill",
+  engineRemoveSkill: "engine:remove-skill",
+  engineGetSubagents: "engine:get-subagents",
+  engineListAgentConfigs: "engine:list-agent-configs",
+  engineSaveAgentConfig: "engine:save-agent-config",
+  engineRemoveAgentConfig: "engine:remove-agent-config",
+  engineGetSubagentMessages: "engine:get-subagent-messages",
+  /** A retry's file checkpoint: what the last turn wrote, and undoing it. */
+  engineGetCheckpoint: "engine:get-checkpoint",
+  engineRestoreCheckpoint: "engine:restore-checkpoint",
+  enginePermissionRespond: "engine:permission-respond",
+  engineNewSession: "engine:new-session",
+  engineGetState: "engine:get-state",
+  engineGetRunning: "engine:get-running",
+  engineGetModels: "engine:get-models",
+  /** Internal desktop → SSH Agent configuration replication. */
+  engineSyncConfig: "engine:sync-config",
+  engineSetModel: "engine:set-model",
+  engineSetThinking: "engine:set-thinking",
+  engineSetInterrupt: "engine:set-interrupt",
+  engineSetAutoCompact: "engine:set-auto-compact",
+  engineBranch: "engine:branch",
+  engineFork: "engine:fork",
+  engineGetMessages: "engine:get-messages",
+  /**
+   * The transcript from one entry onward, for a client that already holds the rest
+   * (`TranscriptTail`). What the end-of-turn reload uses, so its cost is the turn
+   * rather than the whole conversation.
+   */
+  engineGetMessagesSince: "engine:get-messages-since",
+  /** Transcript + the turn in flight, read at one instant (`ConversationSnapshot`). */
+  engineGetSnapshot: "engine:get-snapshot",
+  engineGetMessagesPage: "engine:get-messages-page",
+  /** Every parked extension prompt, across conversations (`getPendingUi`). */
+  engineGetPendingUi: "engine:get-pending-ui",
+  engineGetStats: "engine:get-stats",
+  engineSetSteering: "engine:set-steering",
+  engineSetFollowUp: "engine:set-follow-up",
+  engineExportHtml: "engine:export-html",
+  engineImportSources: "engine:import-sources",
+  engineImportCandidates: "engine:import-candidates",
+  engineImportSessions: "engine:import-sessions",
+  /** Merge the connected provider / model / MCP config into the global pi agent directory. */
+  engineSyncPiConfig: "engine:sync-pi-config",
+  workspacePick: "workspace:pick",
+  event: "engine:event",
+  status: "engine:status",
+  conversationsList: "conversations:list",
+  conversationsCreate: "conversations:create",
+  conversationsOpen: "conversations:open",
+  conversationsRename: "conversations:rename",
+  conversationsDelete: "conversations:delete",
+  conversationsRecordPrompt: "conversations:record-prompt",
+  conversationsRestorePrompt: "conversations:restore-prompt",
+  conversationsSetProject: "conversations:set-project",
+  conversationsCreateWorktree: "conversations:create-worktree",
+  conversationsBindWorktree: "conversations:bind-worktree",
+  conversationsUnbindWorktree: "conversations:unbind-worktree",
+  conversationsListWorktrees: "conversations:list-worktrees",
+  conversationsSearch: "conversations:search",
+  conversationReady: "conversations:ready",
+  /**
+   * Pushed whenever the conversation/project catalog changes, to *every* client.
+   *
+   * The list used to be read once per client, at connect, and never again — so a chat
+   * created on the desktop never appeared on the phone, a delete left a row that opened
+   * nothing, and two desktop windows drifted apart the same way. A push, not a method,
+   * because the client has nothing to ask about: it cannot know that something changed.
+   */
+  workspaceChanged: "workspace:changed",
+  projectsAdd: "projects:add",
+  projectsAddRemote: "projects:add-remote",
+  projectsRename: "projects:rename",
+  projectsRemove: "projects:remove",
+  projectsReorder: "projects:reorder",
+  workspaceReveal: "workspace:reveal",
+  workspacePreview: "workspace:preview",
+  workspaceFilesExist: "workspace:files-exist",
+  workspaceFileIcons: "workspace:file-icons",
+  workspaceReadDir: "workspace:read-dir",
+  workspaceGitStatus: "workspace:git-status",
+  workspaceOpenTerminal: "workspace:open-terminal",
+  workspaceGitBranches: "workspace:git-branches",
+  workspaceGitCheckout: "workspace:git-checkout",
+  workspaceGitCreateBranch: "workspace:git-create-branch",
+  workspaceGitStage: "workspace:git-stage",
+  workspaceGitCommit: "workspace:git-commit",
+  workspaceGitGenerateCommitMessage: "workspace:git-generate-commit-message",
+  workspaceGitDiff: "workspace:git-diff",
+  workspaceGitUnstage: "workspace:git-unstage",
+  workspaceGitDiscard: "workspace:git-discard",
+  workspaceGitPull: "workspace:git-pull",
+  workspaceGitPush: "workspace:git-push",
+  workspaceTerminalStart: "workspace:terminal-start",
+  workspaceTerminalWrite: "workspace:terminal-write",
+  workspaceTerminalResize: "workspace:terminal-resize",
+  workspaceTerminalKill: "workspace:terminal-kill",
+  workspaceTerminalData: "workspace:terminal-data",
+  /** Main-process browser-use bridge (extension tool ↔ renderer webview). */
+  browserRequest: "browser:request",
+  browserResponse: "browser:response",
+  browserListProfiles: "browser:list-profiles",
+  browserImportProfile: "browser:import-profile",
+  browserClearData: "browser:clear-data",
+  /** Browsers installed on this machine, so the settings picker can offer them. */
+  browserListEngines: "browser:list-engines",
+  /** Cua Driver permission state. The tools themselves need no IPC — the driver is
+   * loaded into Main, so a `computer_*` call never leaves the process. */
+  computerPermissions: "computer:permissions",
+  computerRequestPermissions: "computer:request-permissions",
+  computerOpenSettings: "computer:open-settings",
+  computerListApps: "computer:list-apps",
+  /** Starts the native drag that carries FastVibe.app into the Privacy & Security list. */
+  computerStartDrag: "computer:start-drag",
+  /** The guided grant sequence, and the floating panel it drives. */
+  computerStartGrantFlow: "computer:start-grant-flow",
+  computerCancelGrantFlow: "computer:cancel-grant-flow",
+  /** Read once on mount; the broadcast below only fires when a step changes, so a
+   * Settings pane opened mid-sequence would otherwise show nothing for 1.5 seconds. */
+  computerGetGrantFlow: "computer:get-grant-flow",
+  computerGrantFlowState: "computer:grant-flow-state",
+  enginePromptConversation: "engine:prompt-conversation",
+  engineGetConversationMessages: "engine:get-conversation-messages",
+  conversationsCreateSide: "conversations:create-side",
+  appGetInfo: "app:get-info",
+  appLog: "app:log",
+  appExportLogs: "app:export-logs",
+  modelsDevUpdate: "models-dev:update",
+  /** Pushed after a models.dev refresh (hourly, or 设置 → 关于) so an open About pane stays current. */
+  modelsDevChanged: "models-dev:changed",
+  statsUsage: "stats:usage",
+  windowNew: "window:new",
+  /** Window controls for the hand-drawn title bar (Windows / Linux). */
+  windowMinimize: "window:minimize",
+  windowToggleMaximize: "window:toggle-maximize",
+  windowClose: "window:close",
+  windowIsMaximized: "window:is-maximized",
+  windowState: "window:state",
+  settingsGet: "settings:get",
+  settingsGetSync: "settings:get-sync",
+  settingsSet: "settings:set",
+  settingsProxySet: "settings:proxy-set",
+  /** Pushed to the *other* windows after one writes, so their copy cannot go stale. */
+  settingsChanged: "settings:changed",
+  settingsClear: "settings:clear",
+  updateGetState: "update:get-state",
+  updateCheck: "update:check",
+  updateDownload: "update:download",
+  updateInstall: "update:install",
+  updateState: "update:state",
+  accountGet: "account:get",
+  accountLogin: "account:login",
+  accountCancelLogin: "account:cancel-login",
+  accountLogout: "account:logout",
+  /** Pushed whenever who is signed in changes: a login finishing, a logout, a refresh. */
+  accountState: "account:state",
+  providersList: "providers:list",
+  providersNative: "providers:native",
+  providersFetch: "providers:fetch",
+  providersAdd: "providers:add",
+  providersAddNative: "providers:add-native",
+  providersUpdate: "providers:update",
+  providersRemove: "providers:remove",
+  providersRefresh: "providers:refresh",
+  providersQuota: "providers:quota",
+  /** Identify the relay software behind a custom Base URL (添加供应商). */
+  providersProbeGateway: "providers:probe-gateway",
+  /** Read a custom provider's panel balance; the kind decides which endpoint. */
+  providersGatewayBalance: "providers:gateway-balance",
+  /** Store the panel credential a new-api deployment needs for its balance. */
+  providersGatewayCredentials: "providers:gateway-credentials",
+  /** Identify (and remember) the upstream behind an already-stored provider. */
+  providersIdentifyGateway: "providers:identify-gateway",
+  providersTest: "providers:test",
+  providersCcSwitchScan: "providers:cc-switch-scan",
+  providersCcSwitchImport: "providers:cc-switch-import",
+  /** Subscription (OAuth) login: start, answer a prompt, cancel, log out. */
+  providersOAuthLogin: "providers:oauth-login",
+  providersOAuthAnswer: "providers:oauth-answer",
+  providersOAuthCancel: "providers:oauth-cancel",
+  providersLogout: "providers:logout",
+  providersOAuthEvent: "providers:oauth-event",
+  /** 本地桌面管理 SSH 远程主机；远程客户端不得调用。 */
+  sshHosts: "ssh:hosts",
+  sshHostSave: "ssh:host-save",
+  sshHostRemove: "ssh:host-remove",
+  sshPickIdentityFile: "ssh:pick-identity-file",
+  /** One-shot SSH login check for a host; never deploys or forwards anything. */
+  sshTest: "ssh:test",
+  /** Read the key an unknown host presents, so the user can compare its fingerprint. */
+  sshHostKeyScan: "ssh:host-key-scan",
+  /** Add the key last scanned for a host to known_hosts, if the confirmed fingerprints match. */
+  sshHostKeyTrust: "ssh:host-key-trust",
+  /** Stop the resident Agent on a host (disconnecting it first). */
+  sshStopAgent: "ssh:stop-agent",
+  /** Start the resident Agent on a host without opening a project: the same init a new project runs. */
+  sshStartAgent: "ssh:start-agent",
+  /** What a long start / phone-access setup is doing now: `{ hostId, text }`. */
+  sshAgentProgress: "ssh:agent-progress",
+  /**
+   * Let a phone connect to a host's resident Agent directly (or stop letting it): writes the
+   * password on the host and restarts the Agent once. Disconnects the host first.
+   */
+  sshSetPhoneAccess: "ssh:set-phone-access",
+  /** SSH tunnel lifecycle for a selected remote FastVibe service. */
+  sshConnect: "ssh:connect",
+  sshDisconnect: "ssh:disconnect",
+  sshState: "ssh:state",
+  /** Every live SSH host at once. Parent owns the handler; the pane must not treat `ssh:state` as global. */
+  sshStates: "ssh:states",
+  /** 决策引擎：browser use 的决策模型（关闭 / Jev）；见 docs/decision-layer.md §5。 */
+  decisionGetConfig: "decision:get-config",
+  /** 本地桌面管理；远程客户端不得调用。 */
+  decisionSaveConfig: "decision:save-config",
+  /** 一次性连通性检测（GET /health），不发送任何 state；远程客户端不得调用。 */
+  decisionTest: "decision:test",
+  /** Whether a Jev key is stored (never the key itself). */
+  decisionKeyState: "decision:key-state",
+  /** Store or clear the Jev key; answers with the new key state. */
+  decisionSetKey: "decision:set-key",
+  /** 配置变化的广播，不带秘密——Jev key 只在 Main 的 .env 里。 */
+  decisionChanged: "decision:changed",
+  /** Long-term memory: one switch, a file-based pipeline behind it (docs/memory.md). */
+  memoryGetState: "memory:get-state",
+  memorySetConfig: "memory:set-config",
+  /** 立即整理: one extraction/consolidation pass now. */
+  memoryRun: "memory:run",
+  memoryClear: "memory:clear",
+  memoryChanged: "memory:changed",
+  /** 子 agent 任务编排：每个会话的 DAG 图。 */
+  dagList: "dag:list",
+  dagOutput: "dag:output",
+  dagCancel: "dag:cancel",
+  dagRetry: "dag:retry",
+  dagResume: "dag:resume",
+  /** 远程访问（手机）: the switch, this computer's name, the LAN password and devices, and the account connection. */
+  remoteGetState: "remote:get-state",
+  remoteSetPassword: "remote:set-password",
+  remoteClearPassword: "remote:clear-password",
+  remoteStart: "remote:start",
+  remoteSetDeviceName: "remote:set-device-name",
+  remoteStop: "remote:stop",
+  remoteListDevices: "remote:list-devices",
+  remoteRevokeDevice: "remote:revoke-device",
+  /** Pushed when the switch, the name, the LAN listener or the official connection changes. */
+  remoteState: "remote:state",
+  /** Drop every phone connected through the account, leaving the connection itself up. */
+  remoteOfficialDisconnect: "remote:official-disconnect",
+} as const;
+
+export type AppModelsDevInfo = {
+  models: number;
+  aliases: number;
+  generatedAt: number;
+  /** The file the metadata was read from (the bundled index, or an updated snapshot). */
+  path: string;
+};
+
+export type AppInfo = {
+  version: string;
+  /** The embedded pi coding agent version, shown as 内核版本 in Settings → 关于. */
+  engineVersion: string;
+  userData: string;
+  runtimeRoot: string;
+  platform: string;
+  modelsDev?: AppModelsDevInfo;
+};
+
+export type AppLogLevel = "debug" | "info" | "warn" | "error";
+
+export type AppLogPayload = {
+  level: AppLogLevel;
+  message: string;
+};
+
+export type AppUpdateStatus =
+  | "idle"
+  | "disabled"
+  | "checking"
+  | "available"
+  | "not-available"
+  | "downloading"
+  | "downloaded"
+  | "error";
+
+export type AppUpdateProgress = {
+  percent: number;
+  bytesPerSecond: number;
+  transferred: number;
+  total: number;
+};
+
+export type AppUpdateState = {
+  status: AppUpdateStatus;
+  currentVersion: string;
+  availableVersion?: string;
+  releaseNotes?: string;
+  progress?: AppUpdateProgress;
+  error?: string;
+};
+
+export type GitStatus = {
+  cwd: string;
+  isRepository: boolean;
+  branch?: string;
+  changed: number;
+  staged: number;
+  /** Text-line totals across the tracked working tree relative to HEAD. */
+  additions: number;
+  deletions: number;
+  ahead?: number;
+  behind?: number;
+  files: Array<{ path: string; index: string; worktree: string }>;
+};
+
+export type GitBranch = { name: string; current: boolean; upstream?: string };
+
+export type GitWorktree = {
+  path: string;
+  branch?: string;
+  head?: string;
+  bare?: boolean;
+  detached?: boolean;
+  locked?: boolean;
+  /** This conversation's engine cwd. */
+  current?: boolean;
+};
+
+export type GitDiffSource = "unstaged" | "staged" | "branch" | "last-turn";
+
+export type TerminalSessionInfo = { id: string; cwd: string };
+
+export type TerminalDataEvent = { id: string; data?: string; exited?: boolean };
+
+/**
+ * Pushed whenever the window's maximised state changes, so the title bar's control
+ * can swap between 最大化 and 还原 — the OS can maximise too (snap, double-click, a
+ * window-manager key), so the renderer cannot derive this from its own clicks.
+ */
+export type WindowChromeState = { maximized: boolean };
+
+export type PromptRequest = {
+  message: string;
+  streamingBehavior?: "steer" | "followUp";
+  images?: Array<{ type: "image"; data: string; mimeType: string }>;
+};
+
+export type StartRequest = {
+  cwd?: string;
+};
+
+/** Which address family a LAN address, or an mDNS record, is in. */
+export type RemoteLanAddressFamily = "ipv4" | "ipv6";
+
+/** This machine's usable LAN addresses, one per family. */
+export type RemoteLanAddresses = {
+  ipv4: string | null;
+  ipv6: string | null;
+};
+
+/** The remote access state, as the settings pane shows it. */
+export type RemoteServerState = {
+  /**
+   * Remote access is switched on. It turns on both ways in — the LAN listener (once a
+   * password is set) and the official connection (once someone is signed in) — and either
+   * may be waiting on its prerequisite while this stays true.
+   */
+  enabled: boolean;
+  /** The LAN listener is up. It listens on IPv4 and IPv6 at once. */
+  running: boolean;
+  host: string;
+  port: number | null;
+  /** A password has been set. Without one the listener cannot start (the official connection does not need it). */
+  configured: boolean;
+  /** Addresses a phone on the local network can use, one per family; a family this machine has none of is null. */
+  lanAddresses: RemoteLanAddresses;
+  /** The name chosen in settings; empty follows `defaultDeviceName`. */
+  deviceName: string;
+  /** The computer's own name, used until one is chosen. */
+  defaultDeviceName: string;
+  /** Clients connected to the LAN listener right now. */
+  clients: number;
+  /** Failed logins since the last success; the throttle grows with this. */
+  failedLogins: number;
+  /**
+   * The official connection: reachable from phones signed in to this account.
+   * Its `deviceName` is the name the account's device list shows right now.
+   *
+   * Part of this state rather than its own channel: the pane draws one card out of the
+   * listener and this, and two broadcasts would let it show one as up while the other's
+   * push was still on its way.
+   */
+  official: OfficialState;
+};
+
+/** One client that has logged in, without anything secret. */
+export type RemoteDeviceInfo = {
+  id: string;
+  label: string;
+  createdAt: number;
+  lastSeenAt: number | null;
+};

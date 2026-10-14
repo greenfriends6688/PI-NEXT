@@ -1,162 +1,122 @@
-# PI NEXT
+# FastVibe
 
-> **PI NEXT** — AI for what’s next. A workbench for the [pi coding agent](https://github.com/earendil-works/pi): a local browser UI and a desktop app that share pi's own sessions, models and configuration.
+[中文 README](README.zh-CN.md) · English README
 
-English | [简体中文](./README.zh-CN.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Electron](https://img.shields.io/badge/Electron-44.4.0-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![pi coding agent](https://img.shields.io/badge/pi%20coding%20agent-1.1.0-6E56CF)](https://github.com/badlogic/pi-mono)
+[![Latest release](https://img.shields.io/github/v/release/tyuan511/fastvibe?display_name=tag&sort=semver)](https://github.com/tyuan511/fastvibe/releases/latest)
 
-![PI NEXT workbench: the composer, four starter cards and the project sidebar](./assets/readme-screenshot.png)
+> A desktop AI agent workspace built on **pi coding agent**.
 
-A conversation started in the pi terminal can be picked up in PI NEXT and handed back, because PI NEXT reads and writes the same files pi does — sessions under `~/.pi/agent/sessions`, plus `models.json`, `settings.json`, auth, skills and packages. Nothing leaves the machine: the server binds to `127.0.0.1` and provider keys stay in pi's own config.
+FastVibe embeds pi coding agent in an Electron desktop app, bringing conversations, tool calls, extensions, and project workspaces into one interface.
 
-## Highlights
+![FastVibe](docs/images/workspace-en.webp)
 
-- **Same pi, another surface** — sessions, context usage, cost and compaction state come straight from pi's files; you can keep running turns, fork sessions and branch inside them.
-- **One window for the whole loop** — chat, file tree, Git graph, terminal and a localhost browser sit in tabs next to each other.
-- **Configure everything in the UI** — models, providers, skills, plugins, MCP servers, subagents, scheduled tasks and memory, without hand-editing JSON.
-- **Chinese as much as English** — 简体中文 / 繁體中文 / English, typeset in Inter + Noto Sans Mono.
+## Download
+
+Download the latest installer from [GitHub Releases](https://github.com/tyuan511/fastvibe/releases/latest):
+
+- macOS: `.dmg` or `.zip`
+- Windows: `.exe`
+- Linux: `.AppImage` or `.deb` (x64 and arm64)
 
 ## Features
 
-### Sessions and workspace
+- Native pi SDK support for conversations, tool calls, and pi extensions.
+- Multi-project workspaces with archived chats, branches, attachments, and isolated scratch workspaces.
+- Visual tool calls, edit diffs, terminal output, and reasoning.
+- Goal mode for long-running objectives.
+- FastVibe and OpenAI-compatible providers, model protocol settings, and OAuth login.
+- MCP, skills, todos, subagents, Git worktrees, and usage statistics.
+- Optional Jev decision engine for browser control, computer control, and batch decisions.
+- Optional long-term memory, after Codex: finished conversations are distilled into local Markdown files, and the agent reads them on demand.
+- File preview, terminal, browser use, computer use, and Git review side panes.
+- Remote web / mobile clients and SSH connections to headless Linux Agents.
+- Themes, UI scaling, customizable shortcuts, and automatic updates.
 
-- Sessions grouped by project and Git worktree, with virtualized lists and session families shown together.
-- Time groups (pinned / today / yesterday / this week / this month / older) with remembered expansion.
-- Pin, archive and colour-code sessions locally, without touching the session files.
-- Full-text search across every conversation, plus a separate file search that jumps into the viewer.
-- Rename, export to Markdown, delete, and optional model-generated session titles.
-- Standalone chat workspace for conversations that belong to no project.
-- Recent projects discovered from VS Code, Cursor, Zed, Claude, Codex and OpenCode histories.
-- Workspace restore: reopening remembers which session a workspace was left on.
-- Git worktrees can be created, switched and removed from the sidebar, with sessions of one repository kept together.
+## Decision engine (Jev)
 
-### Chat and streaming
+Settings → Decision engine can put **Jev (TypeSafe)** behind a set of “what happens next” judgements, applied per scenario (each with its own switch):
 
-- Streaming answers with Markdown, syntax highlighting, KaTeX, Mermaid and ANSI output, plus clickable file links.
-- Collapsible thinking blocks and tool results that can inline images.
-- Three ways to render a tool run: legacy inline, live timeline, or paged.
-- Image and file attachments; oversized files degrade to a path reference instead of failing.
-- `@` mentions with fuzzy file search, and drag-and-drop that turns into a workspace-relative reference.
-- Inline references for sessions (`&`), MCP servers (`#`) and todos (`~`).
-- Quote a selection straight into the composer; copy any message.
-- Message queue you can steer per item: withdraw, delete, reorder, or send immediately.
-- Slash-command palette and `/compact` with a readable summary.
-- Reading mode collapses the composer; drafts and attachments are remembered per session.
-- Chips for the files written in each turn, and a minimap for long sessions.
-- Thinking level from auto to max, remembered per model.
-- Permission modes (ask / bypass / plan), tool whitelists and plan mode.
-- Todo chips and panel, completion sounds, and desktop or browser notifications.
-- Extension surfaces: status bar entries, widgets and dialog requests.
-- Session stats bar with messages, tokens, cost, cache hit rate and a context ring.
-- Inspect the effective system prompt and every tool definition.
+| Scenario | What it does |
+| --- | --- |
+| Browser control | The decision model drives clicking and typing in the browser (`browser_task`) |
+| Computer control | The decision model drives operations in desktop windows (`computer_task`) |
+| Batch decisions | The main agent gains the `batch_decide` tool |
 
-### Branching
+When it is off every scenario takes its default path: the main model calls `browser_*` / `computer_*` directly. Jev serves decision scenarios only — it is not a chat model and never appears in the model list. Its API key stays on this machine and is never handed back to the renderer.
 
-- **New session** from any message: an independent session file that keeps its parent in the list.
-- **Edit from here**: a branch inside the current session, switchable with the branch navigator.
-- **Rewind to here**: truncate everything after a message, with an explicit note about the file on disk.
-- Exploration branches: try a tangent, keep the conclusion, and read the pane side by side.
+## Long-term memory
 
-### Files and previews
+Settings → Memory is one switch, off by default. When it is on, a conversation that has been quiet for six hours is distilled by the model into a note and a recap, using Codex's own prompts; a background agent then consolidates them into a handbook (`MEMORY.md`) and a compact summary (`memory_summary.md`). Each turn the agent is shown the summary and reads the handbook and recaps on demand. Everything is Markdown on this computer, can be opened from the settings page, and is cleared with one button; turning the switch off stops reading, writing and injecting. Secrets are redacted before anything is stored. See `docs/memory.md`.
 
-- Multi-root file tree with scope badges and Git status decoration.
-- Upload with overwrite / skip / error conflict policies; create, rename and delete.
-- Right-click context menu on any entry: open, download, new file, new folder, rename, delete, plus ZIP / tar extract and compress. Mutations go through the same allowed-roots and realpath checks as reads and uploads.
-- Preview source, diffs, Markdown (editable, written back to disk), images, audio, video, PDF and DOCX.
-- Zoom for images and documents, auto-refresh when files change, fuzzy file index, line highlighting, and reveal in Finder/Explorer.
+## Relationship with pi
 
-### Git
+FastVibe uses the `@earendil-works/pi-coding-agent` SDK and stores runtime data in its own userData directory. It never reads or writes the user's native `~/.pi` directory.
 
-- Status, diff and log endpoints feeding the viewer and the graph.
-- Git graph tab with lanes, commit details, changed files that open straight into a diff, and ref chips.
+Common pi UI APIs are mapped to the desktop UI:
 
-### Terminal and browser
+| pi API | FastVibe UI |
+| --- | --- |
+| `ctx.ui.confirm` | Inline yes / no panel |
+| `ctx.ui.select` / `input` / `questions` | Selection, input, and question forms |
+| `ctx.ui.editor` | Multiline editor dialog |
+| `ctx.ui.notify` | Notification |
+| `ctx.ui.setStatus` / `setWidget` | Status row and composer widgets |
+| `ctx.newSession` / `switchSession` | Create / switch conversations |
 
-- Embedded terminal (xterm) with tabs, reconnect and exit codes.
-- Embedded browser tab for localhost services, with history and device-width presets.
+Extensions are installed through the SDK package manager into FastVibe's isolated directory. Terminal-only full-screen interaction such as `ctx.ui.custom()` is not supported; extensions should use `select`, `confirm`, `input`, `editor`, or `questions` instead.
 
-### Models and providers
+## Development
 
-- OAuth sign-in and API keys, catalog presets, connection tests and editable costs.
-- Model favourites shared between the composer picker and the settings page.
-- Warnings when a built-in model definition is overridden.
-- Provider usage and quota display where the provider exposes it.
-- Default model and a separate model for session titles, plus a request proxy setting.
-
-### Auth and remote access
-
-- Password login page and Basic Auth, with login throttling.
-- Idle session reaping, extension keep-alive leases and a request host allow-list.
-
-### Extensions
-
-- Plugins and standalone extensions: install, enable/disable, remove, update checks.
-- Skills: browse, search, install, update, remove, and ship built-in defaults.
-- MCP servers: add, edit, enable/disable, move between scopes, test connections, import from other agents.
-- Subagents: profiles with their own model, tools and thinking level, plus a sub-session list.
-- Project trust prompt before anything writes into a project scope.
-
-### Automation and memory
-
-- Scheduled tasks: daily, weekly or one-off, with a timezone and run-now.
-- Memory panel: toggle pi-memory and edit `MEMORY.md` files.
-
-### Interface
-
-- Settings with sections and a search box that understands English and Chinese terms.
-- Light, dark and auto themes on a semantic token layer, with Inter + Noto Sans Mono.
-- Adjustable density, border depth, chat width and type sizes.
-- Wallpapers: two built-in paintings or your own image, with scrim, opacity and blur per area.
-- Toggles for thinking expansion, selection quoting, PowerShell and push registration.
-- Mobile layout with a compact toolbar, and keyboard shortcuts throughout.
-
-### Desktop app, PWA and push
-
-- Electron shell: close to tray, tray menu, native notifications, badge, prevent-sleep while running, external links open in the browser, reveal in folder, remembered window position.
-- Dropping a file on the desktop window resolves its absolute path.
-- Update checks with an in-app notice.
-- PWA manifest, service worker, offline page and Web Push subscriptions.
-
-## Requirements
-
-- Node.js 22.19.0 or newer (`node --version`).
-- A working pi installation with at least one provider configured. PI NEXT reads `~/.pi/agent`; point `PI_CODING_AGENT_DIR` elsewhere if your pi data lives in another directory.
-
-## Run it
+Requirements: **Node.js 24** and **pnpm 11**. macOS, Windows, and Linux are supported.
 
 ```bash
-git clone https://github.com/greenfriends6688/PI-NEXT.git
-cd Pi-Agent
-npm install
-npm run prod        # builds for production and serves http://127.0.0.1:30141
+pnpm install
+pnpm dev          # start electron-vite
 ```
 
-PI NEXT listens on `127.0.0.1` only. Use `npm run dev:clean` while working on the code, `npm test` for the unit suite and `npx tsc --noEmit` for types.
-
-### Desktop app
+Useful commands:
 
 ```bash
-npm run desktop        # run the Electron shell against the local build
-npm run desktop:dist   # package installers for the current platform
-npm run desktop:dist:win   # Windows installers, cross-built
+pnpm typecheck    # type-check the project
+pnpm test         # run tests
+pnpm sync:models  # update the models.dev snapshot
+pnpm build        # build to out/
+pnpm dist:mac     # package macOS (also dist:win / dist:linux)
 ```
 
-The desktop shell bundles the same Next.js server, so the browser and the app are the same product.
+Browser preview:
 
-> PI NEXT is installed from source. The `@agegr/pi-web` package on npm is upstream Pi Web, a different project.
+```bash
+pnpm exec vite src/renderer --config vite.config.ts
+# open /mock.html?theme=dark
+```
 
 ## Data and privacy
 
-- Sessions, models, auth, skills and plugins all live in pi's own directories; PI NEXT adds its own state only for drafts, layout and local flags.
-- Provider credentials are read through pi's auth storage and are never returned by an API endpoint.
-- The file browser is limited to working directories recorded by your sessions, their project roots and roots you explicitly add — it is not a general filesystem browser.
-- Password protection does not encrypt traffic. Do not expose PI NEXT over plain HTTP to the internet; put it behind HTTPS on a trusted reverse proxy or a VPN.
+Runtime data is stored in FastVibe's own userData directory:
 
-## Credits
+| Platform | Directory |
+| --- | --- |
+| macOS | `~/Library/Application Support/FastVibe/` |
+| Windows | `%APPDATA%\\FastVibe\\` |
+| Linux | `~/.config/FastVibe/` |
 
-PI NEXT is a fork of [Pi Web](https://github.com/agegr/pi-web), built on the [pi](https://github.com/earendil-works/pi) agent runtime. Thanks to both projects and their authors.
+Provider credentials stay in the isolated runtime and are injected into the SDK's in-memory authentication storage. They are not exported to the user's login shell or the in-app terminal. Browser login cookies are stored only in FastVibe's isolated browser session, and long-term memory lives as Markdown files in the local `runtime/engine/memories`. While memory is on, finished conversations are sent to your configured model to be distilled.
+
+## Project structure
+
+```text
+src/main/       Electron main process, IPC, embedded Agent, and remote services
+src/agent/      headless FastVibe Agent
+src/preload/    contextBridge API
+src/renderer/   React UI
+src/shared/     IPC, App Protocol, and shared types
+resources/      bundled extensions, skills, and model resources
+```
 
 ## License
 
-[GNU General Public License v3.0 or later](./LICENSE).
-
-PI NEXT is a fork, so parts of the codebase keep their original licenses: the upstream Pi Web code stays under its MIT notice ([LICENSE-MIT](./LICENSE-MIT)), and vendored third-party components keep the license recorded in their own files.
+[MIT](LICENSE) © 2026 FastVibe

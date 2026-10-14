@@ -1,0 +1,248 @@
+{
+  "thinking": {
+    "off": "Reasoning off",
+    "minimal": "Minimal",
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "xhigh": "Very high",
+    "max": "Max",
+    "auto": "Model default"
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo_one": "{{count}} minute ago",
+    "minutesAgo_other": "{{count}} minutes ago",
+    "hoursAgo_one": "{{count}} hour ago",
+    "hoursAgo_other": "{{count}} hours ago"
+  },
+  "duration": {
+    "hours": "{{n}}h",
+    "minutes": "{{n}}m",
+    "seconds": "{{n}}s"
+  },
+  "startup": {
+    "slow": "Startup is taking longer than usual. You can keep waiting or reload."
+  },
+  "crash": {
+    "title": "The interface hit an error",
+    "description": "Conversations and runs live in the main process, so reloading the interface loses nothing.",
+    "reload": "Reload interface",
+    "exportLogs": "Export logs"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "previewFailed": "Preview failed",
+    "requestFailed": "Request failed",
+    "retryingWithBudget": "Request failed; retrying ({{attempt}}/{{maxAttempts}})",
+    "retrying": "Request failed; retrying",
+    "retryingLabel": "Retrying",
+    "retryingAttempt": "{{attempt}}/{{maxAttempts}}",
+    "retryAfter": ", retrying in {{seconds}}s",
+    "retryDetail": ": {{error}}"
+  },
+  "notice": {
+    "todoCleared": "Tasks cleared",
+    "todoReminder": "Task reminder",
+    "resultTruncated": "… truncated {{count}} characters"
+  },
+  "tool": {
+    "read": {
+      "running": "Reading",
+      "done": "Read"
+    },
+    "edit": {
+      "running": "Editing",
+      "done": "Edit"
+    },
+    "write": {
+      "running": "Writing",
+      "done": "Write"
+    },
+    "delete": {
+      "running": "Deleting",
+      "done": "Delete"
+    },
+    "search": {
+      "running": "Searching",
+      "done": "Search"
+    },
+    "web": {
+      "running": "Searching the web",
+      "done": "Web search"
+    },
+    "list": {
+      "running": "Listing",
+      "done": "List"
+    },
+    "terminal": {
+      "running": "Running",
+      "done": "Terminal"
+    },
+    "skill": {
+      "running": "Running skill",
+      "done": "Skill"
+    },
+    "agent": {
+      "running": "Subagent running",
+      "done": "Subagent"
+    },
+    "todo": {
+      "running": "Updating tasks",
+      "done": "Tasks"
+    },
+    "question": {
+      "running": "Asking",
+      "done": "Question"
+    },
+    "mcp": {
+      "running": "Calling",
+      "done": "Tool call"
+    },
+    "codemode": {
+      "running": "Running script",
+      "done": "Script"
+    },
+    "codemodeCalls_one": "{{count}} tool call",
+    "codemodeCalls_other": "{{count}} tool calls",
+    "codemodeCallsFailed_one": "{{count}} tool call, {{failed}} failed",
+    "codemodeCallsFailed_other": "{{count}} tool calls, {{failed}} failed",
+    "browser": {
+      "running": "Using the browser",
+      "done": "Browser"
+    },
+    "present": {
+      "running": "Showing",
+      "done": "Show"
+    },
+    "presentCount_one": "{{count}} items",
+    "presentCount_other": "{{count}} items",
+    "other": {
+      "running": "Running",
+      "done": "Tool call"
+    },
+    "failed": "Failed",
+    "webSources_one": "{{count}} source",
+    "webSources_other": "{{count}} sources",
+    "questionFallback": "Clarifying question",
+    "questionCount_one": "{{count}} question",
+    "questionCount_other": "{{count}} questions",
+    "todoUpdating": "Updating tasks",
+    "todoUpdated": "Tasks updated",
+    "agentFallback": "Subagent",
+    "agentMore": "{{shown}} +{{count}}",
+    "browserTask": {
+      "running": "Running browser task",
+      "done": "Browser task"
+    },
+    "computerTask": {
+      "running": "Running computer task",
+      "done": "Computer task"
+    },
+    "decisionRunning": "{{engine}} deciding",
+    "decisionSteps_one": "{{count}} step",
+    "decisionSteps_other": "{{count}} steps",
+    "decisionSeconds": "{{seconds}} s",
+    "decisionStatus": {
+      "blocked": "could not continue",
+      "no_progress": "stopped, no progress",
+      "unstable": "page kept changing",
+      "handed_off": "handed back",
+      "exhausted": "budget used up",
+      "cancelled": "cancelled",
+      "missing_value": "missing information",
+      "denied": "declined",
+      "error": "failed"
+    },
+    "dag": {
+      "add": {
+        "running": "Creating sub-tasks",
+        "done": "Created sub-tasks"
+      },
+      "status": {
+        "running": "Checking sub-tasks",
+        "done": "Checked sub-tasks"
+      },
+      "result": {
+        "running": "Reading sub-task result",
+        "done": "Read sub-task result"
+      },
+      "wait": {
+        "running": "Waiting for sub-tasks",
+        "done": "Waited for sub-tasks"
+      },
+      "cancel": {
+        "running": "Cancelling sub-tasks",
+        "done": "Cancelled sub-tasks"
+      },
+      "resume": {
+        "running": "Resuming sub-tasks",
+        "done": "Resumed sub-tasks"
+      },
+      "retry": {
+        "running": "Retrying sub-task",
+        "done": "Retried sub-task"
+      },
+      "all": "all",
+      "more": "{{shown}} and {{count}} in all",
+      "update": {
+        "running": "Revising task",
+        "done": "Task revised"
+      },
+      "send": {
+        "running": "Sending guidance",
+        "done": "Guidance sent"
+      },
+      "report": {
+        "running": "Reporting outcome",
+        "done": "Outcome reported"
+      }
+    }
+  },
+  "group": {
+    "explore": "Explore",
+    "changes": "Changes",
+    "terminal": "Terminal",
+    "searches_one": "{{count}} search",
+    "searches_other": "{{count}} searches",
+    "lists_one": "{{count}} list",
+    "lists_other": "{{count}} lists",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files",
+    "operations_one": "{{count}} operation",
+    "operations_other": "{{count}} operations",
+    "commands_one": "{{count}} command",
+    "commands_other": "{{count}} commands",
+    "failed_one": "{{count}} failed",
+    "failed_other": "{{count}} failed"
+  },
+  "shortcuts": {
+    "group": {
+      "general": "General",
+      "chat": "Chat",
+      "view": "View"
+    },
+    "commandPalette": "Command palette",
+    "commandPaletteDesc": "Search chats, actions and settings",
+    "settings": "Open settings",
+    "newChat": "New chat",
+    "openFolder": "Open folder",
+    "focusComposer": "Focus composer",
+    "send": "Send message",
+    "sendDesc": "Always sends; Enter-to-send is a separate toggle",
+    "stop": "Stop generating",
+    "prevChat": "Previous chat",
+    "nextChat": "Next chat",
+    "toggleSidebar": "Toggle sidebar",
+    "toggleSidePane": "Toggle side pane",
+    "needModifier": "Shortcuts need a modifier key",
+    "reserved": "Reserved by the system"
+  },
+  "attachments": {
+    "seeAttachments": "See the attachment"
+  },
+  "diff": {
+    "more_one": "{{count}} more line — show it",
+    "more_other": "{{count}} more lines — show them"
+  }
+}

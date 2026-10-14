@@ -1,0 +1,1321 @@
+import type { DagNode, DagNodeStatus } from "@shared/dag";
+import { decodeRemoteProjectKey, remoteProjectKey } from "@shared/project-binding";
+import type { ChatMessage, ConversationOpenResult, DirEntry, EngineSessionState, EngineStatus, ImportSourceId, WorkspaceSnapshot } from "@shared/types";
+import type { AppInfo, GitStatus, RemoteServerState } from "@shared/ipc";
+import type { OfficialState } from "@shared/official";
+import type { MemoryState } from "@shared/memory";
+import {
+  COMMANDS,
+  CONVERSATIONS,
+  IMPORT_CANDIDATES,
+  IMPORT_SOURCES,
+  INSTALLED_PACKAGES,
+  MARKET_PACKAGES,
+  MCP_SERVERS,
+  MESSAGES,
+  INLINE_MESSAGES,
+  MATH_MESSAGES,
+  MODELS,
+  PREVIEW_CWD,
+  PROJECTS,
+  PROVIDERS,
+  SESSION,
+  SKILLS,
+  STATS,
+  TREE,
+  USAGE,
+  previewFor,
+} from "./preview-data";
+import { websiteFixture, type WebsiteLanguage } from "./website-fixtures";
+import { setTranscriptDisplay } from "@/lib/transcript-display";
+
+/**
+ * Browser preview harness.
+ *
+ * `mock.html` loads this before `main.tsx` so the Electron-only `window.fastvibe`
+ * bridge exists, then the real renderer mounts against these fixtures. It exists
+ * so the UI can be rendered (and screenshotted) in a plain browser with
+ * representative content — it is not part of the shipped app, and nothing here is
+ * persisted.
+ */
+
+const params = new URLSearchParams(window.location.search);
+const website = params.get("website") === "1";
+const websiteLanguage: WebsiteLanguage = params.get("lang") === "en" ? "en" : "zh";
+const websiteScene = params.get("scene") ?? "workspace";
+const websiteData = website ? websiteFixture(websiteLanguage) : null;
+// The settings scenes are routes, so they have to be entered before the shell mounts.
+if (website && websiteScene === "models") window.location.hash = "#/settings/providers";
+if (website && websiteScene === "market") window.location.hash = "#/settings/extensions";
+const theme = params.get("theme");
+const pane = params.get("pane");
+const scroll = params.get("scroll");
+const dialog = params.get("dialog");
+const expand = params.get("expand");
+/** `?sidebar=collapsed` renders the rail-less layout the title bar's toggle produces. */
+const sidebar = params.get("sidebar");
+/** `?maximize=1` hands the whole window to the side pane, with the sidebar as asked. */
+const maximize = params.get("maximize") === "1";
+/**
+ * `?platform=win32|linux` renders the shell as it is packaged there: without
+ * macOS' traffic lights, so with the title bar the app draws for itself
+ * (`lib/platform.ts`). Defaults to macOS, the layout the app is developed on.
+ */
+const platform = params.get("platform") ?? "darwin";
+/**
+ * `?desktop=1` sets the window on a desktop: a colourful wallpaper fills the page and the
+ * app is a floating macOS window over it, drawn with 玻璃效果 on. A browser has no system
+ * blur, so the window's own `backdrop-filter` stands in for the material Electron's
+ * vibrancy provides (`HAS_VIBRANCY` reads `simulatedVibrancy` off the bridge). This is
+ * what the README shot and the website's hero show.
+ */
+const desktop = params.get("desktop") === "1" && platform === "darwin";
+
+// Transcript presentation is no longer a preference. The website shots still hide
+// timestamps and leave the demo run unfolded; `?collapse=off` does the latter for
+// any other preview.
+setTranscriptDisplay({
+  showTimestamp: !website,
+  collapseRuns: website ? false : params.get("collapse") !== "off",
+});
+
+// Reset persisted UI state so the harness always starts from the same layout.
+try {
+  for (const key of [
+    "fastvibe.settings",
+    "fastvibe.sidebar.collapsed",
+    "fastvibe.sidebar.pinned",
+    "fastvibe.side-pane.collapsed",
+    "fastvibe.side-pane.width",
+    "fastvibe.archived",
+    "fastvibe.session-drafts",
+  ]) {
+    localStorage.removeItem(key);
+  }
+} catch {
+  // ignore
+}
+
+const initialSettings: Record<string, unknown> = {
+  thinkingLevel: "high",
+  sendOnEnter: true,
+  ...(website || params.get("mobile") === "1" ? { uiLanguage: websiteLanguage, aiLanguage: websiteLanguage } : {}),
+  // The website embeds this page and hands it the theme it is showing (`?theme=`, then
+  // live through the message below); a capture run passes nothing and gets dark.
+  themeMode: theme === "light" || theme === "dark" ? theme : website ? "dark" : "system",
+  lightTheme: "github-light",
+  darkTheme: website ? "github-dark" : "tokyo-night",
+  sidebarWidth: website ? 260 : 264,
+  sidebarCollapsed: sidebar === "collapsed",
+  // The files scene has to be wide enough for the pane's `@min-[32rem]/files` container
+  // query, which is what swaps the preview for tree + preview side by side.
+  sidePaneWidth: website ? (websiteScene === "files" ? 760 : 460) : 384,
+};
+
+const fixtureProjects = websiteData?.projects ?? PROJECTS;
+const fixtureConversations = websiteData?.conversations ?? CONVERSATIONS;
+const fixtureMessages = websiteData?.messages ?? MESSAGES;
+const fixtureSession = websiteData?.session ?? SESSION;
+const fixtureStats = websiteData?.stats ?? STATS;
+/** The model / thinking chips' picks, so a switch in the preview reads back like the engine's. */
+const mockSessionOverrides: { model?: { provider: string; id: string }; thinkingLevel?: string } = {};
+function mockSession(conversationId?: string): EngineSessionState {
+  return { ...fixtureSession, ...mockSessionOverrides, conversationId: conversationId ?? fixtureActiveId } as EngineSessionState;
+}
+const fixtureCwd = websiteData?.cwd ?? PREVIEW_CWD;
+const fixtureActiveId = websiteData?.activeId ?? "conv-theme";
+
+const snapshot = (): WorkspaceSnapshot => ({
+  projects: fixtureProjects,
+  conversations: fixtureConversations,
+  activeId: fixtureActiveId,
+});
+
+/**
+ * Push a thread back in time for `?older=1`. Rows move back whole numbers of *calendar*
+ * days — not a fixed hour count, because the rule under test compares calendar days, and
+ * subtracting hours would drift across midnight and make the fixture disagree with
+ * itself. Every timestamp of a row shifts by the same whole days, so the reply's own
+ * spans (耗时 / 用时 / 思考耗时) come out reading exactly as they do without the flag.
+ *
+ * The three states the timestamp rule can produce are all on screen at once: a turn from
+ * today, turns from days ago, and one from a previous year (`msg-u1` / `msg-a1..a3`).
+ */
+function ageThread(messages: ChatMessage[]): ChatMessage[] {
+  // Keyed by message id, not array position: consecutive assistant messages are merged
+  // into one transcript row by `mergeAssistantRun`, which keeps the first row's
+  // `createdAt` and the last row's `completedAt`. Shifting two halves of one merged row
+  // by different day counts would collapse its 耗时 to zero — a fixture that lies about
+  // the very spans it is sitting next to.
+  const dayOffsets: Record<string, number> = {
+    "msg-u1": 400,
+    "msg-a1": 400,
+    "msg-a2": 400,
+    "msg-a3": 400,
+    "msg-compact": 400,
+    "msg-u2": 3,
+    "msg-a4": 3,
+    "msg-a5": 3,
+  };
+  return messages.map((message) => {
+    const days = dayOffsets[message.id] ?? 0;
+    const move = (timestamp: number): number => {
+      const from = new Date(timestamp);
+      return new Date(from.getFullYear(), from.getMonth(), from.getDate() - days, from.getHours(), from.getMinutes(), from.getSeconds(), from.getMilliseconds()).getTime();
+    };
+    return {
+      ...message,
+      createdAt: move(message.createdAt),
+      ...(message.completedAt === undefined ? {} : { completedAt: move(message.completedAt) }),
+      ...(message.parts === undefined
+        ? {}
+        : {
+            parts: message.parts.map((part) => (part.kind === "thinking"
+              ? {
+                  ...part,
+                  ...(part.startedAt === undefined ? {} : { startedAt: move(part.startedAt) }),
+                  ...(part.endedAt === undefined ? {} : { endedAt: move(part.endedAt) }),
+                }
+              : part)),
+          }),
+    };
+  });
+}
+
+/**
+ * Which conversations the sidebar draws as 运行中. Every fixture transcript is settled,
+ * and the live mark comes from the engine's `conversation_running` push, so `?running=1`
+ * is the only way to look at a spinning sidebar row in the harness. It is answered from
+ * here — module scope — because the app asks `engine:getRunning` *before* it opens the
+ * conversation, so a set filled in during `open` would arrive one step too late.
+ */
+const runningIds = new Set<string>(params.get("running") === "1" || params.get("waiting") === "1" ? [fixtureActiveId] : []);
+
+function parkedPrompts(): Array<Record<string, unknown>> {
+  if (params.get("waiting") !== "1") return [];
+  return [{
+    type: "extension_ui_request",
+    id: "prompt-preview",
+    conversationId: fixtureActiveId,
+    method: "confirm",
+    title: "继续吗？",
+    message: "还有 3 个文件需要修改。",
+  }];
+}
+
+/**
+ * `?running=1` keeps the sidebar's 运行中 mark spinning. Every fixture run has settled,
+ * and the real mark only ever comes from the engine's `conversation_running` push, so
+ * the harness replays one — late, once the app has subscribed *and* finished opening the
+ * conversation, because opening it is what sets the mark from the state reply.
+ */
+const runOnStart = params.get("running") === "1";
+
+/** The store's engine-event subscribers, so the replay above has somewhere to land. */
+const eventListeners = new Set<(event: unknown) => void>();
+
+const openResult = (id: string): ConversationOpenResult => {
+  const conversation = fixtureConversations.find((item) => item.id === id) ?? fixtureConversations[0];
+  const isActive = conversation.id === fixtureActiveId;
+  // `?math=1` swaps the thread for the LaTeX fixture, so the math pipeline can be
+  // looked at without adding a conversation to the sidebar. `?running=1` puts
+  // conv-theme in `engine:getRunning` (see `runningIds`), which the app asks for once
+  // at mount — a state reply is not the mark's source, because `setSession` refuses to
+  // speak for a conversation that is not on screen when it lands.
+  let messages = isActive ? fixtureMessages : [];
+  if (!website && isActive && params.get("math") === "1") messages = [...MESSAGES.slice(0, 2), ...MATH_MESSAGES];
+  if (!website && isActive && params.get("inline") === "1") messages = INLINE_MESSAGES;
+  // `?older=1` ages the thread so the footers have to name their day. Every fixture is
+  // from today, so without this the date half of the timestamp rule has nothing to
+  // render and could not be looked at at all. The newest turn is still from today and
+  // the rest are spread over the previous days and a previous year, which is exactly
+  // the mix a reopened old chat has.
+  if (!website && isActive && params.get("older") === "1") messages = ageThread(messages);
+  return {
+    ...snapshot(),
+    conversation,
+    messages,
+    // `running` rides the state because that is what the store unions into the
+    // sidebar mark (`working`); `engine:getRunning` only seeds the map before the
+    // conversation is opened, and a settled-looking state reply would clear it again.
+    state: isActive
+      ? { ...fixtureSession, messageCount: messages.length, running: params.get("running") === "1" }
+      : { ...fixtureSession, messageCount: 0 },
+    status: { state: "ready", cwd: fixtureCwd },
+    queue: { conversationId: conversation.id, revision: 0, items: [], pause: null },
+    // Only the chat that owns a goal carries one: the panel is conversation-bound, and
+    // the preview is where that is checked (`?goal=1`).
+    extensionStatus:
+      isActive && params.get("goal") === "1"
+        ? { goal: JSON.stringify({ objective: GOAL_OBJECTIVE, status: params.get("goalState") ?? "running", round: 3 }) }
+        : {},
+  };
+};
+
+/** Long enough that the one-line row has to ellipsise it. */
+const GOAL_OBJECTIVE =
+  "分析下作为一个智能体客户端还有哪些比较重要的需求没做的，并把它们拆成本轮可执行的任务";
+
+const status: EngineStatus = { state: "ready", cwd: fixtureCwd };
+
+const APP_INFO: AppInfo = {
+  version: "0.1.0",
+  engineVersion: "1.1.0",
+  userData: "/Users/dev/Library/Application Support/FastVibe",
+  runtimeRoot: "/Users/dev/Library/Application Support/FastVibe/runtime/engine",
+  platform,
+  modelsDev: { models: 1_284, aliases: 3_910, generatedAt: Date.now() - 36 * 60 * 60 * 1000, path: "resources/models-dev/index.json" },
+};
+
+/* ------------------------------------------------------------------ file icons */
+
+// `?url&no-inline` keeps the asset as a servable `/@fs/...` URL instead of
+// inlining a data URL, so the icon base can be derived from it. Bare
+// `/node_modules/...` paths are no good: the dev server answers them with HTML.
+import fileIconAsset from "material-icon-theme/icons/file.svg?url&no-inline";
+import materialIconsRaw from "material-icon-theme/dist/material-icons.json?raw";
+
+// Under the Vite dev server the package's SVGs are served in place. The pre-compiled copy
+// the marketing site embeds (its own `scripts/build-app-preview.mjs`) ships the few the
+// fixtures use in its own `icons/` directory instead; anything else falls back to `file.svg`.
+const ICONS_BASE =
+  import.meta.env.BASE_URL === "/"
+    ? fileIconAsset.slice(0, fileIconAsset.lastIndexOf("/") + 1)
+    : `${import.meta.env.BASE_URL}icons/`;
+
+type MaterialManifest = {
+  fileExtensions: Record<string, string>;
+  fileNames: Record<string, string>;
+  file: string;
+  folder: string;
+  folderExpanded: string;
+};
+
+const MANIFEST = JSON.parse(materialIconsRaw) as MaterialManifest;
+
+const ICON_MAPPING = {
+  fileExtensions: MANIFEST.fileExtensions,
+  fileNames: MANIFEST.fileNames,
+  file: MANIFEST.file,
+  folder: MANIFEST.folder,
+  folderExpanded: MANIFEST.folderExpanded,
+};
+
+async function loadIconMapping() {
+  return ICON_MAPPING;
+}
+
+/**
+ * The real app serves icons through a private `fastvibe-icon://` scheme in the desktop
+ * window, which this harness does not have, so it is rewritten to the package's SVGs that
+ * the Vite dev server exposes.
+ */
+function rewriteIcons(scope: ParentNode): void {
+  scope
+    .querySelectorAll<HTMLImageElement>('img[src^="fastvibe-icon://"]')
+    .forEach((image) => {
+    const name = (image.getAttribute("src") ?? "")
+      .replace("fastvibe-icon://icons/", "")
+      .replace(/\.svg$/, "");
+    image.onerror = () => {
+      image.onerror = null;
+      image.src = `${ICONS_BASE}file.svg`;
+    };
+    image.src = `${ICONS_BASE}${name}.svg`;
+  });
+}
+
+function iconNameOf(src: string): string {
+  return src.replace("fastvibe-icon://icons/", "").replace(/\.svg$/, "");
+}
+
+function installIconRewrite(): void {
+  // React sets `src` through setAttribute, so rewriting there means the unreachable
+  // `fastvibe-icon://` URL is never requested (the observer below only fixes it afterwards).
+  const setAttribute = HTMLImageElement.prototype.setAttribute;
+  HTMLImageElement.prototype.setAttribute = function (name: string, value: string): void {
+    if (name === "src" && (value.startsWith("fastvibe-icon://"))) {
+      value = `${ICONS_BASE}${iconNameOf(value)}.svg`;
+    }
+    setAttribute.call(this, name, value);
+  };
+  rewriteIcons(document);
+  new MutationObserver((records) => {
+    for (const record of records) {
+      record.addedNodes.forEach((node) => {
+        if (node instanceof HTMLElement) rewriteIcons(node);
+      });
+    }
+  }).observe(document.documentElement, { childList: true, subtree: true });
+}
+
+/* ------------------------------------------------------------------ the bridge */
+
+/* ------------------------------------------------------------------ DAG of sub-agent tasks */
+
+// `mock.html` — the first fixture chat has a graph in every state, so the 任务图 tab and the
+// sidebar's sub-task arrow have something to draw.
+const dagProfile = (name: string) => ({ name, instructions: "…", tools: ["read", "grep"] });
+const dagNode = (id: string, title: string, status: DagNodeStatus, dependsOn: string[], extra: Partial<DagNode> = {}): DagNode => ({
+  id,
+  ...(status === "pending" || status === "skipped" ? {} : { runId: id, attempt: 1 }),
+  title,
+  instruction: `${title}：阅读相关代码并给出结论。`,
+  profile: dagProfile(title.includes("汇总") ? "synthesizer" : "code-reader"),
+  dependsOn,
+  status,
+  createdAt: Date.now() - 600000,
+  ...extra,
+});
+const dagFixture = {
+  conversationId: "conv-theme",
+  createdAt: Date.now() - 600000,
+  updatedAt: Date.now(),
+  nodes: [
+    dagNode("T-0001", "梳理主题加载", "completed", [], { startedAt: Date.now() - 500000, endedAt: Date.now() - 400000, output: "主题在 `useThemeSync` 中应用。" }),
+    dagNode("T-0002", "梳理设置页入口", "completed", [], { startedAt: Date.now() - 500000, endedAt: Date.now() - 380000, output: "设置页入口在 `theme-select.tsx`。" }),
+    dagNode("T-0003", "检查快捷键冲突", "running", ["T-0001"], { startedAt: Date.now() - 60000, coordinator: true }),
+    dagNode("T-0007", "核对 macOS 快捷键", "completed", [], { parentId: "T-0003", parentRunId: "T-0003", output: "macOS 快捷键已核对，没有冲突。" }),
+    dagNode("T-0008", "核对 Linux 快捷键", "pending", [], { parentId: "T-0003", parentRunId: "T-0003" }),
+    dagNode("T-0004", "核对暗色样式", "failed", ["T-0002"], { startedAt: Date.now() - 300000, endedAt: Date.now() - 200000, error: "读取 index.css 超时" }),
+    dagNode("T-0006", "确认平台约束", "blocked", [], { error: "需要补充目标平台", report: { outcome: "blocked", summary: "当前材料未说明要支持哪些平台" } }),
+    dagNode("T-0005", "汇总结论", "skipped", ["T-0003", "T-0004"], { blockedBy: "T-0004", error: "上游 T-0004 没有成功（failed）" }),
+  ],
+};
+const dagApi = {
+  list: async () => [dagFixture],
+  output: async (_conversationId: string, id: string) => { const output = dagFixture.nodes.find((node) => node.id === id)?.output ?? ""; return { output, offset: 0, totalChars: output.length }; },
+  cancel: async () => [] as string[],
+  retry: async () => [] as string[],
+  resume: async () => [] as string[],
+  onChanged: () => () => undefined,
+};
+
+function accountMock(): typeof window.fastvibe.account {
+  const origin = "https://app.fastvibe.dev";
+  const user = { id: "u1", login: "octocat", avatarUrl: null, email: "octocat@example.com", role: "user" as const };
+  const listeners = new Set<(state: import("@shared/account").AccountState) => void>();
+  const scene = params.get("account") ?? "in";
+  let state: import("@shared/account").AccountState =
+    scene === "in" ? { status: "signed-in", origin, user }
+    : scene === "waiting" ? { status: "signing-in", origin }
+    : scene === "error" ? { status: "signed-out", origin, error: "登录已过期，请重新登录" }
+    : { status: "signed-out", origin };
+  const set = (next: typeof state) => {
+    state = next;
+    for (const listener of listeners) listener(state);
+    return state;
+  };
+  return {
+    getState: async () => state,
+    login: async () => {
+      setTimeout(() => set({ status: "signed-in", origin, user }), 1500);
+      return set({ status: "signing-in", origin });
+    },
+    cancelLogin: async () => set({ status: "signed-out", origin }),
+    logout: async () => set({ status: "signed-out", origin }),
+    onState: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+}
+
+const api = {
+  dag: dagApi,
+  engine: {
+    getStatus: async () => status,
+    start: async () => status,
+    stop: async () => status,
+    prompt: async () => undefined,
+    steer: async () => undefined,
+    replaceSteering: async () => undefined,
+    followUp: async () => undefined,
+    abort: async () => undefined,
+    abortSubagent: async () => undefined,
+    continue: async () => undefined,
+    clearQueue: async () => ({ steering: [], followUp: [] }),
+    compact: async () => fixtureSession,
+    getCommands: async () => COMMANDS,
+    getExtensions: async () => [
+      { path: "resources/extensions/goal.ts", name: "goal", commands: 1, tools: 0 },
+      { path: "resources/extensions/todo.ts", name: "todo", commands: 0, tools: 1 },
+      { path: "resources/extensions/folder-consent.ts", name: "folder-consent", commands: 0, tools: 0 },
+      { path: "resources/extensions/session-title.ts", name: "session-title", commands: 0, tools: 0 },
+    ],
+    listExtensionPackages: async () => INSTALLED_PACKAGES,
+    installExtensionPackage: async () => INSTALLED_PACKAGES,
+    removeExtensionPackage: async () => INSTALLED_PACKAGES,
+    listMarketPackages: async (query?: { query?: string; type?: string; page?: number }) => ({
+      packages: MARKET_PACKAGES.filter((item) => !query?.query || item.name.includes(query.query)),
+      query: query?.query ?? "",
+      type: query?.type ?? "",
+      sort: "downloads",
+      page: query?.page ?? 1,
+      total: MARKET_PACKAGES.length,
+      totalPages: 1,
+    }),
+    listMcpServers: async () => MCP_SERVERS,
+    saveMcpServers: async (configs: unknown) => (Array.isArray(configs) ? MCP_SERVERS : MCP_SERVERS),
+    listSkills: async () => SKILLS,
+    createSkill: async () => SKILLS,
+    importSkill: async () => SKILLS,
+    removeSkill: async () => SKILLS,
+    importSources: async () => IMPORT_SOURCES,
+    importCandidates: async (source: ImportSourceId) =>
+      IMPORT_CANDIDATES.filter((candidate) => candidate.source === source).map((candidate) => ({
+        ...candidate,
+        source,
+      })),
+    importSessions: async (_source: ImportSourceId, ids: string[]) => ({
+      source: "claude-code" as ImportSourceId,
+      outcomes: ids.map((id) => {
+        const candidate = IMPORT_CANDIDATES.find((item) => item.id === id);
+        return {
+          id,
+          title: candidate?.title ?? id,
+          ok: true,
+          messages: (candidate?.messageCount ?? 0) * 2,
+          skipped: ["已跳过 4 条子 agent 消息", "已跳过 2 条系统注入消息"],
+          cwd: candidate?.cwd,
+          conversationId: `imported-${id}`,
+        };
+      }),
+      snapshot: { projects: fixtureProjects, conversations: fixtureConversations, activeId: fixtureConversations[0]?.id },
+    }),
+    syncPiConfig: async () => ({
+      agentDir: "/Users/dev/.pi/agent",
+      providersWritten: ["fastvibe"],
+      providersKept: ["yunwu"],
+      providersSkipped: [],
+      authWritten: [],
+      settingsUpdated: ["defaultModel"],
+      mcpWritten: [],
+      mcpKept: [],
+      mcpSkipped: [],
+      unchanged: false,
+    }),
+    getSubagents: async () => [],
+    listAgentConfigs: async () => [],
+    saveAgentConfig: async () => [],
+    removeAgentConfig: async () => [],
+    getSubagentMessages: async (): Promise<ChatMessage[]> => [],
+    respondPermission: async () => undefined,
+    newSession: async () => undefined,
+    // Answered for the chat that asked, as the engine does: a state reply with no
+    // `conversationId` is a draft, which the store refuses for an open conversation.
+    getState: async (conversationId?: string) => mockSession(conversationId),
+    getRunning: async (): Promise<string[]> => [...runningIds],
+    // `?waiting=1` parks a question on the active chat, for the phone page's 等你.
+    getPendingUi: async (): Promise<Array<Record<string, unknown>>> => parkedPrompts(),
+    getSnapshot: async (conversationId?: string) => ({
+      conversationId: conversationId ?? fixtureActiveId,
+      messages: conversationId && conversationId !== fixtureActiveId ? fixtureMessages.slice(0, 2) : fixtureMessages,
+      running: runningIds.has(conversationId ?? fixtureActiveId),
+      queue: { conversationId: conversationId ?? fixtureActiveId, revision: 0, items: [], pause: null },
+      pendingUi: parkedPrompts().filter((request) => request.conversationId === (conversationId ?? fixtureActiveId)),
+      turnEvents: [],
+      overflowed: false,
+      seq: 0,
+    }),
+    getModels: async () => MODELS,
+    setModel: async (provider: string, modelId: string, conversationId?: string) => {
+      mockSessionOverrides.model = { provider, id: modelId };
+      return mockSession(conversationId);
+    },
+    setThinking: async (level: string, conversationId?: string) => {
+      mockSessionOverrides.thinkingLevel = level;
+      return mockSession(conversationId);
+    },
+    setInterruptMode: async () => fixtureSession,
+    setAutoCompaction: async () => fixtureSession,
+    branch: async () => (!website && params.get("math") === "1" ? [...MESSAGES.slice(0, 2), ...MATH_MESSAGES] : !website && params.get("inline") === "1" ? INLINE_MESSAGES : fixtureMessages),
+    getMessages: async () => (!website && params.get("math") === "1" ? [...MESSAGES.slice(0, 2), ...MATH_MESSAGES] : !website && params.get("inline") === "1" ? INLINE_MESSAGES : fixtureMessages),
+    getStats: async () => fixtureStats,
+    setSteeringMode: async () => fixtureSession,
+    setFollowUpMode: async () => fixtureSession,
+    exportHtml: async () => undefined,
+    promptConversation: async () => undefined,
+    getConversationMessages: async (): Promise<ChatMessage[]> => [],
+    // The retry flow asks before offering a file rewind; the fixture has no checkpoint.
+    getCheckpoint: async () => null,
+    restoreCheckpoint: async () => ({ restored: 0, removed: 0, skipped: 0 }),
+    onEvent: (listener: (event: unknown) => void) => {
+      // Exposed so the harness can replay engine events from the page console (a
+      // model switch, a streamed token) instead of only rendering a fixture thread.
+      (window as unknown as { __engineEvent?: (event: unknown) => void }).__engineEvent = listener;
+      eventListeners.add(listener);
+      if (runOnStart) {
+        window.setTimeout(() => {
+          if (eventListeners.has(listener)) {
+            listener({ type: "conversation_running", conversationId: fixtureActiveId, running: true });
+          }
+        }, 0);
+      }
+      return () => eventListeners.delete(listener);
+    },
+    onStatus: () => () => undefined,
+    onConversationReady: () => () => undefined,
+  },
+  /**
+   * `?account=in|out|waiting|error` previews the sidebar's account control. The sign-in
+   * itself plays out locally: it needs a browser and a server, neither of which a mock has.
+   */
+  account: accountMock(),
+  providers: {
+    list: async () => PROVIDERS,
+    native: async () => [],
+    addNative: async () => PROVIDERS,
+    fetch: async () => PROVIDERS[0].models,
+    probeGateway: async () => "new-api",
+    identifyGateway: async () => "new-api",
+    setGatewayCredentials: async () => undefined,
+    gatewayBalance: async (id: string) => ({
+      fetchedAt: Date.now(),
+      balance:
+        id === "custom-relay"
+          ? { unlimited: false, available: 14.5 }
+          : id === "custom-sub2api"
+            ? { unlimited: true }
+            : { unlimited: false, available: 18155.71 },
+    }),
+    add: async () => PROVIDERS,
+    update: async () => PROVIDERS,
+    remove: async () => PROVIDERS,
+    refresh: async () => PROVIDERS[0].models,
+    scanCcSwitch: async () => ({ found: false, path: "", candidates: [] }),
+    importCcSwitch: async () => PROVIDERS,
+  },
+  conversations: {
+    list: async () => snapshot(),
+    create: async (project?: string) => openResult(fixtureConversations[0].id),
+    open: async (id: string) => openResult(id),
+    rename: async () => snapshot(),
+    delete: async () => ({ ...snapshot(), nextId: fixtureConversations[0].id }),
+    recordPrompt: async () => snapshot(),
+    setProject: async () => snapshot(),
+    createWorktree: async () => snapshot(),
+    bindWorktree: async () => snapshot(),
+    unbindWorktree: async () => snapshot(),
+    listWorktrees: async () => [],
+    createSide: async () => openResult(fixtureConversations[0].id),
+    search: async (query: string) => {
+      const needle = query.trim().toLowerCase();
+      if (needle.length < 2) return [];
+      return fixtureConversations.filter((item) => `${item.title} ${item.preview ?? ""}`.toLowerCase().includes(needle)).map(
+        (item) => ({ id: item.id, snippet: item.preview }),
+      );
+    },
+    // Nothing else is writing the catalog in the preview, so this push never fires.
+    onChanged: () => () => undefined,
+  },
+  projects: {
+    add: async () => null,
+    addRemote: async (cwd: string) => {
+      const project = PROJECTS.find((item) => item.cwd === cwd) ?? {
+        cwd,
+        name: cwd.split("/").filter(Boolean).pop() ?? cwd,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        kind: "remote" as const,
+        bindingState: "available" as const,
+      };
+      if (!PROJECTS.some((item) => item.cwd === project.cwd)) PROJECTS.push(project);
+      return { ...snapshot(), project };
+    },
+    rename: async () => snapshot(),
+    remove: async () => ({ ...snapshot(), nextId: null }),
+    reorder: async (cwds: string[]) => {
+      const rank = new Map(cwds.map((cwd, index) => [cwd, index]));
+      fixtureProjects.sort((a, b) => (rank.get(a.cwd) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.cwd) ?? Number.MAX_SAFE_INTEGER));
+      return snapshot();
+    },
+  },
+  workspace: {
+    pick: async () => null,
+    reveal: async () => undefined,
+    preview: async (path: string) => websiteData?.previewFor(path) ?? previewFor(path),
+    filesExist: async (paths: string[]) => paths.filter((path) => /\.[A-Za-z0-9]{1,12}$/.test(path)),
+    fileIcons: loadIconMapping,
+    readDir: async (path: string) => {
+      const decoded = decodeRemoteProjectKey(path);
+      const raw = decoded?.remoteWorkspaceId ?? path;
+      const base = websiteData?.tree[raw] ?? TREE[raw] ?? [];
+      if (!decoded) return base;
+      return base.map((entry) => ({
+        ...entry,
+        path: remoteProjectKey(decoded.serverInstanceId, entry.path),
+      }));
+    },
+    gitStatus: async (cwd: string): Promise<GitStatus> => websiteData?.gitStatus ?? ({
+      cwd,
+      isRepository: true,
+      branch: "feat/theme-mode",
+      changed: 4,
+      staged: 1,
+      additions: 128,
+      deletions: 34,
+      ahead: 1,
+      behind: 0,
+      files: [
+        { path: "src/renderer/src/components/settings/theme-select.tsx", index: "M", worktree: " " },
+        { path: "src/renderer/src/components/layout/side-pane-git.tsx", index: " ", worktree: "M" },
+        { path: "src/renderer/src/App.tsx", index: " ", worktree: "M" },
+        { path: "src/renderer/src/lib/themes.ts", index: "?", worktree: "?" },
+      ],
+    }),
+    openTerminal: async () => undefined,
+    gitBranches: async () => [{ name: "feat/theme-mode", current: true, upstream: "origin/feat/theme-mode" }, { name: "main", current: false }],
+    gitCheckout: async (cwd: string) => api.workspace.gitStatus(cwd),
+    gitCreateBranch: async (cwd: string) => api.workspace.gitStatus(cwd),
+    gitStage: async (cwd: string) => api.workspace.gitStatus(cwd),
+    gitCommit: async (cwd: string) => api.workspace.gitStatus(cwd),
+    gitGenerateCommitMessage: async () => "feat: add repository status shortcuts",
+    gitDiff: async (_cwd: string, path?: string) => {
+      if (websiteData) return websiteData.gitDiff(path);
+      const file = path?.split("/").pop() ?? "file.tsx";
+      return `@@ -12,8 +12,11 @@ export function Example(): JSX.Element {
+   return (
+     <div className="flex items-center gap-2">
+-      <span className="text-xs text-muted-foreground">${file}</span>
++      <FileIcon name="${file}" />
++      <span className="min-w-0 truncate text-xs font-medium">${file}</span>
+     </div>
+   );
+ }
+`;
+    },
+    gitUnstage: async (cwd: string) => api.workspace.gitStatus(cwd),
+    gitDiscard: async (cwd: string) => api.workspace.gitStatus(cwd),
+    gitPull: async (cwd: string) => api.workspace.gitStatus(cwd),
+    gitPush: async (cwd: string) => api.workspace.gitStatus(cwd),
+    terminalStart: async (cwd?: string) => ({ id: "term-mock", cwd: cwd ?? fixtureCwd }),
+    terminalWrite: async () => undefined,
+    terminalResize: async () => undefined,
+    terminalKill: async () => undefined,
+    onTerminalData: () => () => undefined,
+  },
+  app: {
+    /** Read by `lib/platform.ts` before the first paint; `?platform=` overrides it. */
+    platform,
+    /** `?desktop=1`: the page paints a stand-in for the blur, so glass can be shown. */
+    simulatedVibrancy: desktop,
+    getInfo: async () => APP_INFO,
+    log: () => undefined,
+    exportLogs: async () => "/Users/dev/Downloads/fastvibe-logs-preview.zip",
+    // 关于's metadata refresh: the preview has no upstream to fetch, so it reports the
+    // same fixture catalog with a fresh date.
+    updateModelsDev: async () => ({ ...APP_INFO.modelsDev!, generatedAt: Date.now() }),
+    onModelsDev: () => () => undefined,
+    newWindow: async () => undefined,
+  },
+  settings: {
+    initial: initialSettings,
+    load: async () => initialSettings,
+    save: async () => undefined,
+    saveProxy: async () => undefined,
+    clear: async () => undefined,
+    // The real bridge pushes cross-window settings writes; the preview has one window.
+    onChanged: () => () => undefined,
+  },
+  // The window controls of a hand-drawn title bar (`?platform=win32`): there is no
+  // window in the browser, so they only have to be present and inert. State starts
+  // unmaximised and never changes, which is what the fixtures render.
+  window: {
+    minimize: async () => undefined,
+    toggleMaximize: async () => undefined,
+    close: async () => undefined,
+    isMaximized: async () => false,
+    onState: () => () => undefined,
+  },
+  stats: {
+    usage: async () => USAGE,
+  },
+  // `?phone=on` previews a host that already allows phone connections (the QR icon beside it).
+  // Starting an Agent and turning phone access on both play a few seconds of progress, as the
+  // real ones do over a first deploy.
+  ssh: (() => {
+    type Host = import("@shared/remote-host").RemoteHostProfile;
+    const store: Host[] = [
+      { id: "manual:hk1", label: "hk1", host: "hk1", hostName: "203.0.113.5", user: "root", source: "manual", authMethod: "default-key", ...(params.get("phone") === "on" ? { phoneAccess: { port: 7777 } } : {}) },
+    ];
+    const discovered: Host[] = [{ id: "ssh:preview", label: "preview", host: "preview", hostName: "192.0.2.10", source: "config", user: "dev" }];
+    const snapshot = () => ({ saved: store.map((host) => ({ ...host })), discovered });
+    const listeners = new Set<(progress: { hostId: string; text: string }) => void>();
+    const play = async (hostId: string, lines: string[]) => {
+      for (const text of lines) {
+        for (const listener of listeners) listener({ hostId, text });
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+    };
+    return {
+      hosts: async () => snapshot(),
+      saveHost: async (host: Host) => {
+        const at = store.findIndex((item) => item.id === host.id);
+        if (at >= 0) store[at] = host;
+        else store.push(host);
+        return snapshot();
+      },
+      removeHost: async (id: string) => {
+        const at = store.findIndex((item) => item.id === id);
+        if (at >= 0) store.splice(at, 1);
+        return snapshot();
+      },
+      pickIdentityFile: async () => null,
+      test: async () => ({ ok: true, target: "dev@192.0.2.10", agent: { installed: "0.10.0", running: "0.10.0" } }),
+      scanHostKey: async (hostId: string) => ({ hostId, keys: [{ type: "ED25519", fingerprint: "SHA256:preview" }], knownHostsFile: "~/.ssh/known_hosts" }),
+      trustHostKey: async () => undefined,
+      stopAgent: async () => "远程 Agent 已停止",
+      startAgent: async (hostId: string) => {
+        await play(hostId, ["检查远程系统与常驻 Agent…", "正在上传 Agent（40%）", "正在启动远程 Agent…"]);
+        return "远程 Agent 已就绪（端口 41234）";
+      },
+      onAgentProgress: (listener: (progress: { hostId: string; text: string }) => void) => {
+        listeners.add(listener);
+        return () => { listeners.delete(listener); };
+      },
+      setPhoneAccess: async (payload: { hostId: string; enabled: boolean; port?: number; publicUrl?: string }) => {
+        const host = store.find((item) => item.id === payload.hostId);
+        if (!host) throw new Error("SSH 主机不存在");
+        if (payload.enabled) {
+          await play(payload.hostId, ["已设置手机连接密码", "Restarting FastVibe Agent (pid 2333480)", "远程 Agent 已就绪（对外监听，端口 " + payload.port + "）"]);
+          host.phoneAccess = { port: payload.port ?? 7777, ...(payload.publicUrl ? { publicUrl: payload.publicUrl } : {}) };
+        } else {
+          delete host.phoneAccess;
+        }
+        return snapshot();
+      },
+      connect: async (hostId: string) => ({ hostId, serverInstanceId: "srv_preview", status: "connected", localPort: 17777 }),
+      disconnect: async (hostId?: string) => ({ hostId: hostId ?? null, serverInstanceId: null, status: "disconnected" }),
+      state: async () => ({ hostId: null, serverInstanceId: null, status: "disconnected" }),
+      states: async () => [],
+      onState: () => () => undefined,
+      onStates: () => () => undefined,
+    };
+  })(),
+  decision: {
+    getConfig: async () => ({ kind: "off" as const, browserControl: false }),
+    saveConfig: async (config: unknown) => config as { kind: "off"; browserControl: boolean },
+    test: async () => ({ ok: true as const }),
+    keyState: async () => ({ jev: false }),
+    setKey: async (key: string) => ({ jev: Boolean(key.trim()) }),
+    onChanged: () => () => undefined,
+  },
+  // `?memory=on|running|ready` picks what 设置 → 长期记忆 opens on; run plays a short pass.
+  memory: (() => {
+    const mode = params.get("memory");
+    const listeners = new Set<(state: MemoryState) => void>();
+    let state: MemoryState = {
+      config: { enabled: mode === "on" || mode === "running" || mode === "ready" },
+      phase: mode === "running" ? "extracting" : "idle",
+      conversations: mode === "ready" ? 12 : 0,
+      pending: mode === "ready" ? 2 : 0,
+      ready: mode === "ready",
+      ...(mode === "ready" ? { lastRunAt: Date.now() - 3_600_000 } : {}),
+      folder: "/Users/you/Library/Application Support/FastVibe/runtime/engine/memories",
+    };
+    const emit = (next: MemoryState): MemoryState => {
+      state = next;
+      for (const listener of listeners) listener(state);
+      return state;
+    };
+    return {
+      getState: async () => state,
+      setConfig: async (patch: Record<string, unknown>) => {
+        const { model, ...rest } = patch;
+        const config = { ...state.config, ...rest } as MemoryState["config"];
+        if (model === null) delete config.model;
+        else if (model) config.model = model as MemoryState["config"]["model"];
+        return emit({ ...state, config });
+      },
+      run: async () => {
+        emit({ ...state, phase: "extracting" });
+        await new Promise((settle) => window.setTimeout(settle, 800));
+        emit({ ...state, phase: "consolidating" });
+        await new Promise((settle) => window.setTimeout(settle, 800));
+        return emit({ ...state, phase: "idle", conversations: 12, pending: 0, ready: true, lastRunAt: Date.now() });
+      },
+      clear: async () => emit({ ...state, phase: "idle", conversations: 0, pending: 0, ready: false, lastRunAt: undefined }),
+      onChanged: (listener: (state: MemoryState) => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+  })(),
+  // Remote access is a real server in the main process; the preview has none to show,
+  // so every action is a no-op over the fixture `?remote=` picks.
+  remote: {
+    getState: async () => REMOTE_STATE,
+    setPassword: async () => ({ ...REMOTE_STATE, configured: true, running: REMOTE_STATE.enabled, port: 7777 }),
+    clearPassword: async () => ({ ...REMOTE_STATE, configured: false, running: false, port: null }),
+    start: async () => REMOTE_ONLINE,
+    setDeviceName: async (name: string) => {
+      REMOTE_STATE.deviceName = name.trim();
+      return { ...REMOTE_STATE };
+    },
+    stop: async () => REMOTE_OFF,
+    listDevices: async () => REMOTE_DEVICES,
+    revokeDevice: async () => [],
+    officialDisconnect: async () => ({ ...REMOTE_STATE, official: { ...REMOTE_STATE.official, peers: [] } }),
+    onState: () => () => undefined,
+  },
+  // The browser-use bridge is main-process driven: in the preview nothing ever
+  // requests a browser action, so `onRequest` just returns its unsubscribe.
+  browser: {
+    listProfiles: async () => [],
+    importProfile: async () => ({ browser: "", profile: "", cookies: 0, encryptedCookiesSkipped: 0, message: "" }),
+    clearData: async () => undefined,
+    listEngines: async () => [{ id: "auto", label: "" }],
+    onRequest: () => () => undefined,
+    respond: () => undefined,
+  },
+  /**
+   * 电脑操控 in the preview.
+   *
+   * `?computer=granted` renders the pane a user sees once macOS has agreed — the state
+   * the switches are actually usable in. The default is the ungranted one, because that
+   * is the screen this pane has to get right: it is where every user starts, and it is
+   * the only one that has to explain something.
+   */
+  computer: {
+    permissions: async () => computerStatus(),
+    requestPermissions: async () => computerStatus(),
+    openSettings: async () => undefined,
+    listApps: async () => [
+      { pid: 412, name: "Google Chrome", bundleId: "com.google.Chrome", active: true },
+      { pid: 733, name: "Microsoft Excel", bundleId: "com.microsoft.Excel", active: false },
+      { pid: 901, name: "访达", bundleId: "com.apple.finder", active: false },
+    ],
+    startDrag: async () => undefined,
+    // The flow drives a real Electron window and polls the real OS, so the preview can
+    // only report the shape it would be in: `?computer=granting` renders the pane mid
+    // sequence, which is the state the 授权 button is otherwise hard to look at.
+    startGrantFlow: async () => grantFlowState(),
+    cancelGrantFlow: async () => undefined,
+    getGrantFlow: async () => grantFlowState(),
+    onGrantFlowState: () => () => undefined,
+  },
+};
+
+function grantFlowState(): { active: boolean; permission?: "accessibility" | "screenRecording"; step: number; total: number } {
+  if (params.get("computer") !== "granting") return { active: false, step: 0, total: 0 };
+  return { active: true, permission: "screenRecording", step: 1, total: 2 };
+}
+
+function computerStatus(): {
+  platform: string;
+  accessibility: boolean;
+  screenRecording: boolean;
+  ready: boolean;
+  available: boolean;
+} {
+  const granted = params.get("computer") === "granted";
+  return {
+    platform: params.get("platform") ?? "darwin",
+    accessibility: granted,
+    screenRecording: granted,
+    ready: granted,
+    available: params.get("computer") !== "unavailable",
+  };
+}
+
+/* ------------------------------------------------------------------ 远程访问 fixtures */
+
+/**
+ * 远程访问 in the preview, in the shapes that cannot be reached in a browser otherwise —
+ * the real thing needs a signed-in account, a cloud to answer, and a phone.
+ *
+ * The default is a machine nobody has set up: the pane's first screen, which has to read
+ * as an invitation rather than as a failure.
+ *
+ * - `?remote=online`: switched on, signed in, a phone connected directly, LAN password set.
+ * - `?remote=relay`: the same, with the phone going through FastVibe's relay.
+ * - `?remote=signedout`: switched on, but nobody is signed in, so phones cannot find it.
+ * - `?remote=error`: switched on and the cloud refused the device.
+ * - `?remote=lan`: switched on with a LAN password and both IPv4 and IPv6, so the QR code has two to switch between.
+ * - `?remote=nopassword`: switched on, but no LAN password yet, so the pane asks for one.
+ */
+const OFFICIAL_OFF: OfficialState = {
+  enabled: false,
+  status: "off",
+  deviceId: null,
+  deviceName: "My-MacBook-Pro",
+  peers: [],
+};
+
+const REMOTE_OFF: RemoteServerState = {
+  enabled: false,
+  deviceName: "",
+  defaultDeviceName: "My-MacBook-Pro",
+  running: false,
+  host: "127.0.0.1",
+  port: null,
+  configured: false,
+  lanAddresses: { ipv4: "192.168.31.45", ipv6: null },
+  clients: 0,
+  failedLogins: 0,
+  official: OFFICIAL_OFF,
+};
+
+const REMOTE_ONLINE: RemoteServerState = {
+  ...REMOTE_OFF,
+  enabled: true,
+  running: true,
+  host: "192.168.31.45",
+  port: 7777,
+  configured: true,
+  clients: 1,
+  official: {
+    enabled: true,
+    status: "online",
+    deviceId: "6f1c0b52-4f0e-4a89-9a6d-1f4d0c2b7e11",
+    deviceName: "My-MacBook-Pro",
+    peers: [{ id: "call-1", name: "Ada's iPhone", platform: "ios", path: "direct" }],
+  },
+};
+
+const REMOTE_STATES: Record<string, RemoteServerState> = {
+  online: REMOTE_ONLINE,
+  relay: {
+    ...REMOTE_ONLINE,
+    official: { ...REMOTE_ONLINE.official, peers: [{ id: "call-1", name: "Ada's iPhone", platform: "ios", path: "relay" }] },
+  },
+  signedout: {
+    ...REMOTE_ONLINE,
+    clients: 0,
+    official: { ...REMOTE_ONLINE.official, status: "signed-out", deviceId: null, peers: [] },
+  },
+  error: {
+    ...REMOTE_ONLINE,
+    clients: 0,
+    official: {
+      ...REMOTE_ONLINE.official,
+      status: "error",
+      deviceId: null,
+      error: "账号下的设备已达上限，请先在控制台移除不用的设备",
+      peers: [],
+    },
+  },
+};
+
+REMOTE_STATES.lan = {
+  ...REMOTE_ONLINE,
+  lanAddresses: { ipv4: "192.168.31.45", ipv6: "fd00::45" },
+  clients: 0,
+  official: { ...REMOTE_ONLINE.official, peers: [] },
+};
+REMOTE_STATES.nopassword = {
+  ...REMOTE_ONLINE,
+  running: false,
+  host: "127.0.0.1",
+  port: null,
+  configured: false,
+  clients: 0,
+};
+
+const remoteFixture = params.get("remote");
+
+const REMOTE_STATE: RemoteServerState = REMOTE_STATES[remoteFixture ?? ""] ?? REMOTE_OFF;
+
+const REMOTE_DEVICES = REMOTE_STATE.configured
+  ? [{ id: "device-1", label: "iPhone", createdAt: Date.now() - 86_400_000, lastSeenAt: Date.now() - 120_000 }]
+  : [];
+
+window.fastvibe = api as unknown as typeof window.fastvibe;
+
+installIconRewrite();
+
+/**
+ * The marketing site shows this page in an iframe and has a theme switch of its own.
+ * Same-origin only: the page is served from the site's own `/app-preview/`.
+ */
+if (website) {
+  // The app focuses its composer as it mounts. Inside an iframe that makes the browser
+  // scroll the *embedding page* to bring the field into view, so reloading the marketing
+  // page jumped down to the preview. Programmatic focus is a no-op until the visitor has
+  // actually touched the window; their own clicks and keys still focus normally.
+  let touched = false;
+  for (const type of ["pointerdown", "keydown", "touchstart"]) window.addEventListener(type, () => { touched = true; }, { capture: true, once: true });
+  const nativeFocus = HTMLElement.prototype.focus;
+  HTMLElement.prototype.focus = function (options?: FocusOptions): void {
+    if (touched) nativeFocus.call(this, options);
+  };
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin) return;
+    const data = event.data as { type?: string; theme?: string } | null;
+    if (data?.type !== "fastvibe-website-theme" || (data.theme !== "light" && data.theme !== "dark")) return;
+    const themeMode = data.theme;
+    void import("@/stores/settings").then(({ useSettingsStore }) => useSettingsStore.getState().update({ themeMode }));
+  });
+}
+
+/**
+ * Website captures run in a browser, so Electron cannot draw macOS window controls.
+ * Keep this strictly inside the dedicated website fixture and inside the 88px title
+ * row clearance used by the real macOS shell.
+ */
+/**
+ * The desktop scene (`?desktop=1`). The window is `#root` itself, inset from the viewport:
+ * its corner radius is the side panes' (16px inner + their 8px inset), so the panes sit
+ * concentric in it, and its `backdrop-filter` is the material — the wallpaper blurred and
+ * tinted toward the appearance, as macOS draws under a vibrant window. That filter also
+ * makes `#root` the containing block for the app's `fixed` layers (the settings overlay),
+ * so they stay inside the window rather than covering the wallpaper.
+ */
+// The marketing site draws the same wallpaper and a skeleton window at this inset while
+// the frame loads (`.preview-window` / `.preview-skeleton` in its `app/globals.css`), so
+// the swap to the real page does not move anything — keep the inset and the gradient in
+// step. The site lives in tyuan511/fastvibe-services; only this fixture page is ours.
+const DESKTOP_INSET = { x: 20, y: 16 };
+if (desktop) {
+  document.documentElement.dataset.desktop = "";
+  const style = document.createElement("style");
+  style.textContent = `
+    html[data-desktop] {
+      background:
+        radial-gradient(42% 58% at 8% 12%, #ff7a45 0%, rgb(255 122 69 / 0) 70%),
+        radial-gradient(38% 52% at 30% 92%, #ff3d8b 0%, rgb(255 61 139 / 0) 70%),
+        radial-gradient(46% 60% at 92% 8%, #7c5cff 0%, rgb(124 92 255 / 0) 70%),
+        radial-gradient(44% 56% at 78% 96%, #00c2d1 0%, rgb(0 194 209 / 0) 70%),
+        radial-gradient(30% 40% at 58% 46%, #ffd166 0%, rgb(255 209 102 / 0) 70%),
+        linear-gradient(135deg, #2b1b6b 0%, #0d2a4a 55%, #102c3a 100%);
+    }
+    html[data-desktop] body { background: transparent; }
+    html[data-desktop] #root {
+      position: fixed;
+      inset: ${DESKTOP_INSET.y}px ${DESKTOP_INSET.x}px;
+      height: auto;
+      border-radius: 24px;
+      overflow: hidden;
+      background: var(--desktop-material);
+      -webkit-backdrop-filter: blur(56px) saturate(1.9);
+      backdrop-filter: blur(56px) saturate(1.9);
+      box-shadow:
+        0 0 0 0.5px rgb(0 0 0 / 0.45),
+        inset 0 0 0 0.5px rgb(255 255 255 / 0.22),
+        0 36px 90px -24px rgb(0 0 0 / 0.6),
+        0 14px 34px -12px rgb(0 0 0 / 0.4);
+    }
+    html[data-desktop].dark { --desktop-material: rgb(30 30 36 / 0.34); }
+    html[data-desktop]:not(.dark) { --desktop-material: rgb(248 248 250 / 0.42); }
+  `;
+  document.head.append(style);
+}
+
+if (website && platform === "darwin") {
+  const controls = document.createElement("div");
+  controls.setAttribute("aria-hidden", "true");
+  controls.dataset.websiteTrafficLights = "true";
+  // Where WINDOW_BUTTON_POSITION puts the real ones: inside the sidebar pane's first row.
+  const origin = desktop ? DESKTOP_INSET : { x: 0, y: 0 };
+  Object.assign(controls.style, {
+    position: "fixed",
+    left: `${origin.x + 28}px`,
+    top: `${origin.y + 24}px`,
+    display: "flex",
+    gap: "8px",
+    zIndex: "1000",
+    pointerEvents: "none",
+  });
+  for (const color of ["#ff5f57", "#febc2e", "#28c840"]) {
+    const light = document.createElement("span");
+    Object.assign(light.style, {
+      width: "12px",
+      height: "12px",
+      borderRadius: "9999px",
+      background: color,
+      boxShadow: "inset 0 0 0 0.5px rgb(0 0 0 / 22%)",
+    });
+    controls.append(light);
+  }
+  document.body.append(controls);
+}
+
+/* ------------------------------------------------------------------ layout tweaks */
+
+/**
+ * Website scenes each have to reach a state the capture cannot click its way to: a pane
+ * opened, a fold expanded, a settings tab switched.
+ *
+ * Each scene is described as a `setup` — done once React has rendered the node it acts on
+ * — plus a `ready` predicate the capture waits for. They are separate on purpose: the
+ * market's setup is a tab click, but its readiness is the catalog rows that click
+ * fetches, and conflating the two would let the capture snap an empty pane.
+ */
+if (websiteData) {
+  const markReady = (): void => {
+    document.body.dataset.websiteSceneReady = websiteScene;
+    // The marketing page keeps its own placeholder up until the app has really drawn.
+    if (window.parent !== window) {
+      window.setTimeout(() => window.parent.postMessage({ type: "fastvibe-website-ready" }, window.location.origin), 150);
+    }
+  };
+  /** React, not a fixed delay on a cold Vite build, is what the setup waits for. */
+  const whenFound = <T,>(find: () => T | null | undefined, act: (value: T) => void, then?: () => boolean): void => {
+    let settled = false;
+    const attempt = (): boolean => {
+      if (settled) return true;
+      const value = find();
+      if (!value) return false;
+      act(value);
+      if (then && !then()) return false;
+      settled = true;
+      markReady();
+      return true;
+    };
+    if (attempt()) return;
+    const observer = new MutationObserver(() => {
+      if (attempt()) observer.disconnect();
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    window.setTimeout(() => observer.disconnect(), 15_000);
+  };
+  const byText = (pattern: RegExp) => (): boolean => pattern.test(document.body.innerText);
+  const tabMatching = (pattern: RegExp) => () =>
+    [...document.querySelectorAll<HTMLElement>('[data-slot="tabs-trigger"]')].find((node) =>
+      pattern.test(node.textContent ?? ""),
+    ) ?? null;
+
+  // `?pane=none` is the marketing page's hero: the chat on its own, with no side pane
+  // open beside it. The capture script never passes it, so its shots are unchanged.
+  const keepPaneClosed = websiteScene === "workspace" && pane === "none";
+  if (!keepPaneClosed && (websiteScene === "workspace" || websiteScene === "review" || websiteScene === "files")) {
+    window.setTimeout(() => {
+      void import("@/stores/side-pane").then(({ useSidePaneStore }) => {
+        const store = useSidePaneStore.getState();
+        if (websiteScene === "review") {
+          store.openGitDiff("src/components/CommandMenu.tsx", "unstaged", websiteData.cwd);
+          return;
+        }
+        store.openFiles();
+        store.openFilePreview(websiteData.previewFor(websiteData.previewPath));
+      });
+    }, 500);
+  }
+
+  if (websiteScene === "workspace") {
+    // 待办 opens so the checklist the fixture finished is legible in the frame — and the
+    // thread is taken back to its top, since a run longer than the window would otherwise
+    // be shown from its last paragraph (the scroller follows the bottom). The wheel is what
+    // tells the scroller a reader took over; a bare `scrollTop` would be followed away from.
+    const toTop = (): void => {
+      const viewport = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]');
+      if (!viewport) return;
+      viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: -120, bubbles: true }));
+      viewport.scrollTop = 0;
+    };
+    whenFound(
+      () => document.querySelector<HTMLElement>('[data-tool-id="website-todo"]')?.closest("button") as HTMLButtonElement | null,
+      (button) => {
+        button.click();
+        toTop();
+        for (const delay of [150, 450]) window.setTimeout(toTop, delay);
+      },
+    );
+  } else if (websiteScene === "review") {
+    whenFound(
+      () =>
+        [...document.querySelectorAll<HTMLButtonElement>("button")].find((node) =>
+          (node.textContent ?? "").startsWith("CommandMenu.tsxsrc/components"),
+        ) ?? null,
+      (button) => button.click(),
+    );
+  } else if (websiteScene === "files") {
+    // The preview's own header is the signal: the pane is open, and at this width the
+    // tree sits beside it rather than behind the back button.
+    whenFound(
+      () => document.querySelector<HTMLElement>(`span[title="${websiteData.previewPath}"]`),
+      () => undefined,
+    );
+  } else if (websiteScene === "tools") {
+    // Every folded tool row opens, the way the feature reads in the README.
+    whenFound(
+      () => {
+        const rows = [...document.querySelectorAll<HTMLElement>('[data-slot="tool-row"]')];
+        return rows.length ? rows : null;
+      },
+      (rows) => rows.forEach((row) => row.closest("button")?.click()),
+    );
+  } else if (websiteScene === "market") {
+    // The catalog is fetched on the tab switch, so the rows — not the click — are ready.
+    whenFound(tabMatching(/官方市场|Marketplace/), (tab) => tab.click(), byText(/pi-mcp-adapter/));
+  } else if (websiteScene === "models") {
+    whenFound(byText(/API 密钥|API key/), () => undefined);
+  }
+}
+
+if (params.has("subagent")) {
+  window.setTimeout(() => {
+    void import("./subagent-preview").then(({ previewSubagent }) => previewSubagent(params.get("subagent") ?? "running"));
+  }, 800);
+}
+
+if (pane === "files" || pane === "preview" || pane === "git") {
+  window.setTimeout(() => {
+    void import("@/stores/side-pane").then(({ useSidePaneStore }) => {
+      const store = useSidePaneStore.getState();
+      if (pane === "git") {
+        store.openGit();
+        return;
+      }
+      store.openFiles();
+      if (maximize) store.toggleMaximized();
+      if (pane === "preview") {
+        store.openFilePreview(previewFor(`${PREVIEW_CWD}/src/renderer/src/components/settings/theme-select.tsx`));
+      }
+    });
+  }, 400);
+}
+
+if (dialog === "market") {
+  // Sidebar 「插件」 routes to Settings → 插件; open the catalog tab.
+  window.location.hash = "#/settings/extensions";
+  const clickByText = (text: string, root: ParentNode = document): boolean => {
+    const target = [...root.querySelectorAll<HTMLElement>("button")].find((node) =>
+      (node.textContent ?? "").includes(text),
+    );
+    target?.click();
+    return Boolean(target);
+  };
+  window.setTimeout(() => clickByText("官方市场"), 800);
+}
+
+if (expand === "tools") {
+  window.setTimeout(() => {
+    document.querySelectorAll<HTMLElement>('[data-slot="tool-row"]').forEach((row) => {
+      row.closest("button")?.click();
+    });
+  }, 1500);
+}
+
+if (expand === "run") {
+  // 折叠运行过程: open every folded run so its process is visible in a screenshot.
+  window.setTimeout(() => {
+    document.querySelectorAll<HTMLElement>('[data-slot="run-collapse"]').forEach((row) => {
+      row.closest("button")?.click();
+    });
+  }, 1500);
+}
+
+if (scroll) {
+  // A synthetic wheel marks "the reader took over", which makes the scroller drop
+  // out of following the bottom; then pin the offset once. Fighting it with an
+  // interval would thrash the scroller's per-scroll re-measure.
+  const pin = (): void => {
+    const viewport = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]');
+    if (!viewport) return;
+    viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: -120, bubbles: true }));
+    viewport.scrollTop = scroll === "top" ? 0 : Math.round(viewport.scrollHeight * 0.32);
+  };
+  window.setTimeout(pin, 1200);
+  window.setTimeout(pin, 2600);
+}
+
+// Re-apply the requested theme once settings and the store are live.
+if (theme === "light" || theme === "dark") {
+  window.setTimeout(() => {
+    void import("@/stores/settings").then(({ useSettingsStore }) => {
+      useSettingsStore.getState().update({ themeMode: theme });
+    });
+  }, 200);
+}

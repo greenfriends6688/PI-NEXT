@@ -1,162 +1,122 @@
-# PI NEXT
+# FastVibe
 
-> **PI NEXT** —— AI for what’s next。为 [pi 编程智能体](https://github.com/earendil-works/pi) 做的工作台：一套本地浏览器界面，加一个桌面应用，共用 pi 自己的会话、模型与配置。
+[English README](README.md) · 中文 README
 
-[English](./README.md) | 简体中文
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Electron](https://img.shields.io/badge/Electron-44.4.0-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![pi coding agent](https://img.shields.io/badge/pi%20coding%20agent-1.1.0-6E56CF)](https://github.com/badlogic/pi-mono)
+[![最新版本](https://img.shields.io/github/v/release/tyuan511/fastvibe?display_name=tag&sort=semver)](https://github.com/tyuan511/fastvibe/releases/latest)
 
-![PI NEXT 工作台：输入框、四张起步卡与项目侧栏](./assets/readme-screenshot.png)
+> 基于 **pi coding agent** 的桌面智能体工作台。
 
-在 pi 终端里开始的对话，可以直接在 PI NEXT 里接着聊，再交回终端——因为 PI NEXT 读写的就是 pi 自己的文件：`~/.pi/agent/sessions` 下的会话，以及 `models.json`、`settings.json`、认证、技能和插件包。数据不出本机：服务只绑 `127.0.0.1`，供应商密钥始终留在 pi 的配置里。
+FastVibe 将 pi coding agent 嵌入 Electron 主进程，把会话、工具调用、扩展和项目工作区整合到一个桌面界面中。
 
-## 特点
+![FastVibe 界面](docs/images/workspace-zh.webp)
 
-- **同一个 pi，换一层界面** —— 会话、上下文占用、花费、压缩状态都直接来自 pi 的文件；可以继续跑对话、从任意消息开新会话、或就地分支。
-- **一个窗口干完一整轮** —— 对话、文件树、Git 图谱、终端和本地浏览器并排在不同标签里。
-- **所有东西都能在界面里配** —— 模型、供应商、技能、插件、MCP 服务器、子代理、定时任务、记忆，不用手改 JSON。
-- **中文与英文同等优先** —— 简体中文 / 繁體中文 / English，排版用 Inter + Noto Sans Mono。
+## 下载
+
+前往 [GitHub Releases](https://github.com/tyuan511/fastvibe/releases/latest) 下载对应平台的安装包：
+
+- macOS：`.dmg` 或 `.zip`
+- Windows：`.exe`
+- Linux：`.AppImage` 或 `.deb`（x64 与 arm64）
 
 ## 功能
 
-### 会话与工作区
+- 基于原生 pi SDK，支持会话、工具调用和 pi 扩展。
+- 多项目工作区，支持会话归档、分支、附件和隔离的 scratch 工作区。
+- 工具调用、编辑 diff、终端输出、思考过程可视化。
+- 目标模式，用于长期任务。
+- 支持 FastVibe、OpenAI 兼容供应商、模型协议配置和 OAuth 登录。
+- 支持 MCP、技能、待办、子 Agent、Git worktree 和用量统计。
+- 可选决策引擎 Jev，用于浏览器操控、电脑操控和批量决策。
+- 可选长期记忆（参考 Codex）：把已结束的对话整理成本地 Markdown 文件，智能体按需读取。
+- 集成文件预览、终端、浏览器操控、电脑操控和 Git 审查侧栏。
+- 支持远程网页 / 手机客户端，以及通过 SSH 连接远程 Linux Agent。
+- 多主题、界面字号、自定义快捷键和自动更新。
 
-- 会话按项目和 Git worktree 分组，大列表虚拟滚动，同一会话家族排在一起。
-- 时间分组（置顶 / 今天 / 昨天 / 本周 / 本月 / 更早），展开状态会记住。
-- 置顶、归档、状态标色都是本地状态，不改动会话文件本身。
-- 全部对话的全文搜索，另有独立的文件搜索，直接跳进查看器。
-- 重命名、导出 Markdown、删除，以及可选的模型自动起标题。
-- 独立聊天工作区：不属于任何项目的对话也能开。
-- 最近项目：只读 VS Code / Cursor / Zed / Claude / Codex / OpenCode 的本机历史。
-- 工作区恢复：重新打开时回到上次那个工作区待过的会话。
-- Git worktree 可在侧栏直接创建、切换、删除，同一仓库的会话仍归在一起。
+## 决策引擎（Jev）
 
-### 对话与流式
+设置 → 决策引擎 可以选择用 **Jev（TypeSafe）** 承担一批「下一步做什么」的判断，逐步应用于以下场景（各自独立开关）：
 
-- 流式回答，支持 Markdown、代码高亮、KaTeX、Mermaid、ANSI 输出，文件路径可点。
-- 可折叠的思考块，工具结果里可以直接内联图片。
-- 工具过程三种展示方式：传统内联、实时时间线、分页。
-- 图片与任意文件附件；超限文件自动降级成路径引用，而不是直接失败。
-- `@` 文件模糊提及，拖入文件会变成工作区相对路径的引用。
-- 行内引用：`&` 引用会话、`#` 引用 MCP、`~` 引用待办。
-- 选中文字直接引用进输入框；任意消息一键复制。
-- 消息队列可逐条操控：撤回、删除、拖拽排序、立即发送。
-- 斜杠命令面板，`/compact` 手动压缩并给出可读摘要。
-- 阅读模式下输入框自动收拢；草稿与附件按会话记忆。
-- 每轮已写文件的 chip，长会话配缩略图导航条。
-- 思考强度从 auto 到 max，按模型分别记忆。
-- 权限档位（ask / bypass / plan）、工具白名单预设与计划模式。
-- 待办 chip 与面板、完成音效、桌面与浏览器通知。
-- 扩展界面：状态栏条目、widget、对话框与自定义面板请求。
-- 会话统计条：消息数、token、成本、缓存命中率、上下文占用圆环。
-- 查看生效的系统提示词与每一个工具定义。
+| 场景 | 作用 |
+| --- | --- |
+| 浏览器控制 | 浏览器里的连续点击和输入交给决策模型（`browser_task`） |
+| 电脑控制 | 桌面窗口里的操作交给决策模型（`computer_task`） |
+| 批量决策 | 主 Agent 获得 `batch_decide` 工具 |
 
-### 分支
+关闭时各场景都走默认路径：主模型直接调用 `browser_*` / `computer_*` 工具。Jev 只服务决策场景，不作为普通对话模型出现在模型列表里，API key 保存在本机，不会回传渲染层。
 
-- **新会话**：从任意消息生成独立会话文件，并在列表里保留父会话关系。
-- **从此处编辑**：在当前会话内开分支，用分支导航器来回切换。
-- **回退到此处**：截断其后对话，并明确提示磁盘文件不会回收。
-- 探索分支：岔出去试一条路，结论带回主线，右栏并排只读查看。
+## 长期记忆
 
-### 文件与预览
+设置 → 长期记忆 只有一个开关，默认关闭。开启后，对话安静六小时后会由模型整理成一份笔记和一份回顾（提示词取自 Codex）；后台智能体再把它们汇总成手册（`MEMORY.md`）和一页摘要（`memory_summary.md`）。每轮对话开始时，智能体会看到这页摘要，需要细节时再去读手册和各对话的摘要。全部是本机上的 Markdown 文件，可以在设置页里打开文件夹，也可以一键清除；关掉开关就不再读取、写入和注入。写入之前会先抹掉其中的密钥。详见 `docs/memory.md`。
 
-- 多根文件树，带作用域徽标与 Git 状态点缀。
-- 上传支持覆盖 / 跳过 / 报错三种冲突策略；可新建、重命名、删除。
-- 任意条目右键菜单：打开、下载、新建文件、新建文件夹、重命名、删除，以及 ZIP / tar 解压与压缩。所有改动都走与读取、上传同一套根目录白名单 + realpath 校验。
-- 预览源码、diff、Markdown（可编辑并写回磁盘）、图片、音频、视频、PDF、DOCX。
-- 图片与文档缩放，文件变化自动刷新，文件索引模糊搜索，定位行高亮，在 Finder/资源管理器中显示。
+## 与 pi 的关系
 
-### Git
+FastVibe 使用 `@earendil-works/pi-coding-agent` SDK，并将运行数据保存在自己的 userData 目录中，不读写用户的 `~/.pi`。
 
-- 状态、diff、log 接口同时供给查看器与图谱。
-- Git 图谱标签页：泳道、commit 详情、变更文件直达 diff、引用 chips。
+常用的 pi UI API 已映射到桌面界面：
 
-### 终端与浏览器
+| pi API | FastVibe 呈现 |
+| --- | --- |
+| `ctx.ui.confirm` | 内联是 / 否面板 |
+| `ctx.ui.select` / `input` / `questions` | 选择、输入和多问题表单 |
+| `ctx.ui.editor` | 多行编辑对话框 |
+| `ctx.ui.notify` | 通知 |
+| `ctx.ui.setStatus` / `setWidget` | 状态行和输入框上方组件 |
+| `ctx.newSession` / `switchSession` | 创建 / 切换会话 |
 
-- 内嵌终端（xterm），支持多标签、重连与退出码。
-- 内嵌浏览器标签，用于本地服务，带历史与设备宽度预设。
+扩展通过 SDK 的包管理器安装到 FastVibe 的隔离目录。`ctx.ui.custom()` 等依赖终端全屏交互的能力暂不支持，建议使用 `select`、`confirm`、`input`、`editor` 或 `questions` 等语义化 API。
 
-### 模型与供应商
+## 安装与开发
 
-- OAuth 登录与 API Key、目录预设、连接测试、成本可编辑。
-- 模型收藏：输入框选择器与设置页共用同一份收藏。
-- 覆盖内置模型定义时会给出警告。
-- 供应商用量与配额展示（供应商提供的前提下）。
-- 默认模型与独立的标题模型，以及请求代理设置。
-
-### 认证与远程访问
-
-- 密码登录页与 Basic Auth，带登录节流。
-- 空闲会话回收、扩展保活租约、请求主机白名单。
-
-### 扩展
-
-- 插件包与独立扩展：安装、启停、删除、更新检查。
-- 技能：浏览、搜索、安装、更新、删除，并自带默认技能。
-- MCP 服务器：增删改查、启停、跨作用域移动、测试连接、从其它 agent 导入。
-- 子代理：每个 profile 有自己的模型、工具与思考强度，另有子会话列表。
-- 项目信任提示：向项目作用域写入前必须先确认。
-
-### 自动化与记忆
-
-- 定时任务：每天 / 每周 / 一次性，带时区，可立即运行。
-- 记忆面板：pi-memory 开关，编辑 `MEMORY.md` 等文件。
-
-### 界面
-
-- 设置面板分节 + 搜索框，中英文关键词都能搜到。
-- light / dark / auto 三档主题，建立在语义化 token 层上，字体 Inter + Noto Sans Mono。
-- 可调密度、边框深浅、聊天宽度与字号。
-- 壁纸：两幅内置画作或自己的图片，支持遮罩、透明度与分区模糊。
-- 思考块默认展开、引用开关、PowerShell、推送注册等杂项开关。
-- 移动端布局与紧凑工具栏，全站键盘快捷键。
-
-### 桌面端、PWA 与推送
-
-- Electron 外壳：关闭到托盘、托盘菜单、原生通知、角标、运行时防休眠、外链走系统浏览器、在文件夹中显示、窗口位置记忆。
-- 往桌面端窗口拖文件会解析出绝对路径。
-- 更新检查与站内提示。
-- PWA manifest、Service Worker、离线页与 Web Push 订阅。
-
-## 环境要求
-
-- Node.js 22.19.0 或更新（`node --version`）。
-- 一个能用的 pi 安装，且至少配好一个供应商。PI NEXT 默认读 `~/.pi/agent`；pi 数据在别处时用 `PI_CODING_AGENT_DIR` 指向它。
-
-## 运行
+需要 **Node.js 24** 与 **pnpm 11**。macOS、Windows、Linux 均可开发与打包。
 
 ```bash
-git clone https://github.com/greenfriends6688/PI-NEXT.git
-cd Pi-Agent
-npm install
-npm run prod        # 生产构建并跑在 http://127.0.0.1:30141
+pnpm install
+pnpm dev          # 启动 electron-vite
 ```
 
-PI NEXT 只监听 `127.0.0.1`。改代码时用 `npm run dev:clean`，跑单测用 `npm test`，类型检查用 `npx tsc --noEmit`。
-
-### 桌面应用
+常用命令：
 
 ```bash
-npm run desktop            # 用 Electron 跑本地构建
-npm run desktop:dist       # 打包当前平台的安装包
-npm run desktop:dist:win   # 交叉打 Windows 安装包
+pnpm typecheck    # 类型检查
+pnpm test         # 运行测试
+pnpm sync:models  # 更新 models.dev 快照
+pnpm build        # 构建到 out/
+pnpm dist:mac     # 打包 macOS（另有 dist:win / dist:linux）
 ```
 
-桌面外壳内置同一套 Next.js 服务，所以浏览器版和桌面版是同一个产品。
+浏览器预览：
 
-> PI NEXT 只能从源码安装。npm 上的 `@agegr/pi-web` 是上游 Pi Web，另一个项目。
+```bash
+pnpm exec vite src/renderer --config vite.config.ts
+# 访问 /mock.html?theme=dark
+```
 
 ## 数据与隐私
 
-- 会话、模型、认证、技能和插件都在 pi 自己的目录里；PI NEXT 只额外保存草稿、布局和本地标记。
-- 供应商凭据通过 pi 的认证存储读取，任何接口都不会把密钥返回给浏览器。
-- 文件浏览器只覆盖会话记录过的工作目录、它们的项目根目录，以及你显式添加的根目录，不是通用文件管理器。
-- 密码保护不加密传输。不要把 PI NEXT 以明文 HTTP 暴露到公网，请走可信反向代理的 HTTPS 或可信 VPN。
+运行数据保存在 FastVibe 自己的目录中：
 
-## 致谢
+| 平台 | 目录 |
+| --- | --- |
+| macOS | `~/Library/Application Support/FastVibe/` |
+| Windows | `%APPDATA%\FastVibe\` |
+| Linux | `~/.config/FastVibe/` |
 
-PI NEXT 是 [Pi Web](https://github.com/agegr/pi-web) 的分支，运行在 [pi](https://github.com/earendil-works/pi) 智能体运行时之上。感谢这两个项目及其作者。
+供应商凭据保存在隔离运行时，并注入 SDK 的内存认证存储，不会导出到登录 shell 或应用内终端。浏览器登录 Cookie 只写入 FastVibe 自己的隔离浏览器会话。长期记忆以 Markdown 文件保存在本地的 `runtime/engine/memories`；开启期间，已结束的对话会发给你配置的模型做整理。
+
+## 项目结构
+
+```text
+src/main/       Electron 主进程、IPC、内嵌 Agent 与远程服务
+src/agent/      headless FastVibe Agent
+src/preload/    contextBridge API
+src/renderer/   React 界面
+src/shared/     IPC、App Protocol 与共享类型
+resources/      内置扩展、技能和模型资源
+```
 
 ## 许可
 
-[GNU 通用公共许可证第 3 版或更高版本（GPL-3.0-or-later）](./LICENSE)。
-
-PI NEXT 是分支项目，仓库中部分代码保持原有许可：上游 Pi Web 的代码沿用其 MIT 声明（见 [LICENSE-MIT](./LICENSE-MIT)），嵌入式第三方组件沿用它自己文件里记录的许可。
+[MIT](LICENSE) © 2026 FastVibe

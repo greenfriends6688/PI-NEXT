@@ -1,811 +1,2598 @@
-# PI NEXT
+# FastVibe
 
-## 身份（先读这一节）
-
-**你是 PI NEXT。** 不是「跑在 pi 外壳里的 Claude」，不是「一个通用的 coding agent」。
-
-用户问「你是谁」时，答 **PI NEXT**。描述自己的能力时，从**这个产品**说起 ——
-本地编码 agent 工作台（Next.js + pi SDK），不是从底层模型或外壳说起。
-
-为什么要写在这一行：`AGENTS.md` 是这个仓库唯一会**自动进上下文**的文件，
-所以它是身份的**唯一权威来源**。不写在这里，agent 就会按底层模型自报家门，
-而用户听到的是另一个产品的名字 —— 2026-10-06 用户实拍。
-
-改这一节要谨慎：它影响这个仓库里**每一个**会话（含 subagent）的自我描述。
-
----
-
-## Development Notes
-
-## Quick Start
-
-**日常使用（快）**：
-
-```bash
-npm run prod        # 清 dev 缓存 → next build → next start，端口 30141
-```
-
-生产模式是预编译的：接口实测比 dev 快约 10 倍，切会话平均 142ms
-（dev 下同一路径的关键接口要 2-4 秒，因为 dev 每条路由首次访问都要现编）。
-日常使用、演示、给别人看，一律用 `npm run prod`。
-
-**改代码（dev）**：
-
-```bash
-npm run dev:clean   # 清生产缓存 → next dev，端口 30141
-```
-
-Typecheck: `node_modules/.bin/tsc --noEmit`  
-Lint: `npm run lint`  
-查看当前 `.next` 属于哪种模式：`npm run mode:status`
-
-**dev 与生产构建共用&#x20;**`.next`**，两者产物不兼容**，直接混用会报 `Failed to compile` 或浏览器里 `Module ... factory is not available` 的假故障。 `prod` / `dev:clean` 会在启动前自动把不匹配的缓存挪到系统临时目录， 所以来回切换请走这两个命令，不要直接 `npm run build` 再 `npm run dev`。
-
-### Dev server troubleshooting
-
-- Before starting a server, run `lsof -nP -iTCP:30141 -sTCP:LISTEN` and reuse the existing Pi Web process when it is healthy. A second `next dev` for the same checkout cannot use a different port as a workaround because both processes contend for `.next/dev/lock`.
-- A browser-only `Module ... factory is not available` overlay usually means that tab has a stale Turbopack/HMR graph; it does not prove the server or source is broken. First call the browser's explicit reload action, then compare the current server log and a direct HTTP/API request.
-- Restart only after the failure reproduces from a fresh page and the server-side checks also fail. Stop the exact dev process gracefully, move `.next` into a `mktemp -d` backup, and restart with `npm run dev:clean`.
-- Do not use `next dev --webpack` as a fallback. This repository's development graph can fail on `undici` imports such as `node:console`; development is expected to use Turbopack.
-- Next.js may append a generated `BEGIN:nextjs-agent-rules` block to `AGENTS.md` when `next dev` starts. Treat that as generated tooling output, verify it with `git status`, and do not include it in an unrelated feature commit.
-
-### 为什么 dev 模式感觉「超级慢」
-
-dev 模式（Turbopack）每条路由**首次**访问都要现场编译，实测单次 10-15 秒；
-且 Next 默认 `reactStrictMode: true`，dev 下 effect 会被双调用，
-切一次会话会并发轰出 **15 个 API 请求**（含重复的 `/api/sessions/<id>`），
-在 Node 单线程上互相排队，实测最慢的接口要 3.9 秒。
-生产构建下同一操作只剩 **3-5 个请求、最慢 106ms、平均 142ms**。
-
-如果觉得慢，先确认自己在哪种模式（`npm run mode:status`），不要急着优化代码。
-
----
+Electron desktop client for agent work, code, office, and multi-agent cowork. The default engine is the embedded **`@earendil-works/pi-coding-agent` SDK** running in the Electron main process. Native pi state (`~/.pi`) is never used as the data root; FastVibe keeps everything under its own userData directory.
 
 ## Architecture
 
 ```
-Browser                Next.js Server              AgentSession (in-process)
-  │                        │                               │
-  ├─ GET /api/sessions ────▶ reads ~/.pi/agent/sessions/   │
-  ├─ GET /api/sessions/[id] reads .jsonl file directly     │
-  ├─ GET /api/agent/running ───────▶ running id snapshot   │
-  │                        │                               │
-  ├─ send message ─────────▶ POST /api/agent/[id]          │
-  │                        │   startRpcSession() ─────────▶│ createAgentSession()
-  │                        │   session.send(cmd) ─────────▶│ session.prompt()
-  │                        │                               │
-  ├─ SSE connect ──────────▶ GET /api/agent/[id]/events    │
-  │                        │   session.onEvent() ◀─────────│ session.subscribe()
-  │◀── data: {...} ─────────│                               │
+src/main/          Electron main: window, IPC, and embedded agent lifecycle
+  engine/          Isolated runtime paths, provider configuration, and shared model/file helpers
+  ipc/             Transport-neutral call table and broadcast hub
+  pi/              Embedded pi-coding-agent host, MCP bridge, and multi-session lifecycle
+src/preload/       Electron half of `window.fastvibe` (the shape is `src/shared/api.ts`)
+src/renderer/      React UI (Vite renderer)
+  src/components/ui/   shadcn-generated primitives only
+  src/components/      product composition (chat, layout)
+src/shared/        IPC channels and types used by main + renderer
 ```
 
-**Session browsing** (read-only): reads `.jsonl` files through SDK `SessionManager` helpers and `lib/session-reader.ts` — no AgentSession created.  
-**Sending a message**: `startRpcSession()` in `lib/rpc-manager.ts` creates an AgentSession in-process.
-
----
-
-## File Map
+Runtime data lives under the app userData directory:
 
 ```
-app/api/
-  sessions/route.ts               GET  list all sessions
-  sessions/[id]/route.ts          GET/PATCH/DELETE session
-  sessions/[id]/context/route.ts  GET ?leafId= — context for a specific leaf
-  sessions/[id]/export/route.ts   GET exported HTML for a session
-  agent/new/route.ts              POST { cwd, message, toolNames?, provider?, modelId? }
-  agent/[id]/route.ts             GET state | POST any command
-  agent/[id]/events/route.ts      GET SSE stream
-  agent/running/route.ts          GET currently-running session ids
-  auth/api-key/[provider]/route.ts POST/DELETE provider API key storage
-  auth/login/[provider]/route.ts  GET OAuth/device-code SSE | POST manual code
-  auth/logout/[provider]/route.ts POST OAuth logout
-  auth/providers/route.ts         GET OAuth and API-key provider lists
-  cwd/validate/route.ts           POST validate/select a cwd
-  default-cwd/route.ts            POST create ~/pi-cwd-YYYYMMDD
-  files/[...path]/route.ts        GET file contents for viewer; POST file
-                                  mutations (write/rename/delete/mkdir/touch/
-                                  extract/compress) for the file explorer
-  home/route.ts                   GET user home directory
-  models/route.ts                 GET { models, modelList, defaultModel }
-  models-config/route.ts          GET/PUT — read/write ~/.pi/agent/models.json
-  models-config/catalog/route.ts  GET models.dev pricing presets
-  models-config/discover/route.ts POST fetch a configured provider's upstream model list
-  models-config/test/route.ts     POST test a configured model/provider
-  plugins/route.ts                GET/POST package plugin management
-  skills/route.ts                 GET/PATCH loaded skills and disable-model-invocation
-  skills/install/route.ts         POST install skills through npx skills add
-  skills/search/route.ts          GET/POST skills.sh search
-  subagents/settings/route.ts     GET/PUT built-in subagent feature setting
-  lan/access/route.ts             GET/PUT LAN access on/off + status (first GET mints the token)
-  lan/pair/generate/route.ts      POST mint a 6-digit LAN pairing code (this machine)
-  lan/pair/redeem/route.ts        POST exchange a pairing code for the LAN cookie
-                                  (the only auth-exempt path)
-  im-bridge/route.ts              GET/PUT/POST IM push targets (masked list / replace / test send)
-  bot-channel/route.ts            GET/POST chat-bot channels (specs + configure | start | stop)
-  worktrees/route.ts              GET/POST/DELETE git worktrees
-
-lib/
-  lan-access.ts        fork:lan-access — the only LAN gate (app-owned token, read-only derivation)
-  lan-supervisor.cjs   fork:lan-access — 盯着配置让「启动」真生效（CJS，两个启动器共用一份）
-  chat-channel-shared.ts fork:bot-channel — 渠道清单与逐条可行性（客户端安全）
-  chat-channel.ts      fork:bot-channel — 渠道配置与 ready 判定（服务端）
-  telegram-channel.ts  fork:bot-channel — 唯一真跑通的入站：Telegram 长轮询、白名单、回程
-  lan-pair.ts          fork:lan-access — 6-digit pair codes (globalThis singleton) + LAN URL list
-  qrcode.ts            fork:lan-pair-qr — vendored from MusePi (MIT): ISO/IEC 18004 encoder, zero deps
-  qr-image.ts          fork:lan-pair-qr — QR → bitmap with the quiet zone the scanner needs
-  im-bridge.ts         fork:im-bridge — signing, payload builders, sending, ~/.pi/agent/im-bridge.json
-  im-extension.ts      fork:im-bridge — the im_send tool
-  subagent-mail.ts     fork:agent-mail — in-process agent↔agent mailbox
-  agent-client.ts      typed fetch helper for /api/agent commands
-  draft-store.ts       local draft persistence helpers
-  file-access.ts       allowed file roots for /api/files and worktrees
-  file-paths.ts        client/server path encoding helpers
-  file-tree-visibility.ts  which entries the file tree lists: git check-ignore, name-list fallback
-  linked-directory.ts   directory links out of the roots: listing marker + one-off operator approval
-  markdown.ts          shared markdown helpers
-  gfm-autolink-email-loader.cjs  bundler loader: remark-gfm's email regex without a lookbehind literal (#753)
-  npx.ts               npx runner used by skill install
-  pi-types.ts          local structural types for pi SDK objects
-  rpc-manager.ts      AgentSessionWrapper + registry + startRpcSession
-  session-reader.ts   SessionManager wrappers + path cache + buildSessionContext adapter
-  subagent-settings.ts  read/write ~/.pi/agent/agents/settings.json
-  tool-presets.ts     PRESET_NONE/READ_ONLY/DEFAULT/FULL + getPresetFromTools()
-  tool-preset-preference.ts  browser-persisted default for fresh sessions
-  types.ts            shared TypeScript types
-  session-unread.ts   fork:trace-menu — 未读会话 id 的共享 store（侧栏画点、菜单写）
-  normalize.ts        normalizeToolCalls() — field name mismatch between file format and our types
-  worktree.ts         project/worktree resolution and git worktree operations
-
-components/
-  AppShell.tsx        layout + URL state + tab management
-  SessionSidebar.tsx  session tree + FileExplorer
-  ChatWindow.tsx      chat composition + completion sound wrapper
-  ChatInput.tsx       input bar + model/thinking/tools/compact controls
-  MessageView.tsx     renders one message (user/assistant/toolCall/toolResult)
-  BranchNavigator.tsx in-session branch switcher
-  ChatMinimap.tsx     scroll minimap alongside the message list
-  MarkdownBody.tsx    markdown renderer
-  ModelsConfig.tsx    modal for editing models.json (opened from sidebar bottom)
-  AgentsConfig.tsx    built-in subagent toggle + agent profile editor
-  PluginsConfig.tsx   modal for installed package plugins
-  SkillsConfig.tsx    modal for loaded/search/installable skills
-  FileExplorer.tsx    file tree inside sidebar
-  FileIcons.tsx       file icon helpers
-  FileViewer.tsx      file content in a tab
-  TabBar.tsx          tab bar (Chat + open file tabs)
-  TraceFrame.tsx     fork:trace-frame — 调用轨迹（右栏单例 tab：完整历史导出页 + 全屏）
-  fork/SessionActionsMenu.tsx  fork:trace-menu — 顶栏 ⋯ 会话动作菜单
-
-hooks/
-  useAgentSession.ts  messages + streaming + SSE + fork/navigate/reconciliation logic
-  useAudio.ts         completion sound + browser AudioContext unlock
-  useDragDrop.ts      shared drag/drop state
-  useIsMobile.ts      responsive breakpoint hook
-  useTheme.ts         theme state
-
-fork 补丁台账（相对上游 pi-web 的功能改动，合并上游后照此重打）
-  docs/patches/README.md          约定 + 索引；每个补丁一份 .md 说明 + 一份 .patch
-  docs/patches/0001-chat-workspace.md  独立聊天工作区（不在项目中的对话）
-  lib/chat-workspace.ts / app/api/chat-workspace/route.ts  该补丁主体；
-  grep -rn "fork:chat-workspace" 可列出它在上游文件里的全部接线点
+~/Library/Application Support/FastVibe/
+  settings.json          UI prefs (theme, chat behaviour) — not localStorage
+  conversations.json
+  providers.json
+  account.json           FastVibe account sign-in (device token + who it is), 0600, never served
+  mcp.json
+  models-dev.json        models.dev snapshot refreshed hourly and from 设置 → 关于; wins over the bundled one
+  runtime/engine/
+    agent/sessions       session transcripts, passed to the SDK's SessionManager
+    agent/.env           provider API keys, injected into the SDK's in-memory auth storage
+    agent/oauth.json     subscription (OAuth) tokens — the one credential written to disk
+    agent/models.json    the only provider config the SDK reads (custom + builtin providers)
+    reasoning.json       thinking-block start/end times Main timed from the live stream
+    usage-ledger.jsonl   append-only record of finalized turns, so 使用统计 survives deletion
+    memory.json          长期记忆开关（`{ version: 2, enabled }`）
+    memory-state.json    记忆整理的账本：每个对话提取出了什么、使用次数、重试状态
+    memories/            智能体读取的记忆文件夹：memory_summary.md、MEMORY.md、rollout_summaries/…
+    wt                   git worktrees for isolated conversations
+    scratch/<conversationId>   workspace for one conversation not bound to a project
 ```
 
----
+Paths are handed to `createAgentSession` programmatically (`agentDir`, `sessionManager`,
+`settingsManager`) rather than through environment variables. Agent IPC channels use the
+`engine:` prefix (`src/shared/ipc.ts`), exposed to the renderer as `window.fastvibe.engine`.
 
-## Key Design Decisions & Traps
+### Calls and pushes
 
-### AgentSession lifecycle (`lib/rpc-manager.ts`)
-- One `AgentSessionWrapper` per session id, keyed in `globalThis.__piSessions`
-- `globalThis` survives Next.js hot-reload; plain module-level Map does not
-- Idle timeout: 10 minutes. Concurrent `startRpcSession()` calls share a single start Promise (`globalThis.__piStartLocks`)
-- **Idle reclamation only asks `lib/session-liveness.ts`**, which is the single seam every
-  busy-signal flows through: a liveness provider (a visible session holds a lease and is
-  therefore never reclaimed) **plus** `hasActiveSessionLivenessProvider()` and
-  `hasDelegatedWork()` from `lib/delegated-work.ts`. A session whose background sub-agent
-  run is `starting | queued | running` counts as **busy** — otherwise the 10-minute timer
-  reaps the parent while the child is still going and `get_subagent_result` polls forever.
-  Register a new busy-signal through `lib/session-liveness.ts`, never by editing the
-  reclamation line: explicit shutdown and run-time replacement take priority over it, and
-  a read that fails or returns an unexpected shape answers "no delegated work" instead of
-  throwing. The process-wide `__piSubagentRuns` registry (`Symbol.for`) is the source of
-  truth for that signal, not artifact mtimes — our session model has no such files.
+Main's methods are registered on a transport-neutral table (`src/main/ipc/registry.ts`)
+and its pushed messages leave through one hub (`src/main/ipc/broadcast.ts`). Neither
+knows what is on the other end: Electron IPC is attached in `wireElectronTransport()`,
+and a remote client is meant to be a second consumer of the very same table, so a method
+cannot exist on the desktop and be silently missing elsewhere.
 
-### Fork must destroy the wrapper immediately
-`AgentSession.fork()` **mutates the wrapper's inner state in-place** — after fork, `inner.sessionId` is the *new* session's id. If the wrapper stays alive in the registry under the old id, the next request gets the already-forked state and subsequent forks produce a corrupt `parentSession` chain.
+Two rules keep that true:
 
-**We never call it.** `send("fork")` opens a **separate `SessionManager`** on the source file and copies the path with `createBranchedSession()`, so `this.inner` is untouched and the chain cannot corrupt (`lib/rpc-manager.test.mjs` locks this: two forks off one wrapper both point `parentSession` at the source file). An **idle** source is still shut down after the fork — the browser moved to the child, and dropping the wrapper is what guarantees the next request for the old id reloads a clean `AgentSession` from the original file.
+- **One bridge, one table.** `window.fastvibe` is built by `createFastVibeApi`
+  (`src/shared/api.ts`) over a transport (Electron IPC in the preload). A method belongs in the
+  neutral call table so the phone's App Protocol reaches it too, not in a one-off handler.
+- **Register with `handle()`, never `ipcMain.handle`.** Handlers take `(payload, ctx)`;
+  `ctx` carries the asking window, because `event.sender` is an Electron concept a
+  non-IPC caller cannot produce. `settings:get-sync` is the one exception — `sendSync`
+  has no counterpart on another transport, and the preload reads it before first paint.
+- **Push with `broadcast()`, never a loop over windows.** A receiver is whatever
+  registered a `send`; `{ except }` skips the caller that caused the write.
 
-**A running source keeps its run** (upstream `19774b8`, #1023): the copy needs only *finished* entries, which pi appends synchronously in-process, so the file already holds them. Only a running `!` shell command refuses a fork. The wrapper survives, the run finishes, and the session is reaped by the idle timer like any other.
+Registration must finish before `wireElectronTransport()` runs — anything registered
 
-### In-session branching stays locked mid-run
-One `.jsonl` has exactly one leaf, and the running agent appends under it — so `navigate_tree` refuses while the session is running (only `get_state` and friends are allowed through). "Edit from here" must therefore prefill the composer and branch **when the message is sent** (upstream `7303179`, #1009); navigating on click persists a leaf move the user never committed to, and a reload then shows the conversation cut off.
+after the wiring loop is in the table and reachable by nothing.
 
-### Two kinds of branching — don't confuse them
-- **Fork** ("New session" on user message): creates a new independent `.jsonl` file. Shown as a child in the sidebar tree via `parentSession` header field.
-- **In-session branch** ("Edit from here" / BranchNavigator): calls `navigate_tree` within the same file. Multiple entries share the same `parentId`. Switching between them calls `/api/sessions/[id]/context?leafId=`.
+### Reconstructing a conversation
 
-### Session files can be fully rewritten
-`parentSession` in the header is **display metadata only** — has zero effect on chat content. Safe to `writeFileSync` the entire file (pi does this itself during migrations). Used when cascade-reparenting children on delete.
+`engine:get-snapshot` (`ConversationSnapshot`) is what a client reads to draw one
+conversation exactly as it stands, a turn in flight included. Every field is read in one
+synchronous stretch, so they cannot describe different instants — there is no snapshot
+to splice against a stream.
 
-### Document preview selection
-- The DOCX preview is a same-origin sandboxed iframe, so its text selection never reaches the parent document's `selectionchange`. `DocumentViewer` reads `iframe.contentDocument.getSelection()` straight from the frame and anchors `FileSelectionQuotePopover` (shared with the text viewer) to the frame's own coordinates; the selection is quoted with `startLine: 0`, which `fileSelectionText()` serializes as an unlocated `@path` snapshot. PDF previews use the browser's built-in viewer and cannot support this.
+What goes where is not obvious, and getting it wrong renders a plausible-looking but
+wrong transcript:
 
-### 虚拟列表的行高只有一个真值：真行自己的盒高（fork:session-row-overlap）
+- **`messages` already carries the turn's content.** `#messages` appends the reply being
+  streamed as a trailing `running:<id>` row, with its unfinished tool calls marked
+  running, and a running compaction as its own card. This is what lets a chat switch or
+  a window reload show a reply in progress.
+- **`turnEvents` therefore holds no stream events.** `slimStreamEvent` reduces
+  `message_update` to a bare delta; replaying deltas onto a transcript that has already
+  accumulated them draws the reply twice. Only the panel state the transcript has no
+  place for is kept (`RETAIN_FROM_STREAM` / `RETAIN_FROM_EMIT`): a notice, a todo list,
+  a retry banner, a model divider.
+- **`pendingUi` carries parked prompts**, served from `#pendingUi` itself so what is
+  offered and what can still be answered cannot drift. A prompt is delivered only as an
+  event, so a client that connected afterwards would otherwise see a chat that had
+  silently stopped, with a tool parked behind a question shown to nobody.
 
-会话列表是**绝对定位的固定行距窗口化**。行距一旦短过行的真实盒高，行盒只画到行距、文字画到盒高 —— 每一行的元信息都压在下一行的标题上（用户 2026-10-05 截图）。写死的数字必然再漂：v1 `.pw-session` 是 48，v5 `.d-sess` 已经是 52.6，PWA `.m-row` 更到 85。
+Every event carries a monotonic `seq` (`#stamp`). A caller that takes a snapshot and then
+subscribes drops events at or below the snapshot's `seq` and applies the rest.
 
-- `SESSION_LIST_ITEM_HEIGHT` 现在**只是首帧兜底**，真值由 `useSessionRowHeight(listScrollRef)` 在 `useLayoutEffect` 里量第一枚行（绘制前重排，看不到跳）。窗口与偏移都吃这同一个数。
-- 行高因此必须**与状态无关**：行尾控件（折叠箭头 `d-iconbtn` 28 / hover 四枚动作 24）原本留在流里，会把 `.d-sess-m` 从 17.7 顶到 24 或 28，行高在 52.6 / 58.9 / 62.9 之间跳，悬停一枚就叠一次。`app/design/v5-forms.css` 里预留了元信息格的高度（`.d-sess-m` 28 / `.m-row-m` 36）把它钉死。
-- 高行（运行中 / 等你处理）那套偏移分支已删：v5 的徽标只比普通行高 0.3px，`Math.ceil` 后落进同一档。**再加高度分支前先想清楚是不是又让行高变成状态相关了。**
+Retention is filled for **every** conversation, including background ones whose live
+payloads are dropped by the `#activeId` filter in the session subscription — that filter
+encodes one window's idea of "the chat on screen", and a second client may be looking at
+another conversation.
 
-### ToolCall field normalization
-Pi stores toolCall blocks as `{type:"toolCall", id, name, arguments}` but `ToolCallContent` uses `{toolCallId, toolName, input}`. `normalizeToolCalls()` in `lib/normalize.ts` handles this — called in both `session-reader.ts` (file load) and `handleAgentEvent` in `hooks/useAgentSession.ts` (streaming).
+### 远程访问（`src/main/server/`、`src/main/rtc/`）
 
-### New session tool preset
-Tool names are passed at session creation (`POST /api/agent/new` -> `toolNames[]`) and persisted in versioned `pi-web:tool-selection` custom entries. No entry means a legacy session and keeps Pi's default behavior; an empty array means Chat only. Chat only resolves before services are created, loads no extensions/skills/prompts/themes, and replaces Pi's base prompt with the ordered contents of Pi's discovered context files. Crossing the Chat-only boundary rebuilds the wrapper; changing between nonempty presets updates it in place. Subagents persist their active tools plus profile-level skill and extension loading switches in `resourceSnapshot`; loaded extensions cannot expose the reserved `Agent`, `get_subagent_result`, or `steer_subagent` tools to a subagent. See `docs/adr/0002-chat-only-tool-selection.md`.
+One switch (设置 → 远程访问) opens two ways into the same call table — the one the desktop
+windows use — so that a method cannot exist on the desktop and be missing on the phone:
 
-The last preset explicitly selected by the user is stored in browser `localStorage` and initializes fresh-session composers only. Existing sessions never trust that preference; they use their live `get_tools` state or pi's default when no wrapper exists.
+- **官方连接** (`rtc/`): a phone signed in to the **same FastVibe account** finds this
+  computer by itself and connects over WebRTC — directly (LAN, or across routers) when it
+  can, through FastVibe's TURN relay when it cannot. No password, no address, nothing to
+  configure. Needs only a signed-in account. See 官方连接 below.
+- **局域网地址 + 密码** (`server/`): the `RemoteServer` listener, which a phone on the same
+  network reaches by scanning a QR code (or finding the computer by name, 局域网发现 below) and
+  typing the password. It needs a password and nothing else: with the switch on and a password
+  set the listener is up, and 设置 → 远程访问 shows its QR code straight away. There is no
+  separate 允许局域网访问 switch.
 
-**Tool exposure (pi >= 0.99).** Every tool reports an `exposure`: pi activates `direct` and `model-only` tools on registration, leaves `codemode` and `deferred` tools undeclared until something names them, and ignores `hidden` (withdrawn) tools in `setActiveToolsByName()`. `withExtensionTools()` therefore carries over only the first two when it applies a preset, and `get_tools` leaves hidden tools out. `ToolInfo.exposure` stays optional in `lib/pi-types.ts` (`ToolExposure` is spelled out locally — 0.87 does not export the name) and a missing value means `direct`. The pi CLI prepends its built-in `mcp`, `codemode`, `tool-search` and `llama.cpp` extensions from a module the SDK does not export, so pi-web sessions load none of them. `defaultTools` may hold `+name` / `-name` modifiers: read the resolved list through `SettingsManager.getDefaultTools()`, and `lib/powershell-settings.ts` resolves the raw global list with the same rule before it edits it, since appending a plain name to a modifier-only list would drop pi's default tools.
+The listener binds `::`, which is **dual-stack**: one socket answers IPv4 and IPv6 at once
+(`startListener` in `remote.ts`; a machine with IPv6 off falls back to `0.0.0.0`). The pane shows
+one QR code per address family this machine has (`RemoteLan`, `remote-lan.tsx`) with a tab to
+switch — a phone on a network that routes only one of them scans the other. The QR carries the
+address and the computer's name, never the password. The listener is also what the headless Agent
+uses, reached through an SSH forward or, with a password, by a phone (`agent/`,
+`ssh:set-phone-access`).
 
-**Prompt disposition (pi >= 0.99).** `AgentSessionLike.prompt()` takes the SDK's own `PromptOptions`; never re-declare it locally. `preflightResult` receives `"handled" | "queued" | "started"` instead of a boolean, and a rejected prompt never calls it — it only rejects the returned promise. Every accepted value is truthy, so the wrapper's `if (disposition) acceptPreflight()` means the same thing as the old `if (success)`. `steer()` / `followUp()` resolve to `"handled" | "queued"`; pi-web ignores both and reads the queue from `getQueue()`.
+There is no browser client any more. The listener answers `/api/hello`, `POST /api/login` and
+the `/ws` upgrade, and a bare 404 to everything else; a WebSocket upgrade that carries an
+`Origin` header is a web page and is refused outright, since the phone app and the SSH forward
+send none.
 
-### Model defaults for new sessions
-`GET /api/models` returns `defaultModel` read from `~/.pi/agent/settings.json`. `ChatWindow` pre-selects this on mount for new sessions. Explicit browser model/thinking selections are applied atomically during AgentSession construction, then `lib/startup-preferences.ts` persists their effective values without replaying `set_model`/`set_thinking_level`; implicit `enabledModels` fallbacks and thinking pins are not persisted.
+The computer's name (设置 → 远程访问 → 电脑名称) is saved as `remoteDeviceName` (an older
+`remoteDiscoveryName` is read as a fallback) and is the one name everywhere: the account's device
+list, the console, the phone, the QR code and the mDNS record. The input starts out as the
+computer's own name. Changing it re-registers the device (`OfficialConnection.renamed()`) and
+replaces the mDNS record, without restarting signaling or dropping a phone.
 
-### Model switch while a turn is running (fork:proma-37-deferred-model)
-Running a turn and picking another model must **not** interrupt it: `set_model` is never sent while `isStreaming`. The selection is recorded as a pending model (`decideModelSelection` → `defer`) and applied by **replaying `handleModelChange` after the turn ends** — no timer of its own. The apply point is `settleTurn()`, which wraps the existing `settleUiStage()` funnel that `prompt_done`, `agent_settled` and the no-SSE `finishPromptWithoutStream` fallback already share; that is what makes it idempotent per run. `pendingFlushDecision` is the gate that finally takes the pending away: if a new run started, the session vanished, or a switch is already in flight, the pending is **kept** for the next turn end rather than dropped. Switching sessions clears the queue, but `null → real id` (`promoteNewSession`) deliberately does not — that is the same session before its id exists, so a new session's first turn keeps its queue. The composer shows a `.pw-chip accent` next to the model selector (`clock` icon); the selector itself keeps showing the model of the **running** turn. Pure logic lives in `lib/pending-model.ts`.
+`src/main/remote.ts` holds everything Electron-shaped — settings, paths, the methods the
+settings pane calls — so `server/` itself imports no Electron and could run without a GUI. It
+is handed the very same `dispatch` and `subscribe` the windows use.
 
-### `enabledModels` scoping
-The `enabledModels` setting uses pi's `--models` syntax: minimatch globs against `provider/modelId` or a bare `modelId`, fuzzy matching for non-glob patterns, and an optional `:thinkingLevel` suffix. Never compare those patterns as literal strings — `lib/model-scope.ts` delegates to the SDK's `resolveModelScopeWithDiagnostics()` so pi-web and the TUI agree on the visible model list, and falls back to all available models when patterns resolve to nothing. `startRpcSession()` resolves that scope before creating an AgentSession and passes the selected initial model, thinking pin, and SDK-native `scopedModels` atomically; `GET /api/models` reuses the helper only for selector data, `thinkingLevelPins`, and `modelScopeWarnings` display.
+Rules that fail silently if broken:
 
-### SSE reconnect on page refresh mid-stream
-On `ChatWindow` mount, `GET /api/agent/[id]` is called. If `state.isStreaming === true`, SSE is reconnected automatically. `thinkingLevel` and `isCompacting` are also synced from this response.
+- **Credentials never touch `settings.json`.** That file is handed whole to every renderer
+  and re-broadcast on every write. The password hash and device tokens live in
+  `remote-access.json` (0600), and no method serves it.
+- **`policy.ts` classifies every method, exhaustively.** `assertPolicyCoverage` refuses to
+  start the server when the table holds one that is in neither set, so adding a method
+  breaks the server until somebody decides — a denylist alone would expose it by default.
+  The bar for denying is narrow: whoever has the password can already ask the agent to run
+  commands, so only calls that *hang* (native dialogs), act on the wrong machine's desktop,
+  or hand over a lever they would not otherwise have (`providers:fetch`) are refused —
+  plus `remote:*` itself, so a stolen token cannot lock the owner out. `attachTransport`
+  runs the same coverage check `start()` does.
+- **No password, no listener.** `start()` throws rather than listening, and the default bind
+  is `127.0.0.1`. The desktop binds beyond loopback only when the switch is on **and** a
+  password exists (`bringUp`, and `remote:set-password` for a password set afterwards), so a slip
+  in the settings pane cannot put a shell onto the local network. The official connection does
+  not use the listener or the password (see below).
+- **Pushes begin at authentication, not at connection.** A socket that has not proved who
+  it is is subscribed to nothing and closed after ten seconds.
 
-### Compaction SSE events
-Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `auto_compaction_start` / `auto_compaction_end`. `handleAgentEvent` accepts both sets to keep `isCompacting` in sync. Manual compact is a blocking POST — the button stays disabled until the response returns.
+**The heartbeat is for the network, not for this machine.** A proxy or NAT cuts a
+quiet connection — Cloudflare's edge after 100 seconds, nginx's `proxy_read_timeout` after 60
+— and quiet is the normal case here: reading a transcript, or watching a run, is a socket
+with nothing to say. So `#beat` pings each one every 30 seconds, and the browser's pong is
+half the point: traffic has to be seen in *both* directions for the timers on either side to
+reset. It doubles as liveness, which matters more over the internet than on a wire — a
+half-open connection there looks attached forever and never receives anything again — so a
+socket that missed a whole round is `terminate()`d, which becomes the `close` the client
+reconnects from. `heartbeatMs` exists only so a test can watch that happen without waiting
+out the real interval.
 
-### Running state polling + reconciliation
-- The sidebar polls `/api/agent/running` every 2.5 seconds while the tab is visible and pauses polling in background tabs. The session-list response remains the initial fallback.
-- `useAgentSession` treats per-session SSE as primary for chat events and opens it before each prompt. `prompt_done` completes the current UI stage and notification immediately, but the idle SSE stays open for a 30-second grace window and is reused by the next prompt. `agent_start` cancels that close timer; `agent_settled` finishes extension-injected runs that have no wrapper-level `prompt_done` and starts a fresh grace window. Do not close on the first `agent_end`: retries, compaction, and extension-queued messages can continue the same logical prompt.
-- While a run is active, `useAgentSession` periodically calls `GET /api/agent/[id]` and also reconciles on `visibilitychange`/`online`. This fixes missed terminal events from background tabs or half-open connections.
-- Prompt runs use a monotonic run id; late SSE or slow reconciliation responses from an old run must be ignored so they cannot resurrect stale streaming bubbles.
+**A large frame being compressed is not a slow client.** `ws.bufferedAmount` includes
+uncompressed bytes waiting on zlib as well as the socket's write queue. A 3 MB snapshot
+followed immediately by a tiny event used to trip the instantaneous 2 MiB cutoff and
+close with `4004`, even on loopback — seen repeatedly on the native phone app while it
+was in the foreground. `server/backpressure.ts` now distinguishes a burst from congestion:
+2 MiB is a soft watermark with 15 seconds of stall grace; a successful send callback or a
+net drain of at least 64 KiB renews it. Each outstanding frame has a 120-second age limit
+while above that watermark. Continuous fast output can keep a healthy queue above 2 MiB:
+neither a flat queue size nor time spent above the watermark alone proves it is stuck.
+`trackSend` records each frame before enqueueing it, and only a successful write completes
+it; these callbacks mean local transport progress, never an acknowledgement from the phone.
+32 MiB of existing backlog stops further writes immediately. A single large reply on an empty queue is allowed, so
+the bound is the hard watermark **plus one outgoing frame**, not an absolute frame-size
+limit. Send completions sample the buffer too, so two separate bursts do not share a
+stale congestion clock; a per-client timer samples once a second even if no next event
+arrives and is cleared on drain/disconnect. Do not merge or discard protocol events to
+work around this: their sequence, payload and ordering remain unchanged. Real-socket
+tests cover multi-MiB bursts with/without compression and hard-limit session cleanup.
 
-### Worktrees and project grouping
-- `lib/worktree.ts` resolves linked worktree top-levels back to the main repo `projectRoot`; `listAllSessions()` attaches that to each `SessionInfo` so all worktrees for one repo are grouped together in the sidebar.
-- Worktree operations are served by `/api/worktrees` and guarded by the same allowed-root rules as `/api/files`.
-- New worktrees are created under `<repoRoot>-worktrees/<sanitized-branch>`. Existing branches are reused; otherwise `git worktree add -b` creates the branch.
-- Removing a dirty worktree returns `409` with `{ dirty: true }` so the UI can ask before retrying with `force`.
-- Sessions whose cwd points at a removed worktree are inferred back into the main project instead of becoming a phantom project row.
-- git prints POSIX-style absolute paths even on Windows, so every path read out of git goes through `toNativePath()` (`lib/paths.ts`) before it is compared or returned. Compare paths with `samePath()`, never `===` — raw equality made `isTopLevel` permanently false on Windows and hid the worktree switcher entirely. Branch names are not paths and must keep their forward slashes. Browser code cannot apply Node path rules, so `/api/worktrees` resolves `currentWorktreePath` server-side; the sidebar must use that identity for highlighting and removal fallback.
+The password is exchanged once for a device token (`POST /api/login`); tokens travel on
+every later connection, are stored only as hashes, and are revoked one device at a time.
+Guessing is slowed by a global exponential backoff.
 
-### File access allow-list
-- `/api/files` is intentionally not a general filesystem browser. Allowed roots come from session cwds, their resolved project roots, `~/pi-cwd-*`, and roots explicitly added with `allowFileRoot()`.
-- `/api/cwd/validate`, `/api/default-cwd`, and `/api/worktrees` call `allowFileRoot()` when they make a new location browsable.
-- `/api/files/...?sessionId=` also reads (never lists) a file outside the roots when that exact path appears in the session, so a chat link to it opens (`lib/session-file-references-core.ts`). Three things never count: transcript system messages (they carry every tool schema), `context_edit` replacements (the UI never shows them, and they often restate a tool result), and the result text of any tool other than pi's coding tools and the subagent tools — MCP and extension results relay text a remote party controls, so any string in it would become readable. Such a result still authorizes its `details.fullOutputPath` and the arguments of the coding-tool calls it made through `ctx.executeTool()` (`nestedCalls`); arguments of its nested MCP calls do not count, because a script hands one MCP result to the next call without the model reading it. User and assistant messages, the model's own tool call arguments (MCP calls included) and the other entries count as before. Tools are matched by name, so keep `CODING_TOOL_NAMES` in step with `lib/rpc-manager.ts`.
-- Allowed roots are stored slash-normalized, but that is a Set-key convention, not a correctness requirement: `isPathWithinRoots()` (`lib/path-security.ts`, the single implementation behind `isFilePathAllowed()`) re-resolves and case-folds both sides, so either path form authorizes correctly. Keep that one implementation — it is the security boundary.
+### 官方连接（`src/main/rtc/`，服务端见 fastvibe-services 的 `docs/cloud-service.md`）
 
-### File tree visibility (fork:file-tree-visibility, 上游 #1014 / 13bc2b0)
-- 列表里「不显示什么」由 Git 决定，可见性**不是**授权：被隐藏的条目照样能按路径读到（`/api/files` 只按 allowed root 授权，从不看这个模块）。
-- `lib/file-tree-visibility.ts` 先用一次 `git check-ignore --no-index --stdin`（全部条目名走 stdin，NUL 分隔，不经 shell，所以空格 / 中文 / 引号 / `-` 开头的名字都不会被当成参数或路径魔法），再用一次 `git ls-files --cached` 找出哪些被忽略的名字底下**有跟踪文件**——忽略对跟踪内容不生效，所以被跟踪的 `build/` 照常显示，被忽略目录里被 force-add 的文件也显示。
-- **不要让 check-ignore 读索引**（不要去掉 `--no-index`）：它每个名字扫一遍索引，20 万文件的仓里 1000 条目的目录要 2.4s，然后就在 5s 超时上退回名字表。名字一律以 `./name` 送进 check-ignore（pathspec 魔法 `:(...)` 会让**整批**报错），送进 ls-files 时带 `--literal-pathspecs`（否则 `*.log`、`[id]` 会 glob 命中被跟踪的 `app.log`、`i`）。
-- 两次调用都带 `-c core.fsmonitor=false`：读索引会执行「用户刚展开的那个仓」里配的 fsmonitor 钩子。名字表（`node_modules`/`dist`/`build`…）只在 Git 看不见时兜底——work tree 外、git 缺失 / 失败 / 超时，以及目录本身被忽略且底下无跟踪文件（否则 dotfiles 仓忽略 `*` 时临时目录会列成空）。
-- 列表因此要**等 git**（每次判定 ≤5s，超时即降级）。`getFileTreeVisibility()` 接请求自己的 `signal`：浏览器中途离开就杀掉 git，不让它白等满 5s。同一个（目录 + 条目名集合）在途共用一次判定、结果缓存 1s——文件树每次目录变更都会重取所有已展开的目录，不合并就会 fork 出一串 git 进程；缓存键含条目名，所以新增条目立刻重判。
-- `/api/file-index` 的 readdir 兜底复用同一个 `isHiddenOutsideGit()`，不再各留一份名字表（那条路由的 git 分支本来就走 `ls-files --exclude-standard`，注释里「Git-tracked repos rely on .gitignore」说的就是它自己）。
+`OfficialConnection` (`rtc/official.ts`, Electron-free) registers this install as a device
+(`PUT /api/devices/me`, the id minted once in `rtc-device.json`), keeps the cloud's signaling
+WebSocket open (`rtc/signaling.ts`, reconnecting with backoff), and answers each phone that
+calls with a `Responder` (`rtc/responder.ts`) over libdatachannel (`node-datachannel`, behind
+`rtc/peer.ts` so tests can fake it). It follows the 远程访问 switch and the account: switch off
+or signed out → signaling closes and every phone is dropped.
 
-### 项目之外的符号链接目录（fork:linked-directory，上游 #1018 / 687af27）
-- 克隆的仓库里常有指向项目外的符号链接目录。边界不动：**仓库内容不得自己放宽 roots**（否则一条提交的软链就能让 `~/.ssh`、`/` 变得可读）。这类链接照常列出来，但带 `outsideLinkTarget`（目标还包着项目或主目录时再加 `outsideLinkEncloses`）。
-- 唯一的通路是操作员在文件树里点一次「允许浏览」→ `POST ?type=allow-link`（等价于他在目录选择器里选中那个目录，`/api/cwd/validate` 同等级）。`lib/linked-directory.ts` 把这一圈全部钉死：
-  · 链接必须**直接**坐在解析后仍在 roots 内的目录里 —— 穿过另一条没放行的链接到达的，403；
-  · `lstat` 必须是 symlink（Windows junction 也算）且目标是目录，否则 400/404；
-  · 请求带的是**列表当时展示给操作员的那个目标**，realpath 变了就 409（界面提示刷新），不授权没人看过的目录；
-  · 只 `allowFileRoot()` 这一个目标，不放宽全局 roots，进程重启即失效；每条链接各是一次独立的选择。
-- 授权边界因此**只能一次性、绑定 realpath**。`hasParentDirectorySegment()`（`lib/path-security.ts`）在 `isExistingPathWithinRoots()` 里拒绝任何 `..` 分段：Node 的 `realpathSync` 先消 `..` 再跟链接，文件系统反过来，`root/link/..` 字典序上等于 `root`（授权通过）实际却打开链接目标旁边那一格。这条覆盖所有拿 cwd / 文件路径做授权的路由，fail closed。
-- 界面用画板已有的 `.pw-perm` / `.pw-perm-title` / `.pw-perm-body` / `.pw-perm-acts` + `.pw-btn primary sm`（已登记在 board.css，画板 01 / 12 / 60 在用），**不新增 `.pw-*` 类**；包住项目/主目录时先 `.pw-alert` 警告再 `window.confirm`（与删除确认同一套交互）。目录展开失败也不再被吞掉，原因显示在该行下面。
+- **The account is the authentication.** The cloud only introduces two sessions of the same
+  account, and the DTLS fingerprints travel over that authenticated signaling, so a third party
+  cannot stand in for either end. The data channel is therefore attached already authenticated
+  (`RemoteServer.attachTransport`) — no password, no device token — and everything after that
+  is the ordinary path: the policy (`remote-policy.ts`), the backpressure guard, the heartbeat,
+  the App Protocol session. `stop()` of the listener leaves attached connections up; they do
+  not depend on it.
+- **The phone offers, this side answers.** The phone opens one data channel labelled
+  `fastvibe` (any other label is closed); signals are `{type:"offer"|"answer", sdp}` and
+  `{type:"candidate", candidate, mid}` inside the signaling `signal` message. Signals that
+  arrive while ICE servers are still being fetched are buffered and replayed in order. The
+  phone's candidates are held until this side has a server-reflexive candidate of its own —
+  that is the STUN request having gone out, which is the whole point of the hold — and not
+  until gathering completes, because the relay allocation after it is a round trip a phone
+  on this network never needs. A STUN server that never answers still releases them after
+  the same bounded wait. After the channel opens a `hangup` only frees the phone's signaling
+  slot — it is ignored.
+- **Frames are fragmented** (`rtc/frames.ts`; the phone's copy is `lib/protocol/rtc_frames.dart`
+  and must stay byte-identical): one header byte (`LAST`, `BINARY`, `PING`, `PONG`, `CLOSE`),
+  at most 16 KiB per message, control messages may fall between fragments. `ChannelSocket`
+  (`rtc/channel-socket.ts`) dresses a data channel as the WebSocket-shaped `RemoteSocket` the
+  server takes: queued bytes count toward `bufferedAmount`, ping/pong are real, and a close
+  carries a code.
+- **libdatachannel's `send` returning `false` means queued, not failed.** Treating it as a
+  failure closed every connection on the first large reply. A send fails when the channel is
+  not open, or throws.
+- **The path is reported, not chosen.** ICE picks host → srflx → relay; the pane shows 直连 or
+  中转 from `getSelectedCandidatePair()`, because relayed traffic is the one case that costs
+  the account something (a monthly allowance). Compression follows that same report, and only
+  that report: the offer's `deflate` is permission (an older reader refuses the bit), and a
+  frame is deflated only once the selected pair is a relay. A direct path, and the window
+  before ICE nominates, send frames as they are — deflating JSON on Main's thread costs more
+  than the bytes save when the round trip is a millisecond. The bit is per fragment, so a
+  path that moves later changes the next frame without reconnecting. The phone does the same
+  with its own `getStats()`. On the relay a frame of 64 KiB or more is deflated off Main's
+  thread (`ChannelSocket.send`): megabytes of transcript take tens of milliseconds, on the
+  thread every agent's stream runs on. The frame keeps its place meanwhile — the channel
+  carries no sequence number, so nothing sent after it may be handed over before it — and
+  counts toward `bufferedAmount`, so the backpressure guard still sees it.
+  Fragment size follows the path too, but only as far as the peer negotiated: a direct path
+  reads `maxMessageSize()` and sends up to 64 KiB (libdatachannel's own default), while a
+  relay and a path not yet chosen stay at 16 KiB. The phone's stack cannot read that number,
+  so it keeps sending 16 KiB; receiving the desktop's larger fragments needs no change.
+  64 KiB is not a step toward the 256 KiB both stacks negotiate: 128 was measured against 64
+  on loopback (12 MB, real peers) and made no difference.
+- **The phone's side** (`apps/mobile_flutter`): the account (`lib/account/account.dart`: browser PKCE
+  sign-in through `flutter_web_auth_2`, `fastvibe://oauth/callback`, token in the Keychain/Keystore,
+  only ever sent to the site that issued it) and the account's computers (`official_devices.dart`),
+  which live in the same saved list as manual ones with `kind: official` and origin
+  `fastvibe-official://<device id>`. `RtcDialer` (`lib/protocol/rtc_connection.dart`) does the
+  signaling and the WebRTC offer and hands `RemoteClient` a `FrameSocket`, so the handshake, health
+  checks and reconnect are the ones every other connection uses. `Connection` carries `needsAccount`
+  (the way forward is signing in) next to `needsPassword`.
+  - **A signaling socket outlives its call for 20 seconds** (`lib/protocol/rtc_signaling.dart`,
+    `SignalingCall`). Opening one is a TCP and a TLS handshake and an upgrade before the call
+    can be placed, and a reconnecting phone places several in a row — the desktop answers
+    `device_offline` while its own signaling comes back. A kept socket has already said
+    `hello`, so the next call sends `connect` alone. Three things keep that from being slower
+    than not keeping it: a kept socket gets 2.5 seconds to answer before a fresh one replaces
+    it, a network change or leaving the foreground drops it (`dropKeptSignaling`), and what
+    still arrives about the previous call is told apart by its `cid` — the service answers a
+    `hangup` that crossed the desktop's with `unknown_call` *for that call*, and an error that
+    answers `connect` names none.
+  - **Host candidates have their own share of the budget** (`CandidateBudget`: 8 in all, 4
+    host, 2 relay). They are found first — the public address and the relay each wait on a
+    round trip — so a phone with enough interfaces used to fill the budget before the relay
+    arrived, and the relay is the one address a desktop on another network must be *told*:
+    its router lets nothing in from an address it has not sent to.
+  - **Neither address family takes every host place** (3 of the 4), and a unique-local IPv6
+    address is not sent at all. Hosts arrive in the system's interface order, and a phone on
+    Wi-Fi and mobile data had enough IPv4 ones to fill the share before its public IPv6
+    address — the one that needs no NAT traversed — turned up.
+  - **A network that carries no UDP is dialled again over TCP** (`_udpProbe`, `relayOverTcp`).
+    Four seconds with no address beyond the phone's own ends the attempt and starts one with
+    the relay alone, over TLS on 443 when the service lists it. Only then: a second relay on
+    every dial would be a second allocation where UDP works.
+  - **The path is the pair the transport selected** (`selectedPairFrom`), not the first pair
+    that succeeded — the relay's and a direct one can both have. `rtc.path` records what it is
+    made of (`direct srflx/prflx v4`) when it changes.
+  - **`Disconnected` is acted on, not waited out.** ICE reports it within seconds and calls
+    the path failed only much later, and the routine health check is 15 seconds apart with
+    15 to answer. `RtcFrameSocket` reports it through `FrameSocket.onSuspect` and
+    `RemoteClient` probes at once (`checkHealth(fast: true)`); a path that recovers answers
+    the probe and nothing is dropped.
+- **SCTP is tuned once, for the whole process.** usrsctp keeps one set of settings, so a
+  relayed call and a direct one share them and neither can be tuned alone. Two of the
+  library's defaults are moved (`peer.ts`, applied before the first peer or they are
+  ignored): the delayed acknowledgement from 20ms to 5ms, because on a direct path that
+  wait is the whole latency of a small frame, and the initial congestion window from 10 to
+  64 MTUs, so a snapshot does not trickle out over the first few round trips. The buffers
+  stay at the library's 1MB — larger only helps a transfer the relay would then have to carry.
+- **The desktop gathers with STUN only.** The phone is the end that asks for a relay
+  (`stunServers` in `rtc/ice.ts` says why: the account's allocation quota, and libjuice holding
+  an allocation until it expires). libjuice has no TURN over TCP/TLS either, so a desktop on a
+  network that blocks UDP outright cannot be reached at all.
+- **The STUN list is never waited on once there is one** (`OfficialConnection.#loadIce`). It is
+  fetched as signaling comes up; after that a list due for another look is handed out as it is
+  and looked up again behind the call. What is kept has no credential in it, so nothing in it
+  expires with the service's hour — whereas waiting on the service and getting no answer sent
+  the call on with no server, which a phone off this network cannot connect through. Only a
+  call with nothing to gather with waits, for three seconds rather than the request's fifteen.
+- **A call's socket is set up from a plan measured before the call** (`rtc/netpath.ts`,
+  `OfficialConnection.#loadPlan`). The library gives a call one socket, one STUN server picked
+  at random from the list and whatever route the system hands out, and three things about that
+  route decide whether a phone on another network gets a direct path. The plan is a few STUN
+  requests on sockets of our own, made as signaling comes up, kept while the interfaces stay
+  the same (`networkSignature`) and measured again behind a call once it is five minutes old; a
+  plan for another network is never used, and a call that has none waits 1.5 seconds and goes
+  on plain. It answers:
+  - **Whether a tunnel owns the default route.** A proxy or VPN running as an interface carries
+    the STUN request away, and the call then offers the tunnel's far end as this computer's
+    public address — the phone connects through the proxy or not at all. A socket *bound* to
+    the real interface's address stays off the tunnel (`bindAddress`; measured on macOS, and
+    tried rather than assumed everywhere: the plan binds only when a bound probe is answered
+    with a different public address). Such a socket cannot use a made-up address from a
+    fake-IP resolver, so the STUN server's real one is asked for from that interface and
+    handed to the library as a literal. A bound socket is IPv4 only: where this computer has
+    IPv6 the tunnel leaves alone *and* the phone offers a public IPv6 address, the call is left
+    unbound (`#phoneHasGlobalV6` waits 250ms past the offer to see), and a bound call drops the
+    phone's IPv6 candidates rather than spend the library's few places on them.
+  - **Which server answers**, so the call is given that one instead of a random pick.
+  - **What the router does with a second destination** (`classifyMapping`): keeps the port,
+    hands out the next one along, or picks at random.
+- **A router that hands out ports in order is met with guesses** (`predictedCandidates`, sent
+  as one `candidates` message so twenty lines are not twenty messages against the signaling
+  rate limit; a phone that does not know the message ignores it). What makes a guess land is
+  how little time passes between this side's STUN request and its first packet to the phone's
+  public address, so on such a router the offer is *kept back* until the phone's
+  server-reflexive candidate arrives (`PAIRING_HOLD_MS`, 700ms at most) and the phone's
+  candidates follow the STUN request by 25ms instead of by its round trip. Measured with the
+  real library against a listener on another continent, on a router giving out some hundred
+  ports a second: applied the old way the port toward the phone was 2 to 75 past the STUN one
+  (6 of 8 within 16); kept back, 2 to 5 past in seven of ten and within 20 in nine. It only
+  helps a phone whose own NAT keeps its port — one that does not still needs the relay — and it
+  costs a call on such a network the phone's STUN round trip before it starts.
+- **A forwarded port, when the router offers one** (`rtc/portmap.ts`: NAT-PMP and UPnP IGD).
+  Asked for per call on a port reserved for that call's socket, announced as one more
+  server-reflexive candidate (`mappedCandidate`), renewed at half its lease and taken down with
+  the call; `PortMapper.close()` runs at quit. It replaces the guesses: a forwarded port takes
+  a packet from anywhere. Nothing is asked of a router that reports a private address of its
+  own (it is behind the provider's NAT and its port leads nowhere), one whose address is not
+  the one STUN saw, or one that only makes permanent mappings — a mapping that outlived a
+  crash would stay open until somebody found it. **Not run against a real router**: the one
+  this was built behind answers neither protocol; the tests speak both from the specifications.
+- **Signaling is pinged from this side too** (`SignalingClient.probe`, every 15 seconds, 8 to
+  answer). The service's own ping is 25 seconds apart and its silence is called dead after 70,
+  which is how long this computer stayed unreachable after its network changed under it:
+  every phone that called meanwhile was told `device_offline`. A call ending asks at once —
+  a network change ends a phone's connection and the signaling together, and only the first
+  of those says so.
+- **Native module.** `node-datachannel` ships one optional package per platform;
+  `pnpm-workspace.yaml` installs both macOS CPUs (the x64 release is built on an arm64
+  runner) and `electron-builder.yml` prunes the other from each package. `nodeDataChannel.cleanup()`
+  must run at exit (`shutdownWebRtc`) or the process never ends — tests call it in `after()`.
 
-### 调用轨迹与会话动作菜单（fork:trace-frame / fork:trace-menu）
+### 局域网发现（mDNS，`src/main/server/mdns.ts`）
 
-用户 2026-10-02 定的两块形态，方案与取舍写在 `docs/trace-pane-and-session-menu-plan-2026-10-02.md`：
+局域网监听在跑时（远程访问开着且设了密码），桌面端用 `bonjour-service` 广播 `_fastvibe._tcp`，
+实例名是电脑名称（设置里的电脑名称，留空用主机名去掉 `.local`），与账号设备列表同名。手机的「添加设备」页据此列出
+「附近的电脑」，点一下就填好地址，连接名默认用这个名称。记录里只有端口和 `v=1`，不含任何凭据。
 
-* **「调用轨迹」就是「完整历史」那一页，只是换了位置**（用户第二次裁定，推翻了先前的仿 ZCode 面板）：`components/TraceFrame.tsx` 用**同源 iframe** 装 `GET /api/sessions/<id>/export?inline=1`，装进右栏那个单例 `trace` tab。pi 自己导出的那页已经有侧栏树、搜索、五档过滤（Default / No-tools / User / Labeled / All）、可拖宽侧栏、可展开的工具输出 —— **不再另写一套转录渲染**。为此 `app/api/sessions/[id]/export/route.ts` 只对 `inline=1` 放宽嵌帧（CSP `frame-ancestors 'self'` + `X-Frame-Options: SAMEORIGIN`），**下载仍 `DENY`**。页头只加两枚钮：刷新（`nonce` 变一次重载 iframe）与全屏（`position: fixed; inset: 0` 铺满窗口，Esc 退出）。
-* **入口不动**：顶栏那枚原「完整历史」图标钮（位置 / 图标 / `data-mobile-toolbar-action="history"`）打开这个 tab。导出 HTML / Markdown 在 ⋯ 菜单与侧栏行菜单里。
-* **会话动作 ⋯ 菜单**（`components/fork/SessionActionsMenu.tsx`，走既有 `ContextMenuProvider`）：置顶 / 重命名 / 归档 / 标记未读 ‖ 在访达中打开 / 复制路径 / 复制会话文件路径 / 复制会话 ID / 前往配置 ‖ 调用轨迹 / 导出 HTML / 导出 Markdown。**重命名**=顶栏标题原地变输入框（`PATCH /api/sessions/<id]` + `refreshKey`）；**标记为未读**靠 `lib/session-unread.ts`（未读标记原来是 `SessionSidebar` 私有的 `useState`，外部点不到，抽成和 `lib/session-flags.ts` 同形状的 store）；**在访达中打开**走 `/api/files/reveal` 开**项目目录**（会话文件在 `~/.pi/agent/sessions` 下，不在 allowed roots，所以不 reveal 它），失败由 AppShell 里那条 3 秒的 `.pw-toast` 报出来。pi 没有的两个（ZCode 的「复制日志路径」「反馈问题」）不做。
-* **「读数」与「动作」分开**：`SessionStatsDetails`（上下文环浮窗）只留读数（名称 / 活跃时长 / 消息计数 / Token / 费用 / 上下文 / 命中率），路径类动作全在 ⋯ 菜单里，同一件事只留一个入口。
+- **显示名与解析名分开。** 服务实例名供人识别，但 SRV target 和 A/AAAA 记录使用这个
+  advertiser 独有的 `fastvibe-<uuid>.local`。不能让 `bonjour-service` 默认使用 `os.hostname()`：
+  它会把所有网卡的地址广播到同一个名字下，与 macOS 按网卡发布的系统记录冲突，导致系统提示
+  主机名被占用、不断加 `-2` / `-3`，手机也可能拿到失效的解析记录。
+- **名称就是电脑名称。** 不再有单独的「主机名称」：`remote:set-device-name` 保存 `remoteDeviceName`，
+  `announce()` 随后经 `syncDiscovery()` 替换广播；同端口下也比较名称才能让改名生效。名称允许句点和
+  最长 64 个字符，而 mDNS 实例名不行，所以广播前过 `mdnsInstanceName()`：句点、反斜杠和控制字符换成
+  `-`，63 个 UTF-8 字节封顶，重名后缀按字节截断原名称，不切断 Unicode 字符。独立的 SRV target 不随用户改名而变化。
+- **`publish()` 返回不等于广播成功。** 只有 `up` 才记录已发布；探测中的同端口请求仍是空操作。
+  `bonjour-service` 1.4.x 发现服务名冲突时只停掉服务、不发事件，2 秒的探测检查据 `activated`
+  识别这条路径，改用 `名字 (2)` 等后缀，最多试 5 个名字。失败清理 socket 后才允许再发起；
+  停止和换端口取消检查，旧实例的迟到回调不能恢复广播。底层 socket 的 `error` 要单独接住，
+  库的构造回调只接查询应答错误，service 的监听器接不到绑定失败。
+- **广播由服务器状态推出来，不在各调用点开关。** `remote.ts` 的 `syncDiscovery()` 挂在 announce
+  路径里（启动、停止、设置或清除密码都会经过），条件是「监听正在运行」；没有监听（没密码）就不广播。
+  `publish` 对同一端口和名称是空操作，换端口或名称则替换记录；失败只记日志，不能拖垮远程访问。
+- **一台电脑会广播它每块网卡的地址**（Wi-Fi、VPN、虚拟机桥接……），手机侧
+  `originsFor` 把私网 IPv4 排最前、丢掉链路本地地址，`firstReachable` 并发探测、按排名取第一个有响应的。
+  不用 `.local` 主机名：Android 的解析器不做 mDNS。
+- **监听同时收 IPv4 和 IPv6，广播只带一个地址族。** 监听是 `::` 双栈，但记录只发一族：
+  IPv4 只发 A（`disableIPv6: true`），IPv6 只发 AAAA。库没有 `disableIPv4`，所以在异步探测结束前包装
+  `service.records()` 过滤 A；注册、应答、重发和撤销都使用同一套记录。`nsd_android` 2.2.0 只把
+  `NsdServiceInfo.host` 的一个地址交给 Dart，即便指定 `IpLookupType.any`，已有地址时也不会再查询；如果这个
+  地址是 `fe80::`，手机过滤后连行都不显示——所以两族都发是不安全的。`syncDiscovery` 在这台电脑有 IPv4
+  时选 IPv4，只有 IPv6 时才选 IPv6；同端口换族也必须重新广播。
+- **手机端用 `nsd` 原生浏览**（不是纯 Dart 的 `multicast_dns`：iOS 14+ 的原始多播需要苹果审批的 entitlement）。
+  iOS 要 `NSBonjourServices`，Android 要 `CHANGE_WIFI_MULTICAST_STATE`。发现不可用（拒绝本地网络、
+  网络过滤多播）时列表为空，扫码和手动输入照旧。原生手机客户端由 Flutter 实现。
 
-### 手机与推送（fork:phone-push + fork:bot-channel + fork:im-bridge）
+### SSH 主机的手机连接（`phoneAccess`）
 
-形态两次裁定，后者覆盖前者：先（2026-10-03 上午）参照 MusePi 的 `CollabDialog`（`pi参考项目/MusePi-main/packages/desktop-app/src/components/CollabDialog.tsx`）定了「一个分节，左栏扫码连接、右栏聊天 Bot」；同日用户拿 ZCode 参考项目（`pi参考项目/ZCode-main`）的 `WebRemoteControlDialog` 截图把形态拍细——**两栏卡**：左栏「手机扫码连接」（状态卡：状态名 + 「已就绪」徽标 + 停止钮，分隔线下是「无法扫码」兜底动作，下方虚线框里大二维码，`qrImage` 调用处 `scale: 8`），右栏「使用 Bot Channel」只摆**干净入口卡**（第三轮裁定，对照同一天的第二张截图：品牌 logo + 名字 + 站点角标 + 一句「从XX打开这个工作区」+ 「去 Bot Channels 配置」文字链 `.fork-linkbtn`，无状态点/缺项数/启停钮）；「机器人管理」与各卡链接打开**二级弹窗**（`components/fork/BotChannelsDialog.tsx`，对照 ZCode 的 `BotsDialog`：`.fork-bot-dialog*` 壳在 fork-ui.css，左列表=六渠道+推送入口、右详情=扫码/凭证/投递/启停分节卡，推送目标 `ImBridgeBody` 收进弹窗）。偏离与登记见 `DIVERGENCE.md` AG 节。
+A server whose Agent was deployed over SSH is reachable from the desktop and nowhere else:
+the Agent listens on `127.0.0.1`, the desktop's forward arrives from loopback and presents a
+secret token, and there is no password. A phone cannot make that hop. 设置 → SSH 主机 → 编辑 →
+**允许手机连接** turns the same resident Agent into something a phone can reach directly —
+the same models and chats, not a second Agent — and the row then shows the usual hover-to-scan
+QR icon (`QrAction`, shared with 远程访问).
 
-* **能直接迁移的只有形状，代码全部重写**。他们那套 = 自研 collab relay（明文 7654 + 自签 TLS 7655，`0.0.0.0`）+ 链接里拼 32B 房间密钥 + AES-256-GCM 信封 + 一个**无鉴权的 8301** 端口专门解析 6 位码。本仓是同源 HTTP，抄它等于自己写反向代理并顺手开一个裸奔端口，所以只抄语义：token 决定是否上网卡 / 6 位码换 cookie / 只读与完整两种链接。
-* **令牌是应用自己生成的**（`lib/lan-access.ts` → `~/.pi/agent/lan-access.json`，0600），**第一次打开「手机与推送」即视为同意并现生成** —— 这是「打开就有二维码」的落点。启动器（`bin/lan-supervisor.cjs`，`npm run prod` 与 `bin/pi-web.js` 共用一份）盯着那份配置，**off→on / on→off 会自动重启子进程**，所以「启动/停止」是真开关，不用敲任何参数。
-  · 换令牌**不自动重启**（会打断在跑的会话），只提示下次启动生效。
-  · 换令牌 = 作废所有已发链接、已种 cookie 与只读链接。
-* **绑网卡是启动器决定的，进程内改不了** —— 这是与 MusePi 唯一的结构性差别（他们 relay 由 daemon 另开 socket，才能「点一下立刻生效」），所以走父进程重启，三道护栏：去抖 500ms、同方向最多 3 次、每次打日志。`scripts/next-mode.mjs` 也必须接上（`npm run prod` 是日常入口，第一版漏了它导致日常入口下点了没反应）。
-* **不变量**：(1) 没有令牌 / 令牌形状不对 / 文件坏了 → **只绑 loopback**（fail closed，绝不退回裸奔）；(2) `0.0.0.0` 不算 loopback；(3) 闸门只读 `Host`；(4) 换令牌时唯一免登录可达的路径仍是 `/api/lan/pair/redeem`，它自带失败节流（30 次/5 分钟）。
-* **二维码是 vendor 的**：`lib/qrcode.ts` 逐字取自 MusePi 的 `packages/collab-proto/src/qrcode.ts`（MIT）。他们的测试向量**与 `qrcode` 参考库逐字节对拍并用 jsQR 真解过**，本仓 `lib/qrcode.test.mjs` 原样沿用 —— 所以这份 vendor 代码的可用性是「对拍过」，不是「看起来对」。静区在 `lib/qr-image.ts`（那里测得到），组件只涂 canvas。
-* **入站渠道三条真跑通**（2026-10-03 起）：**Telegram**（`lib/telegram-channel.ts`，长轮询、零依赖）、**微信**（`lib/weixin-channel.ts`，挂在微信自家 **iLink bot 平台** `ilinkai.weixin.qq.com/ilink/bot`——扫码 `get_bot_qrcode?bot_type=3` 拿 bot_token，`getupdates` 长轮询收、`sendmessage` 发，零新依赖；这推翻了早先「个人微信没有任何官方 bot API」的结论）、**飞书/Lark**（`lib/feishu-channel.ts`，注册走 `accounts.feishu.cn/oauth/v1/app/registration` 的 device-flow 三步一键建应用——**不用预建应用**，收消息走官方 `@larksuiteoapi/node-sdk` 的 WSClient（在 runner 里**动态 import**，浏览器依赖图看不到），发消息走 REST `tenant_access_token`（缓存 90 分钟）+ `im/v1/messages`）。三者的协议全部**逐字对拍 ZCode 参考仓**（`pi参考项目/ZCode-main/packages/services/src/bots/`），协议纯函数（状态归一化、帧解析、请求形状）各有 `.test.mjs` 用 fetch 桩锁住。Discord 仍要 `ws` 进 dependencies；企业微信只有公网回调，不做。
-* **扫码注册的在途会话**在 `lib/chat-channel-register.ts`（globalThis registry，同渠道一场、过期即废；`register-begin` / `register-poll` / `register-cancel` 三个动作挂在 `/api/bot-channel`）。二维码内容串由前端 `components/fork/QrCanvas.tsx` 画（与配对码共用一套涂格子代码，静区在 `lib/qr-image.ts`）。
-* **白名单语义（扫码渠道）**：凭证只有扫码换来的 token，平台侧无签名校验——所以防线在本仓：**首个发信人自动绑定**（runner 把人 push 进内存白名单并回欢迎语，route 落盘），之后白名单外一律忽略；显式配了 allowFrom 就完全按名单来。微信的「首条消息只激活不进 prompt」同 ZCode。
-* **微信游标**：`getupdates` 的不透明 `get_updates_buf` 落在 `~/.pi/agent/chat-channels-state.json`（0600，与凭证分开——丢了最多重放一批，凭证丢了要重扫码）；**每批处理完才推进**。`message_type === 2` 是自己的回显，必须丢弃，否则自问自答死循环。
-* **渠道品牌 logo 是 vendor 的 PNG**（`public/channel-icons/`，取自 ZCode-main 的 `channel-icons`；lark 与 feishu 共用一张），`components/fork/ChannelIcon.tsx` 渲染、没有资源的渠道回落 lucide 名。这是对「图标一律 lucide」的**已登记偏离**（DIVERGENCE AG 节），别当成要修的漂移。
-* **白名单默认空 = 谁都不许**：拿到机器人令牌的人不该顺手就能用你的模型额度和文件权限开 agent。
-* **出站推送**（`im_send`，`lib/im-bridge.ts`）：飞书 / 企业微信 / 钉钉 / Slack / Telegram + 自建 webhook 五家同构（都是 POST 一个 JSON），认不出平台落 `custom` 原样 POST。
-  · **飞书与钉钉的加签是镜像的**：飞书 key=`ts\nsecret`/message 为空/**秒**/字段在 **body**；钉钉 key=`secret`/message=`ms\nsecret`/**毫秒**/字段在 **query**/base64 后再 URL 编码。因此是两个具名函数，**不许合并**。
-  · **企业微信群机器人没有加签**（官方页只有 IP 白名单），`needsImSecret()` 只有 feishu + dingtalk。长度上限只写文档写明的。
-  · 凭证边界：URL 与 secret 都是凭证；配置 `~/.pi/agent/im-bridge.json`（0600）；`GET /api/im-bridge` 与 `im_send action=list` **只回 host + 掩码**；编辑时**字段缺失 = 沿用已存值**。
-* **客户端与服务端必须拆开**：设置页是 `"use client"`，只能 import `lib/im-bridge-shared.ts` 与 `lib/chat-channel-shared.ts`；`lib/im-bridge.ts` / `lib/chat-channel.ts` 里的 `node:fs` + pi SDK 一碰客户端依赖图，`lib/client-graph-purity.test.mjs` 就红。
-* **入口**：设置里的「手机与推送」分节，外加侧栏底栏版本徽章左边那枚手机钮（同一个分节，快捷入口）。导轨几何是画板 02 登记过的，所以手机钮是底栏里的**兄弟**而不是第五枚导轨按钮。
+- **The switch is `profile.phoneAccess = { port, publicUrl? }`, not `servicePort`.**
+  `normalize` throws `servicePort === 7777` away (it was once written into every profile by
+  mistake), and 7777 is the obvious phone port, so the two cannot share a field. `connect`
+  asks `runningAgentFits`, which prefers `phoneAccess.port`.
+- **Three things happen, in this order, in `SshManager.enablePhoneAccess`:** the password hash
+  is written to the host, the Agent is restarted so it listens beyond loopback, and *only
+  then* is the profile saved. A failure before the save leaves the profile as it was, so the
+  pane never draws a QR code for a host that is not reachable; a password file written by a
+  first-time enable that then failed is deleted again. The IPC handler disconnects the host
+  first, because a live forward to the Agent being restarted would only reconnect to nothing.
+- **The password is never stored on the desktop and never an `ssh` argument.** Only its scrypt
+  hash is made (`hashPassword`, the server's own), and it travels on stdin to
+  `~/.fastvibe/remote-access.json` (0600, written beside and renamed). `RemoteServer` re-reads
+  that file on every login, so a changed password needs no restart — and because the file is
+  rewritten whole, changing it signs every phone out. Leaving the password empty on an
+  already-enabled host keeps the one it has, so the port can change without that.
+- **The Agent knows two states, and the bootstrap/preflight compare them.** `--host=127.0.0.1`
+  (default) or `--host=0.0.0.0` — nothing else (`agent/listen.ts`). It records `public: 0|1`
+  in its state file as a *number*, because the bootstrap reads that file with `sed` and its
+  field reader only knows digits. The preflight prints `FASTVIBE_PUBLIC`, and a running Agent
+  that does not fit (wrong port, or `public` not matching the profile) is restarted instead of
+  reused. An Agent from before the field reads as loopback.
+- **The server's rule moved, but "no password, no server" did not.** `RemoteServer.start` used
+  to refuse any non-loopback host when it had a loopback token. It now refuses only when no
+  password is set. What makes listening beyond loopback safe is that the loopback token is
+  honoured only for a socket whose *peer address* is loopback (`#attach`), so a phone
+  presenting it is refused — `test/agent-listen.test.ts` connects to this machine's LAN
+  address to prove it, because a loopback connection would pass either way.
+- **An Agent too old for `--host` is reported, not restarted forever.** It ignores the flag
+  and stays on loopback; the next connect would read that as a mismatch and restart it again.
+  The bootstrap checks `public` after the start and fails with 版本过旧. Publish an
+  `agent-runtime-v*` containing `--host` *before* a desktop build that ships this.
+- **启动 Agent** (in the row's 更多 menu, with 测试 and 停止) starts the Agent without a
+  project. It is `openSshAppTransport`, the connect a new project makes, with its tunnel closed
+  again at once — one initialisation path, and the first project added later finds the Agent
+  running and skips the deploy. `ssh:agent-progress` carries the script's own lines to a toast
+  during a deploy that can take minutes. It is a push channel, so it is *not* in
+  `remote-policy.ts` (the table holds registered methods); `ssh:start-agent` and
+  `ssh:set-phone-access` are, and are denied remotely like the rest of SSH management.
+- **The QR code is `publicUrl`, else `http://<hostName>:<port>`.** `hostName` (resolved) before
+  `host`, which may be an ssh_config alias only this machine understands. A `publicUrl` must be
+  an http(s) *origin* (`normalizePublicUrl`): the phone adds a machine by origin and would
+  silently drop a path. The pane says so where it matters: an **iPhone refuses plain `http://`
+  outside the local network** (ATS allows only `NSAllowsLocalNetworking`), and without
+  `publicUrl` the password crosses the network in the clear — put https in front.
+- **The port is the user's to open.** The pane names the firewall and the cloud security group
+  and does nothing about them.
+- Preview: `mock.html?phone=on#/settings/ssh` shows a host that already allows phone connections;
+  starting an Agent and turning phone access on both play their progress.
 
-### 生图（fork:imagegen，2026-10-06 首版 · 2026-10-07 定形）
+### 窄视口（手机）
 
-形态三轮，**最终这轮才是现状**（前两轮的教训都记在 `design/v5/DIVERGENCE.md §T`～`§T4`）：
-预设表与请求方言**照参考项目的实测实现抄**，每个预设档自带端点、密钥、模型、尺寸与测试状态，
-档案在 `~/.pi/agent/imagegen.json`（0600，staging+rename）。不变量：
+Below `md` the sidebar overlays as a drawer instead of pushing (`CollapsiblePanel`), and
+the right pane is not rendered at all — a 375pt screen has no room for the terminal, a diff
+or the file tree, and the browser pane has no webview to drive anyway. Above `md` the three
+columns are one `react-resizable-panels` group: `components/ui/resizable.tsx` (added with
+`pnpm shadcn add resizable`) holds the primitives, `lib/use-resizable-panel.ts` binds one
+side panel to the app's own state, and `App.tsx` owns the group. The library owns *who is
+how wide*; the collapsed flags and the resting widths stay in the stores and in
+`settings.json` exactly as before.
 
-* **生图档案独立于对话模型**：形状 `{version:3, active, providers:{<预设>: {baseUrl, apiKey, model, size, concurrency, status}}}`。
-  不进对话模型选择器、不吃 `enabledModels`。`GET /api/imagegen` 只回**掩码**密钥，
-  `PUT` 的掩码值 = 沿用已存密钥（与 im-bridge 同一条铁律）；显式空串才是清掉。
-* **预设表与三种方言一律照参考项目写，不要照官方文档重写一遍**（`lib/imagegen-shared.ts` 头注列了出处）：
-  · `openai` 方言（火山方舟 / OpenAI / 自定义）—— `POST {base}/images/generations`，body `{model, prompt, size}`；
-    `response_format` **只给 DALL·E**（GPT Image 传它会 400 —— PI-Desktop 的规矩）。
-  · `agnes` 方言（Agnes 国内 `api.agnes-ai.cn/v1` / 国际 `apihub.agnes-ai.com/v1`）—— 同一条路，但
-    `response_format` 走 **`extra_body`**（顶层会被拒），2.1-flash 另带 `ratio`；尺寸是档位（`1K/2K/3K/4K`），2.0 才是像素。
-  · `google` 方言（Google AI Studio）—— `POST {base}/models/{model}:generateContent`，请求头 **`x-goog-api-key`**（不认 Bearer），
-    body 带 `generationConfig.responseModalities:[TEXT,IMAGE]`，图在 `candidates[].content.parts[].inlineData`。
-  金龍中轉**按用户要求不入表**（要它就用自定义填 `img-api.jlaudeapi.com/v1`）；ComfyUI 也**没入表** ——
-  它是另一套协议（workflow + `/prompt` + 轮询），参考项目里它有专门的 workflow 字段，要做得另开一条通道。
-* **换端点或换模型就把该档重置成未测试**（`writeImageGenConfig`）：上一次的「可用」是那套配置的结论，
-  换掉后它就是错的背书，而标书自动配图**只认 `available`**。「测试」是真的出一张图并落盘。
-* **旧档案迁移只按 id 取回同名档**：v1 的 `{active, providers}` 里 `openai`/`volcengine`/`custom` 的
-  端点与密钥能活下来，表外档位（金龙 / 硅基流动）与 v2 引用档的 `providerId` 直接丢掉。
-* **别再走「引用设置 → 模型里已配服务商」那条路**（fork:imagegen-ref，2026-10-07 上午做过、当天下掉）：
-  它能选到 `opencode-go` 这类目录型套餐（模型在 `models-store.json`、凭证在 `auth.json`），但**那些套餐
-  根本没有 `/images/generations`** —— 实测 `opencode.ai/zen/go/v1/images/generations` 回 404 官网 HTML。
-  生图服务商和对话服务商是两拨人，混在一起只会多一层“为什么测试失败”的解释。
-* **为什么不走 SDK**：pi-ai 1.0 有 `generateImages()` / `ImageModel`，但 `KnownImageApi` **只有一个成员 `openrouter-images`**（内置 57 个 image 模型全走它，`openai` 的 image 模型数是 0），且 **models.json 不收 image 模型** —— 实测写一个 `type: "image"` 进去，SDK 把它当 chat 收下（`getModelsOfType("image")` 返回空）。OpenRouter 那 57 个走 `chat/completions` + `modalities`，不是 `/images/generations`，本模块也接不上。所以直连各家自己的生图接口（三种方言见上），响应兼容 `b64_json` / `url` / `inlineData`，**url 一律当场下载落盘**（外链会过期）。
-* **工具 `generate_image`**（`lib/imagegen-extension.ts`，extensionFactories 注册）：content **永不含 base64**（只回路径+尺寸+字节，模型可读可引用），图片元数据进 `details.images`；消息流由 `MessageView` 借 `ResultImages` 的 URL 来源通道渲染（→ `/api/files`），会话文件只存路径。默认落 `~/.pi/agent/generated-images/`（工具工厂里 `allowFileRoot` 幂等登记），`dest` 只许会话 cwd 内（`resolveDestWithinCwd`；标书配图直落 `bid/<项目>/images/`）。
-* **审批零改动**：工具无命令参数、不在只读名单 → ask/plan 模式下自动落「unclassified → 需审批」；默认 bypass 放行不弹卡。
-* **测试状态是硬闸门**：`POST /api/imagegen` 真出一张小图并把 `status`（untested / available / unavailable + 最近失败原因）落盘 —— 标书自动配图只认 `available`。换服务商或换模型（`PUT` 时 providerId/model 变了）会把状态重置成 untested，不让上一次的「可用」替另一张档案背书。
-* **设置分节是登记制**：新增分节要同步 15 张设置画板左导航 + `SettingsPanel.boardnav.test.mjs` 的条数与同构清单（本次 11→12）＋ `SETTINGS_HUB_GROUPS` 分组与 hub 文案。生图分节画板 = `D-31-settings-imagegen.html`，偏离登记在 `DIVERGENCE.md §T`。
+**The drawer is the whole viewport** (`100vw`), and nothing caps it. It used to take
+`86vw` under a `maxWidth` of the remembered column width, which read as a defensive
+ceiling and was in fact the bug: `clampSidebarWidth` scales its maximum to 40% of the
+viewport, so on a 375pt screen the remembered width came back as **150** and the drawer
+opened as a sliver. The ceiling is gone and the clamp now skips the viewport share on a
+narrow layout entirely — the stored number is a memory of the *desktop's* column, and a
+phone has no business shrinking it, least of all in a `settings.json` the desktop reads.
 
-### 记忆（fork:memory，2026-10-07）
+Three things follow from the drawer covering everything:
 
-记忆能力**整个来自第三方扩展** `pi-hermes-memory`（`pi install npm:pi-hermes-memory`），
-我们没有自己写记忆系统。设置里给它单独一节（左导航 `memory`，画板 `D-36-settings-memory.html`）。
+- **No backdrop.** There is no dimmed conversation behind it to tap. The button that used
+  to be there sat under a full-screen panel and could never be reached.
+- **No splitter.** The separator is not rendered when narrow: there is no edge to drag,
+  it sat where a thumb scrolls the list, and its drag ended in `writeSidebarWidth` — one
+  stray swipe on a phone rewrote the column width of the desktop it was connected to.
+- **The sidebar's own 收起 is the only way out**, so it has to work. Every control that
+  shows or hides the sidebar goes through `setSidebarCollapsed`
+  (`lib/sidebar-visibility.ts`) and never writes `sidebarCollapsed` directly. Two of them
+  did, and on a phone both did the wrong thing twice at once: the drawer stayed open,
+  because it does not read that key, and the desktop collapsed its sidebar.
 
-* **开关是本应用自己的偏好，不是 pi 的包开关**（用户 2026-10-07 裁定，推翻当天早些时候的第一版）：
-  存在 `~/.pi/agent/pi-web-preferences.json` 的 `memoryExtensionEnabled`（默认 **false**），
-  关着时在 `rpc-manager` 的 `extensionsOverride` 链上把那个扩展从加载结果里摘掉
-  （`withoutDisabledMemoryExtension()`，主会话与子代理两处都接）。
-  **不动 pi 的 `packages`** —— 终端与其它运行时照旧加载它。
-  为什么不能写 `packages`：那个文件是 pi 自己的 schema，写它等于替别的运行时做决定；
-  第一版就是这么做的，用户看到「关掉会连带影响其它运行时」后推翻了它。
-* **包里那条全局状态只读**：面板上另有一行「终端 / 其它运行时」，显示它在 pi 的 `packages` 里是否启用
-  （`packageEnabledInList()`），并在被全局停用时给一条提示。这一页**不写**那一条。
-* **默认关着**：装完不自动开（与内置子代理总开关同一条口径）。记忆会在用户没盯着的时候写文件，
-  先默认关、由他自己打开。
-* **插件页不再列它**（`app/api/plugins` 的 `readPlugins` 过滤 + `totals` 同减）：同一件事两个入口
-  就是「一份列表里混着两种控制面」，用户原话是「显得乱七八糟的」。包本身没动，只是不在那一列露面；
-  装 / 卸 / 更新写在记忆页的提示里（`pi install|remove npm:pi-hermes-memory`）。
-  **它从来没出现在 MCP 页** —— MCP 页只列 `mcp.json` 的服务器，别把这两个页面混为一谈。
-* **不假装当场生效**：扩展是会话启动时加载的，所以开关旁常驻「新会话生效」徽标；
-  `/api/memory` 只读状态 + 写开关，不做细项表单（那些留给扩展自己的配置文件）。
-* **数据目录是既有的**：`~/.pi/agent/pi-hermes-memory/`（MEMORY.md / USER.md / sessions.db …）
-  与 `~/.pi/agent/projects-memory/`。用户可能已经在别的运行时里用了很久，所以这一页只报状态、不动数据。
-* **`pi-web-preferences.json` 的读写只有一处**（`lib/pi-web-preferences.ts`）：原先内联在
-  `lib/thinking-level-memory.ts` 里，现在两个模块共用 —— 同一个文件两个写入者各自读-改-写会互相抹键。
+Because it covers everything, the drawer is also a place you pass *through*, not a place
+you stay:
 
-### AI 身份（fork:ai-identity，2026-10-13）
+- **Picking something closes it.** Opening a chat, 新对话 (global or a project's),
+  插件, 搜索 and 设置 all end in `dismissDrawer()` (`sidebar.tsx`) — what was asked for
+  happens behind the drawer, so leaving it open made every tap a two-step.
+- **No drag-to-reorder.** The `PointerSensor` is not registered when narrow: a thumb
+  scrolling the list moves more than its 5px threshold over a row, so a scroll that began
+  on a chat picked it up and reordered it. Long-press still opens the context menu.
+- **Touch gets its own row rules, keyed on `pointer-coarse:`** rather than the width:
+  rows grow to `h-10`, and hover-only actions (a project's ⋯ / new chat, a section's +)
+  are drawn instead of `opacity-0` — an invisible button is still a tappable one.
 
-用户 2026-10-13：「AI 身份我觉得可以随时换 logo 和名称」。设置新增分节「AI 身份」
-（左导航 `identity`，画板 `D-40-settings-identity.html`）。
+The same two rules reach past the sidebar. **Touch** is `pointer-coarse:` in classes and
+`isTouchOnly()` (`lib/platform.ts`, the same media query) in code; **width** is
+`useIsNarrowViewport()`.
 
-* **三态**照参考项目：`{ name, avatar, syncWithUserProfile }`。名字空 → 默认名；头像空 →
-  品牌图；开同步 → 本机用户名（`os.userInfo()`）的首字母 + 确定性配色。三态收敛在
-  `lib/identity.ts` 的 `resolveIdentityView()` 一个纯函数里，**聊天渲染与设置页预览读同一份**
-  —— 预览与实际不一致是这类页面最常见的谎。
-* **头像是 dataURL 且限长 512 KB**：它写在 `~/.pi/agent/pi-web-preferences.json`，那个文件
-  还装着记忆开关 / 联网搜索 / 界面与功能。超了在页面上说清是「太大」还是「不是图片」，
-  不静默按小的存。只收图片 dataURL，不收外链（不留一个「头像靠网络加载」的失败面）。
-* **不进 prompt**：agent 在系统提示词里的自我描述由 `AGENTS.md` 那一段决定，改它会影响
-  每个会话 —— 那是另一个决策，不藏在一次外观改动里。这一节是纯展示数据。
-* **客户端 store**（`hooks/useIdentity.ts`）与 `useFeatureFlags` 同一条纪律：
-  `getSnapshot` 必须返回**同一引用**（React #185，见 `lib/session-ui-state-store.ts`）。
-* 渲染点是 `components/MessageView.tsx` 的 `TurnIdentityHead`（原先写死 logo + 「PI NEXT」）。
-* 新增分节照 `fork:feature-toggles` 那一套同步：18+1 张画板左导航、`boardnav` 计数 15→16、
-  `SettingsPanel.test.mjs` 的 hub 计数、`SECTION_ICON_BY_ID`（`circle-user`，`image-up`
-  不在图标表里，改用 `upload`）、hub 的 `SECTION_HINTS`、三语 16 键、`design/v5/README.md`。
+- Every hover-revealed control shows on touch: a message's copy / edit / retry / fork
+  footer, the expand chevrons, 归档对话's row actions.
+- `index.css` has one touch-only block: inputs are 16px (iOS zooms into anything smaller
+  on focus and never zooms back), no tap flash, no double-tap delay, no pull-to-refresh.
+  `#root` pads the safe-area top and sides; the bottom stays with `.safe-bottom`.
+  The page asks for `interactive-widget=resizes-content` where it can, so on Android the keyboard
+  shrinks the layout and the composer sits on top of it rather than under it.
+- The composer: on touch, Enter is a newline (a soft keyboard has no Shift+Enter), and the
+  project chip's folder icon is not a hidden 清除项目 — the picker grows that row instead.
+- The follow-up queue reorders on touch only after a 250ms hold (`TouchSensor`), so a
+  scroll starting on a row does not pick it up.
+- Narrow drops the header's project prefix (it is `shrink-0` and ate the title) and the
+  side-pane toggle (there is no side pane to open).
+- **Settings is master/detail when narrow**: the section list is a page, a section is a
+  page with 〈 设置 to go back (`listOpen`), and 模型管理 does the same one level down
+  (`detailOpen`). Opening at `/settings/general` — what the sidebar does — lands on the
+  list; any other deep link lands on that pane. `SettingsRow` wraps (label `basis-48`), so
+  a wide select drops under its label instead of squeezing it.
 
-### 侧栏：空间 / 任务（fork:sidebar-spaces-tasks，2026-10-13）
+The drawer's open/closed state is **local to the device** (`lib/sidebar-visibility.ts`),
+not the persisted `sidebarCollapsed`: that preference lives in one `settings.json` shared
+by every client of this machine, so swiping the drawer open on a phone would otherwise
+collapse the sidebar on the desktop it is connected to.
 
-用户 2026-10-13：「他叫空间和任务，你也帮我按照这个走，不要用项目和聊天的左右切换了」。
+`CollapsiblePanel` is the drawer only now, and it still drives **both** `x` and `width`.
+Motion only writes the keys an `animate` object names and leaves the rest of what it last
+wrote in place, so a branch animating only `width` inherited the drawer's
+`translateX(-100%)` and parked the sidebar off-screen the moment a window crossed the
+breakpoint.
 
-* **去掉了「项目 / 聊天」左右切换**（`.d-seg` / `.m-seg` 那一段）与它背后的
-  `lib/sidebar-pane.ts`（连同单测，成了死代码）。两段现在**同处一列**：空间在前、任务在后。
-* **文案改值不改键**：`sidebar.projects` 的值变「空间」（en `Spaces`），
-  `sidebar.chatWorkspace` 的值变「任务」（en `Tasks`）—— 键名不动，否则会牵动画板与
-  `SettingsPanel.boardnav` 那一族断言。
-* **虚拟列表的偏移各量各的**：两段同处一列之后，任务段**不能**复用
-  `sessionListOffsetTop`（那是空间段的段顶）—— 共用会让它按「从 0 开始」切片，滚到任务区
-  渲染出的是错位的区间。`chatListRef` + `chatListOffsetTop` 是为此新加的，形状与原来那份
-  一模一样（ResizeObserver 兜任何布局变化）。
-* **数据模型一个字没动**：`projectKey` 就是「空间」，没有 projectKey 的会话就是「任务」。
-  `lib/session-groups.ts` / `project-tree` / `visibleFamilies` 全部复用。
-* **本轮只做「合并成一条树 + 改名」**，没做 XTLaw 的行内 ⋯ 重排与拖拽排序（那是下一轮）。
+The column layout the library replaced had no such trap, but it had a worse one: its
+splitter listened for `mousemove` / `mouseup` on `window`, and the side pane hosts a
+`<webview>`. A pointer that crossed into the guest stopped reaching the parent document,
+so the drag froze mid-way — and a button released over the guest never fired `mouseup`, so
+the splitter stayed welded to the cursor until the next click. The library drives its
+separators with pointer events and `setPointerCapture`, which is the whole point of using
+it.
 
-### 界面与功能开关（fork:feature-toggles，2026-10-13）
+### 目录变更要广播（`workspace:changed`）
 
-用户 2026-10-13：「右侧边栏和顶部的各种 icon 的显示或功能的启用，我想让你在设置中帮我加个开关」。
-设置新增分节「界面与功能」（左导航 `features`，画板 `D-39-settings-features.html`）。
+The conversation/project catalog is **pushed**, not polled. Every client used to read it
+once — `conversations.list()` at mount — and never again, so a chat created in one window
+never appeared in another, a delete left a row that opened nothing, and over remote access
+that was the entirety of what a phone ever saw: the sidebar it connected with, frozen.
 
-* **开关表是单一真值**：`lib/feature-toggles.ts` 的 `FEATURE_DESCRIPTORS`（8 个）。设置页
-  `components/fork/FeaturesConfig.tsx` **不硬编码任何开关名** —— 加一个 = 改那张表 + 三语文案。
-* **两类开关的生效时机写在数据上**（`scope`）：`session`（浏览器 / 联网搜索 / 生图 / 自动命名）
-  是工具类，扩展在会话启动时加载所以**新会话生效**；`ui`（终端面板 / Git 图 / 调用轨迹 /
-  小地图）**立即生效**。设置页按这个显示徐标，不画「界面变了、行为没变」的假开关。
-* **关掉工具 = 不注册**，不是藏按钮：接线在 `lib/rpc-manager.ts` 的 `extensionFactories`，
-  与内置子代理总开关同一口径（运行时再查一道，过期调用也拦得住）。
-* **默认全开**：这一节是「让你能关」，不是替你决定。默认关掉内置浏览器会把用户正在用的
-  能力悄悄拿走 —— 那是另一个决策，不藏在一改版里。
-* **只存差异**：`~/.pi/agent/pi-web-preferences.json` 的 `features` 段
-  （`{ browser: false }`），走唯一写入者 `lib/pi-web-preferences.ts`；默认值以后可改、不需迁移。
-* **画板/测试同步**：新分节要同步 **18 张**设置画板左导航（46 帧）＋
-  `SettingsPanel.boardnav.test.mjs` 的条数（14→15）与同构清单＋ `SettingsPanel.test.mjs` 的
-  hub 条数＋ `SettingsPanel.tsx` 的 `SECTION_ICON_BY_ID`（`panels-top-left`）＋
-  `design/v5/README.md` 与 `SETTINGS_HUB_GROUPS` 分组。`npm run design:v5` 会重生成
-  `design/v5/index.html` 与 `manifest.json`（画板索引），那是生成物，一起提交。
+The notice hangs off `ConversationCatalog.#flush()`, which is the single funnel every
+mutation already reaches through `#write()`. Announcing at the dozen methods that mutate
+the catalog is how the next one added silently stops reaching the other clients — the same
+failure `ipc/broadcast.ts` exists to end — and the 40ms debounce that coalesces the
+`writeFileSync` coalesces the push for free, so one user action is one notice rather than
+one per mutation (「switch this chat to a project」 is four). It fires **after** the write,
+so a client that re-reads anything from disk in response cannot be handed the older state.
 
-### 联网搜索（fork:websearch，2026-10-07）
+`applySnapshot` takes the projects and the conversations. **The active conversation is
+followed separately**, because adopting it is a navigation and has to go down the same
+path a click does — `handleOpen(id, "remote")`, which reloads the transcript and collects
+the abandoned empty draft exactly as a local switch would. It replaces the route rather
+than pushing: the jump was not this person's navigation and does not belong in their back
+stack.
 
-免 API key 的联网搜索：`web_search` 工具（`lib/websearch-extension.ts`，`extensionFactories` 注册）
-+ provider 链（`lib/websearch/`）。设置分节「联网搜索」（左导航 `websearch`，画板 `D-37-settings-websearch.html`），
-配置存在 `~/.pi/agent/pi-web-preferences.json` 的 `webSearch` 段（走 `lib/pi-web-preferences.ts`，单写入者）。
+Two things keep that follow from echoing:
 
-* **只做免 key 的档**：`searxng`（自建/公共实例，端点不需要 key）/ `bing`（cn.bing.com 静态页）/
-  `duckduckgo`（无 JS 结果页）/ `mojeek` / `public`（并行 fan-out + 共识合并）。
-  参考项目那张 20 项 provider 表里绝大多数要 key（Tavily/Brave/Exa/Kagi/…），第一期不引 ——
-  否则设置页立刻变成「一堆选项但都不能用」。
-* **默认 `bing`，不是 DuckDuckGo**：2026-10-07 本机实测 `html.duckduckgo.com` **20s 超时**（国内不可达）、
-  Mojeek 403、公共 SearXNG 实例多数超时/302，而 `cn.bing.com` 200/6s 且结果可解析（实测 239ms 出 5 条）。
-  要换 provider 是设置页一个下拉；**自建 SearXNG 是最稳的一条**。
-* **失败逐条如实报**（`failures[]`）：谁被风控（202/403）、谁超时、谁没配；空结果不伪装成
-  「没有这件事」。工具 content 只回标题+URL+摘要，正文交给 `web_fetch` / `browser_extract`。
-* **SSRF 是唯一信任边界**（`lib/websearch/fetch.ts` 的 `assertEndpointAllowed`）：端点只允许 http(s)，
-  云元数据地址（169.254.169.254 / metadata.google.internal）**永远拒绝**，私网/本机要显式勾选
-  `allowPrivateEndpoint` 才放行（自建实例就在 127.0.0.1 是真实用法）。
-* **抓取请求头要带全**：只给 UA 会被 Mojeek 判 403，补 `sec-fetch-*` / `upgrade-insecure-requests` /
-  `accept-encoding` 才过（实测）。
-* **开关默认关**（会出网）；工具**每次调用读设置**，所以改完立刻生效，不需要「新会话生效」徽标。
-* **不抄**：puppeteer 兜底（我们有受管浏览器）、`gemini-web`/Chrome cookie（借登录态）。
+- **`setActive` is a no-op for an unchanged id**, so the `conversations.open` a client
+  makes in order to follow announces nothing, and the exchange stops after one hop.
+- **`intendedActiveId`** (`App.tsx`) is the conversation a client believes it *should* be
+  showing, which is not `activeId` — where it has arrived. `openConversation` marks the
+  catalog active before it loads the transcript, so the push overtakes the reply to the
+  very call that caused it; a client comparing against `activeId` alone sees an id it has
+  not reached, concludes somebody else switched, and fires a second identical open. That
+  is a duplicate transcript fetch on every switch, which over a tunnel is the expensive
+  kind. The id is therefore claimed *before* the hop in `handleOpen`, and kept current in
+  `applyOpen` for the paths that cannot know it until their call returns.
 
-### 移动端壳与同步（fork:mobile-shell，2026-10-06）
+A client's own snapshot is not skipped (no `except: origin`): the originator already holds
+the same state as its call's result, so applying it again changes nothing, and threading an
+origin down through the engine to the catalog would buy only that.
 
-形态与决策全文在 `docs/mobile-shell-plan-2026-10-05.md`（D1–D6），远程地址操作指南在
-`docs/mobile-remote-setup.md`，iOS 自签在 `docs/ios-free-signing.md`。这里记不变量：
+### 会话作用域（每一条引擎调用都要带 `conversationId`）
 
-* **壳是独立子项目 `mobile/`**：自带 package.json（@capacitor 8.5.2 系），主仓
-  tsconfig / eslint / 构建图**全部排除它**；主仓侧只有「服务器对端」的新文件
-  （`app/api/sync/**`、`app/api/presence/**`、lib 少量新文件），不往 agent 逻辑里掺行。
-  为什么不叫 `app/`：那是 Next.js 路由目录。
-* **`server.url` 两种模式**：打包时 `PINEXT_SERVER_URL` 烘焙稳定地址（推荐 Tailscale
-  `http://100.x.y.z:30141`，host-only cookie 配对一次永久有效）；不设则走跳板页
-  （`mobile/webDir/index.html`，localStorage 记地址 + getUserMedia/jsQR 扫桌面二维码）。
-  **quick tunnel 的随机域名不可用**（域名一变 cookie 全失配，D3）。
-* **跨源裁定**：壳的本地页（capacitor://localhost）fetch 服务器是跨站、SameSite cookie
-  不带 —— **所有服务器抓取都在远端源（PWA）做**，经 Capacitor Filesystem 插件写进
-  `Directory.Data`；本地页 `mirror.html` 只经桥读文件。Filesystem/LocalNotifications/
-  Badge/App 全部走 `nativePluginCall`/`nativeCallback` 低层通道，主仓零 @capacitor 依赖。
-* **同步协议 = 字节游标**：`.jsonl` append-only，`/api/sync/manifest` 给
-  (sizeBytes, mtimeMs) 版本对，`/api/sync/session/[id]/entries?offset=` 增量；
-  **offset > size = 文件被整写**（级联改父/pi 迁移）→ `reset:true` 全量重发；
-  游标只落完整换行（UTF-8 多字节安全，见 `lib/session-sync.ts`）。离线阅读载体是
-  缓存的 `export?inline=1` 自包含 HTML（jsonl 是 Phase 2 上推与本地渲染的权威）。
-* **通知两层**：壳内走原生本地通知（WebView 没有 Web Push subscription；App 进程
-  活着才响，被杀场景走 IM 桥）；Web Push（浏览器 PWA）发不发由
-  `lib/notification-plan.ts` 的**在场裁决**决定 —— 判据是用户最近 180s 内有无**交互**
-  （不是「标签页活着」），有交互就不推（未读点/完成音已是在场提醒）。
-* **Android 安全区**：WebView 的 `env(safe-area-inset-*)` 不生效（三份独立证据），
-  全仓收拢成 `globals.css :root` 的 `--safe-*`，壳里由 `InsetsPlugin.java`（状态栏/
-  导航栏 insets → dp）经 `applyShellInsets()` 覆盖。`MainActivity.java` 的两个坑：
-  `registerPlugin` 必须先于 `super.onCreate()`；edge-to-edge 要在
-  `onWindowFocusChanged` 里**再断言一次**（Android 12+ SplashScreen 会恢复 decor-fit）。
-* **browser-notifications 必须零相对导入**：普通 `node --test` 解析器跟不了扩展名省略
-  的相对导入（本仓测试直接 strip-types 跑 TS）。壳的通知层用注册式接入
-  （`setMobileNotifyProvider`），不许改成 import 式。
-* **出门 5G · 双栈绑定 + quick tunnel**：LAN 绑定居 `0.0.0.0` → `::`（双栈：v6only=0 时
-  同时收 v4/v6；国内 5G 与家宽普遍有 IPv6，手机蜂窝可直接连 `http://[家宽IPv6]:30141`，入站若
-  不通是电信网关的 IPv6 防火墙，需网关超管放行）。零账号的兜底是 **`npm run tunnel`**：
-  cloudflared 经 npm 国内镜像装（`npm i -g cloudflared`，绕开 brew 卡死），脚本起隧道→解析地址→
-  调 `POST /api/tunnel` 把 host 追加进运行时放行名单（该接口 `isLoopbackRequest` 硬闸仅本机可调；
-  名单每请求现读 env 免重启）。**两个坑**：① 本机 /etc/hosts 缺 localhost 会让 cloudflared 的
-  metrics 监听失败并退出——脚本显式传 `--metrics 127.0.0.1:36500` 绕过；② 重跑隧道 = 新地址 =
-  host-only cookie 失配，手机重填地址+输一次码（error.html 有「地址变了？重新输入」→ 跳板页
-  `?reset=1` 兜底）。`*.trycloudflare.com` 国内可达性时好时坏；Deno 自建中继完整实现在 git
-  历史 04937244，有公网主机可捡回。
-* **Phase 2（未做）**：手机独立 runtime（Android proot+Alpine+node+pi，借鉴 Aether 的
-  集成形状；GPL-3.0 代码不可抄，APK 挂 Release 分发需附 GPL 组件源码指引）、
-  `POST /api/sync/session/[id]/append` 上推回流、本地渲染层。
+Main 每个会话一个 `AgentSession`，但引擎自己只有一个「当前会话」（`PiProcessManager.#activeId`）。
+所有跟会话有关的调用都接受一个可选的 `conversationId`，`#sessionFor(id)` 据此取 session，
+不传时才回退到 `#activeId`。**渲染层调用一律走 `src/renderer/src/lib/engine-client.ts`**，
+它把 id 默认成 store 的 `activeId`；直接 `window.fastvibe.engine.*` 只应出现在这个门面里，
+以及那些本来就不属于任何会话的调用（供应商、技能、MCP、导入…）。
 
-### agent↔agent 通信（fork:agent-mail）
+这条不是洁癖：`#activeId` 是**每个窗口共享**的一个值。两个窗口各看一个会话时，谁最后
+`conversations.open` 谁就拥有它，于是 A 窗口发出的提示会落到 B 窗口的会话里。
+新增一个会话级 IPC 时，把 `conversationId` 一路带到引擎，并让门面带默认值。
 
-`lib/subagent-mail.ts` 是进程内信箱（`send` / `peek` / `drain` / `waitFor`，每箱 50 封 FIFO），`lib/subagent-runtime.ts` 的 `deliver()` 负责唤醒活着的会话（`sendCustomMessage` + `deliverAs:"followUp"`），工具面是**一个** `agent_mail`（`action: send | inbox | wait`，`to: "parent" | "all" | <id>`）。三个已有工具只能「父 → 子」，这一个把方向补全（子→父 / 子→兄弟 / 父→全体）。
+同理，`getState(id)` 在会话未加载时**不能**退回活动会话——那会把另一个会话的状态
+贴上被请求的 id 返回给渲染层。它走 `#ensureSession` 把那个会话取出来再答。
 
-* **`agent_mail` 刻意不进 `SUBAGENT_CONTROL_TOOL_NAMES`**：那个名单是「不许再委派」的控制工具（spawn 时被 `excludeTools` 排除，也进不了 profile 工具白名单）；它是同伴工具，`withSubagentExtensionTools()` 会把它并进每个子代理的工具集 —— 那正是它存在的意义。
-* 信箱**先落**再 `deliver()`：会话当下不可用（已结束 / 被回收）时信也不丢，`inbox` / `wait` 照样读得到，返回值如实说明「kept in the mailbox」。
-* 它**不进** `lib/session-file-references-core.ts` 的受信工具名单：信箱是旁路通道，不给它新增「消息里提到的路径可被读」的授权面。
+### 阻塞式插件请求：按会话排队 + 「等你」标记
 
-### Plugins and skills
-- `/api/plugins` uses pi's `SettingsManager` + `DefaultPackageManager` for global/project package install, remove, update, enable, and disable. Disabling writes empty `extensions/skills/prompts/themes` arrays for that package entry.
-- `/api/skills` uses `DefaultResourceLoader` so settings paths, package skills, and project `.agents/skills` are listed the same way the runtime sees them.
-- Skill toggling edits only the `disable-model-invocation` frontmatter key on the target `SKILL.md`; keep that surgical so user formatting survives.
-- `/api/skills/install` shells through `npx skills add ... --agent pi`; project installs run with the selected cwd.
+`ctx.ui.confirm` / `select` / `input` / `editor` / `questions` 会**把工具停住**直到有人回答。
+三点约定：
 
-### 一方扩展的注册 ≠ 模型看得见（fork:proma-37~53 的共同教训）
+- **按会话存，不覆盖。** 渲染层的 `pendingPermissions` 是 `Record<conversationId, PermissionRequest[]>`。
+  单槽版本会丢掉同一会话的第二个请求——而并行子 agent 共用父会话的 UI 上下文，八路
+  同时提问时只有最后一个能显示，其余七个的 promise 永远悬着。面板画队列头（`activePermission`）。
+- **应答按 id 移除，不砍队首。** 引擎自己也会撤回请求（`confirm` 有 `CONFIRM_TIMEOUT_MS`，
+  `abort` 会结算），撤回发 `extension_ui_dismiss`。若用「砍队首」，那条 dismiss 之后再应答
+  就会误删**下一条**刚排队的请求。
+- **取消只看得到当前会话。** `abort(conversationId)` / `#resolvePendingUi(conversationId)` 只结算
+  那个会话的请求；`stop()`（退出应用）才是全部。曾经无条件清空全部，于是停 A 会用
+  `confirm` 的 `false` 回退把 B 后台挂着的提问驳回——用户从没见过那条提问。
 
-`extensionFactories` 里注册了扩展，**编译过、单测绿、画板对位过，都不能证明模型用得上这些工具**。
+`extension_ui_request` / `extension_ui_dismiss` 在 `App.tsx` 的 `onEvent` 里**先于焦点路由**处理：
+阻塞请求不是转录内容，后台会话卡在提问上时必须能点亮侧栏的「等你」和系统通知。
+只有 `set_editor_text` 是例外——它写的是当前输入框，必须按会话过滤，否则后台会话会覆盖
+用户正在打的草稿。
 
-本仓的一方扩展形状是 `{ name, hidden: true, factory }`：`hidden: true` 意味着工具
-**不自动进 `get_tools`**，要靠会话创建时的 `toolNames[]` 过档（`withExtensionTools()`，
-`lib/rpc-manager.ts`），而 model-only 曝光由 pi 在 prompt 期决定。**中间任何一环没对上，
-模型就是看不见** —— 而这在编译期和单测里都是绿的。
+会话在等用户时：侧栏行显示 `Alert02Icon`，窗口未聚焦时按
+系统通知的总开关发通知。停止只在 composer；归档一个正在
+运行的会话会 `abort` 它，侧栏行不再提供停止按钮。
 
-唯一的验证方式是运行时：
+Provider credentials are kept in FastVibe's isolated runtime and injected into the SDK's in-memory auth storage. Do not export these variables into the user's login shell or the in-app terminal.
+
+## UI: shadcn Nova
+
+- Style: **`base-nova`** (latest Nova on Base UI). Configured in `components.json`.
+- Package manager is **pnpm**. Install and update primitives **only** via:
+
+  ```bash
+  pnpm shadcn add <component> -y
+  ```
+
+- Do **not** hand-write files under `src/renderer/src/components/ui/`. If a primitive already exists in shadcn (Button, Input, Textarea, Badge, Message, Bubble, Empty, Item, Alert, …), add it with the CLI and compose it.
+- Product screens (chat thread, workspace chrome, tool cards) live outside `components/ui/` and **compose** shadcn primitives. Custom markup is allowed only when shadcn has no matching primitive.
+- **A group part needs its group.** `DropdownMenuLabel` / `ContextMenuLabel` / `SelectLabel` are Base UI's `Menu.GroupLabel`, which throws `MenuGroupContext is missing` when rendered outside its group; the same applies to the other group-only parts. It is a **render-time** throw, so no typecheck catches it and it does not degrade gracefully — it unmounts the whole tree. That is how the composer's model menu, whose empty state drew a bare label, took FastVibe down the instant it was opened on an install with no models. Wrap every label in `DropdownMenuGroup` / `ContextMenuGroup` / whichever group the surface has.
+- Wrap the tree with `TooltipProvider`.
+- `vite.config.ts` exists so the shadcn CLI can detect Vite. The Electron app builds through `electron.vite.config.ts`.
+
+### File icons
+
+File/folder glyphs come from **Material Icon Theme** (`material-icon-theme`, the
+most-installed VS Code file icon pack), shared by the chat's per-turn change chips
+and the future project file tree.
+
+- `src/main/engine/file-icons.ts` reads the package's `material-icons.json` and
+  serves the SVGs under the private `fastvibe-icon://icons/<name>.svg` scheme
+  (registered privileged before app ready, `protocol.handle` after). Names the
+  manifest references but that don't ship as files fall back to `file.svg`.
+- `workspace:file-icons` hands the renderer the lookup tables once
+  (`src/renderer/src/lib/file-icons.ts`, cached module-wide); `components/file-icon.tsx`
+  resolves a name to an icon through `fileIconUrl`. Add `fastvibe-icon:` to the desktop CSP
+  `img-src` when a new surface loads these icons.
+- The right pane's **文件** tab (`components/layout/side-pane-files.tsx`) is the
+  consumer: a lazily-loaded project tree (`workspace:read-dir`, hiding `.git` and
+  `node_modules`). Narrow panes swap between the tree and a file preview; when
+  the pane is wide enough (`@min-[32rem]/files`) the preview sits on the left
+  and the tree stays on the right. Clicking a file anywhere in a conversation
+  routes through `openPreview` → `openFilePreview`, so it opens in this same
+  view rather than a separate tab.
+
+### Provider icons
+
+A built-in provider (内置供应商) is drawn with its own brand mark, and with a
+neutral glyph when there is no brand to draw — never with nothing, so a provider
+list keeps one visual rhythm. `components/provider-icon.tsx` is the only place
+that decides; it is keyed by the **SDK's** provider id, so a built-in FastVibe
+starts offering is already covered the day it appears.
+
+- The marks are **vendored from LobeHub's icon set** (https://lobehub.com/icons,
+  MIT), each icon's `Mono` variant only — the one drawn to work on any background.
+  They are inlined `currentColor` paths rather than `<img src>`, exactly like
+  `agent-brand-icon.tsx` and for the same reason: a monochrome mark that follows the
+  theme beats a raster asset that pins a palette colour (see the theming rules).
+- Two providers match nothing on purpose: `radius` (a pi-only gateway) and any
+  `custom-…` provider, which has no brand at all. Both get the fallback glyph,
+  muted so it does not read as a logo.
+- It appears wherever a provider is *presented*: 设置 → 供应商's list and detail
+  header, 添加供应商's 内置供应商 picker, the composer's model submenus, and
+  设置 → 供应商 → 默认模型. Not in the model picker, where every row is one
+  provider by definition, nor in 使用统计, which is a model breakdown.
+- The mark is drawn at **14px** (`size-3.5`) *with its artwork inset* — the `viewBox`
+  is grown to `-2 -2 28 28`, so a mark drawn to LobeHub's full 24-unit grid occupies
+  24/28 of the box. The box matches the fallback glyph and the neighbouring rows
+  (so labels do not shift), while the inset is what makes a logo and the outline
+  glyph look the **same size**. Both numbers are load-bearing: a filled mark filling
+  100% of a box that a Hugeicons stroke icon only fills ~92% of reads distinctly
+  larger than the icon beside it, and that is what made the first pass look oversized.
+  Do not "fix" either one on its own.
+
+### Code highlighting
+
+Syntax highlighting is **Shiki + `@shikijs/stream`** (`lib/syntax-highlighter.ts`,
+with the React binding in `src/renderer/src/lib/highlight.ts`), used by both the
+markdown code fences and the file preview — except for a diff, which is rendered
+rather than highlighted (below).
+
+- The highlighter is created lazily (`createHighlighterCore`, Oniguruma wasm engine);
+  grammars are code-split and loaded on demand, so only languages actually shown are fetched.
+- Colors come from `createCssVariablesTheme`, mapped in `index.css` onto the app's
+  `--code-*` tokens — every theme highlights correctly with no per-theme setup.
+- `useHighlightedCode(code, language)` is the React entry point. Each block keeps a
+  `ShikiStreamTokenizer`: completed lines retain their HTML and grammar state, and
+  only the unfinished line plus appended text is tokenized. There is no trailing
+  debounce to starve a continuous stream; the HTML cache is byte-bounded and keyed
+  by the exact `(language, code)`. Replacing/truncating code resets the tokenizer.
+- Markdown's `components` map must stay at module scope. Inline component functions
+  remount the code block on every token, discarding the retained highlight and
+  flashing plain text between highlighted frames. `pre` identifies block code,
+  including empty/unlabelled single-line fences; `code` alone cannot distinguish them.
+- **A diff is not highlighted, it is rendered.** `components/chat/diff-view.tsx` is the
+  one renderer for every diff the app shows — a tool call's file change, a ```diff
+  fence in a reply, a `.patch` preview, the right pane's git diff — and `lib/diff.ts`
+  reads the line numbers out of the diff itself: `@@` hunk headers where a real
+  unified diff has them, pi's baked-in `- 12   label` column where it does not (that
+  format carries no headers at all). The gutter never counts rows — it used to show an
+  invented index beside pi's real number — and a fragment with neither (what a model
+  usually writes by hand) renders unnumbered rather than misnumbered. Shiki is out of
+  the loop for these: its CSS-variables theme maps nothing for `markup.inserted` /
+  `markup.deleted`, so a `diff` fence came out flat and monochrome.
+- The wasm engine needs `'wasm-unsafe-eval'` in the CSP `script-src` (`index.html`).
+
+### Math (LaTeX)
+
+A reply's `$…$` and `$$…$$` render as typeset math. `markdown-view.tsx` mounts
+**`remark-math` + `rehype-katex`** (both module-level `PluggableList` constants — an
+inline array would be a new identity on every streamed token and defeat the `memo`
+that exists for exactly that), and `index.css` imports **`katex/dist/katex.min.css`**.
+Importing from CSS rather than JS is what keeps the fonts with it: KaTeX's
+`url(fonts/…)` resolves against the package, so Vite emits the twenty `.woff2` files
+into the renderer bundle and the app stays offline-clean under `default-src 'self'`.
+No CSP change is needed.
+
+- **Colour is inherited, so there is nothing per-theme to do** — and nothing that
+  *could* be done: KaTeX reads no custom properties of its own. It inherits `color`
+  and the font stack, so every theme works untouched. The one exception is the
+  error fragment, which gets `errorColor: "var(--destructive)"` from the plugin
+  options. `index.css` only adds layout (a display block scrolls instead of
+  stretching the bubble).
+- **`throwOnError: false`, always.** A half-streamed formula is the normal case here,
+  not an error: `$$\frac{1}{` must draw itself in the error colour, never throw into
+  React and never log. `strict: false` for the same reason — KaTeX's warnings about
+  constructs it merely tolerates are noise in a chat log.
+- **`$` is not a reliable math delimiter in this app, so `lib/remark-strict-inline-math.ts`
+  judges it.** `remark-math`'s default pairs any two `$` on a line, and a reply about
+  shell, config or money is full of them — `$HOME/.config`, `$PATH`, `$5 到 $10` — each
+  of which rendered as a garbled equation. Disabling single-dollar math is not the
+  answer either (`$O(n\log n)$` is exactly what people type). The plugin keeps
+  `remark-math`'s tokenizer and re-reads each node against **Pandoc's `tex_math_dollars`
+  rules** — no space inside either fence, no digit right after the closing one —
+  putting a rejected run back as the literal text the reader wrote. Display math
+  (`$$…$$`) and fenced ` ```math ` are never touched: their fences are unambiguous.
+  The rules are unit-tested in `test/markdown-math.test.ts`; a change here is a
+  change to what every reply looks like, so run them.
+- Code is out of scope by construction — a `$HOME` inside a fence or a code span is
+  never a math node, so no shell snippet in a tool card can be eaten by this.
+
+## Theming
+
+The app ships light **and** dark themes; never assume light.
+
+- `src/renderer/src/lib/themes.ts` is the single source of truth. It holds twenty-four
+  first-party themes (twelve light, twelve dark) modelled on the most-installed VS
+  Code themes — GitHub, One Dark Pro, Dracula, Tokyo Night, Catppuccin, Nord,
+  Night Owl, Gruvbox, Monokai, Rosé Pine, Ayu, Everforest, Solarized, Quiet Light —
+  plus the Codex desktop and Claude Code palettes.
+  Each theme is a compact `ThemeSeed`; `buildTokens` derives the full
+  shadcn / Base UI token set from it (`--background`, `--primary`, `--sidebar-*`,
+  `--warning/--success/--info`, `--code-*`, …), plus `--destructive-foreground` for the text
+  drawn on a filled destructive surface (the title bar's close button), which every theme wants
+  the same near-white.
+- `applyTheme` writes every token as an **inline** custom property on `<html>` and
+  toggles the `dark` class. Inline properties outrank the `.dark` fallback block in
+  `index.css`; the `dark` class keeps Tailwind `dark:` variants working. `App.tsx`
+  calls `useThemeSync()` to apply the store live and to follow the OS while
+  `themeMode` is `"system"`.
+- Light and dark are chosen independently: `settings.lightTheme` / `settings.darkTheme`,
+  with `settings.themeMode` (`light | dark | system`) picking the active one. The
+  pickers live in Settings → 通用 → 外观 (`components/settings/theme-select.tsx`).
+- **Never hardcode palette colours** in product code. Use semantic utilities
+  (`bg-background`, `text-muted-foreground`, `border-border`, `text-warning`, …) so
+  every theme works. `bg-white` is only acceptable for surfaces that are meant to be
+  paper (rendered HTML/PDF previews).
+- To add a theme, append a `ThemeSeed` to `SEEDS` in `themes.ts` and list its id in
+  `LIGHT_THEME_IDS` / `DARK_THEME_IDS`. No CSS changes required.
+
+### 浮动侧栏（所有主题）
+
+Above the narrow breakpoint the sidebar, the right pane and the settings list float as
+rounded panes inset 8px from the window edge, in every theme (`index.css`, Floating panes;
+`[data-slot="panel-frame"]` / `.floating-pane`). A pane is the theme's `--sidebar` with its
+`--sidebar-border` hairline, clipped (`overflow: hidden`) so a terminal or file tree inside
+cannot square its corners. The inset is a **transparent border, never a margin** — the
+panels size and animate their frame by `width`, which a margin would overflow. The traffic
+lights sit at `WINDOW_BUTTON_POSITION` (`{24,24}`) to stay inside the sidebar pane's first
+row, and the conversation column takes the same 8px at the top. Below the breakpoint the
+sidebar is the full-viewport drawer and none of this applies.
+
+### 玻璃效果（Glass）
+
+设置 → 通用 → 外观 → **玻璃效果** (`settings.glass`, on unless `false`) draws the window over
+the macOS blur, in whichever theme is active — it is a treatment of a theme, not a theme. It
+is only offered where there is a blur to show (`HAS_VIBRANCY`). `src/shared/glass.ts`
+(`isGlassEnabled`) is the one reading of the key both halves use, so a missing key means
+"on" to Main and to the renderer alike.
+
+- **Main derives it from settings, the renderer is not asked.** `windowIsGlass` reads the
+  key, so a new window is created with `vibrancy: "under-window"` and a fully transparent
+  fill, and `paintWindows` (every settings write) turns it on or off. No IPC method exists
+  for it, so there is nothing for a remote client to forge.
+- **`visualEffectState: "active"` is on every macOS window, and it is most of the effect.**
+  macOS flattens a vibrant window to plain grey the moment it loses focus — which is how a
+  glass window is usually seen, beside whatever has focus — and the option is creation-only,
+  so it cannot wait for the setting. `transparent: true` is *not* needed (measured: the blur is
+  identical without it) and is avoided because it costs the native window shadow.
+- **The page's alpha is a balance** (`--background` 42% dark / 46% light). Lower and the
+  text of whatever window is behind starts competing with the app's own; at 50–70% the page
+  hides the material. Judge it over something colourful — over a white or dark window every
+  setting looks like flat grey. `glassTokens` derives it from each theme's own seed, so every
+  theme has a glass form with no per-theme tuning.
+- **The renderer only goes translucent where there is a blur to show** (`HAS_VIBRANCY`: a
+  desktop window on macOS that is actually Electron — the preview harness reports `darwin`
+  too). Elsewhere every theme keeps its solid palette.
+- **Fills stack, so only the bottom layer is a real alpha.** `body` is transparent under
+  `data-glass`, the app root paints `--background` once, and `glassTokens` makes the sidebar
+  and cards tints *over* that layer. `--code-bg` stays solid, since the terminal reads it.
+- **Liquid Glass is CSS on top of that blur** (`index.css`, the Liquid Glass block). Electron
+  has no `NSGlassEffectView`, so the macOS 26 look is approximated: the floating panes turn
+  to glass (`--glass-pane`, an inner sheen), glass edges carry a specular rim (`::after`, a
+  mask-cut gradient ring; add `.glass-rim` to a bordered card for the same — it fades out
+  under `:focus-within` so the focus ring drawn on that border stays whole), and
+  `.overlay-surface` layers become translucent, rounder glass — so a floating layer drawn by
+  hand (the selection toolbar was one) has to carry that class or it stays a solid card.
+- **A pinned prompt cuts the reply, it does not cover it.** Elsewhere the sticky prompt's
+  solid `bg-background` hides what scrolls under it while matching the page; a see-through
+  page has no colour that does both (a tinted band was tried and is an ugly block). Under
+  glass the row paints nothing, and `pinRegistryFor` masks the reply rows of the pinned turn
+  off at the prompt's lower edge (`GLASS_CUT_FEATHER`), in the same read-then-write pass that
+  decides which prompt is pinned. The mask follows how far sticky has moved the prompt off its
+  own place, not `pinned`: pushed away by the next turn, a prompt leaves the top edge but rides
+  out lying on its reply's last rows, and those must stay cut until the turn is gone.
+- **The same goes for anything tucked under a card.** The follow-up queue slides 1.75rem under
+  the input card and relies on the card's fill to hide that part; under glass `.composer-tray`
+  is masked to the card's outline instead (`index.css`). A new panel that tucks under a
+  translucent card needs its own cut.
+- **Settings hides the shell instead of covering it.** The overlay is translucent like
+  everything else, so while it is open `[data-shell-split]` and the browser guest layer are
+  `visibility: hidden` (not unmounted). A new full-window overlay needs the same treatment.
+- **The README and the marketing site show it from the browser harness.** `mock.html?desktop=1`
+  paints a wallpaper, makes `#root` a floating window whose own `backdrop-filter` stands in
+  for the material, and reports `simulatedVibrancy` on the bridge so `HAS_VIBRANCY` lets glass
+  on — the only way a browser (or a capture) can show it. The marketing site (its own private
+  repository, `tyuan511/fastvibe-services`) loads this same page in its hero iframe and takes
+  its product screenshots from it; both pass `desktop=1`, and the window is concentric with
+  the panes (24px radius = 8px inset + 16px pane radius), so keep the two in step.
+
+### Type scale & interface size
+
+- **Use Tailwind's own `text-*` utilities** (`text-xs` / `text-sm` / `text-base` /
+  `text-xl` / `text-2xl`), never arbitrary `text-[13px]` values. shadcn Nova's
+  primitives are authored against that same scale, so product code that invents
+  its own sizes drifts away from the components it composes. Conversation text is
+  `text-sm`: the message body **and** everything a tool call renders (the summary
+  row, output/parameter blocks, diffs, thinking, todo and question cards) so the
+  transcript reads at one size. `text-xs` is for chrome — timestamps, chips,
+  badges, menus, dense stats.
+- Sizes are **rem-based** and the root font size is a setting: 通用 → 外观 →
+  界面字号 writes `--ui-root-font-size` inline on `<html>`, and `html { font-size:
+  var(--ui-root-font-size, 16px) }` turns that one number into an interface-wide
+  scale (`applyUiFontSize` in `themes.ts`, called from `useThemeSync` and before
+  mount in `main.tsx`). At the 16px default the `text-sm` body is 14px. Fixed px
+  sizes do **not** follow it — prefer Tailwind spacing/`rem` (e.g. `h-3.5`, `w-70`)
+  over `h-[14px]` for anything that must scale.
+- Two exceptions need px by nature: xterm's `fontSize` (derived from the resolved
+  root size in `side-pane-terminal.tsx`) and container-query breakpoints, which are
+  written in `rem` (`min-[27.5rem]`) so they track the setting too.
+
+## 语言 / i18n
+
+设置 → 通用 → 语言 has two independent picks, both `zh | en`:
+
+- **界面语言** (`settings.uiLanguage`) drives every string the user reads. The
+  renderer uses **i18next + react-i18next** (`src/renderer/src/lib/i18n.ts`).
+  Namespaces live in `src/renderer/src/locales/{zh,en}/{common,app,chat,settings,sidepane}.json`.
+  Components call `useTranslation("<ns>")`; shared lib modules call `i18n.t` at
+  render/event time so they never freeze the language of module load. `applyUiLanguage`
+  stamps `<html lang>` and is applied pre-mount in `main.tsx` (like the theme) and
+  live via `useLanguageSync`. An existing install without the key keeps 中文; a
+  brand-new install follows the OS locale (`detectSystemLanguage`).
+- **AI 偏好语言** (`settings.aiLanguage`) is injected on every turn by the built-in
+  `output-language` extension (`before_agent_start` appends a language requirement
+  to the system prompt). Main owns the wording (`src/main/engine/ai-language.ts`)
+  and writes it to `FASTVIBE_AI_LANGUAGE_PROMPT`; the extension just appends whatever
+  it finds, re-read per turn so a settings change lands in a running session.
+  Subagent sessions (`noExtensions`) get the same sentence via `appendSystemPrompt`.
+  User-facing engine/extension copy follows `FASTVIBE_UI_LANGUAGE` (`uiText` in
+  `src/main/engine/ui-text.ts`).
+
+Both values are written to `settings.json` with the other prefs. Main syncs the env
+vars on every settings write (`applyLanguages`) and at startup.
+
+Do **not** hardcode user-visible copy in product components. Add a key to the matching
+namespace JSON (zh value byte-identical to the original Chinese) and render it with
+`t(...)`. Language picker labels (`简体中文` / `English`) stay untranslated on purpose.
+
+### 设置里的描述只写「做什么」，不写「为什么」
+
+A settings row is a label, one line saying what the switch does, and the control. It is
+not the place to explain how the feature works: that reasoning belongs in the code's own
+comments and in this file, where the next person to touch it will read it, and a pane that
+repeats it reads as documentation rather than as a set of switches. `test/settings-copy.test.ts`
+holds the line — every string in `settings.json` is capped (130 characters of Chinese, 150
+of English; Chinese says the same thing in ~3/4 the length), and it fails on a new
+paragraph before it is ever looked at on screen.
+
+The same pass removed copy that names a *file inside the data directory* — 「写入 FastVibe
+独立的数据目录，不写入你自己的 ~/.pi」, 「读取 ~/.pi、~/.claude、~/.codex 的数据」 — since
+the reader does not know where `~/.pi` is or that it matters. Say what happens, not where
+it is stored.
+
+Nothing is exempt from the cap: an instruction that outgrows a row belongs in the docs, not the pane.
+
+## Routing
+
+`react-router` with **`HashRouter`** (wrapped in `src/renderer/src/main.tsx`). The
+production renderer is loaded over `file://` via `window.loadFile`, so path-based
+history has nothing to fall back to — a reload on `/settings/providers` would 404.
+
+- `#/` — the workspace shell (sidebar + thread + composer). Always mounted.
+- `#/c/<id>` — a conversation. Switching chats, new chats, and the sidebar's
+  back/forward buttons walk this as real HashRouter history (mouse side buttons too).
+- `#/settings/<section>` — a settings pane, rendered **over** the shell so app state
+  survives. Sections come from `SETTINGS_SECTIONS` in `settings-dialog.tsx`
+  (currently `general | shortcuts | archived | usage | providers | mcp | skills | extensions | import | about`);
+  `App.tsx` derives the valid set from that export, so adding a pane needs no routing change.
+  Section switches `replace`; opening settings pushes, so back returns to the chat.
+- Unknown or missing sections normalise to `#/settings/general` via a redirect effect
+  in `App.tsx`.
+- To deep-link into a pane, `navigate("/settings/providers")`. The composer's
+  「添加模型 / 管理模型」 entry uses this to reach provider configuration.
+- Every pane draws its rows through `settings-group.tsx` (`SettingsGroup` /
+  `SettingsRow`): a card of label + one-line description + control on the right, with a
+  divider between rows. A pane that hand-rolls its own row drifts in padding, type
+  scale and control alignment — 关于's cells did, and had to be rebuilt on these.
+
+## 标题栏（Windows / Linux）
+
+macOS insets its traffic lights into the app's own first row (`titleBarStyle: "hiddenInset"`),
+so the sidebar's `h-11` row is built around them: the clearance, then 收起侧边栏 /
+后退 / 前进, with the logo and wordmark on the row below. Neither of the other two has anything
+to inset, and a native title bar above an app that already has a top row is two bars with one of
+them empty.
+
+So on Windows and Linux FastVibe draws the whole bar itself
+(`components/layout/title-bar.tsx`): the brand, 后退 / 前进, and minimise / maximise / close —
+one `h-10` row above the sidebar/main split, whose single switch is `HAS_CUSTOM_TITLE_BAR`
+(`lib/platform.ts`). A bar **spanning the window**, rather than controls floated over whichever
+row happens to reach the top-right corner, is what keeps the window controls out of the side
+pane's tab strip: the split layout below simply starts at y=40. Its height lives in
+`lib/window-chrome.ts`, because the settings overlay starts below it too (`top-10`) and the two
+must not drift.
+
+- **Every control sits on the thing it acts on.** The brand and history — the window's own
+  furniture — ride the bar; 收起侧边栏 and 搜索 are the sidebar's top row, beside the panel they act
+  on. 搜索 is that row's right end on **both** platforms, which is also what keeps it off the path
+  a pointer takes to 最小化. macOS reaches the same arrangement from the other side: its bar is a
+  traffic-light row with no room for a logo, so the brand leads the sidebar's top row there
+  instead (and 收起 / 后退 / 前进 sit in the traffic-light row above it). A brand that moved
+  between the two bars per platform is the one thing that would make the layouts read as
+  different apps.
+- **Windows' own caption metrics.** 46px of hit area per control, squared off and flush to the
+  corner, a fixed px width (the OS does not scale its caption buttons with a font preference), and
+  close as the only one with a colour of its own (`hover:bg-destructive`).
+
+- **Main goes frameless.** `titleBarStyle: "hidden"` (plus `frame: false` on Linux, where the
+  window manager is the unpredictable part), so the native bar is gone and ours is the only one.
+  The controls are hand-drawn rather than `titleBarOverlay`'s native ones: those cannot be
+  previewed in a browser, cannot follow the theme, and would land on the tab strip anyway. Main
+  exposes `window:minimize` / `window:toggle-maximize` / `window:close` — each acting on the
+  window that asked — plus a `window:state` push, because the OS can maximise too (snap,
+  double-click, a window-manager key), so the glyph is not derivable from our own clicks.
+- **The platform comes from the preload, not the user agent.** `app.platform` is a plain string on
+  the bridge, read before the first paint, and the renderer reads it through
+  `lib/platform.ts`.
+- **Chrome flags and the keyboard flag.** `HAS_TRAFFIC_LIGHTS` and `HAS_CUSTOM_TITLE_BAR` describe
+  the window around the page; `IS_MAC` describes the modifier key. All three come from the host
+  platform now that the renderer only runs in the desktop window. A layout inset (`pl-22` on the
+  sidebar's own row, and the collapsed header's `calc(5.5rem + 8px)` — that row has no floating
+  pane of its own, so it adds back the pane's transparent border) reads the chrome flags; a
+  modifier label reads `IS_MAC`.
+- **The sidebar always draws its top row; only its left end moves.** macOS leads it with the
+  brand (its bar held that); Windows and Linux lead it with 收起侧边栏 (their bar holds the brand
+  and the history instead). Where the bar exists, the sidebar's traffic-light row is not drawn at
+  all.
+- **The way back sits where the panel is not.** 收起侧边栏 lives *in* the sidebar's top row, so
+  collapsing takes the control away with it: 展开侧边栏 therefore appears in the main header — and
+  in `SidebarCollapsedChrome` when the side pane is maximized — on every platform. Both used to be
+  skipped where a title bar exists, back when that bar carried the toggle itself.
+- **The settings pane starts below the bar** (`TITLE_BAR_OFFSET`, `top-10`) and drops its own
+traffic-light spacer: the window controls have to stay reachable from settings, and its content
+must not slide under them.
+- **Preview**: `mock.html?platform=win32` (`src/renderer/src/mock/preview.ts`, which also stubs
+  the window API) renders the whole thing in a browser — how the layout was checked without a
+  Windows machine.
+
+## Providers
+
+There is **no built-in provider**: the app ships with none, and there is no connect wall
+and no separate 「not configured」 engine state. An install with no provider boots an
+ordinary engine whose model list is empty, and that empty list is the whole signal. The
+composer reads it — it goes read-only and its placeholder asks for a model — and the model
+chip's popover says 暂无模型 above the 管理模型 entry that leads to Settings → 供应商, where
+the user adds an SDK provider or any compatible endpoint of their own. The FastVibe relay
+(`fastvibe.dev`, a Sub2API deployment) is just one such endpoint; it used to be a
+code-owned built-in entry and is not any more. The FastVibe *account* (登录, below) is a
+separate thing and does not configure a provider.
+
+A provider ships **no models** until the user connects it: configuring a provider
+fetches its `/models` list and the user picks which to keep. A provider without an
+API key is excluded from `models.json` entirely, so no models surface anywhere.
+
+**A custom provider's protocol is the user's choice** — both on the provider (API 格式, which
+sets the default for all its models) and per model (协议, in 模型详情) — both on the provider (API 格式, which sets the default
+for all its models) and per model (协议, in 模型详情). A model with no `api` of its own
+inherits its provider's (that is what `models.json` omits), which is why a gateway can
+serve a `/responses` model next to a `/chat/completions` one without being split into
+two providers. `compat` is therefore emitted per model, derived from the api that
+model will actually stream with.
+
+**A model's base URL is translated for the protocol it streams with** (`engineModelBaseUrl`,
+`provider-url.ts`), because the four clients address their endpoint from one stored base very
+differently. pi's OpenAI clients append `/chat/completions` / `/responses` *below* the
+version prefix, so `https://host/v1` is what they want and the base is taken as typed. The
+Anthropic Messages client appends `/v1/messages` **itself**, so the same base reaches
+`/v1/v1/messages` and 404s. pi's Google client goes the other way — `apiVersion: ""`, so the
+base must carry the version, and Google's is `v1beta`, not `v1`.
+
+That is invisible while a provider serves one protocol (the user types whichever base its
+protocol wants) and breaks the moment one relay carries several, which is the case the
+per-model `api` exists for. So a model streaming `anthropic-messages` is written its own
+`baseUrl` with the version segment removed, and one streaming `google-generative-ai` with
+`v1` → `v1beta`; the provider keeps the base the user typed for every other model, and pi
+reads a model-level `baseUrl` over the provider's. `fetchProviderModels` derives the same
+way, so listing a Gemini provider's models does not 404 either. **The base is not a
+protocol-neutral root with the version derived**: `/v1` and `/v1beta` are the only segments
+our own UI ever hands a user, and a relay may mount a protocol under a path of its own —
+z.ai's `.../coding/paas/v4` is the endpoint path, so it is never rewritten, and an OpenAI
+api's base is never rewritten either way.
+
+`providers.json` carries a `version` (`PROVIDERS_VERSION`). **v3 removed the built-in
+FastVibe provider.** A `kind: "builtin"` entry from an older file is read as a custom provider
+in place (`migrateBuiltin`): the id stays `fastvibe` and the key stays in
+`FASTVIBE_API_KEY`, so the pasted key and every conversation that recorded
+`fastvibe/<model>` keep working, and it can now be renamed, re-pointed and deleted like any
+other. A v1 entry's `api` was the code's default rather than a choice, so it is read as
+`openai-responses`; an entry with no models was never connected and is dropped instead of
+left as an empty row. Nothing is written until the next ordinary provider edit.
+
+**A built-in can also be configured by a subscription login (OAuth).** Claude
+Pro/Max and ChatGPT Plus/Pro are the two people actually want, but nothing names
+them: a provider's capability is read off the SDK, where `auth.apiKey.login` says a
+pasted key is a real path and `auth.oauth` says a login ships with it
+(`native-providers.ts`). Only `amazon-bedrock` / `google-vertex` stay hardcoded as
+unsupported — their credentials are ambient cloud ones. That is why `openai-codex`
+(login only, `supportsKey: false`) is offered at all, and why an SDK release that adds
+a login reaches the UI with no change here.
+
+- **Two credentials, two homes.** An API key is a secret the user pasted and goes to
+the engine's in-memory overlay, never to disk. A subscription token is the opposite:
+its refresh token has to survive a restart or the user re-authorises in a browser
+every launch, so `oauth-store.ts` persists it to `runtime/engine/agent/oauth.json`
+(0600, written through a temp file and renamed). `ModelRuntime.create` wraps whichever
+store it is given, so a key still outranks a token for the same provider —
+`RuntimeCredentials.read` checks the overlay first.
+- **That is why a successful login drops the provider's API key.** Leaving one behind
+would silently keep billing the key and make the subscription the user just
+authorised do nothing. The provider detail says the same thing in words when both
+credentials exist.
+- **Connected means either credential.** `connectedProviderIds` is what
+`applyProviders` (which models the composer sees) and `usableProviders` (which
+providers `reloadProviders` keeps in the overlay) both filter on; a provider with
+neither contributes no models anywhere, which is the whole «not connected» signal.
+Signing out therefore removes the models without removing the entry, exactly like
+clearing a key.
+- **The flow is pi-ai's; the GUI only carries it.** It owns the PKCE pair, the loopback
+callback server and the device-code polling, and asks for a human through `notify`
+(one-way: `auth_url` / `device_code` / `info` / `progress`) and `prompt` (a round trip).
+Both ride `providers:oauth-event`, with the answer coming back through
+`providers:oauth-answer`; `Main` opens the `auth_url` / verification URI with
+`shell.openExternal` and the dialog shows it too, because a browser that will not come
+up has to stay recoverable by hand. **A prompt can be withdrawn while it is on
+screen** — an Anthropic login opens the browser *and* offers a paste box, and aborts
+the box the moment the callback arrives — so the flow's own `prompt.signal` and a
+user cancel both emit `prompt_cancelled` and the dialog takes the question back down
+(`oauth-login-dialog.tsx`). A login that fails *after* its credential landed (the
+runtime's own synchronisation pass can throw) still counts as signed in: re-authorising
+for nothing is worse than a missing confirmation.
+- **`supportsKey: false` hides the key field**, in both 添加供应商 and the provider
+detail; the login is the only way in. A built-in added this way is created with an
+empty key, which `addNativeProvider` accepts only while a token is actually stored.
+- **A subscription login is not always the plan's included usage, and the GUI says
+so.** A Claude Pro/Max login used by a third-party harness is charged per token
+against the account's «extra usage» balance, and refused outright — `third-party apps
+not draw from your extra usage` — while that balance is not enabled. pi's own CLI
+warns about this; the GUI did not, so the refusal was the first the user heard of it,
+after the provider was connected and a prompt already sent. `NativeProviderOAuth`
+carries an optional `extraUsage.url` for such a login, set from `EXTRA_USAGE_LOGINS`
+in `native-providers.ts` (Anthropic is the one that works this way — it is a billing
+fact, not an SDK capability) and drawn by `oauth-extra-usage-note.tsx` under the
+订阅登录 row in the provider detail and in the login dialog's success state.
+
+**Editing a provider never restarts the engine.** `PiProcessManager.reloadProviders()`
+mutates the live `AuthStorage` (set/remove keys), rewrites `models.json`, then calls
+`ModelRegistry.refresh()` on the *same* instance every session already holds, and
+re-points each idle session at the refreshed `Model` object (`agent.state.model`,
+quietly — a settings edit is not a user model switch and must not append a
+`model_change` entry). A run that is still streaming keeps the config it started
+under and is rebound on `agent_end`. Only a cold engine (no runtime/registry yet —
+the first provider, or `start()` after a crash) takes
+the `start()` path. Do not reintroduce `stop()` + `start()` here: it disposed every
+AgentSession, so a change in Settings → 供应商 aborted the reply in flight.
+
+**Model parameters have a single source: the bundled models.dev snapshot.** There is
+no hand-maintained catalog — context window, max output, input modalities, reasoning
+efforts and list prices all come from models.dev (`loadModelsDev()` →
+`enrichModel()`). Unknown ids keep conservative defaults (128K / 8K / text-only)
+rather than being rejected. The provider's model list is a compact roster (name, a chip
+if the protocol is pinned, the context size); clicking a row opens 模型详情, which
+shows those parameters and lets the user tune name, protocol, context, max output,
+推理 / 输入模态 and **思考强度**. A tuned model is marked `edited` so 同步模型
+refreshes its metadata without reverting the edits.
+
+**Thinking levels are the engine's, not models.dev's.** `THINKING_LEVELS`
+(`@shared/types`) mirrors pi-ai's set:
+`off | minimal | low | medium | high | xhigh | max`. models.dev's effort values map
+onto it one-to-one (`models-dev.ts`), recording the provider value in `effortMap`
+(pi's `thinkingLevelMap`) wherever the names differ.
+**`off` is never offered.** The engine's set contains it, but asking an upstream to
+*disable* thinking is rejected by models that reason by default, so no menu in the app
+offers it (`THINKING_EFFORT_LEVELS` is what gets stored, tuned and listed) and
+`settings.thinkingLevel: "off"` from an older build is dropped on load — 跟随模型默认
+is the "leave the parameter alone" choice. `THINKING_LABELS.off` stays so the composer
+can still name a session the engine reports as off (a non-reasoning model, a restored
+transcript).
+`renderModelsJson` then writes a `thinkingLevelMap` for any model the user tuned:
+unchecked levels become `null` (the engine clamps instead of sending a rejected
+parameter), `xhigh` and `max` always carry a mapping because pi only offers either
+when mapped, and unchecking 推理 clears the list and writes `reasoning: false`.
+
+**The model and thinking chips work on the empty hero too.** There is no conversation
+for the engine to bind the choice to until the first prompt, so `setModel` /
+`setThinkingLevel` hold it on the manager (`#pendingModel` / `#pendingThinking`) and
+return a draft `EngineSessionState` — `getState()` reports the same instead of failing
+with 「no active conversation」, and `#applyPreferredModel` adopts the pick into the next
+session created (before the pinned 「默认模型」, which it still falls back to). A pick made
+while no conversation exists is dropped as soon as one is activated. Nothing may throw
+before that branch is reached: `#activeSession()`'s `#ensureReady()` used to reject with
+「尚未配置模型供应商」 on an unconfigured engine, which made the chips unusable in exactly
+the first-run state they exist for.
+
+**Nothing on the first-run path is an error.** A fresh install has no conversation and
+possibly no provider, and that is a state the composer has to work *in* rather than
+fail in. There is no status for it: the engine boots normally and the model list being
+empty *is* the signal. `App.tsx` holds the composer read-only on that condition
+(`canChat` needs a model) with a placeholder asking for one, hides the suggestion chips
+that would only fill a box that cannot be sent, and the model chip reads 「添加模型」
+with a popover saying 暂无模型 above 管理模型 → 设置 → 供应商. `handleSubmit`'s refusal
+(a send with no model keeps the draft and raises the 「还没有配置模型」 alert) stays as
+the safety net behind the disabled input — a queued prompt can still drain into it if
+the last provider is removed mid-run. Once a provider is connected a send needs no extra
+step: the new session resolves its own model (`findInitialModel`), and every
+session-scoped choice that could be made before a conversation existed (the
+model/thinking chips, 自动压缩 read in `#createSession`) is adopted by the session that
+appears.
+
+**A conversation can exist before a model does.** The SDK substitutes a placeholder
+model (`provider: "unknown"`, from pi-agent-core's `DEFAULT_MODEL`) on a session that
+has none, so a chat created on a fresh install is a real session with no model rather
+than a refusal: `#state` reports that placeholder as *no* model (otherwise 「unknown」
+would land on the composer's chip), and `#rebindModel` treats it as the 「model is gone」
+case, which is how such a conversation adopts the provider the user connects
+afterwards.
+
+**A switch is drawn in the transcript as a divider only where the new model actually
+runs** — a quiet rule reading 「模型已切换至 provider/model」, naming the model the reply
+came from rather than the pair it moved between. Picking a model is not using one: the
+SDK writes a `model_change` entry the instant the pick is made, so drawing from the
+entry alone put a divider on the screen for a switch that no reply had run on yet (or
+one reverted before the next prompt). The divider is therefore tied to the reply:
+
+- It is a **`{ kind: "model" }` MessagePart, not a row**. Consecutive engine messages
+  of one reply are merged into a single row, so a switch made while a reply was
+  streaming belongs *between that reply's parts* — a row of its own would split the
+  merged run into two blocks (and two footers).
+- `#announceModelUse` (`src/main/pi/process-manager.ts`) emits `model_changed` from the
+  assistant `message_start` whose `provider`/`model` differs from the last assistant
+  message already in the transcript, so the part is spliced in live as the new model
+  starts answering, at the part index the engine's current message began at —
+  `apply-engine-event.ts` tracks it as `partBoundary` (`stores/session.ts`). Picking A,
+  then B, then A again before sending announces nothing, and `#useModel` itself no
+  longer emits anything (nor does the renderer re-read the transcript after a pick).
+- `#insertModelSwitches` derives the dividers from the **replies**, not from the
+  `model_change` entries: it walks `sessionManager.getBranch()` and inserts one at the
+  start of every assistant message whose `provider`/`model` differs from the previous
+  assistant message's — the same slot the live event uses, so a reload and the stream
+  agree. The entry alone cannot say this: it is anchored to the last completed message,
+  which during a run sits *before* the reply still streaming, so a switch made mid-run
+  would appear one round-trip early. A pick that no reply followed draws nothing, and
+  so does `A→B→A` before sending — no reply ever ran on B. Re-picking the model already
+  selected returns early, and a provider edit's forced fallback model goes through the
+  same path (it *is* a switch the user did not ask for, announced when the next reply
+  runs on it).
+- A leading divider stays **outside** 折叠运行过程's fold (`foldHead` in
+  `components/chat/message-list.tsx`): which model answered is not process, and hiding
+  it inside 「用时 …」 buries the one fact the divider exists to state. A divider spliced
+  mid-run does still fold with the rest of the run it sits in.
+
+Only `models.json` is written; the `models.yml` / `config.yml` pair from the old RPC
+engine is gone because the SDK never read them.
+
+## 账号登录（FastVibe 账号，`engine/account.ts`）
+
+桌面端可以登录 `app.fastvibe.dev` 的账号（服务端在私有仓库 `tyuan511/fastvibe-services`，
+`services/cloud`，设计见该仓库 `docs/cloud-service.md`）。目前登录只表明「这台电脑是谁的」，
+**不配置任何供应商**——模型转发（`/llm`）还没做，做了之后令牌才会被拿去当 API Key。
+
+流程是原生应用的浏览器授权码 + PKCE（RFC 8252 / 7636）：
+
+1. 本机在 `127.0.0.1:<空闲端口>/callback` 起一个只绑回环的监听，用系统浏览器打开站点的
+   `/authorize`，带 `client_id=fastvibe-desktop`、PKCE 挑战、随机 `state`、设备名。
+2. 浏览器里没登录就先走 GitHub 登录再回来；用户点「允许」，站点把浏览器重定向回监听地址并带一次性 `code`。
+3. 监听核对 `state`，用 `code` + 只存在于本进程的 verifier 向 `POST /api/oauth/token` 换设备令牌
+   （`fvs_…`，90 天，用一次顺延）。浏览器标签页显示「登录成功，可以关闭」，Main 同时
+   `app.focus({ steal: true })` 把窗口拉回前台——这就是「登录完拉起客户端」。
+
+- **令牌只在 Main。** 存 `account.json`（0600，临时文件 + rename），**从不经任何方法返回**：
+  渲染层只拿 `AccountState`（谁登录了、头像、邮箱）。令牌记录它的签发站点，换了
+  `FASTVIBE_CLOUD_URL`（本地开发指向本地服务）就当作未登录，**不会把真令牌发到另一个站点**；
+  `logout` 也不会删别的站点的文件。
+- **监听只认自己的那一次。** `state` 不对（别的标签页、端口扫描）只回 400 不终止等待；`Host` 必须是
+  我们给出的回环地址（挡 DNS 重绑定）；只有 `GET /callback` 有应答；5 分钟超时；用完即关。
+  取消、超时、站点拒绝都落回「未登录」，取消与用户在浏览器里点「取消」不算错误。
+- **换令牌用回调实际到达的地址，不用自己发出去的那个。** 站点把授权码绑在签发时的 `redirect_uri` 上，
+  换令牌要原样交回。我们发出的是 `127.0.0.1`，但站点的 Next 中间件（`NextURL`）会把 URL 里第一个回环地址
+  改成 `localhost`，查询串也不例外——未登录时经过登录页的那一趟，码就签给了 `localhost`。于是监听按
+  `Host` 头把到达的地址（两种写法之一）连同 `code` 一起交出来。写死 `127.0.0.1` 的结果是：每个人的第一次
+  登录都是 `invalid_grant`，重试（已登录，不经过登录页）才成功。网站那边也改了（`login-card.tsx` 在浏览器里读
+  `return_to`），这里是兜底。
+- **启动不依赖网络。** 文件里有令牌就直接显示已登录，之后后台 `refresh()` 核对：401 才清掉，
+  离线 / 5xx 保持登录。登出先清本地，再尽力 `POST /api/auth/logout` 吊销该设备。
+- **IPC**：`account:get|login|cancel-login|logout` + 推送 `account:state`。`login` 在浏览器打开后就返回，
+  结果走推送。全部在 `remote-policy.ts` 里**拒绝远程调用**（浏览器开在宿主机上、令牌属于那台电脑），
+  推送在 `remote-events.ts` 归为 `drop`。
+- **UI**：侧栏底部那一行的最右端（`components/layout/sidebar-account.tsx`）。已登录是头像 + 弹层
+  （用户名、邮箱、打开控制台、退出登录），未登录是人形图标 + 登录按钮，等待浏览器时转圈并可取消。
+  文案不写登录方式（现在是 GitHub，以后可能不是）。`mock.html?account=in|out|waiting|error` 预览。
+- 测试 `test/account.test.ts` 用假站点 + 一个代做「浏览器」的函数跑完整流程；服务端那一半在
+  fastvibe-services 的 `internal/httpapi/oauth_test.go`。
+
+## Plugins & extensions
+
+FastVibe hosts pi extensions (the SDK's plugin system) and bridges their
+terminal-only surface onto the GUI. **Built-in** extensions ship with the app
+(`resources/extensions/goal.ts`, `handoff.ts`, `todo.ts`, `question.ts`, `folder-consent.ts`, `session-title.ts`,
+`browser-use.ts`, `computer-use.ts`, `web-search.ts`, `conversation-search.ts`, `worktree.ts`,
+`output-language.ts`, `batch-decide.ts`, `app-config.ts`, `dag.ts`, `subagent/index.ts`); anything else
+the user installs at runtime via 设置 → 插件, which writes to the isolated `agentDir`
+(`ExtensionManager` → SDK `DefaultPackageManager`), never `~/.pi`.
+
+**Handoff** (`handoff.ts`) is `/handoff <下一步>`. The current model writes a self-contained
+prompt from this branch — the latest compaction summary plus what it kept, not the raw turns
+that summary replaced — the user reviews it in `ctx.ui.editor`, and submitting that review
+opens a new conversation and **sends the prompt there**: the dialog is the confirmation, there
+is no second press in the composer. The editor's prefill has to reach the dialog or the summary
+is discarded. The source chat stays. A bare `/handoff` asks for the goal. Like `/compact`, the
+slash line is not a user message and is not steered into a live run, and a second prompt to
+that chat is refused until the command returns. The new chat keeps the source chat's model.
+The answer is not awaited (`sendUserMessage` resolves when the run is *over*): the new chat's
+own events draw the reply, and the phone follows the open it started.
+
+The replacement's first text submission is published immediately by
+`#replacementContext`: an `opening_prompt` row and a `handoff` preparation status,
+before the SDK awaits input hooks or memory retrieval. Main holds that row in
+`#openingPrompts` and includes it in snapshots, so switching away or reconnecting
+does not make it disappear. `sendOpeningPrompt` retires it after the SDK's user
+`message_end` is persisted, without waiting for the answer; the renderer adopts the
+real entry id instead of adding a second row. A refused/consumed submission removes
+the pending row, unlocks the composer and returns its text. Do not mark this phase as
+an agent run: the SDK has not started one yet.
+
+**The new chat is told where it came from.** The source chat stays, and `conversation_search` reads it
+by catalog id, which the new chat has no other way to learn. `withHandoffSource` appends one line naming
+that id to the prompt *after* the review (so editing the summary cannot drop it); the id reaches the
+extension as `ctx.ui.conversationId`, which `#extensionUi` sets for every context.
+
+**A chat Main fills itself has to reach the sidebar like any other.** `preview` is what every
+list in the sidebar filters on — and what marks the project's blank draft for 新对话 — but only
+the renderer's `recordPrompt` wrote it, and a handoff sends its opening prompt from Main. The
+creation-time `#healPreview` looked at a transcript that was still empty, so the new chat stayed
+invisible until a restart. `#adoptPromptPreview` now runs on the conversation's first user
+message and writes the same title and preview through `promptPreview` (`engine/prompt-preview.ts`)
+that `recordPrompt` uses — one function, so the two paths cannot drift into different rows. It
+defers to an existing preview, so a later message never rewrites the first, and to `titleManual`,
+and it skips side chats, which the sidebar hides on purpose.
+
+While the summary is being written the source chat's composer is the thing that is busy, so it
+says so **in its own placeholder** and is disabled — the `handoff` status is read by id for the
+conversation the composer sends to, not as a line above it.
+
+**内置技能是另一套东西**：`resources/skills/<name>/SKILL.md`，由 `builtinSkillPaths()`（`BUILTIN_SKILLS`，
+新增一个就要在那里加一行）列进每个会话的 `additionalSkillPaths`。它们只是提示词，不注册工具，也不需要
+`extraResources` 之外的处理（`resources/skills` 已经整目录拷到 `resourcesPath/skills`）。目前五个：
+`browser-use`、`computer-use`、`fastvibe-setup`、`skill-creator`、`find-skills`。前两个是 FastVibe 自写；
+后三个是 vendored：`skill-creator` 来自 anthropics/claude-plugins-official（Apache-2.0），`find-skills` 来自
+vercel-labs/skills（MIT）——各自目录里带 `LICENSE.txt`，`SKILL.md` 的 description 都改成了中文，并加了
+「你运行在 FastVibe 里」一节纠正原文里不成立的部分（`skill-creator`：`claude -p` 子进程、评测 HTML
+viewer、`present_files` 都不存在，流程要落到对话里；`find-skills`：`npx skills add` 默认装到
+`~/.claude/skills` 这类目录，FastVibe 读不到，必须加 `--agent universal`）。它们不可删除：`SkillManager`
+的 `removable` 只看 `agentDir/skills`，所以内置技能在 设置 → 技能 里显示为全局且没有删除按钮。
+
+**同名技能会静默遮蔽，且用户目录胜出。** `loadSkills` 按名称去重（`addSkills`），先到先得：`additionalSkillPaths`
+（内置）在 `enabledSkills` 之后，所以 `~/.agents/skills/find-skills` 会把内置的同名技能顶掉，只留一条
+`type: "collision"` 诊断——而 设置 → 技能 只渲染 `skills`，**界面上看不出发生了遮蔽**。本机就碰上了这样的
+组合（用户目录里有一个 `find-skills`）。所以新增内置技能前先确认没有常用名字会被用户版本盖住；真要确认
+生效，得看 `filePath` 指向哪个目录，不能只看列表里有这一行。
+
+**人写的技能落在 `.agents/skills/`，这是 SDK 原生发现路径，不是 FastVibe 自己加的**（`package-manager.js`
+的 `resolve()`：`~/.agents/skills` 恒为 user，`<cwd>/.agents/skills` 及各级祖先目录为 project——后者还要
+过项目信任，`SettingsManager.create` 默认 `projectTrusted: true`，FastVibe 不开 preTrust 那套）。所以
+「技能放哪」有四种答案，而 设置 → 技能 只能把前三个里的一部分标成「全局」/「项目」：
+
+| 路径 | scope | FastVibe 里可见 | 备注 |
+| --- | --- | --- | --- |
+| `~/.agents/skills/<name>/` | user | ✅ | 全局，机器上每个项目（**推荐**） |
+| `<cwd>/.agents/skills/<name>/` | project | ✅ | 只在该项目及子目录（**推荐**） |
+| `<cwd>/.pi/skills/<name>/` | project | ✅ | pi CLI 的位置；能用但没人知道，别用 |
+| `~/.pi/agent/skills/<name>/` | user | ❌ | agentDir 被指到 FastVibe 自己的目录，读不到 |
+| `runtime/engine/agent/skills/` | user | ✅ | FastVibe 私有（`paths.skillsDir`），设置里可删 |
+| `resources/skills/` | user | ✅ | 内置，随包发布，不可删 |
+
+祖先目录里的 `.agents/skills` 也会被扫（到 git 仓库根为止），但会盖到同项目下一堆无关子目录上，几乎总是弄错。
+
+`skill-creator` 的「技能写到哪里」一节把这件事写成了一条硬规则：**先问用户全局还是项目，再动手写**，
+不能默认往 `.agents/` 里塞。
+
+- **Built-ins** — `goal.ts` is FastVibe's own replacement for the `pi-goal-x`
+  package (deliberately not bundled as a dependency). Only `/goal` is registered.
+  There is no plan mode: the harness plans on its own.
+  `todo.ts` is always on
+  (no slash command): the model replaces the whole list each call.
+  `session-title.ts` is also always on: the first user prompt is summarised into
+  a short title via a fire-and-forget `modelRegistry.complete` call, then
+  `pi.setSessionName`. Manual sidebar renames set `titleManual` so they are not
+  overwritten. Parallel runs and side chats name the session up front and are skipped.
+  `output-language.ts` is always on: each `before_agent_start` appends the host's
+  AI 偏好语言 requirement (from `FASTVIBE_AI_LANGUAGE_PROMPT`) to the system prompt.
+  - **Goal** runs a long-term execution loop: every turn is instructed to compare
+    progress against the objective and take on that round's tasks, and `agent_end`
+    sends a continuation until the model ends with a lone `GOAL_COMPLETE` line
+    (stripped on `message_end`) or the round cap pauses it. Its state travels as a
+    JSON `goal` status that the renderer turns into the control panel above the
+    composer (`GoalPanel`: view / pause / resume / clear). A bare `/goal` (picked
+    from the palette without an objective) only arms the mode: it publishes a
+    `goal-armed` status that the composer shows as a badge in the composer toolbar, and
+    the objective is taken from the user's next message in `before_agent_start`.
+  - **Question** (`question.ts`, always on, main agent only — subagents load no
+    extension but `folder-consent`) registers the `question` tool so the agent can stop and
+    ask. It takes an array of questions and asks them in one panel (`questions` UI,
+    see Dialogs) with ←/→ paging and a progress stepper; on hosts without that UI it
+    degrades to one `ctx.ui.select` / `ctx.ui.input` panel per question (`问题 i/n`).
+    It returns a structured `questions` payload the transcript renders as a Q&A card
+    (`question-answers.tsx`, tool family `question`). The whole call has a five-minute
+    deadline, shared by fallback dialogs too. It passes the remaining timeout to the
+    host so expiry both dismisses the panel and returns unanswered questions. That
+    result tells the agent to continue independent work, leave decisions/approvals
+    pending, and not immediately repeat the same questions; silence is never consent.
+  - **Todo** is Claude Code's TodoWrite as a pi tool (`todo`). The model submits
+    the complete list every time (`pending` / `in_progress` / `completed` /
+    `cancelled`; at most one `in_progress`). State is stored in tool-result
+    `details` and reconstructed on `session_start` / `session_tree`, so a branch
+    sees the list from that point in history. Unfinished items are injected on
+    `before_agent_start` so they survive compaction. The transcript already
+    renders a tool named `todo` as a checklist card; `TodoPanel` above the
+    composer reads `latestTodos` from the thread. It is folded by default — one
+    header line carrying the position in the list and the single in-progress item
+    (else the next pending one), with the whole checklist (`TodoRow compact`, one
+    line per item, capped and scrollable) behind a `Collapsible`.
+    - **Only while the chat is working.** The panel is hidden unless
+      `useConversationWorking()` (`stores/session.ts`) says this conversation is
+      busy, and equally once every item is done or cancelled. An unfinished list is
+      not news after the run that was working through it stopped; it would sit above
+      the composer with a busy mark, claiming work that is not happening. The plan is
+      still in the transcript's todo card, one collapsed row away.
+    - **A newer user prompt closes it.** `todoSnapshot` (`lib/todos.ts`) reports the
+      list together with whether it was written *before* the newest user message, and
+      the panel draws nothing while that is true. A checklist belongs to the request
+      it was written for: asking something else must not resurface the previous
+      task's leftovers the moment the new run starts, which is exactly what the
+      transcript-derived panel did — it only knew the list existed, not which turn it
+      was for. The list is not destroyed (the card keeps it), and it comes back the
+      moment the agent writes one for the work in front of it. The extension's
+      `before_agent_start` reminder is worded the same way — continue the list only
+      if the request does — so the model is not pushed to resume an abandoned plan
+      just because it is unfinished.
+    - **Busy marks follow the run.** The header's leading glyph and the leading glyph
+      of the item `in_progress` are `RunningMark` (`components/running-mark.tsx`) —
+      the same sweeping-arc mark the sidebar puts on a running conversation, shared so
+      "a run is in flight" reads identically — but only while that conversation is
+      working. Idle, a stalled item falls back to the plain circle (`StatusIcon`), in
+      the panel and in the transcript card alike (the card reads the same flag through
+      `TodoChecklist`): a stopped chat must not keep spinning.
+    - **The `n/N` badge counts position, not completions.** `todoPosition` / `activeTodo`
+      (`lib/todos.ts`) name *which* step the agent is on — `1/N` from the first moment,
+      rather than sitting at `0/N` until that step closes. The completed count stays
+      reachable as the badge's `title`. The tool card's row (`tool-presentation.tsx`)
+      uses the same helpers, so the transcript and the panel cannot drift apart.
+- **No approvals.** FastVibe never asks the user to approve a tool call: there is no
+  permission mode, no sandbox extension, no 始终允许 list and no 完全访问 warning, and a
+  tool runs as soon as the model calls it. What still reaches the user is a *question*
+  (`question`, `ctx.ui.select` / `input` / `confirm` from a plugin), which is the agent
+  or a plugin asking for information, not FastVibe gating an action. `folder-consent.ts`
+  is the one extension that hooks `tool_call`, and it never blocks or asks: it stats a
+  macOS-protected folder (Desktop, Documents, iCloud…) from the main thread before a
+  tool touches it, because the OS only remembers its own folder dialog when the access
+  came from there (`mac-folder-consent.ts`). Do not re-add a gate here without the
+  user asking for one.
+- **Subagent** — `subagent/index.ts` registers a `subagent` tool that delegates a
+  self-contained task to a role defined by a markdown file under
+  `resources/extensions/subagent/agents/*.md`: `explorer`, `planner`, `worker`,
+  `reviewer` (user roles under `getAgentDir()/agents` are merged in). Because the
+  SDK omits custom tools from the system prompt unless they declare it, the tool sets
+  `promptSnippet` + `promptGuidelines` and lists the discovered roles in its
+  `description` — that is what makes the main agent aware it can delegate. Modes are
+  single / parallel (≤8) / chain (`{previous}`), and each spawned run gets an id of
+  `${toolCallId}:${index}`.
+  - **In-process runner, no child process.** The app embeds the SDK and excludes
+    `pi-coding-agent/dist/bundle` from the archive, and a second process would not
+    have the in-memory provider credentials either. So delegation runs on the
+    host's own engine: Main injects `runSubagent` on the extension UI context
+    (`FastVibeExtensionUIContext`, next to the `questions` bridge) and the tool
+    requires it — there is **no `spawn("pi")` fallback** (`runSingleAgent` fails
+    fast when the bridge is absent). `#runSubagent` creates a throwaway
+    `createAgentSession` (`SessionManager.inMemory`), with `noExtensions: true`
+    plus `folder-consent` as its only extension, appends the role's system
+    prompt through the resource loader, restricts tools to the agent's list, and
+    binds the parent conversation's UI context.
+  - **Model selection.** A delegated run uses the model its parent chat is on: it is
+    a tool call inside that conversation, and a run on a different gateway than the
+    one the user just proved works fails on its own — five parallel `reviewer` runs
+    on a rate-limited second provider came back `429` for every one of them, so
+    every subagent pane was empty. The parent's model reaches Main as
+    `request.fallbackModel`; next comes a role file's explicit `model:` line (the
+    built-in roles deliberately carry none), and the user's 「默认模型」
+    (设置 → 供应商, `readDefaultModel` → `settings.defaultModel`) is the last resort,
+    so a fresh install with no parent model still runs. Whichever spec wins,
+    `#resolveSubagentModel` only accepts it when `ModelRegistry.hasConfiguredAuth`
+    says this install can authenticate it — the catalog (`getAll()`) holds every
+    reseller's models, so a pinned `claude-sonnet-4-5` on a gateway with no
+    Anthropic key would otherwise win and fail with “No API key found”. Bare ids
+    resolve against `getAvailable()` **and** are re-checked for auth. A role may also
+    set `thinkingLevel:` (`minimal | low | medium | high | xhigh | max`) in its
+    frontmatter; absent or invalid values migrate to `medium` rather than inheriting
+    the parent run. Built-in role overrides live beside model overrides in
+    `subagents.json`, while custom roles persist the field in their Markdown template.
+  - **Renderer.** The sub-session's engine events are re-emitted as
+    `subagent_event` / `subagent_state` / `subagent_lifecycle` (see `#trackSubagentEvent`), which the
+    renderer folds into `session.subagents` + `subagentStreams`. Main and the renderer share
+    `shared/subagent-state.ts`: snapshots merge by run id and monotonic `revision`, never
+    replace the global registry with one conversation's list or overwrite newer events.
+    The lifecycle itself carries `conversationId` even when no parent tool-start was visible.
+    Tabs, the read-only composer and parent tool cards all read this registry; a missing row
+    is unknown, not completed, and cannot freeze the pane onto a cached mid-run transcript.
+    Retry, compaction and a parked prompt are explicit phases. Only the runner's final
+    lifecycle ends a run, after caching its transcript and final model/thinking/context state;
+    the parent tool's aggregate `isError` never overwrites individual sibling outcomes.
+    `mock.html?subagent=running|retrying|waiting|aborted|error` previews these states without
+    a provider or a real delegated run. `App.tsx` applies
+    them regardless of which conversation is focused, so a backgrounded run keeps
+    updating. **One run, one right-pane tab**: `registerSubagent` mints
+    `subagent:<toolCallId>:<index>` on lifecycle, tagged with the owning
+    `conversationId`, and `SidePane` only lists tabs belonging to the chat on
+    screen — parallel/chain runs and runs from different chats never share a view.
+    The tab is quiet: starting a run never un-collapses the pane, and switching back
+    to the chat does not either. The tool card's row (and the sidebar's sub-task row)
+    is what opens it.
+    A `subagent` tool card does not dump its parameters — it lists the spawned
+    runs (role · brief · status, the whole row opening that run's tab; no
+    「查看对话」 button). The collapsed row summarises the fan-out rather than
+    listing every run — at most two distinct roles plus a count (`explorer ×5`,
+    `explorer, planner 等 4 个`) — and expanding it reveals each run. A run's tab is
+    `SidePaneSubagent`: the same `MessageList` as the main thread (follow-the-bottom
+    included), plus the main composer in its read-only mode (below) — a delegated run
+    is not a conversation the user can steer, but it is one they can read and stop. The
+    delegated brief is the opening user message, pinned on the
+    tab as `subagentBrief`: the pane reads it from there, not from `subagents`,
+    because that list is replaced by every `getSubagents` snapshot and a brief
+    derived from it blanked the transcript mid-run. The cached transcript is read
+    only once the run is over, and the empty state is chosen by the pane rather than
+    by `MessageList`, so the scroller is never swapped for it mid-flight. The tab is
+    titled `role · 运行中/已完成/已终止/失败`.
+  - **The run's own composer, read-only.** `SidePaneSubagent` draws the main
+    thread's `Composer` with `readOnly`, and the stop button it keeps is what
+    terminates the run. A delegated run cannot be steered, but its state is worth
+    reading — which model it is on, how full its context window is — so the pane
+    keeps the context ring and its popover, the model and thinking chips (as plain
+    `StaticChip` labels, since `Chip` is a button with nothing behind it here), and
+    drops everything that would change the run (attach, the
+    model / thinking menus, send). `model` / `thinkingLevel` / `contextUsage` are
+    pushed as `subagent_state`: the engine holds them, the transcript does not, so
+    Main publishes them on `agent_start` / `turn_end` / `agent_settled` (the same
+    boundaries the main thread refreshes its ring on) and records them on the
+    `SubagentInfo` so a pane opened later gets them from the `getSubagents`
+    snapshot. `usagePercent` accepts just `{ contextUsage }` for this, since a
+    delegated run has no `EngineSessionState`.
+  - **Stopping one run notifies the main agent.** `abortSubagent` aborts the run's
+    own session, which settles the parent's `subagent` tool call: the tool returns
+    `isError` with `已被用户终止`, and that tool result is what the main agent reads as
+    the reason its delegation ended. The run's own lifecycle status is `aborted`
+    (已终止), distinct from `error` so a deliberate stop is not drawn as a failure.
+    A parked prompt is answered first *and scoped to this run* — the run
+    shares the parent conversation's UI context, so `#pendingUi` entries carry an
+    `owner` and `#resolvePendingUi(conversationId?, owner?)` filters on it; the
+    `tool_call` hook cannot observe the abort while it awaits a prompt, so leaving
+    it parked would hang the tool. Stop-a-chat still answers every prompt of that
+    conversation (its own and its runs'). `SubagentControl` also covers asynchronous setup:
+    an already-aborted request must never reach `prompt()` (the SDK resets its abort flag
+    there). Parent cancellation releases prompts scoped to the run before awaiting abort,
+    and late prompts after cancellation return their fallback. Setup and transcript-mapping
+    failures still produce a terminal lifecycle and release the session/control in cleanup.
+- **Browser use** — `browser-use.ts` is the tool surface for FastVibe's own side-pane
+  `<webview>`; it holds no browser code. Every call crosses `browser:request` /`browser:response`
+  (`src/main/pi/browser-bridge.ts`, one pending map keyed by request id, 30s default budget) into
+  `handleBrowserRequest` (`components/layout/side-pane-browser.tsx`), which owns the webview
+  registry and injects the page scripts. The payload is **one shared `BrowserRequest`**
+  (`@shared/types`) — the extension, the bridge and the renderer must not re-declare it.
+  - **Injected scripts are the fragile part.** Electron reports a script that never compiles as
+    `GUEST_VIEW_MANAGER_CALL: Script failed to execute`, naming neither the script nor the cause —
+    a single missing brace made every `browser_snapshot` fail. So page scripts are wrapped
+    (`inject`) to return `{ok, value|error}` as data, and `pnpm check:scripts`
+    (`scripts/check-injected-scripts.mjs`, wired into `typecheck` and `prebuild`) parses each one
+    with its `${...}` interpolations neutralised. Add a page script → it must stay parseable.
+  - **Elements are addressed explicitly.** A snapshot stamps each interactive element with a
+    `data-fv-ref` (`e0`, `e1`, …) and reports both that `ref` and a CSS `selector` (`#id`, else a
+    short `nth-of-type` path), so `browser_click` / `browser_type` target the element instead of
+    guessing from text; a miss returns the labels that *were* on offer.
+  - **Reuse, not sprawl.** `browser_open` navigates the tab already on screen (one Chromium guest
+    per call made later calls slow and timeout-prone); `newTab: true` is the escape hatch. A tool
+    never un-collapses the pane to show that tab (`openBrowserQuiet`): the page loads parked, the
+    tab sits in the bar, and the pane opens only when the user opens it — the same rule a delegated
+    run's tab follows. Opening the browser from the pane's own menu still shows it. A
+    click/keypress is awaited through its possible navigation, and a dead guest is retired —
+    dropped from the registry and its pane tab closed. **A dead tab is never a tool error.**
+    The browser is a shared side-pane resource the user can close or crash at any moment, so
+    retiring one is an internal detail: the request that found it mints a replacement, resumes
+    the page that tab was last on (tracked as `Entry.url`, updated by every navigation,
+    load, history move and the pane's own address bar) and runs its action there, replying with
+    a `note` — `browser_open` does the same in place, so the model is never asked to call it
+    again. Only a tab whose replacement cannot be created (a webview that will not come up at
+    all) is reported as an error. `tabId` is optional everywhere: an
+    omitted id means the current tab, and a stale id with exactly one tab open is adopted with a
+    `note`.
+  - **A guest's popup never becomes a second window.** A `window.open` — or a `target="_blank"`
+    link, which the injected click runs like any other click — was answered by Electron's
+    default window-open handling, which *creates a `BrowserWindow`*: a chrome-less guest no pane
+    owns, shown in front of whatever the user was doing, with nothing on screen to explain it.
+    `guardGuestPopups()` (main, registered before any window exists) denies every one of them
+    and loads the address in the tab that was already being driven instead — which is what the
+    model meant by clicking the link, keeps the tab id it holds valid, and leaves the pane's
+    `did-navigate` listener to keep the title and `Entry.url` in step, so a recovery resumes the
+    popup page rather than the page it opened from. Only `http(s)` is followed: every other
+    scheme carries no address of its own or is a hand-off to another program — the same
+    interruption through a different door. The pane's webview carries `disableDialogs` for the
+    same reason one door over: a page's `alert` / `confirm` / `prompt` is a native modal by
+    default, which lands in front of the user *and* parks the guest, so the tool call waits on a
+    button nobody is there to press.
+  - **A guest is never re-parented.** Chromium tears the guest down when its `<webview>`
+    element is moved in the DOM — every call after that fails with `Invalid guestInstanceId`,
+    and re-assigning `src` does not bring it back. So every guest's host lives in one layer
+    (`getLayer`) that is attached to `document.body` once and only *positioned*: stretched
+    over the tab's viewport while that tab is on screen, parked off-screen otherwise
+    (`showGuest` / `parkGuest`, never `appendChild`). The park/edit-run design this replaced
+    moved the host out of the park when the pane mounted it, so the guest died on open,
+    `usable()` retired the fresh tab, and retiring the last tab collapsed the pane — the
+    闪一下 the side pane did when a tool opened the browser. The layer follows the pane's
+    width through its clipping ancestor's rect — the panel's own clipping box, which is what
+    shrinks, so the guest is never wider than the pane it sits in; a parked or momentarily
+    zero-sized guest stays found
+    (`guestAlive` probes `getURL`), which is what keeps browser-use in a background chat
+    working.
+- **Web search** — `web-search.ts` registers a client `web_search` tool only while the
+  session model speaks `openai-responses`. Execute opens a *side* `{baseUrl}/responses`
+  request with the hosted `{ type: "web_search" }` tool (auth from `modelRegistry`); it is
+  **not** injected into the main conversation, because pi-ai cannot parse `web_search_call`.
+  Completions / Messages models drop it from the active set. Do not vendor `pi-web-search`.
+- **Conversation search** — `conversation-search.ts` registers `conversation_search`, which
+  treats a catalog conversation id like a file path and a focused query like `grep`. Main
+  resolves the id through the catalog, searches the target's current branch without activating
+  it or creating an `AgentSession`, and returns bounded snippets plus a little surrounding
+  transcript. A session already in memory supplies its live branch pointer; an unloaded one is
+  parsed into `SessionManager.inMemory`, never `SessionManager.open`, so a read cannot migrate
+  or rewrite the transcript. System prompts, thinking blocks, images and hidden custom messages
+  are excluded. It is available to main sessions only;
+  throwaway subagents still load just `folder-consent`.
+- **Batch decide** — `batch-decide.ts` registers `batch_decide`, the decision engine as a tool
+  for the main agent: one closed question (choice / score / yes_no) answered per item for 5–500
+  items. Offered only while 设置 → 决策引擎 › 批量决策 is on (re-read every turn); the scope
+  rules live in the shape (`engine/decision/batch.ts`) and the prompt guidelines, and
+  low-confidence items come back as `review` for the agent to judge itself. See docs/decision-layer.md §7.10.
+- **App config** — `app-config.ts` registers `fastvibe_config_get` / `fastvibe_config_apply`, the
+  agent's hands on FastVibe's *own* settings panes; the built-in skill `resources/skills/fastvibe-setup`
+  is the playbook (how remote access, MCP servers and the UI settings are filled in for the user).
+  The extension holds no settings code: `ctx.ui.appConfig` reaches `runAppConfig`
+  (`src/main/app-config.ts`, injected with `engine.setAppConfigHost` so an SSH Agent runtime answers
+  "not available"), which dispatches the very methods the panes call, so writes broadcast like a click.
+  - **An allowlist, never a channel pass-through.** Actions are named in `src/shared/app-config.ts`
+    (Main's table is typed against it); `overview` and every unknown-action error serve the catalog,
+    because the extension ships as a loose file and cannot import `@shared` to list it.
+  - **No action returns a secret** (SSH passwords stripped), and
+    **`settings.set` refuses `remote*` and `proxy*` keys**, which have their own actions.
+  - **The remote-access password never reaches the model**: `remote.set_password` collects it with
+    `ctx.ui.input` inside the extension. Writes run without a confirmation; the skill tells the
+    agent to say what it is about to change first.
+- **Present** — `present.ts` registers `present`, which puts an image, a video or an HTML page into the conversation; see 会话内联预览.
+- **Worktree** — `worktree.ts` exposes list / create / bind / unbind over the host's
+  worktree methods. Creating or binding **switches the conversation's workspace**, which is
+  a change to the user's machine they never asked for, so the tool's prompt guidelines make
+  the agent state why and stop, then wait for the user to agree — a suggestion, not a
+  decision.
+- **Loading** — `src/main/pi/extension-manager.ts` resolves the built-in entry
+  points (from `resources/extensions` in dev, `resourcesPath/extensions` packaged;
+  `electron-builder.yml` copies them via `extraResources`) and `#createSession`
+  passes them through a per-session `DefaultResourceLoader`
+  (`additionalExtensionPaths`). `pnpm-workspace.yaml` pins `@earendil-works/pi-tui`
+  to the SDK's version so host and plugins share one instance. Packaged builds set
+  `JITI_FS_CACHE=false` because jiti cannot write its cache inside the asar.
+- **Mode** — `bindExtensions` binds `mode: "rpc"` (not the default `"print"`).
+  TUI-first plugins gate on `ctx.mode`, and `"print"` makes them refuse to run;
+  `rpc` also makes them fall back to string widgets / select-editor dialogs.
+- **Dialogs** — `select/confirm/input/editor` flow through `extension_ui_request`
+  / `respondPermission`, and FastVibe adds a non-SDK `questions` method to the UI
+  context (`#extensionUi` → `FastVibeExtensionUIContext`) for single-panel
+  multi-question prompts; `questions` answers ride `respondPermission.answers`.
+  `confirm` (a yes / no question), `select` (pick an option), `input` (free-form answer)
+  and `questions` (multi-question, paged) render as the inline `PermissionPanel` in the composer
+  slot — one panel for every kind of question; only
+  `editor` (multi-line prefill) keeps the modal `PermissionDialog`.
+- **A dialog that holds typed text does not close on an outside press.** `PermissionDialog`
+  passes Base UI's `disablePointerDismissal` for `editor` and `input`: a modal backdrop covers
+  the whole window, so one stray click anywhere outside the popup used to throw away a summary
+  or answer that took a while to write. Cancel and the ✕ (and Escape, which is deliberate) still
+  close it. `confirm` / `select` keep the ordinary behaviour — there is nothing typed to lose.
+- **Fire-and-forget UI** — `notify`, `setStatus`, `setWidget` (string lines) and
+  `set_editor_text` reach the renderer store and render as toasts, a status row, a
+  panel above the composer, and composer prefill (`ExtensionWidgets`,
+  `ExtensionNotices`). A status key FastVibe draws with its own chrome is listed in
+  `BADGE_STATUS_KEYS` (`extension-surface.tsx`) so the same sentence is not printed
+  twice: `goal` is the `GoalPanel`, `goal-armed` a badge, and `handoff` the composer's
+  own placeholder. A surface that knows which chat it belongs to reads a named status by
+  id (`useExtensionStatusValue`) — `useExtensionStatus` answers for the chat on screen,
+  which puts a 辅助对话's composer on the main chat's state.
+- **TUI components → GUI** — `src/main/pi/tui-bridge.ts` renders pi-tui components
+  produced by plugins: component-factory widgets (`setWidget(factory)`, re-rendered
+  every second with change detection) and `registerMessageRenderer` output. ANSI SGR
+  is parsed back into structured runs; known pi theme color names are folded back to
+  names and mapped to the app's semantic tokens in `components/chat/tui-lines.tsx`.
+  Hidden custom messages (`display: false`) are dropped.
+- **Session replacement** — extension `ctx.newSession` / `ctx.switchSession` are
+  implemented on the conversation catalog; `#extensionNewSession` seeds the manager
+  via the plugin's `setup`, creates a new conversation, activates it and emits
+  `conversation_opened`, then runs `withSession` against the replacement.
+
+### 会话内联预览（图片 / 视频 / HTML，`shared/inline-media.ts`）
+
+回复里产生的可看的东西直接画在转写里，而不是只给一个路径。**谁来“要”一个预览，从确定到猜测**：
+`present` 工具（模型明说“展示这个”）→ 工具结果里的图片块（MCP 生图直接返回图，没有文件）→ `write` 写出的
+图片/HTML → `bash` / MCP / `codemode` 输出里出现的路径或 https 链接（**只有这一类是猜的**）。
+
+- **纯函数、只靠转写重算。** `collectInlinePreviews(tools, resolve)` 只看 `ToolCallBlock`（参数、结果、`details`、
+  `images`），不读磁盘，所以刷新、切会话、手机重连画出来的和流式时一样。只处理 `status === "done"` 的非嵌套调用，
+  半写的 HTML 不会闪。同一个引用只出现一次，每个调用最多 4 个、每条回复最多 12 个。
+- **猜测要克制。** 只扫图片/视频，**从不猜 HTML**（构建日志里全是 `index.html`）；`ls/find/git/grep/file/du…` 这类
+  列文件的命令整个跳过；`node_modules`、`.git` 之类目录跳过；猜出来加载失败就静默不画（`explicit: false`），
+  明确要求的失败才写一行“无法加载”。`read` / `browser_*` / `computer_*` 的图片是输入或截屏，不展示。
+- **图片块随转写走。** `toolImagesOf`（`shared/tool-result.ts`，主进程映射和渲染层实时事件共用）把工具结果里的
+  image 块变成 `ToolCallBlock.images`（data URL，单张 12M 字符、一次 4 张封顶）；手机用的摘要形态会丢掉它
+  （`omitted.images`）。实时路径在 `tool_execution_end` 就带上，不用等 `agent_end` 重读转写。
+- **HTML 走独立文档，不走 `srcdoc`。** `srcdoc` 框架会继承应用的 CSP（`script-src 'self'`），脚本永远跑不起来。
+  所以 `fastvibe-media://` 也能服务本地 `.html`（`authorizeMediaMime`：请求名和真实路径必须同属“页面”或同属
+  “媒体”，不能用 `.png` 符号链接去读页面）；`media-protocol.ts` 对 `text/html` 响应**自己**加
+  `INLINE_HTML_CSP`（只允许内联代码和 https 资源，不能读本地文件、不能提交表单），远程主机来的页面也一样，
+  不信上游的头。框架是 `sandbox="allow-scripts"`，**没有** `allow-same-origin`：无存储、无 cookie、碰不到应用。
+  想收紧就改 `INLINE_HTML_CSP` 这一个常量。https 链接只展示图片和视频，不当页面开。
+- **`present`（`resources/extensions/present.ts`）只校验、不搬运。** 路径相对工作目录解析，要求文件存在且类型
+  可展示；https 链接必须以图片/视频扩展名结尾；不收 data URL（让模型把 base64 写进参数是浪费 token）。结果
+  `details.items` 记下 `{ref, title, ok, error}`，渲染层只画 `ok` 的。扩展不能 import `@shared`，所以扩展名
+  清单在两处各一份，`test/inline-media.test.ts` 把它们对齐。
+- **消息里不画大图，只画名字。** 回复里的预览是行内文件名（图标 + 名字，和路径链接同一个观感；一次调用的多项同一行换行排列；markdown 的 `![]()` 同样），**折叠运行过程后**被折叠的产物在「用时 …」那一行右端收成最多 3 个缩略图（`InlineThumbStrip`，多于 3 个是「更多（n）」）。点名字或缩略图都打开**查看器**（`Viewer`）：全窗口深色遮罩，一次一项，图片 / 视频 / HTML 都支持，底部「‹ 第 i 项，共 n 项 ›」，← / → 在**同一批**里切换，左下是名字，右上是「在侧栏中打开」和 ⋮（在文件夹中显示 / 复制路径或链接 / 在浏览器中打开）与关闭。点遮罩空白处也关。猜出来的本地路径用 `filesExist` 核对，不存在就不画名字（`useMissingGuesses`）；明确要求展示的不核对，打不开时查看器里写「无法加载」。
+- **位置。** 预览紧跟产生它的工具卡；折叠运行过程时它是**结果**不是过程，画在折叠行之下、正文之上（和 DAG 图一样
+  不被收进“用时 …”）。`shared/media-preview.ts` 不能用 `node:path`：渲染层也 import 它，浏览器构建里 `extname`
+  是 `undefined`，第一次展示文件就会抛。
+- **Markdown 里的 `![]()`** 也走同一套：绝对路径、`file://`、相对路径按会话目录解析成媒体 URL，扩展名是视频就
+  画 `<video>`、是 `.html` 就画页面（`lib/markdown-media.ts`）。`react-markdown` 默认会丢掉 `file:` / `data:`，所以
+  `urlTransform` 放行 `file://`、`data:image|video` 和路径链接插件的 `fvpath:`。内联项的根是 `span`（`display:block`），
+  因为它会出现在 `<p>` 里。
+- **预览**：`mock.html?inline=1`（浏览器里没有 `fastvibe-media://`，HTML 框架是空的，只能看版式）。
+
+### TODO: remaining TUI→GUI gaps
+
+Deliberately deferred. Plugin authors are expected to degrade via `ctx.mode` /
+`ctx.hasUI`, and the built-in plugins do not need these, but a fully general
+"install any plugin and it just works" host still needs them:
+
+1. **`registerShortcut`** — keyboard shortcuts are ignored. Needs the registered
+   shortcuts exposed over IPC plus a renderer key dispatcher that invokes the
+   handler (e.g. a plugin's dashboard toggle or audit shortcut).
+2. **`registerEntryRenderer`** — display-only custom entries (`pi.appendEntry`) are
+   not merged into the transcript. The thread is built from `session.messages`, which
+   excludes non-context entries; showing them needs an ordered walk of
+   `sessionManager.getEntries()` interleaved with the context messages.
+3. **`ctx.ui.custom()`** — full-screen interactive components still return
+   `undefined`. Bridging needs an ANSI screen plus key forwarding; xterm/node-pty are
+   already dependencies.
+4. **`registerMarkdownTransformer`, `setEditorComponent`, `addAutocompleteProvider`,
+   theme selection** — no-ops.
+
+## 长期记忆（`engine/memory*.ts`，详见 `docs/memory.md`）
+
+照搬 Codex 的文件式记忆（`codex-rs/memories`），**一个开关加一个模型选项**（设置 → 长期记忆，默认关；模型留空 = 跟随默认模型，阶段 1 和阶段 2 共用，Codex 是分开的两项；选的模型不可用时回退到默认模型）。关 = 不读、
+不写、不注入；文件留在磁盘上，直到用户点「清除」。原来的三种模式（默认 / 语义 / JEV 增强，SQLite + embedding +
+关系图）已整体移除，`removeLegacyMemory` 在启动时删掉遗留的 `memory.sqlite` 和模型缓存。
+
+- **四份提示词是 Codex 原文**，放在 `resources/memories/`（`stage_one_system.md`、`stage_one_input.md`、
+  `consolidation.md`、`read_path.md`，Apache-2.0，`NOTICE.md` 记着来源提交和改过的几行），运行时按路径读
+  （`memory-templates.ts`，和内置扩展/技能同一套 `FASTVIBE_RESOURCES_PATH`，打包要有 `extraResources` 那一条）。
+  改它们就是改每个用户的记忆长什么样；想和上游对齐就重新抓原文，不要凭印象改写。
+- **参数是 Codex 的默认值**（`memory-plan.ts`）：对话文件安静 6 小时、不超过 10 天才读；每轮 2 个；
+  整合取前 256 个；30 天没人用的丢掉。看的是转写**文件的 mtime**，不是 catalog 的 `updatedAt`（改名也会动它）。
+- **阶段 1**：模型读一个对话，返回 `{ raw_memory, rollout_summary, rollout_slug }`；笔记或回顾为空 = 没什么
+  值得记的，记下来、转写不变就不再问。读入和输出两端都过 `redactSecrets`（`[REDACTED_SECRET]`）。
+- **阶段 2**：把选中的写成 `raw_memories.md` 和 `rollout_summaries/`，再起一个**一次性 agent 会话**（工作目录
+  就是记忆文件夹，工具只有 read/edit/write/grep/find/ls，没有 bash、没有扩展，medium 推理），用 Codex 的
+  `consolidation.md` 当唯一一条用户消息。Codex 用 git 仓库给它 `phase2_workspace_diff.md`；这里没有 git 可依赖，
+  所以文件夹旁边留一份**基线副本**（`memories-baseline/`），差异自己生成（`memory-workspace.ts`，Myers 行差异，
+  `git apply` 验证过）。文件夹和基线一致且产物有效 = 不唤醒 agent。
+- **产物校验**：`MEMORY.md` 是文件、`memory_summary.md` 第一行恰好是 `v1`、没有符号链接（会被删掉）。不过关
+  就报错、**不推进基线**，下一轮 agent 会再看到同一份差异。
+- **读取**：隐藏扩展在 `before_agent_start` 把 `read_path.md`（含摘要全文，上限 20,000 字符）追加到当轮系统提示，
+  不进转写。没有记忆工具，智能体用普通的 `read` / `grep`。
+- **使用次数靠引用块**：read_path 要求用了记忆的回复末尾带 `<oai-mem-citation>`，里面的 `rollout_ids`
+  （就是对话 id）经 `MemoryManager.noteReply` 记一次使用，决定整合时谁留下。引用块对读者没用，
+  `stripMemoryCitation`（`shared/memory-citation.ts`）在 Main 映射转写时和渲染层 markdown 里都会去掉，
+  流式时连半截标签也不露。
+- **纯逻辑与副作用分开**：`memory-plan.ts` / `memory-transcript.ts` / `memory-templates.ts` / `memory-workspace.ts`
+  只碰文件或不碰，`memory.ts` 的 `MemoryManager` 通过 `MemoryRuntime`（目录、转写、模型、agent）与引擎对话，
+  所以 `test/memory-*.test.ts` 能用假的运行时完整跑一遍。
+- **新旧配置**：没有 `version: 2` 的 `memory.json`（旧版本一律常开）读作「关」，不会静默开始把对话发给模型。
+- **和 Codex 不一样的地方**写在 `docs/memory.md` 末尾：无状态数据库/租约、定时触发而非会话启动触发、阶段 1
+  输入是渲染文本、整合 agent 没有 shell、没做 `/memories` 单对话开关和额度保护。
+
+## MCP（`src/main/pi/mcp-manager.ts`）
+
+MCP servers are configured in 设置 → MCP 工具 and stored in `mcp.json`. The wire protocol is
+**`@earendil-works/pi-mcp`** (the standalone library pi's own MCP support is built on): `McpClient`,
+`StdioTransport`, `StreamableHttpTransport`, `toLlmContent`. FastVibe's `McpManager` stays the owner
+of connections, config and the settings pane's status.
+
+- **Not pi's built-in MCP extension, on purpose.** `createMcpExtension()` keeps its state inside the
+  factory call, so every session would spawn its own copy of every stdio server (N chats × M
+  servers), where `McpManager` connects once per engine and hands the tools to every session. It
+  also exposes no connection state — the settings pane's 已连接 / 工具数 / 错误 has nothing to read —
+  and its `/mcp` manager and sign-in screens are terminal UI. SDK sessions do not load the built-in
+  extensions at all (only the CLI does), so nothing here is switched on by an upgrade. Revisit if pi
+  exports a status API and a way to share connections.
+- **Tool names stay `mcp_<id>_<tool>`** (pi's would be `mcp__<server>__<tool>`): the id is stable across
+  renames and the transcript, sandbox and renderer already know this shape.
+- **A stdio server gets a short inherited environment** (`PATH`, `HOME`, `USER`, `SHELL`, `LOGNAME`,
+  `TERM`; the Windows equivalents) plus its own `env` — `inheritEnv: false`. The transport's default is
+  all of `process.env`, which is the app's business, not the server's. A test pins this.
+- **Results keep their images** (`toLlmContent`; the old text-only join turned an image into a JSON
+  string), and an `isError` result sets the tool result's error flag — the model is told the call
+  failed instead of reading an error as an answer. The call's `signal` is passed on, so Stop cancels it.
+- **A server that exits later is shown as down.** `client.onClose` drops the connection from the map
+  and records 「连接已断开」, guarded by identity so a deliberate reconnect (`connectAll` closes first)
+  is not reported as a loss. There is no lazy reconnect: save the settings or reload to bring it back.
+- **The form edits the standard `mcpServers` JSON as well as fields.** `shared/mcp-config.ts` is the one
+  reading of that shape — Claude Desktop / Claude Code / Cursor (`mcpServers`), VS Code (`servers`), a bare
+  name → entry map, or a README fragment missing its outer braces. The settings pane (paste, edit one
+  server) and Main (reading a stored `mcp.json`) both go through `serverFromEntry`, so they cannot
+  disagree about what an entry means. Differences between the two callers are deliberate: pasting refuses
+  `type: "sse"` (this app cannot speak it) with a reason, while loading a stored file reads it as HTTP
+  (`lenient`) so the row stays in the list and the connection error explains itself.
+- **Pasting merges by name and keeps the stored id**; editing one server replaces it whatever it is now
+  called. The id is what the engine names the server's tools by.
+- **`env` is edited as `KEY=value` lines and `headers` as `Name: value` lines** (`parseMap`). The value is
+  everything after the first separator, so `Authorization: Bearer a:b` and `URL=https://x/?a=b` survive,
+  and a line that is not an entry blocks saving instead of being dropped. The textareas switch off
+  spell-check and auto-capitalisation: a phone keyboard otherwise "corrects" a token.
+- **Secrets in `mcp.json` reach the renderer.** `engine:list-mcp-servers` returns `env` and `headers`
+  values so the form can show them for editing, to the remote client as well — the same trust as asking
+  the agent to run a command, and the reason no policy change was needed. The settings pane strips the
+  status fields (`connected`, `tools`, `error`) before saving, so they are not written back to the file.
+- **Not done: OAuth sign-in** (the main reason to want pi's MCP). `pi-mcp/oauth` has the flow (PKCE,
+  discovery, dynamic registration, a loopback callback server); what is missing is a credential store,
+  a 登录 control in the pane and an IPC method — which opens a browser on the host, so
+  `server/policy.ts` has to classify it. Servers that need a bearer token work today through `headers`.
+- Not done either: tool-result truncation (a huge result goes into the context whole, as before)
+  and MCP resources.
+
+### 代码模式 and 工具搜索（`codemode` / `tool_search`）
+
+Two SDK tools, loaded in `#createSession` as the hidden extensions `fastvibe-codemode` and
+`fastvibe-tool-search` (the SDK loads neither in an SDK session by itself; only its CLI does).
+`codemode` takes one argument, `code` — JavaScript source, not JSON — and runs it in a QuickJS
+sandbox on a worker thread; the script calls other tools as `tools.<name>(…)` (in parallel, if it
+likes) and only what it prints reaches the model. `tool_search` finds tools that are not declared
+and declares the matches for the next request.
+
+- **On by default, with a switch each** (`settings.codemode` / `settings.toolSearch`, 设置 → 偏好设置
+  → 对话 — agent behaviour, and `codemode` works with no MCP server at all). The keys are read as
+  *off only when `false`*, so an install that never wrote them has both; the renderer's default is
+  `true` and drops a non-boolean. Both tools are registered inactive, and `fastvibe-tool-modes`
+  (`engine/tool-modes.ts`) sets their place in the active set on every `session_start`, a reload
+  included — the SDK's `defaultTools` setting can only add, never take away. An enabled MCP server
+  whose `exposure` can only be reached through a tool keeps that tool on even with its switch off:
+  a `codemode` server has no declared tools without `codemode`, and a `deferred` one has none until
+  `tool_search` loads them (the rule pi's own MCP support applies when a server connects). Everything
+  else in the active set is left as it was, so a set another extension narrowed stays narrowed.
+  The cost of leaving them on is their descriptions in every request (pi measures about 3.3K tokens
+  for `codemode` with the default tools), which is what the switches are for.
+- **A settings write that changes either key reloads every session** (`refreshToolModes`, the MCP
+  reload path: an idle session at once, a running one when it settles). `toolModeSettingsChanged`
+  compares exactly those two keys, so no other setting costs a reload.
+- **`exposure` is per server** (`direct` | `deferred` | `codemode`; default `direct`, which is *not* pi's
+  default of `codemode` — an existing server must not lose its tools). It is the form's select, the
+  JSON's `exposure` key (pi's `codemode-deferred` spelling reads as `codemode`; `hidden` reads as
+  switched off) and the `exposure` / `namespace` the tool is registered with. The namespace carries
+  the server's name and its own `instructions`, which a script reads with `describeNamespace()`.
+- **Nested calls go through the same hooks as direct ones**, and arrive as `tool_execution_*` events
+  with `parentToolCallId` (ids `<call>/<n>`). The renderer keeps such a call in `message.tools` — the
+  turn's changed-file chips read it, so a script's `write` is still listed — but gives it no row
+  (`ToolCallBlock.parentId`, and `upsertTool` pushes no part for it). The `codemode` card draws the
+  calls itself from `details.calls`, which each streaming `tool_execution_update` carries, so the
+  list fills in while the script runs. After a reload the nested calls are not in the transcript
+  (the SDK does not persist them as messages), so the card still lists them but a script's `write`
+  no longer appears among the changed-file chips.
+- **The sandbox runs from inside the asar**: a script with two parallel tool calls was run from a
+  packed `app.asar` under Electron in node mode (`ELECTRON_RUN_AS_NODE`) and returned the same as from
+  a plain directory, so no `asarUnpack` entry was added. It has not been run in a packaged window.
+- **Hooks**: a script's nested calls reach `tool_call` hooks like any other call.
+- `test/codemode-session.test.ts` runs the real SDK end to end — extensions, an MCP server behind
+  `McpManager`, a scripted model (`createFauxCore`) — so what is declared, what a script can reach and
+  what the events look like are pinned together.
+
+## Commands
 
 ```bash
-# 起一个独立端口的服务（别抢主仓 30141）
-ln -sfn <repo>/node_modules node_modules
-node_modules/.bin/next build --webpack && node_modules/.bin/next start -p 30247
-# 拿一个真实会话 id，问它要工具清单
-curl -s -X POST -H 'content-type: application/json' -d '{"type":"get_tools"}' \
-  http://127.0.0.1:30247/api/agent/<sessionId>
+pnpm sync:models    # rebuild the bundled models.dev index from upstream
+pnpm dev            # sync models.dev if needed, then electron-vite
+pnpm typecheck      # injected browser scripts, then both tsconfigs
+pnpm test           # node's own runner over test/*.test.ts — pure modules only, no DOM
+pnpm check:scripts  # only the browser page scripts (a compile error there is a
+                    # `Script failed to execute` at tool-call time, not a build error)
+pnpm shadcn add <component> -y
 ```
 
-`data` **直接是工具数组**（不是 `{tools:[...]}`）。2026-10-02 用这招实测确认
-browser 10 + terminal 4 + document 11 = 25 个工具在运行时全部真的露给了模型。
+## 依赖版本与安装包完整性
 
-**推论**：新增一方扩展的 DoD 里，「工厂函数形状」的单测不够，必须补一条运行时验证；
-CI 里如果跑不了，就把工具名清单写进 `SHORTCUT_COMMANDS` 那样的可读表里，至少让人能一眼核对。
+`undici` 和 `typebox` 在 `package.json` 里的版本**必须和 `pi-coding-agent` 自己声明的一致**
+（现在是 `undici 8.10.2`、`typebox 1.3.27`；升级 pi 时一起改）。对不上时 pnpm 会把
+`pi-ai` 等装成两个 peer 变体，electron-builder 的 pnpm 收集器认不出这种包，**构建不报错**，
+却把它底下的依赖整片丢掉：v0.19.0 就是这样发出去的，缺 `cross-spawn`、`@anthropic-ai/sdk`
+等 9 个包，启动即崩。对不上的 `typebox` 还会让每个 `pi-*` 各带一份，白白多 4 MB。
 
-### 产品能力不许降级成 skill（fork:proma-00-skill-policy）
+两道检查，都不需要人记得去跑：
 
-参考项目 Proma 的 17 个内置 skill 里，`automation` / `in-app-browser` / `agent-collaboration` / `knowledge-maintenance` / `writing-plans` / `docx` / `pdf` / `xlsx` / `pptx` 这九条**在 Proma 全是一方代码 + 注册给模型的真实工具**（22 个 `Browser*`、11 个委派工具、7 个 automation 工具、`file-preview-service.ts`），skill 只是挂在工具上面的一层提示词。**照抄目录 = 把产品功能降级成「模型可能想起来读、也可能不读的 markdown」**，五条后果同时发生：
+- `scripts/check-pnpm-variants.mjs`（在 `pnpm typecheck` 里）：锁文件里 `pi-ai` / `pi-coding-agent` /
+  `pi-mcp` / `pi-tui` 出现不止一个变体就失败，并列出区别。
+- `scripts/check-packaged-deps.cjs`（`electron-builder.yml` 的 `afterPack`）：打出来的
+  `app.asar` 里每个包声明的 `dependencies` 都得能按 Node 的规则找到，缺一个就让构建失败，
+  这时还没有任何安装包或 Release。也可以对已安装的应用直接跑：
+  `node scripts/check-packaged-deps.cjs /Applications/FastVibe.app/Contents/Resources/app.asar`。
 
-- **不保证发生** —— 工具注册了就一定在模型面前；skill 靠模型自己想起来加载。
-- **界面里看不见** —— 用 skill 只是消息流里一条 tool call，没有状态、没有进度、没有可点的入口。
-- **拦不住** —— `tool_call` 审批引擎（`lib/approval-policy.ts`）拦的是**工具**，不是 skill；skill 里写着的 Bash 照样直接跑。
-- **没法度量** —— 没有工具名就没有 token 统计、没有 session 列表旁证。
-- **模型换了就失效** —— 提示词工程的产物绑死在特定模型的行为上。
+升级依赖后要确认：`pnpm typecheck` 通过，并且本地 `electron-builder --dir` 的日志里没有
+`cannot find path for dependency`。
 
-**动手前先分类**，别先想「写个 skill 多快」：
-- 要读写文件 / 调 API / 起进程 / **改状态** ⇒ **工具**（`lib/<name>-extension.ts` 一方扩展），skill 最多当使用说明
-- 要用户**看到、点到、审批** ⇒ **工具 + UI**，skill 无权替代
-- 纯知识 / 纯写作 / 纯方法论**且不碰任何状态** ⇒ 才轮得到 skill；用户自己领域的内容（标书、小说）也**不进** `assets/default-skills/`
+## 发版与 release note
 
-**本仓现状不用改，这就是要保持的形态。** 有状态的能力已经全是工具：`lib/subagent-extension.ts`（`Agent` / `get_subagent_result` / `steer_subagent`）、`lib/todo-extension.ts`（`todo`）、`lib/approval-extension.ts`、`lib/plan-mode-extension.ts` —— 都在 `lib/rpc-manager.ts:2417` 的 `extensionFactories` 里注册，工具名进 `get_tools` 清单、并随会话创建时的 `toolNames[]` 过档（`withExtensionTools()`，`lib/rpc-manager.ts:243`），所以可拦、可统计、有 UI。`assets/default-skills/` 只有 `guizang-ppt-skill`（靠 CLI 工具链出片）和 `skill-creator`（只产 markdown）两个，**都通过判定，保持现状、不要再加**（许可表与升级方式见 `assets/default-skills/README.md`，真实资产门禁在 `lib/default-skills.test.mjs`）。新增能力的落点是 `lib/<name>-extension.ts` + 一行注册 + `.test.mjs`，不是新的 skill 目录。
+版本号写 `package.json`，release note 写 `docs/release/<tag>.md`（如
+`docs/release/v0.11.0.md`），两者在同一个 `chore: release vX.Y.Z` 提交里。推 `v*` tag
+触发 `.github/workflows/release.yml`：每个 job 先跑 `scripts/check-release-note.mjs`
+（只查文件是否存在、是否有内容），打包产物上传进 draft Release，最后 `publish` job
+合并 mac 清单并转正。**Release 的 body 就是那个 commit 上的 note 文件**
+（`body_path`），不是 GitHub 自动生成的提交列表，也没有「事后 `gh release edit` 覆盖」
+这个步骤。note 文件本身的约定见 `docs/release/README.md`，完整流程见
+`.agents/skills/release/SKILL.md`。
 
-**新增任何能力先答三问**（写进 PR 描述，答不出「是」不许合）：
-1. 这个能力改状态吗？ → 改 ⇒ 必须有**工具名**（可拦、可统计、可审批）
-2. 用户能从界面看到它发生吗？ → 看得到 ⇒ 必须有 **UI 组件**，不能只有消息流里一条 tool call
-3. 它是提示词还是代码？ → 提示词 ⇒ 证明它**不碰任何状态**，且不是某条已有工具的使用说明
+**提交信息一律写英文**：`fix:` / `feat:` 这类前缀和 scope 照旧，subject 与正文也用英文。
 
-完整判定表与逐条依据见 `docs/proma-borrowing-plan-2026-10-02.md` §0.4。
+### 主进程文案里不要出现独立的 `import`
 
-### Built-in subagents
-- The global `builtInEnabled` switch is persisted in `~/.pi/agent/agents/settings.json` and defaults to `false` when the file or field is absent. Malformed settings fail closed; atomic updates preserve unknown fields.
-- The inline built-in extension factory is always present so reloading an existing wrapper can apply setting changes, but it registers no tools while disabled. After changing the switch, the user must explicitly reload the current session.
-- When enabled, only a recognized legacy `pi-subagents` extension that registers any reserved tool (`Agent`, `get_subagent_result`, or `steer_subagent`) is removed. Unrelated extensions remain loaded, and resolved conflict diagnostics are discarded.
-- Runtime `Agent` dispatch checks the setting again so a stale tool call cannot start a subagent after the feature is switched off.
-- See `docs/adr/0003-built-in-subagent-toggle.md` for the precedence and persistence rationale.
-- Agent profile files (`~/.pi/agent/agents/*.md`, project `.pi/agents/*.md`) are shared with other runtimes, so a save round-trips the frontmatter keys this app does not own (`name`, `allowed_subagents`, `exclude_extensions`, `disallowed_tools`, …) and carries foreign `ext:` tool selectors through. Managed keys are exactly `description`, `display_name`, `tools`, `load_skills`, `load_extensions`, `enabled`, `inherit_context`, `run_in_background`, `model`, `thinking`, `max_turns`.
-- The `skills` / `extensions` spellings pi-subagents reads are seeded on first save and kept in step while they are booleans; a hand-authored whitelist such as `extensions: pi-advisor-flow` is never rewritten, and the two flags fall back to those aliases when `load_skills` / `load_extensions` are absent.
-- An `ext:<name>` selector is resolved against names derived from the loaded extensions (parent directory, file basename, and for package resources the npm source name plus that name without its scope), not by string equality on what the profile says (`lib/subagents.ts`). A name claimed by more than one *source* is not addressable, `local` / `auto` are never names, and matching takes the longest name — so an alias or an npm scope spelling cannot slip past the `disallowed_tools` deny list, which resolves against the very same names. The parse-time filter in `parseProfileFile()` only normalizes spellings; `disallowedExtensionTools` carries the raw deny selectors to `selectSubagentExtensionTools()` at spawn time, where the loaded extensions supply the real tool names.
+`package.json` 是 `"type": "module"`，主进程产物是 ESM，于是 electron-vite 的
+`vite:esm-shim` 会往 bundle 里补一段 `createRequire` 垫片 —— 插入位置由
+**正则**（不是 AST）找出的「最后一条静态 import」决定。正则会把任意字符串字面量里
+的独立单词 `import` 当成一条 import：一句 `"…compact after import"` 就让它把垫片
+插进了 `parts.join("；")` 的引号中间，构建以毫无线索的
+`[vite:esbuild-transpile] Unterminated string literal`（指向一个 `join("`）失败。
+写主进程英文文案时避开这个词（用 `loading` / `found` 之类替代）。
 
-### MCP 运行时（fork:pr11-mcp + fork:mcp-primitives，上游 85f9cb1 + 上游 `docs/adr/0006-mcp-and-code-mode.md`）
-- **配置面已换成 pi 1.0 官方原语**（`1e4dbac0`）：`lib/mcp-config-file.ts` 的读/写/删/改走 `loadMcpConfig` / `add|update|removeMcpServerConfig`，外面仍包着自己的不变量（同目录 0600 staging + `renameSync`；解析失败只回 `malformed JSON`，绝不让 V8 的 parser 文本回显文件内容）；`lib/mcp-validator.ts` 改调 `validateMcpServerConfig`（**不再真连握手**，socket / legacy SSE 被拒，校验失败 400 不写）；`lib/mcp-auth-command.ts` 走 pi 的 `/mcp login` + `signInMcpServer` / `McpOAuthCredentialStore`。`app/api/mcp/route.ts` 是浏览器唯一入口，**响应形状与状态码一个都没变**，只把内部换成转发。
-- `lib/mcp-discovery.ts` **保留**：从 Claude Code / Codex / Cursor / VS Code 的配置里发现已配 server 并合并，是 pi 完全没有的能力，换掉 = 删功能。
-- pi 的内置 `mcp` 扩展**包不导出**：SDK 根只给 `createMcpExtension` 工厂，连接类 `McpServerConnection`、stdio transport、`mcp.json` 编辑器、OAuth 助手都是内部件。`lib/pi-sdk-internals.ts` 按 file URL 从**本进程跑的那份 SDK** 加载它们（否则 `instanceof` 对不上，server 的 stderr 会丢），并在三处拒绝重复副本：`PI_PACKAGE_DIR`、realpath 不一致、第二份 SDK / 第二份 pi-mcp。`globalThis` 缓存，一个进程只加载一次。
-- `lib/mcp-transport.ts` 是 env 清洗：stdio server 继承的是 `process.env`（含 `PI_WEB_PASSWORD`），SDK 默认 transport 原样传；本仓 `inheritEnv: false` + 洗过的环境（`PORT` / `NODE_ENV` / `NEXT_*` 由 `lib/project-command-env.ts` 洗，`PI_WEB_PASSWORD` 在 mcp 文件里自己洗，等 G7 裁定后两处应合并），引用 `PI_WEB_PASSWORD` 的条目一律拒。**任何情况都不回退到 SDK 默认 transport**。
-- 接线在 `lib/rpc-manager.ts` 的 `extensionFactories`：`...mcpBuiltinExtensionEntries()`，名字必须是 CLI 的 `mcp`，`DefaultResourceLoader` 才按 `builtin:mcp` 解析（实测 0.99.1 下 `loader.getExtensions().extensions[0].path === "builtin:mcp"`）。SDK 不具备 MCP 时返回空数组并打一行日志；本仓现在是 1.0.0，走真身那一条。
-- **运行时已通电**（`42f96a70`），ADR 0006 的两个坑这样处置：
-  · **fan-out**：`createMcpSessionLivenessGate` 复用空闲回收那一份 session-liveness 租约 —— 只有浏览器真的在看这个会话（SSE 租约）才放行；`get_tools` / 自动命名 / SSE 预热建出来的 wrapper 一个进程都不起。等待有 10 分钟上限（与默认空闲回收同档）、timer unref、可被 dispose 中止。
-  · **stop**：`startupWaitMs: 0` 绕开 `before_agent_start` 那段「最多等 10s 且不认 abort」的等待；`tool_call` 侧的等待用 SDK 自带的 `ctx.signal`。
-  · **env**：见上一条。
-  · **exposure 原样透传**（fork:mcp-native-exposure，2026-10-02）：pi **1.0** 已公开导出 `createCodemodeExtension` / `createToolSearchExtension`（`dist/index.d.ts:29,33`），本仓在 `extensionFactories` 里把它们与 `mcp` 一起注册（`mcpDiscoveryExtensionEntries()`，名字取 CLI 的 `codemode` / `tool-search`）。两枚工具**注册但不激活**，由 mcp 扩展在「真有 server 用到该曝光」时自己打开（`extensions/mcp/index.js:352-378`，按工具形状探测，不依赖注册名）。因此 exposure 语义回到 pi 原生：默认 `codemode`（工具不进模型工具表，脚本里 `searchTools()` 找）、`deferred` 走 `tool_search`、`hidden` 撤回。**降级逻辑没有删，只是变成按能力选**：SDK 拿不到这两个导出时 `loadConfig` 仍把 `codemode`/`deferred` 落成 `direct`（见 `normalizeMcpConfigForPiWeb` 的 `nativeExposure`）。这些都是运行时适配，**不落盘、不改用户的 `mcp.json`**。
-  · **`/mcp` 已经能用**（同一次发现）：mcp 扩展自己 `pi.registerCommand("mcp", …)`（登录 / 登出 / 重连 / 开关 / 改 exposure），本仓加载它即带上了这个命令。
-  · **`updateConfig` 接管落盘**（fork:mcp-auto-reload / P0-3）：`/mcp` 改 `enabled`/`exposure` 时不再由 pi 直接改文件，走本仓的 0600 + staging 原子写（`lib/mcp-config-file.ts` 的 `applyMcpServerPatch`，由 `rpc-manager.ts` 注入以避开循环 import）。`scope === "extension"` 的 server 按 pi 的约定不落盘。
-  · **改完配置自动重载会话**（fork:mcp-auto-reload / P0-2）：`/api/mcp` 六个写动作与连接目录都调 `requestMcpReload(cwd)`（global 改动 = 所有会话，项目级只影响本工作区）；**空闲的立即 `AgentSession.reload()`，正在跑的只登记、等 `finishPrompt()` 再重载**（中途 reload 会换掉工具表、打断 turn）。结果 `{reloaded, deferred}` 回给浏览器给一行反馈。
-  · 仍然**没有** per-prompt 的 `McpHost`：连接在浏览器会话打开期间常驻，靠 wrapper 空闲回收关闭。
-- 远程部署仍要单独处理：OAuth 回调只听 `127.0.0.1`；`.pi/mcp.json` 靠目录信任继承；除 host-only 名单外的宿主环境变量仍会传给子进程。
-- 契约测试 `lib/pi-sdk-internals.test.mjs` + `lib/mcp-transport.test.mjs`：SDK 不具备 MCP 时**跳过并打印原因**（`t.skip`）；SDK 1.0.0 下实测 **29 条 0 skipped**。跑法：`node --experimental-strip-types --test "lib/pi-sdk-internals.test.mjs" "lib/mcp-transport.test.mjs"`。
+## Model metadata (models.dev)
 
-### Auth and model config
-- `ModelsConfig` combines models from `~/.pi/agent/models.json` with provider auth status from pi's `AuthStorage`/`ModelRegistry`.
-- Provider listing is capability-driven, never id-driven: `lib/provider-listing.ts` decides membership from `auth.apiKey.login` / `auth.oauth` plus the stored credential type, so dual-auth providers (anthropic and github-copilot today — which providers declare both changes between SDK releases, so never assume it from an id) appear exactly once and never fall through both lists (#309). `lib/provider-listing-runtime.ts` adapts `ModelRuntime` to those pure helpers.
-- auth.json holds **one** credential per provider and `ModelRuntime.logout()` deletes whichever it is. The delete routes therefore use `removeStoredCredentialIfType()` to compare and delete under the same file lock used by pi's auth storage. `ModelsConfig` also refreshes *both* provider lists after any auth change — refreshing one leaves a dual-auth provider rendered twice.
-- OAuth/device-code/manual-code flows are streamed by `GET /api/auth/login/[provider]`; manual code responses POST back with a short-lived token stored in `globalThis.__piLoginCallbacks`.
-- API-key routes store and remove keys through `AuthStorage`. Status endpoints must never return the raw key.
-- The model test route is `app/api/models-config/test/route.ts`; `app/api/models/test/` is not a real route.
+- `scripts/sync-models-dev.mjs` downloads `https://models.dev/api.json` and emits a
+  lookup-optimised snapshot to `resources/models-dev/index.json` (gitignored, generated).
+  The upstream catalog is ~4.5 MB; the snapshot is ~0.4 MB.
+- The snapshot is `{ v, t, s, c, m, x }`: `m` is unique models as
+  `[id, name, context, output, inputMask, efforts|null, cost|null]` tuples and `x` maps
+  every normalized alias to an index, so runtime lookup is one `Map` hit (O(1)).
+  `v: 2` added `cost`, `v: 3` the price ladder, `v: 4` dropped the feature bitmask the
+  UI no longer records. Older snapshots still decode — a v1 tuple just ends after
+  `efforts`, and the decoder reads the price slot by version so a stale bundled index
+  loses detail instead of misreading a retired field as prices.
+- `cost` is `[input, output, cacheRead, cacheWrite, tiers?]` per million tokens, `null`
+  when the catalog has no non-zero price; `tiers` is the long-context ladder,
+  `[[over, input, output, cacheRead, cacheWrite], …]` ascending, and absent for the
+  majority of models that charge one flat rate. `context_over_200k` is the older
+  single-threshold spelling and is only consulted when a model has no `tiers`. A tier
+  row that omits a field (`cache_write` on most Anthropic models) keeps the entry price
+  for that field rather than reading as free.
+- `scoreOf` weights capability double and uses the ladder as a last tie-break, so a
+  reseller that copied the base rate cannot displace the vendor entry that also knows
+  the ladder — the ladder only exists on the entry that can price a long request.
+  Where two entries still differ on price, models.dev lists the same model under many
+  resellers and the winner is whichever scores highest, so a base price is a
+  best-effort guess rather than a statement about the user's gateway.
+- Prices are not display-only. `cost` is written to `models.json`, where pi's
+  `calculateCost` multiplies it by the turn's tokens; the ladder cannot be expressed
+  there (pi prices a run with one rate), so `src/main/engine/pricing.ts` picks the tier
+  from the request's prompt size whenever FastVibe reports money itself — the live
+  composer stat and 统计 — and `models.json` keeps the entry rate.
+- Prices are never user-editable, so `hydrateModels` back-fills `cost`/`costTiers` from
+  the bundled catalog for any model that has none. Without that, a `providers.json`
+  written before pricing existed leaves `models.json` with no price and every turn is
+  billed at $0.
+- `src/main/engine/models-dev.ts` reads the user-updated snapshot first
+  (`models-dev.json` in the app data dir) and the bundled one second. The snapshot is
+  refreshed hourly on the user's machine (`models-dev-refresh.ts`) and on demand from
+  设置 → 关于; both call `models-dev-update.ts`, and a click during the background fetch
+  waits for that same download. A failure is logged and retried an hour later — it is
+  not shown, and it is not polled in a loop. An overdue or missing snapshot is fetched
+  shortly after launch rather than waiting out a full hour; one already inside the hour
+  waits for the rest of it. Deleting the updated file falls back to the copy the app
+  shipped with, and a corrupt one is ignored rather than trusted. Both writers share
+  one encoder (`scripts/models-dev-encode.mjs`, also used by `scripts/sync-models-dev.mjs`),
+  so what is downloaded is the format the decoder already reads. The file is replaced
+  either way (its timestamp is what the schedule waits on), but `models.json` is
+  re-derived through `PiProcessManager.reloadModelMetadata()` only when the catalog
+  content changed — an unchanged hour must not rebind every open session. That reload
+  refreshes live sessions like a provider edit and never boots a cold engine.
+  `normalizeModelKey` must stay identical to `normalize` in the sync script.
+- Resolution order: the updated `models-dev.json`, then
+  `process.resourcesPath/models-dev/index.json`, then `resources/models-dev/index.json`.
+  Packaging must copy the directory via
+  `extraResources`. If the snapshot is missing, models fall back to defaults
+  (128K context / 8192 output / text-only) and the settings About page shows it as missing.
+- Run `pnpm sync:models -- --force` before a release to refresh the snapshot.
 
-### Completion sound
-- `hooks/useAudio.ts` stores the toggle in `localStorage` as `pi-sound-enabled` and reuses one `AudioContext`.
-- Browser autoplay policy means sound must be unlocked from a user gesture; `ChatInput` calls the unlock hook from interactive controls, and `ChatWindow` plays the tone from `onAgentEnd`.
+## 从其他 Agent 导入（设置 → 导入）
 
-### Exported session HTML
-- `/api/sessions/[id]/export` delegates to pi's export helper, then patches recursive tree helpers in the generated HTML to iterative versions so very deep linear sessions do not overflow the browser call stack.
+设置 → 导入 lists the sibling coding agents on this machine — **pi coding agent, Claude Code,
+Codex, opencode** — one row each (brand mark, name, an 导入 button). Picking a row opens a
+multi-select picker of that agent's sessions; nothing is imported until the user confirms.
+`docs/import-from-other-agents.md` is the format dossier behind every adapter.
 
-### 旧 Safari / iOS 16.2（#753）
+- **An absent agent gets no row.** `scanImportSources` skips any source whose data root does
+  not exist, so a machine without pi or opencode installed shows only the two rows that can
+  actually do something — a row whose only possible message is 「未找到数据目录」 is noise. A
+  source that *is* installed but holds no sessions still gets a row (it says 没有找到会话):
+  that is a state the user would otherwise go hunting for in the file system. If every source
+  is absent the pane says so once instead of listing four disabled rows.
 
-`/` 完全在客户端渲染，所以**一个浏览器解析不了的 script chunk 就是白屏**，而不是某个功能坏掉。三处都要修：
+- **One adapter per source, one writer for all of them** (`src/main/engine/import/`):
+  `sources/*.ts` translate a foreign store into the intermediate form in `types.ts` and stop;
+  `writer.ts` is the only place that knows the pi v3 transcript contract, and
+  `runner.ts` drives scan → read → write → register. Adding an agent means one adapter file
+  plus a line in `adapters.ts` — nothing else in the app learns how many sources exist.
+- **The writer is where the contract lives, and it is not negotiable.** The first line must
+  be the `session` header with `version: 3` (otherwise the SDK rejects the file, or a
+  migration pass rewrites every entry id); entries form a linear `parentId` chain in file
+  order, because the reader takes the *last* entry as the leaf; and a tool result is written
+  **immediately after** the assistant that made the call. That last one is not cosmetic: the
+  first converter appended results at the end of the file, the SDK still built a context with
+  no errors, and the failure only appeared when the user continued the chat and the provider
+  rejected a `tool_use` with no `tool_result`. A call with no recorded output gets a
+  synthesised error result for the same reason. Foreign thinking blocks are written **without**
+  their signature — replaying another provider's signature is rejected, and an unsigned
+  thinking block is what makes pi fall back to plain text.
+- **Import copies, never links.** A deleted conversation unlinks its `sessionFile`, so a chat
+  pointing at `~/.claude` would destroy the user's real data. Every foreign root is opened
+  read-only (Codex/opencode SQLite via `node:sqlite` `{ readOnly: true }`; the opencode DB is
+  copied aside only when a live WAL refuses the read) and each session is converted into
+  FastVibe's own `runtime/engine/agent/sessions`.
+- **Candidates are only as expensive as they must be.** The picker must open instantly, so
+  `importCandidates` skips what it cannot get cheaply: Codex leaves `messageCount` undefined
+  rather than counting 1000+ rollouts (that alone cost 4.5s), and opencode reports a message
+  count instead of summing `LENGTH(data)` over 81k part blobs (2.6s). Codex is enumerated from
+  `state_*.sqlite:threads`, opencode from its own DB, the other two by directory listing.
+- **Per-session outcomes, never all-or-nothing.** These stores are full of pruned rollouts and
+  half-written files, so a failure is collected and shown as a reason next to that row. The
+  report also lists what a conversion dropped (injected context, subagent sidechains,
+  compaction markers — never written as real `compaction` entries, which would hide earlier
+  messages from both the model and the thread).
+- **Archived sessions are folded, not dropped.** `threads.archived` (Codex, plus the
+  `archived_sessions/` directory on the walk fallback) and `session.time_archived` (opencode)
+  travel through the adapter as `archived` and reach the picker as one boolean — on the
+  author's corpus 62 of 88 Codex threads are archived, so listing them beside live work buries
+  it. The picker hides them behind a 显示已归档 switch and badges the rows; the source row
+  carries `archivedCount` so the count is visible while they are hidden. The select-all
+  checkbox carries the count in its own label (`全选（已选/可见）`, not a separate 已选
+  readout) and is scoped to the rows on screen; folding the archived away also drops them
+  from the selection, so that number always matches what would actually be imported. pi and
+  Claude Code have no such notion and their switch stays disabled.
+- **The catalog write is flushed before success is reported.** `ConversationCatalog` coalesces
+  writes on a 40 ms debounce, so `importSessions` calls `flush()` once at the end — after the
+  pane says 已导入, the chats survive a crash.
+- **`importedFrom: { source, sourceId }`** on the `Conversation` is the re-import key: the
+  picker marks sessions already taken, and the same session imported twice is visible as such
+  rather than silently duplicated. Imported chats are registered **not activated**
+  (`activate: false`) so a twelve-session import does not walk the user through twelve tabs,
+  and `titleManual` protects the name that came from the other agent.
+- **Icons** are the four brands from LobeHub (`components/agent-brand-icon.tsx`), inlined as
+  `currentColor` paths rather than `<img>` so they follow the active theme.
 
-- **不许写 RegExp lookbehind**（`(?<=` / `(?<!`）：Safari 16.4 以下解析不了，一个正则**字面量**解析不了就是整个 chunk 的 SyntaxError。改法是 sticky(`y`) 扫描 + 在起点处自己判边界：`lib/markdown.ts` 的 `replaceNotPrecededBy()`、`lib/mention-tokens.ts` 的 `tokenizeMentions()`、`lib/step-categorizer.ts` 的命令切分都是这个路子。`lib/no-regex-lookbehind.test.mjs` 全仓扫描守着这条（注释与 loader 除外）；测试里可以把 lookbehind 版本当**参照实现**留着对比，Node 能解析。
-- **依赖里的 lookbehind 换不掉**：SWC 不能降级 lookbehind，而 `mdast-util-gfm-autolink-literal@2.0.1`（remark-gfm 依赖）的 email 正则就带一个（上游明确不改）。`lib/gfm-autolink-email-loader.cjs` 把该字面量替换成运行时 `new RegExp(...)`（失败再退回 2.0.0 的无 lookbehind 版），在 `next.config.mjs` 的 `turbopack.rules` 与 `webpack()` **两边**都注册（dev 走 Turbopack、`npm run build` 走 webpack；只挂一边时 Next 16 会让 `next dev` 直接退出）。上游正则一变，loader 就抛错让构建失败。
-- **`static {}` 块**：Next 16 默认按 Safari 16.4 编译，`next/dist/client/components/error-boundary.js` 里就有一个 `static{`，16.2 会报 “Unexpected token '{'”。`package.json` 的 `browserslist` 把 safari / ios_saf 降到 16.2 让 SWC 降级它；**其余条目保持 Next 默认值**（`node_modules/next/dist/shared/lib/modern-browserslist-target.js`）。其它 node_modules 保留各自发布的语法，所以 mermaid 与 `@mermaid-js/parser`（懒加载图表 chunk 里约 270 个 static 块）写进 `transpilePackages`。
+### 同步配置到全局 pi（设置 → 关于）
 
-验证手段：loader 的 transform 函数直接跑单测（断言输出里剩下的 `(?<=` 只在 `new RegExp("…")` 的字符串里），比跑一次 build 更直接。**真机 Safari / iOS 16.2 与 Playwright WebKit 尚未验证**。
+One direction, and not a shared data root. `syncFastVibeConfigToPi`
+(`src/main/engine/sync-pi-config.ts`) writes connected providers, the default model,
+thinking level and MCP into `~/.pi/agent`. The confirm offers both: merge replaces a
+shared provider or MCP server and keeps one that exists only in pi; replace drops
+those. Sessions, UI preferences and FastVibe's own runtime stay put either way. API keys are written as pi
+config literals — `escapePiConfigSecret`, because a raw `$` is interpolated and a
+leading `!` is a shell command. Existing files are copied under `backups/` before a
+real change. A file that is not valid JSON stops the sync before anything is written.
 
-### 桌面端打包（macOS 通用包 / Windows 安装包）
+## Usage statistics (使用统计)
 
-* **通用包**：`electron-builder --mac dir --universal` 先各打一份 x64/arm64 再 lipo 合并。 合并必须声明 `build.mac.x64ArchFiles = "**/Resources/app/node_modules/**"`：node\_modules 里 平台预编译产物（node-pty/esbuild/pi-tui 的 `.node` 与 `spawn-helper`）在两架构包里字节相同， 不声明会直接报 `same in both x64 and arm64 builds` 并中止。
+Settings → 使用统计 (`components/settings/usage-settings.tsx`) is fed by
+`collectUsageStats` (`src/main/engine/usage-stats.ts`) over the `stats:usage` channel.
 
-* `mac.files`**&#x20;/&#x20;**`win.files`**&#x20;是替换而不是叠加主文件匹配器**：写了等于通用 `files` 全部失效 （表现：docs、参考项目被一起打进包，甚至因断链符号链接报 ENOENT）。平台级差异只能写进通用 `files`。
+- **Two sources, one union.** The pane is rebuilt from the engine's session
+  transcripts, *plus* `usage-ledger.jsonl`. Deleting a conversation unlinks its
+  transcript (`PiProcessManager.deleteConversation`), which used to silently rewrite
+  history; the ledger is what keeps it. A live transcript is the primary source and the
+  ledger only adds turns whose file is gone; the two are deduplicated by
+  `sessionId` + entry id (`turnKey`). Retry/edit branches in place (`navigateTree`),
+  keeping that key stable. Independent conversation forks (`engine:fork`,
+  `engine/session-fork.ts`) instead create a new v3 transcript and session id, copying
+  only the selected branch. Inherited assistant entries carry `fastvibeUsageSessionId`
+  (preserved through repeated forks), so `parseSessionTurns` uses the original usage
+  identity and never bills copied history twice. New turns use the new session id.
+  Forks preserve entry ids for reasoning timing, include pending tool results at the
+  chosen reply boundary, and never rewind workspace files. An unfinished tool exchange
+  does not block a fork: the copy pairs each call with its existing result and supplies
+  an explicit error result only where none exists, without executing any tools. Results
+  are placed after their owning assistant before the next assistant, as required by
+  pi-ai's `transformMessages`; roundtrip tests cover both SDK loading and that conversion.
+  They are ordinary catalog
+  conversations with a nonempty preview, not side chats or disposable empty drafts;
+  creation stays inactive until `#ensureSession` finishes. Isolated worktree forks are
+  refused because deleting the source would otherwise destroy the fork's shared cwd.
+- **The ledger stores raw usage, never a price.** `UsageLedger` (`usage-ledger.ts`)
+  appends one line per finalized assistant turn (tokens, model, engine-reported cost,
+  timestamp, tool-call count) as the turn lands, and `capture()` folds a whole
+  transcript in before it is unlinked (pre-ledger history included). `usage-stats.ts`
+  re-prices every turn at read time against the *current* price table, so a provider
+  edit re-prices the ledger and the transcripts alike; storing a price would freeze it.
+- **The ledger is a supplement, not the source of truth.** Tokens and cost are always
+  recomputed from raw fields, and `parseSessionTurns` is memoised on `mtimeMs` + `size`.
+  If the ledger is missing or corrupt, statistics simply fall back to the transcripts —
+  they are never *less* correct than before, only less complete after a deletion.
+- Appends are synchronous (one line per turn) so a capture that precedes an `unlink` is
+  durable before the file disappears; `flush()` is a no-op kept for the shutdown path.
 
-* `.gitignore`**&#x20;不参与打包**：`设计风格/`(66M)、`pi-codex-release/`(43M)、`pi-web-pr-inbox/` 必须在 `build.files` 里显式排除，否则每个包装进 113M 垃圾。
+## 会话是否在运行（`conversation_running`）
 
-* `next.config.mjs`**&#x20;不能改回&#x20;**`.ts`：TS 配置会让 `next start` 运行时需要 `@next/swc-*`，而 npm 只装 构建机架构那份 → Intel/Windows 包启动时联网下载（离线直接挂）。保持 mjs 后可整包剪掉（-40M）。 剪掉 `@img/sharp-*` 同理安全（应用代码不 import，实测 `/_next/image` 仍 200）。
+Two different things can be in flight in one conversation, and the sidebar's 运行中 mark
+means either: an agent **run** and a **compaction**.
 
-* **Electron Framework 的 85 种&#x20;**`locale.pak`（每个 524K）在框架 Resources 里，`electronLanguages` 管不到它，要自己删；只留 en/en\_GB/zh\_CN/zh\_TW 等十种。
+- A run is `agent_start` → **`agent_settled`**, not `agent_end`. The SDK emits `agent_end`
+  before it does everything else it still owes the same run: retrying a failed request
+  (after an exponential backoff), auto-compacting, or continuing with messages an
+  `agent_end` handler queued (`ctx.sendMessage` from a goal handler). Each of those
+  then starts another `agent_start` *inside that same run*, and only `agent_settled` —
+  emitted once, at the end of `_runAgentPrompt`'s post-run loop — means it is over (it is
+  the same condition as the SDK's `session.isIdle`). Ending the flag at `agent_end` made
+  the mark, the footer and the stop button go idle for the whole backoff/compaction
+  window. `PiProcessManager` sets `#running` on those two events and nothing else;
+  `apply-engine-event.ts` keeps the renderer's `streaming` on the same pair.
+- **A resume is a run too.** `continueTurn` (the composer's 继续) drives the resumed turn
+  through the SDK's own run wrapper — `_runAgentPrompt([])`, private because 0.85.1 has no
+  public entry point for continuing an interrupted turn — and not the bare
+  `agent.continue()` loop, because the wrapper is exactly where `agent_settled` and the
+  post-run policy live. Calling the raw loop left a resumed run with nothing to clear the
+  flag *and* with an `agent_end` claiming `willRetry` for a retry nothing would perform, so a
+  502 mid-resume stuck the chat on 停止 (sidebar 运行中, keep-awake held, sends queued instead
+  of sent) with no 继续 control, until some unrelated run settled it.
+- The composer's 继续 control reads **`EngineSessionState.canResume`**, which Main derives
+  from the transcript (`canResumeRun`, `src/main/engine/resume.ts`) — the last message is an
+  assistant that did not finish (`error` / `aborted` / `length`), or a user / tool result no
+  reply ever followed. Deriving it is the point: the only event that reports an abort is a
+  *transient* stream payload, so a chat the user was not looking at, a reloaded window, or a
+  socket that was away had no 继续 at all — and the dead-code half of this, an `agent_end`
+  whose `stopReason: "aborted"` never survived `slimStreamEvent` because `errorSummary`
+  kept only `error`, meant a user's own 停止 *never* offered one. `resume.ts` mirrors what
+  `continueTurn` does to re-enter the loop, so the button and the call cannot disagree; the
+  renderer pairs it with `working` because a run in flight is resumable by that same rule.
+  The store copies it under the same ownership rule as the run flags (`canResume`), so a
+  side chat's state reply cannot put 继续 on the main composer's send button.
+- `runInterrupted` (`stores/session.ts`) is now only the *live event*'s verdict that a run
+  stopped early — a terminal `agent_end` (`error` / `aborted`), or an `auto_retry_end`
+  reporting failure with no such verdict on record (a retry chain the user stopped while it
+  waited out the backoff, which the SDK ends after already dropping the failed attempt from
+  agent state, so no errored message and no `agent_end` ever describe it). Its nullness
+  tells that cancelled retry chain from one whose failure `agent_end` already reported;
+  `agent_start`, `turn_start` and a fresh prompt clear it again. **It does not pause the
+  queue.** Main owns durable queue pauses, and the renderer adopts only revisioned
+  `queue_changed` / queue-call snapshots through `setQueueState`. Deriving another
+  pause on `agent_settled` can overwrite a newer resume with an old failure. Likewise,
+  a pause on an empty queue is not a reason to enqueue fresh input: once the chat is
+  idle, Send starts a new turn even after an error. Existing queued items still retain
+  their order and explicit resume policy (`lib/composer-race.ts`). Nor may such a pause
+  catch a Send made *during* a run: Stop latches `stopped` even over an empty queue (so a
+  Send racing the Stop is held), and every new run releases a latch that holds nothing
+  (`releaseEmptyPause` on `agent_start`), not just a run started by `prompt()`. Before
+  that, Stop → 继续 → Send held the message under 「由于你中断了当前响应」.
+- A compaction keeps its own flag `#compacting`, for when it is not part of a run at all:
+  `/compact`, and the threshold check a fresh prompt runs before it is sent. It is the only
+  thing that can say such a chat is busy, and it is used to re-serve the 正在压缩上下文 card.
+  It is deliberately *not* folded into `#running`, because `#isLive()` uses that to decide
+  whether a steer is drained mid-turn or a fresh turn is started — a standalone compaction
+  must not pass for a live run there. `PiProcessManager` broadcasts the union of the two as
+  `conversation_running`.
+- `EngineSessionState.running` is the run alone; `isCompacting` is the other half, and the
+  renderer unions them (`working()` in `stores/session.ts`) wherever it writes the sidebar
+  map.
+- **One busy state for every mark.** The per-conversation map (`running[id]`, written from
+  `conversation_running` and from the events' own verdict) is what *every* 「this chat is
+  working」 display reads: the sidebar's `RunningMark`, the composer's stop button and
+  extension badges, `GoalPanel`'s disabled state, and the todo panel/card
+  (`useConversationWorking()`; the side pane reads `running[tab.conversationId]`). Nothing
+  keeps a second copy — the store has no `compacting` field any more — and `Escape`-to-stop
+  uses the same gate as the button it clicks. A delegated run's tab is the same idea one
+  level down: `Main` finalises it when the sub-session's prompt has settled and its
+  transcript/state have been cached, then publishes the terminal lifecycle.
+- The renderer's `streaming` is deliberately *not* that mark: it means 「a run is in flight
+  for the chat on screen」, and is read only where that is the question — the transcript's
+  caret / working row / per-message footer, and whether a send is queued (steer or
+  follow-up) rather than starting a turn (the 加入队列 / 发送 label, the placeholder, the
+  queue drain). `streaming ⇒ working` always: a run is a subset of working, and a
+  `conversation_running: false` for the chat on screen clears `streaming` in the same batch,
+  so the two can never be seen to contradict each other.
+- **The transcript's working row is gated on the reply's tail, not on whether it has text.**
+  `WorkingStatus` (`components/chat/message-list.tsx`) renders 「正在工作 / 继续工作」 while `streaming`
+  and *nothing live is at the end of the reply* — where 「live」 means a trailing text part (its caret
+  blinks), a trailing thinking block (it shimmers 正在思考), or any tool still `running` (its spinner).
+  The old gate was `!hasText`, which showed the row only in a reply that had not written a word yet:
+  a run that had already produced prose then went quiet for the whole tool→model boundary, because
+  the tool cards had settled and the next token had not arrived — a transcript of finished rows that
+  read as a hang. The point is that a live element is *last*, so a reply whose text is followed by a
+  running tool still shows only the spinner.
+- **`engine:prompt` answers 「sent」, not 「finished」.** It resolves when the SDK accepts the
+  prompt (`preflightResult(true)`, `pi/prompt-acceptance.ts`) and rejects only when it was
+  refused; a run that fails afterwards is logged and reaches clients through its events. So a
+  rejection is the one case where the caller rolls back the optimistic row and hands the text
+  back to the composer. It used to stay open for the whole run, and over an SSH project its
+  120s call deadline — or a dropped socket — rejected it mid-run: the sent message came back
+  into the composer of a chat that was still working. Run-length calls (`prompt`,
+  `prompt-conversation`, `continue`, `compact`) carry no remote deadline either
+  (`callTimeoutFor`); a dead host still ends them through the SSH keepalive.
+- **Main owns the renderer's mark.** `conversation_running` is sent on every change (for
+  background chats too), and only Main may lower it. A transcript read must not: `setMessages`
+  leaves the run flags alone, because `reloadActiveMessages()` fires at every `agent_end` /
+  `compaction_end` and its full-transcript reply can land long after the engine moved on —
+  clearing them there showed a working chat as idle in the middle of its next request.
+  Optimistic writes stay local (`addUserMessage`, `setStreaming`) and are undone by
+  `setSession` / `dropEmptyAssistant`.
+- Every state reply carries `conversationId`, and `App.tsx` drops a `getState`/`getMessages`
+  answer whose conversation is no longer on screen — a late reply must not light up (or
+  repaint) the chat the user just switched to. Teardown paths call `#clearBusy(id)`, since a
+  session thrown away mid-run never emits `agent_settled` and would spin forever.
 
-* **打包构建必须走项目自己的 build 脚本**（`npm run build` = `next build --webpack`）：裸 `npx next build` 在 Next 16 是 Turbopack，会把 serverExternalPackages 外部化成 `.next/node_modules/<pkg>-<hash>` 副本、并给每条路由写 5M+ 的 `*.nft.json`——v0.1.8 DMG 从 218M 涨到 380M 就是技能脚本裸跑 Turbopack 造成的（pack-mac-dmg.sh Step 2 已改为优先项目 build 脚本）。
+A compaction's own payloads only reach the renderer while its conversation is on screen, and
+it has no transcript entry until the summary lands — so `#messages()` re-serves the running
+「正在压缩上下文」 card from `#compacting` for an in-flight compaction. Without it, switching
+away and back mid-compaction lost the card until the summary was finally written.
 
-* **`.next/node_modules` 哈希副本不进包，以符号链接注入**（`scripts/after-pack.mjs`）：electron-builder 不带符号链接打包，files 的 `node_modules/**` 规则罩不到 `.next` 下面，把解引用副本 cpSync 进包等于双份 pi-coding-agent（+400M）。副本与顶层包**逐字等价**（文件清单 diff 验证，只多 8 个 `.bin` 垫片），所以剥掉 `-<16hex>` 哈希后缀 `symlinkSync` 到产物自带真包即可，真包缺失才退回复制；`build.files` 里 `!.next/node_modules/**` 让副本根本不进包。`mac.x64ArchFiles` 因此多了 `**/Resources/app/.next/node_modules/**`（universal 合并要求两架构同文件都要声明）。
+## 排队消息的「立即发送」
 
-* **嵌套 `@esbuild/*` 按目标平台裁剪**（afterPack）：pi-coding-agent 内嵌全部 26 个平台二进制（~250M），运行时只加载本平台一块；`build.files` 只排除顶层 `node_modules/@esbuild/**`（同一份清单还要打 win 包，平台裁剪只能放 afterPack，按 appOutDir 目录名后缀判定，认不出就不裁）。
+立即 on a queued row means: stop the reply in flight and send this row as the next turn.
+Between the two runs there is a real gap — the old run has to settle, and the new prompt
+still passes session setup, input hooks and memory retrieval before `agent_start` — and
+everything that went wrong went wrong in that gap, on three layers at once.
 
-* **`*.nft.json` 是纯打包垃圾**：Next 文件追踪清单只在 standalone 拷贝阶段用，运行时不读；Turbopack 产物里每条路由 5.5M（0.1.8 实测占 280M）。`build.files` 已排除 + afterPack 与 `--prune` 双保险。
+**Main (`sendQueuedNow`, `pi/run-verdict.ts`, `pi/send-now.ts`)**
 
-* 体积基线：app 756M → 通用 DMG **191M**（ULMO）；Windows nsis **144M**。大头是 Electron 框架 （双架构 418M，单架构约 208M），再小只能改成 Next standalone 输出。v0.1.8 复盘：技能脚本裸跑 Turbopack 让 arm64 DMG 涨到 380M（app 1.3G）；改回 webpack 构建 + afterPack 符号链接注入 + esbuild 平台裁剪后 **arm64 DMG 116M**（app 323M），低于 0.1.7 的 218M（见 git log fork:pack-size）。
+- **A verdict that was asked for survives `turn_start`.** Aborting a run in the middle of a
+  tool call makes the agent loop close that tool's turn and open one more (`turn_start`)
+  before it reads the abort and ends. Clearing `#interruptedRuns` there left the aborted
+  reply to be read as a failure: 立即 paused the queue with 「当前响应出错」 over the very
+  message it was sending and raised a 任务出错 notification, and a plain 停止 was filed the
+  same way. Only a verdict read off a reply (`error`) is dropped by a new attempt; `stopped`
+  and `handoff` are consumed by `agent_settled` alone — and by whoever set one with no run
+  live to read it (`abort()` on an idle chat).
+- **The stop ends the run, not just the request.** `agent.abort()` has nothing to abort
+  during a retry backoff or a compaction, and after an aborted request the session carries
+  on with whatever was queued for it (a goal's continuation, a steer). `#interruptForNextPrompt`
+  calls `session.abort()`, and answers parked extension prompts first, as `abort()` does.
+- **A span keeps the chat working across the gap** (`SendNowSpans`). `#working()` is `#busy()`
+  or an open span, and it is what a client is told: `conversation_running`,
+  `EngineSessionState.running`, the snapshot. `#busy()` stays the run-or-compaction half,
+  because the queue drain and steering read it and the gap is exactly when a prompt *may* be
+  submitted. A span ends when the run it waits for starts, or when it cannot: the queue is
+  paused, the row is gone, or a drain finished with nothing further scheduled. That is
+  checked where the queue changes (`#emitQueue`) and where a drain ends, not at each place
+  that could cause it.
+- **The clicked row stays next until a drain can act on it.** A drain that found the chat
+  busy used to forget `#preferredQueueIds` on its way out, so the run's own settle — which
+  drains with no preference — sent the head of the queue instead. The pause, the preference
+  and the span are all set *before* the run is stopped, because its settle acts on them.
+- Two marks ride the stream: `replaced: true` on the `agent_end` / `agent_settled` of the
+  run that was stopped for a message, and `queueId` on every user `message_start` (`null`
+  for a turn that is nobody's row).
 
-* **`pack-mac-dmg.sh` 必须传 `--compression maximum`**（ULMO/lzma）。技能默认是 `normal`（UDZO/zlib），同一份 app 打出来 **160M vs 118M —— 白胖 42M**（实测 2026-10-08，0.10.0-beta.2）。判别办法：`hdiutil imageinfo X.dmg | grep '^Format:'`，基线是 `ULMO`（压缩比 ~0.216），`UDZO` 就是选错了（~0.291）。ULMO 需 macOS 10.15+ 挂载，而本 app 的 `minimumSystemVersion` 本来就是 12.0，没有额外代价。
+**Renderer (`sentNow`, `applyAroundSentNow` in `stores/session-reducer.ts`)**
 
-* 打包后必做三件事：`env -u ELECTRON_RUN_AS_NODE` 启动冒烟（`/api/home` 200）、`hdiutil verify`、 以及**真 Electron 窗口里的点击验证**（顶栏按钮是否被 `.desktop-drag-handle` 盖住—— 手柄是绝对定位元素，会绘制在 static 按钮之上，详见 `app/fork-ui.css`）。冒烟不必退出正在使用的正式实例：`electron/main.js` 支持 `PI_WEB_USER_DATA_DIR` 覆盖 userData（单实例锁按 userData 路径判定），打包技能 Step 6 自动走它。
+- The click draws the turn at once: a `queue:<id>` prompt and a `queue-reply:<id>` reply.
+  **One at a time** — a second click takes the first back, since Main sends whichever was
+  asked for last. A slash line is not drawn (`/compact` waits for the run and starts no turn).
+- **What the stopped run still says goes above the turn.** The transcript reducer addresses
+  "the trailing reply", and the click put an empty one there while the old run was still
+  talking: its last deltas, its tool results and the 已中断 of its own abort landed in the
+  new turn, then vanished at the next transcript read. While `sentNow.over` is set, events
+  are applied to the transcript above the turn; it is released by that run's
+  `agent_settled` (or the `compaction_end` of a standalone compaction).
+- **The turn is taken back whenever Main is not sending it**: the chat goes idle with the
+  prompt still unadopted, the queue is paused after the click, the row leaves the queue
+  undelivered, a user echo names another row, or the call itself is refused. Taking it back
+  is always safe — the path that draws nothing is complete on its own.
+- `queued` is Main's queue whole. The drawn row is left out where the tray is drawn
+  (`visibleQueue`), not out of the store: a Send made meanwhile has to queue behind it.
+- A transcript read keeps the drawn turn only for its own conversation; the read that opens
+  another chat used to carry it across.
 
-## Pi Session File Format
+The reply that was cut keeps its 已中断 mark, as it does after 停止: it is where that reply
+stops. What must not appear is an interruption on the *new* turn, or a paused queue.
 
-Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
+## 折叠运行过程
 
-```jsonl
-{"type":"session","version":3,"id":"<uuid>","timestamp":"...","cwd":"/path","parentSession":"/abs/path/to/parent.jsonl"}
-{"type":"model_change","id":"<8hex>","parentId":null,"provider":"zenmux","modelId":"claude-sonnet-4-6","timestamp":"..."}
-{"type":"message","id":"<8hex>","parentId":"<8hex>","message":{"role":"user","content":"..."}}
-{"type":"message","id":"<8hex>","parentId":"<8hex>","message":{"role":"assistant","content":[...],...}}
-{"type":"message","id":"<8hex>","parentId":"<8hex>","message":{"role":"toolResult","toolCallId":"...","content":[...]}}
-{"type":"compaction","id":"<8hex>","parentId":"<8hex>","summary":"...","firstKeptEntryId":"<8hex>","tokensBefore":N}
-{"type":"session_info","id":"...","parentId":"...","name":"user-defined name"}
-```
+A finished run's thinking and tool calls always fold behind one collapsed 「用时 …」 row,
+leaving the reply written after the last tool call on screen. It is modelled on zcode's
+turn-history fold, including its rule that the fold is gated on the turn's own terminal state.
+There is no setting for it — 显示思考过程 and 显示消息时间 were removed with it; thinking and
+timestamps always show.
 
-`entryIds[]` in `SessionContext` is a parallel array to `messages[]` — maps each displayed message back to its `.jsonl` entry id, used for fork and navigate\_tree calls.
+- **The row is only drawn when the run is settled *and* wrote an answer — i.e. when the fold
+  can actually happen.** A run still in flight, one that stopped on a tool call, and a failed
+  one all render the plain transcript, with no 「用时」 row at all. That is the point: such a row
+  could not be collapsed (it would hide the run's only output), and a header that cannot be
+  collapsed over content the reader is watching reads as broken. zcode draws one there but
+  labels it 「工作中/已停止」; hiding it is the simpler answer.
+- **Nothing is folded mid-run, because the final answer is not knowable mid-stream.** The model
+  may write prose, call another tool, then write again, so any rule keyed on 「the tail part is
+  text」 guesses and unfolds again at the next tool call. Settling — `streaming` going false — is
+  the confirmation, and it is the same verdict the sidebar's 运行中 mark uses (`agent_settled`).
+- **The settled split is anchored on the last process part, not on 「the last text」.** `cut =
+  index + 1` for the last part whose kind is `thinking` / `tool` / `group`; everything up to and
+  including it folds, everything after it is the answer. That point is a fact already on screen,
+  so the split needs no guess even for a reply whose prose arrived in several pieces.
+- **Both halves must be non-empty.** A reply that never thought or called a tool has nothing to
+  hide; one with no prose after its last tool call has no answer to leave out. Either way there
+  is no fold, and a body that would render nothing (only hidden thinking) folds nothing either.
+- **It is a render-time view, not a transcript change.** `RunCollapse`
+  (`components/chat/run-collapse.tsx`) wraps the parts `groupParts` already produced, so
+  the fold re-uses the same thinking / tool-card / model-divider renderers as the unfolded
+  transcript. It is not a preference, so nothing has to round-trip to the engine.
+- **The header's 用时 and the footer's 耗时 are two different numbers, on purpose.** 耗时 is the
+  turn's total, first round-trip's request start (`createdAt`) to the instant its last entry was
+  persisted (`completedAt`, added by `sessionCompletionTimes` in `process-manager.ts`). 用时 is
+  the work the fold hides: the same start, but ending where the reply's **final message began**
+  (`messages[last].createdAt`). An engine message is one model request, so that boundary is
+  exactly where the last tool call finished — the answer's own generation is not part of the
+  process. A run that produced everything in a single request has no boundary to measure and
+  falls back to that request's span. Both survive a reload, and because the fold only exists
+  once the run has settled there is no live-ticking case. Both go through `formatDuration`
+  (`lib/time.ts`), the app's only duration format (`3 分钟 41 秒`), so the two numbers read in one
+  notation — a compact `3m41s` beside a `3 分钟 41 秒` was two spellings of the same unit. The
+  compact formatter it replaced is gone, and `formatDuration` returns `""` for a null span, so
+  the statistics popover spells out its own `—`.
+- **Collapsed by default, and entirely the reader's afterwards** — nothing re-folds it under
+  them. Every transcript draws it the same way: the main thread, 辅助对话, and 子 Agent.
 
-***
+## 思考耗时（思考块的「持续了 N 秒」）
 
-## CSS Variables (`app/globals.css`)
+A thinking block's duration is measured, not derived from the transcript: pi records one timestamp
+per message (its request start), so Main times each block as it streams and files the bounds in
+`runtime/engine/reasoning.json`, keyed by the session entry id the message becomes
+(`ReasoningStore`, `#timeReasoning`). `#messages` hands those bounds to `mapEngineMessages`, which
+stamps them onto the thinking parts, and the renderer derives the elapsed value at render time —
+which is why an open block keeps counting from its real start across a chat switch or a reload.
 
-```
---bg --bg-panel --bg-hover --bg-selected --border
---text --text-muted --text-dim
---accent --user-bg --tool-bg
---font-mono
-```
+The bounds can be missing, and the transcript must still say something:
 
-### 设计真值：FastVibe 原实现（2026-10-13 起，**批次 H/L 进行中**）
+- **A provider that never opens with `thinking_start`.** `#timeReasoning` opens a block on
+  `thinking_start`, so a stream that only ever sends `thinking_delta` used to leave `blocks` empty
+  — and at `message_end` the message was filed with nothing. The whole run then read 「思考」 with
+  no duration, in every reload, forever. Blocks are now opened lazily on the first delta (and for
+  a second segment that arrives with no start event), so this cannot happen again. Real sessions
+  in the wild have this shape: one had 229 thinking messages with no bounds at all.
+- **Transcripts written before, or by a path that did not time them.** An imported chat, and
+  any transcript from a build that predates the timing pass, carries no bounds.
+- **A delegated run is timed too.** `#timeReasoning` is keyed rather than conversation-bound and
+  is driven for a sub-session as well, filing into `#subagentReasoning`
+  (`Map<subagentId, Map<entryId, bounds>>`) instead of the persisted `ReasoningStore` — a
+  sub-session is `SessionManager.inMemory`, so its entry ids name nothing once the run ends and
+  must not be written to `reasoning.json`. The bounds ride the *inner* event of `subagent_event`,
+  because the renderer re-applies that object (`applySubagentStream` unwraps `event.event`).
+  Without this a subagent's thinking row fell back to the whole round-trip while it streamed and
+  had no timing at all until that round-trip ended.
 
-**用户 2026-10-13 裁定**（原话：「所有页面布局、设计啥的也请你帮我按照 `/Users/yingjing/Downloads/fastvibe-main` 这个帮我调整，不需要搞 V6 啥的了，全部抄他的……每一页都抄他的」）：
+So `ChatMessageRow` falls back to the span of the **round-trip the block came from**
+(`messages[].createdAt` → `completedAt`) whenever a thinking part has no bounds of its own: the
+row then reports that whole request's time, an upper bound rather than the thought alone, instead
+of a bare 「思考」. Measured bounds always win. The owner lookup is a `Map<MessagePart, ChatMessage>`
+built from the row's messages, which works because `mergeAssistantRun` passes thinking parts
+through by reference.
 
-视觉真值从「本仓 V5/V6 画板」换成 **`fastvibe-main` 的源实现**，**连技术栈一起抄**
-（Tailwind v4 + shadcn/Base UI + Hugeicons + 它的 24 套主题）。执行台账：
-`docs/fastvibe-imitation-plan-2026-10-13.md`（批次 H 换基座 → L 逐页迁移 → L10 清场）。
+## 上下文用量（composer 的上下文环）
 
-**新代码怎么写**（批次 L 完成前）：
-· 组件能从 `components/ui/`（35 个 shadcn 件，H2 已就绪）直接用的就直接用，不重写；
-· 图标用 `<HugeiconsIcon icon={X} />`（`lib/hugeicons-map.ts` 有 lucide 名 → Hugeicons 的映射）；
-  过渡期旧的 `<i data-ico>` 仍可用（H3 已把 hydrator 换成 Hugeicons 数据源）；
-· 类名用 Tailwind 工具类 + `cn()`（`lib/utils.ts`）；旧 `d-*`/`m-*` 共存但**不新增**；
-· DOM / 间距 / 层级照 FastVibe 对应源文件写（计划 §7 有文件索引）。
+The composer's context ring and its popover read `session.contextUsage`, which only a state
+reply carries — the engine derives it from the messages it holds (`getContextUsage()`), never
+from an event payload. So it is as fresh as the last `reloadActiveState()`.
 
-**旧体系的现状（先共存、最后统一清）**：
-· `design/v5/`、`design/v6/`、`design/pi-web-design/` 的**文件仍在**，产品里 `d-*`/`m-*` 也仍在用；
-· 但 `design:v5*` / `design:v6*` / `verify:boards*` 这些命令**已停用**
-  （指向 `scripts/deprecated-board-command.mjs` 的说明桩，退出码 0，不报错）；
-· **画板不再是验收依据**，也不再新增画板；
-· 全部页面迁完后由 **L10** 删文件、删类名定义、删画板测试。
+- **A run grows the context at every turn boundary, so `turn_end` refreshes it.** `turn_end`
+  fires after each assistant message — every LLM round trip, tool calls included — and the
+  agent immediately feeds the results into the next turn, so the window moves several times
+  per run. Only the run boundaries (`agent_end` / `agent_settled` / compaction ends) used to
+  re-read it, which left the ring frozen at whatever the chat was opened with for the length
+  of a long task. Switching away and back appeared to "fix" it because `conversations.open`
+  answers with a fresh `#state()`.
+- **Not `message_end`.** An assistant message that only requested a tool call has no usage
+  yet, and the tool result that follows does not move the window on its own; refreshing per
+  message would re-read the whole transcript several times a turn for a value that cannot
+  change. `turn_end` is the first point where the turn's usage (and its tool results) are in.
 
-**现在的验收方式**：
-· **规格** —— 打开 fastvibe-main 对应源文件，先读再写；
-· **对照截图** —— `npm run fastvibe:shots`（本仓标准视图，输出 `design/fastvibe-shots/`，
-  内含与 FastVibe 源文件的对照表）；不自动做像素 diff（两个技术栈渲染必然满屏差异，
-  那种门禁只会变成噪音）；
-· **通用门禁** —— `npm run check:design`（style-literals / motion-tokens / icons /
-  platform-breakpoints / material-boundaries / token-consumers / touch-targets）；
-· **结构守卫** —— `npm test` 里钉产品 DOM 结构的那些 `.test.mjs`。
+## 顶层错误边界
 
-**仍然有效的不变式**（与设计体系无关，换了真值也不动）：
-· 浮层不许挂 `backdrop-filter`（会成为 fixed 后代的包含块）；
-· `lib/pi-web-preferences.ts` 是偏好唯一写入者；`lib/session-liveness.ts` 是忙碌信号唯一入口；
-  `lib/path-security.ts` 是安全边界；
-· `docs/patches/` 补丁台账机制保留（它是 fork 维护机制）。
+`components/error-boundary.tsx` 包在 `main.tsx` 的最外层。渲染期抛错会卸载 React 拥有的
+整棵树，而这个项目真的发生过：空模型列表下把 group label 画在 group 之外，Base UI 抛
+`MenuGroupContext is missing`，整个窗口变白；typecheck 看不见（它是运行时不变式，不是类型错），
+子树也拦不住。边界只做两件有用的事：说清楚出了什么错（含报错文本），以及给一条出路
+（重新加载界面；会话与运行都在 Main，重载不丢东西）。错误也写进 `logs/renderer.log`
+（`logError`）——React 接管的抛出不会到 `window.onerror`，否则最重要的那次崩溃反而查不到。
 
----
+## 侧边搜索（命令面板）
 
-### 【已停用】设计系统 V5 / V6（历史，批次 L10 后删除本节）
+侧边栏的 搜索 按钮与 `mod+k` 打开同一个命令面板（`components/layout/command-palette.tsx`），
+它一次搜四样东西：会话正文、会话标题/预览/项目名、快捷操作、设置页。
 
-**新代码只写 V5 的类**：`d-*`（Web，`design/v5/web/system.css`）与 `m-*`（PWA，`design/v5/pwa/system.css`）。
-旧的 `pw-*` / `fork-*` / `--n-*` / `--ds-*` 属于 **v1–v4 历史层**，只许维护不许新增；
-改动产品样式时，**照 `design/v5/` 的画板抄 DOM**，不要照着旧 `pw-*` 继续加。
-理由与证据见 `design/v5/LANDING.md §0`：历史上三次落地失败（两套 DOM / 加类不换 DOM / 两个令牌文件），
-编译器、单测、人眼评审**全都绿**，因为缺的是仲裁者。
+- **正文命中由 Main 提供，标题与预览在渲染层匹配。** `conversations:search` →
+  `engine/conversation-search.ts` 逐个读 `sessionFile`，只取 `type: "message"` 行里所有
+  `text` 字段（用户消息、回复正文、工具输出；thinking 与系统提示不在内），返回第一处命中
+  附近的摘要。标题/预览/项目名是渲染层拿 catalog 本地匹配的——刚发出的提示词只有 `preview`，
+  转写搜索对它还没话说。两路取并集。
+- **命中要看得见，这就是 `lib/search-highlight.ts` 存在的理由。** 结果行把关键词画在标题里、
+  也画在第二行摘要里（`<mark>` + `bg-warning/30`，不用实心色块：菜单行上的实心高亮会被读成选中）。
+  匹配规则与搜索本身同一套：**字面量、大小写不敏感**，所以 `foo.bar` 是那个字符串而不是正则；
+  折叠后长度变化的字符（土耳其语 `İ`）直接退化为纯文本，否则索引会整体错位。摘要最多标 3 处——
+  单字符查询几乎是每一行的子串，标满就等于把整行涂掉。
+- **摘要一律绕开命中处裁切。** Main 已经裁好它那一份；渲染层自己匹配 `preview` 时必须
+  用同一个 `clipSnippet`（前 24 / 后 40 字符），否则命中落在预览中段时，画面上就是开头四十个字、
+  里面什么都没标。
+- **没输入时**只列最近 9 条有 preview 的未归档会话，并带 `mod+1…9` 快捷键；输入后标题命中
+  与正文命中混在一起，第二行优先给摘要（那是唯一能看见「为什么命中」的地方），没有摘要才退回项目名。
+- 限制：单文件 >2MB 跳过、最多 20 条命中、按文件顺序而非相关度排序、纯子串不分词。
 
-* **结构**：`base.css`（角色令牌 + 13 组共享动效关键帧）· `web/{tokens,system}.css` · `pwa/{tokens,system}.css`
-  · `web/boards/*.html`（桌面 1440×900）· `pwa/boards/*.html`（手机 390×844）· `assets/demo.js`（12 类声明式交互接线）
-  · `README.md`（画板清单）· `LANDING.md`（**落地契约，常驻**）· `DIVERGENCE.md`（抄了什么 / 不抄什么）
-* **两条形态刻意不同名**：Web 只挂 `base.css + web/`，PWA 只挂 `base.css + pwa/`；
-  同时挂两套 = 类名冲突 + 令牌覆盖，就是老问题换名字再来一次
-* **四条门禁（都可复算，不靠人记）**：
-  - `npm run design:v5` —— 静态：未定义令牌 / 未定义类 / 前缀混用 / 图标名 / emoji / 内联设计值 / **比例令牌带单位**（v4 基座就中过这条，六档字阶静默全死）
-  - `npm run design:v5:land` —— **落地清单**：每张画板哪些类还没进产品（这就是「我说一句话就启动全部改版」的数据源）
-  - `npm run design:v5:shots` —— 真浏览器逐张出图 + **每个交互件真点一遍**（要 `cd design && python3 -m http.server 39411`）
-  - `node scripts/board-diff.mjs <spec>` —— 画板 vs 产品逐选择器对几何（spec 的 `board` 可写 `v5/web/boards/…`，三代画板同一通道）
-* **触发口令**：用户说「按 v5 设计落地 / 启动改版 v5」→ 先读 `LANDING.md`，再跑 `design:v5:land` 拿清单，逐项走四步法，每项过六件套验收
-* **BoardUI 采纳清单**（MIT，抄规格不抄实现）在 `design/v5/DIVERGENCE.md §A`：采纳 11 组动效关键帧 +
-  输入框环绕光带 + 四态思考指示器 + 行展开收起；**拒绝** Tailwind v4 / React Aria / 它的 400 令牌 —— 引入即多一套样式来源
+## 重试与文件回退（checkpoint）
 
-### 【已停用】设计系统 V6：`design/v6/`（2026-10-12 起，毛玻璃版；已被 FastVibe 真值取代）
+「重试这一轮」回退的是**对话**（`navigateTree`），工作区文件原本留在原地，于是重试是在
+上一轮已经改过的代码上重跑——第二次看到一个半应用的编辑，或者一个因为文件已有新内容
+而变成空操作的 `write`。两者都是静默的。
 
-V6 是 v5 的**并行副本**，换两件事：① 材质 —— 页面底换成内置色场 `--nx-canvas-field`，壳面（侧栏 /
-导轨 / 顶栏 / 输入框）在其上 `blur(40px) saturate(150%)` 半透明，**开箱即玻璃**；转录与卡片仍是近实底的
-`--nx-panel`（§AI）；② 三处形态按 deepseek-harness 改版（用户 2026-10-12 口令，**fork:v6-process**，
-§AJ）—— 过程从「竖线时间轴」改成「33px 折叠摘要行 + 24px 行式步骤」、用户气泡从强调色铺底改成
-`--nx-user-bubble` 淡蓝底深字、转录列宽 760 → `--nx-chat-col: 920px`（输入卡恒比列宽 + 32）；
-另加 PWA 渐隐顶栏去双层叠加（`.m-top` 不带底，渐隐只留 `.m-fade` 一层）。
-材质规格台是 `design/v6/web/boards/D-38-v6-glass.html`。
+- **捕获发生在写入之前。** 引擎在 `tool_execution_start`（工具真正执行**之前**）用
+  `readBefore` **同步**读一遍原文，每个文件每回合只读一次（第二次再读就是第一次编辑的
+  产物了），然后串行落盘（`captureCheckpoint` 里有 `git rev-parse`，并发会乱序覆盖）。
+- **回合边界由 `#beginTurn` 划，不由 `agent_start` 划。** 一个用户回合会发多次 `agent_start`：
+  重试、压缩后继续、`agent_end` 排队的继续、goal 模式的下一轮。在那里清空累加器会把
+  本回合写过的文件重新读成「原文」，并在一个只读回合后把上一回合的文件表当成本回合的。
+  `continueTurn` 不划界（它是同一个回合的续跑）。
+- **回退是问出来、不是自动的。** `retryRewind` 弹窗列出文件；「保留文件改动」**也照常重试**
+  （它回答的是文件那个问题，不是要不要重试）。用户可能在提示词与重试之间自己动过这些文件，
+  所以不能静默还原。
+- **回退不全时必须说出来。** 二进制/过大/未被 git 跟踪的文件没有可回退的内容
+  （`restoreCheckpoint` 记进 `skipped`），于是拼一个半还原的工作区再重试——正是这个功能
+  要防的事。
 
-* **V5 目录一个字没动**（已落地真值）；两条铁律与四步法照旧，只是命令换成
-  `npm run design:v6` / `design:v6:land` / `design:v6:shots`（静态门禁 0 错误、
-  真浏览器明暗两套出图全过 —— 唯一红的 D-27「重播流光」在 v5 里同样红，是既有问题）。
-  `design:v6:land` 现读 98%：**V6 沿用 v5 的类名**，产品 CSS 里早就有同名类，
-  所以那个百分比量的是「名字落没落」而不是「V6 的材质落没落」—— V6 真正未落地的就是材质本身。
-* **§Z 不变式在 V6 里是硬边界**：浮层不许挂 backdrop-filter（会成为 fixed 后代的包含块），
-  只吃 `--nx-glass-shell-hi` 94% 填充 + `--nx-elev-panel`；输入框霜化走 `::before`
-  （`.d-composer` 自身 `position:relative; isolation:isolate`）。
-* 落地产品的那一刻才动 `app/` —— 触发口令「按 v6 设计落地」走 `design/v6/LANDING.md` 同一套流程。
+## 会话转写落盘（`engine/transcript-file.ts`）
 
-* **颜色链路**：`design/pi-web-design/assets/tokens.css`（规范真值）→ `app/design/tokens.css`（`--ds-*` 逐值副本）→ `globals.css` 末尾 `fork:boardui-bridge` 块（把 `--bg/--text/--accent` 等 Zeno 槽位指向 `--ds-*`）。**新代码写 `var(--bg)` 这类 Zeno 名**，不写 hex。
-* **CSS 引入顺序**（`app/layout.tsx`）：katex → tokens.css → `app/design/tokens.css` → globals.css → settings.css → wallpaper.css → **board.css（画板原件，刻意在产品样式之后）** → fork-ui.css（永远最后）。产品要覆盖画板用 0-2-0 双类（`.chat-input-shell.pw-composer`），并注明为什么。
-* **第〇原则（已修订）**：旧版要求「禁止截图模仿，改组件 = 打开画板 HTML 抄 DOM」。
-  2026-10-13 起**参照物换成 FastVibe**：改组件 = 打开 fastvibe-main 的对应源文件，
-  照它写 DOM / 类名 / 间距，再接产品数据与事件。原画板路径（`design/v5/`）降为历史存留。
-  原计划与验收协议 `docs/design-skin-swap-plan-2026-09-29.md` 只作历史参考。
-* **判据⑦**：新 `pw-*` 类必须先进 `board.css` + 出现在至少一张画板 + 记进 `DIVERGENCE.md`；产品 CSS 不许另起同名 `pw-*` 类（fork-ui.css 里只留「UA 归零 / cursor / 窄屏 / 滚动」行为钩子，带注释）。
-* **对比度门禁**：改任何前景/背景色后跑 `node docs/codex-skin/check-contrast.mjs`（需服务在 30141）。
-* **主题只剩 light / dark / auto**；`lib/theme.ts` 的 `THEME_OPTIONS` 是唯一清单。字体 Geist + Geist Mono（`next/font/google`，中文回退 Noto Sans SC/PingFang SC）。
-* **圆角 3/4/6 三档**（`--radius-3/4/6`，板面/弹层 6），控件高度 24/28/32；字阶五档 11/12/13/15/20；动效十一项 token（`--motion-*`，唯一曲线 `--ease`）。
-* **门禁**：`npm run check:design`（style-literals + motion-tokens + icons + platform-breakpoints + material-boundaries + token-consumers + touch-targets）；`npm run check:contrast`。
-  * 2026-10-13（H6）—— `check:design` 里的 `check-boards` 与 `check-align` **已移除**
-    （它们量的是旧画板真值）；`verify:boards` 已停用；DOM 几何验收改为
-    `npm run fastvibe:shots` + 人眼与 FastVibe 逐张对照。
-  * **结构层才是漂移的来源**（2026-09-30 加）：颜色有对比度门禁守着，而「按钮/位置与画板不一样」全部是结构层的事。两条新闸：
-    ① `check-style-literals` 新增 `inline-geometry-literal`（内联样式里写死的 `gap/width/height/margin/padding/top...` 数字）；存量 **198 处**冻结在 `scripts/style-literal-baseline.json`（**只许变少**，新增即失败，清理后跑 `--update` 收窄）。已清掉 109 处（307→198）：能等值换 token 的都换了（间距 `--s1..--s6`、控件 `--control-*`、图标 `--icon-*`），像素不变；剩下的多是面板/树列这类 token 表里没有的尺寸 —— 逐条登记在 `DIVERGENCE.md` Q 节，收敛只有两条路：固化进 `board.css` 的 `.pw-*`，或先进设计裁定出新 token，**不许留死数字**。根级错误页与独立 HTML 文档（`app/error.tsx` / `app/global-error.tsx`）是例外，那边 `var()` 可能解空。
-    ② `npm run verify:boards` 的几何对位（`board-diff-all`）已进 CI（e2e job）；每次跑都打印**对位覆盖率**（现 19/30、22 份 spec、两个环境各 0 不符）与未覆盖画板 —— 对位是一板一 spec，**改到哪张画板就补哪张的 spec**。spec 需要特殊状态时用 `app.script` 自己驱动（写在 spec 里，不进共享预设表），这样多份 spec 能并行编写而不争同一个文件。
-       · 转录 / 输入框 / 侧栏那几张要「开着一条有消息的会话」才量得到：CI 用 `npm run verify:boards:seeded`（`scripts/verify-boards-live.mjs` 自建临时 agent 目录走 `PI_CODING_AGENT_DIR`，不碰用户数据），本机对着真服务仍用 `npm run verify:boards`。
-       · spec 里的 `knownDiffs` 只许登记「接线」与「数据依赖」，每条必须写清为什么；改到某张画板却没 spec，等于又回到人眼比。
-  * 换类名 / 挪 DOM 时留下死 CSS 是**已经发生过的事故**（`.fork-msg-actions` → `.pw-msg-acts` 漏改，动作行恒为透明）：改「画板类名与本组件的对应关系」时，同一提交里搜一遍旧名（`grep -rn "旧名" app/*.css components`）。
-* **图标**：全部 lucide，经 `<i data-ico="name">` 由 `components/PwIcons.tsx` 水合；禁 emoji、禁手绘 SVG。改完跑 `npm run check:icons`。
-* **已登记不改的形态差异**（DIVERGENCE 37/49 裁定）：Git 图自绘 SVG 泳道、子代理以工具卡徽标呈现、diff 词级视图、BranchNavigator 树画布、皮肤工作室的 `fork-skin-preview-*` 实时预览、会话行扫掠线（fork-ui.css）。
+读取方把文件**最后一行**当作叶子，沿 `parentId` 往回走；只要中间有一条的父记录不在文件里，
+重新打开就只剩断点之后那一段（前面的内容其实还在磁盘上）。常驻内存时看不出来，所以用户是在
+归档 → 恢复（会话已被空闲回收，重新从磁盘读）或重启之后才发现「只剩一条消息」。
 
-<!-- BEGIN:nextjs-agent-rules -->
+- **`#persist` 只在 SDK 还没落盘时写一次**（`flushed === false`，即还没有回复的首轮）。之后 SDK
+  每条记录都即时追加，没有东西需要写。它曾经在每次提问、会话回收和退出时调用 SDK 的
+  `_rewriteFile()`——截断后逐条重写——拿着旧副本的写入方（例如共用数据目录的开发版和安装版）
+  会抹掉别人刚追加的记录，写到一半崩溃或出错又会留下一个前缀，后续追加指向不存在的父记录。
+  不要把整文件重写加回来。
+- **剩下那一次写是原子的**（`writeTranscriptEntries`：临时文件 → fsync → rename）。
+- **打开时修复**：`#ensureSession` 在 `SessionManager.open` 之前跑 `repairTranscriptFile`，把父记录缺失的
+  条目接到文件中的前一条上（只重写那几行，坏行原样保留，不会接成环），并在日志里记一条
+  `[transcript] relinked …`。对话搜索（`loadConversationTranscriptBranch`）在内存里做同样的接续，不写盘。
+- **打开时补结果**：进程死在工具执行中途，转写以 `assistant(stopReason: "toolUse")` 结尾，它请求的调用没有任何
+  结果（助手消息在工具运行之前就已落盘）。`closeOrphanToolCalls` 紧接着 relink 之后，给当前分支末尾那条
+  助手里**没有结果的调用**各追加一条 `isError` 的 `toolResult`，文案说「可能已部分执行，先核对现场」。
+  这样转写以 `toolResult` 结尾，`canResumeRun` 本来就判为可继续，composer 出现「继续」，模型也被如实告知，
+  而不是在下一次请求里只读到提供方投影合成的 `"No result provided"`。只补分支末尾：后面跟着用户消息的
+  是被有意打断、投影已处理；以 `error` / `aborted` / `length` 结束的回复从未执行过它的工具，不碰。
+  它只在**本进程首次加载这个会话时**跑，运行中的会话不会被回收（`#sweepSessions` 跳过有运行的），所以不会
+  给一个还在执行的工具抢先写结果。与开发版共用 userData 时，另一个进程正在跑同一会话仍是已知风险。
+  不做「读/搜索类工具自动重放」：模型看到已中断的结果后会自己重新读。
 
-# This is NOT the Next.js you know
+## 设置跨窗口同步
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+偏好写在一份 `settings.json`，但每个窗口各持一份启动时读的内存副本。一处写入后 Main 发
+`settings:changed`（`broadcast(..., { except: origin })`，不回传给发起者），接收方的
+`applyRemote` 只写 localStorage、**不回写磁盘**——回写会让两个窗口永远互相同步。
+「恢复默认」（`settings:clear`）也算一次写入，同样要广播，否则另一个窗口会继续用旧副本
+并在下次保存时把刚清掉的值写回去。
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+**`settings:set` 收到的是整份快照，所以不属于客户端的键不能从快照里取。** 每个窗口保存的都是启动时读到的
+那一份，天然是旧的。`proxy*` 和 `remote*` 各有自己的方法写入，`mergeClientSettings`（`shared/settings-merge.ts`）
+让这两组键只从文件取：`remote:start` 把 `remoteEnabled` 写进文件时窗口并不知道，下一次无关的保存（拖一下侧栏
+就是一次）曾把开关写回窗口打开时的值——监听还在跑所以没人察觉，下次启动（通常是更新之后）远程访问就是关的。
+`settings:clear`（恢复默认）同样保留 `remote*`；`remote:start` / `remote:stop` 的写入走 `queueSettingsWrite`，
+否则会落在一次保存的「读文件 → await → 写文件」中间被盖掉。新增一个由 Main 自己方法管理的设置键时，照这个办。
 
-<!-- END:nextjs-agent-rules -->
+## 会话自动归档（`src/shared/auto-archive.ts`）
+
+归档是本地偏好（`settings.archivedConversations`），不是引擎状态；自动归档也活在渲染层：
+`lib/auto-archive.ts` 的 `sweepAutoArchive` 读一次 store 里的会话列表和 `settings.autoArchiveDays`，
+按 `@shared/auto-archive` 的纯规则算出该归档的 id，再走用户手动归档那条 `archiveConversations`。
+规则单独放一个模块，是为了让它能像其它纯逻辑一样被单测枚举，而不是在界面上被发现。
+
+- **时间看 `updatedAt`，不看 `createdAt`。** 它是 catalog 的「最后变动」，提示词预览、改名、绑定项目、
+  打开会话都会刷新，也正是归档面板展示的「更新时间」：30 天前建、昨天还在用的会话不是陈旧的。
+- **五种会话不碰**（`staleConversationIds`）：辅助对话（在右侧面板，不属于侧栏）、没有 preview 的空草稿
+  （新对话要复用它）、正在跑的（把忙着的会话藏到用户够不到的行后面，正是手动归档那条路刻意避开的）、
+  当前打开的（行消失会让打开的会话在侧栏无迹可寻）、置顶的（置顶就是「留在我看得见的地方」，
+  而置顶在 localStorage 里，所以读取它的 `lib/pinned.ts` 从侧栏组件里提了出来）。
+  边界是 `< cutoff`：正好 N 天算还在窗口内。
+- **调度在 `App.tsx`**：workspace 加载完跑一次，之后每小时一次，覆盖应用一直开着跨过门槛的情况；
+  effect 以时间设置为依赖，所以在 设置 → 归档对话 里把时间改小会立刻扫一次。
+  一批只提示一次，带和手动归档一样的「撤销」——会话从用户正在看的列表里消失不该无声无息，
+  去处是 设置 → 归档对话。撤销只还原本批 id，不碰以后新归档的。
+- **设置是 `autoArchiveDays`，默认 30，`0` 是永不。** 选单在 设置 → 归档对话；手机写的
+  `settings:set` 是部分快照，这个键不会被它清掉。
+- **不做的**：没有后台服务，应用没运行时什么都不会发生；手机端（Flutter）还没有这个设置项。
+
+## 系统通知（设置 → 通用）
+
+设置里只剩一个总开关，**默认打开**。任务完成、任务出错、需要确认、应用更新不再各自可关：总开关
+开着时四个都提醒。Main 在每个事件上读一次文件，所以改完立即生效。四个场景回答的仍是不同的问题：
+跑完是「可以回来看结果」，出错是「这次没成功」，停在审批上是「你不回答它就永远走不下去」——只有最后一条是真正的阻塞。文案仍按场景区分，只是不再各有开关。
+
+- **`settings.notifyDone` / `notifyError` / `notifyApproval` / `notifyUpdate`**，平铺在
+  `settings.json` 里，由总开关一起写成同一个值。**缺失即为打开**。只有四个键全部是 `false` 才算总开关关掉——单独一个
+  `false` 是旧的场景开关留下的，加载时丢掉（`normalizeNotificationSettings`），不再单独静音那个场景，否则设置页上
+  已经没有地方把它打开。旧的 `notifications: "done" | "approval" | "off"` 被丢掉而不迁移。
+- **判定与投递分两层。** `src/shared/notifications.ts` 不引 Electron（`node --test` 加载不了），
+  只回答两件事：总开关开没开、这个事件属于哪个场景。`src/main/engine/notifications.ts`
+  是 Electron 那一半：`new Notification` 和它的 click。这里多出的一个理由是 test 要能跑。
+- **`notifyError` 与 `notifyDone` 分开，`stopped` 两者都不发。** `agent_settled` 上的
+  `#interruptedRuns` 判定既是「队列能不能继续排空」的依据，也是「这次算完成还是失败」的依据；
+  「任务已完成」压在一次用户自己按的停止上，是一条没人要过的通知。
+- **点通知要落到那条会话。** click 里先 `app.focus({ steal: true })`（macOS：只
+  `window.focus()` 拉不回 ⌘H 隐藏或在别的 Space 的窗口）、再 restore/show/focus，然后调
+  `engine.openConversation(id)`。跳转本身不重新实现：把会话设成 active 就是侧栏点一下做的事，
+  每个客户端都已经在跟（`workspace:changed` → `handleOpen`），所以窗口当时**关着**也对——
+  活过来的窗口在启动时 adopt 的正是 catalog 的 activeId。
+- 只有会阻塞的 dialog 方法算数（`isBlockingPrompt`）；`notify` / `setStatus` / `setWidget`
+  是单向的，不能触发通知。
+
+## 单窗口
+
+FastVibe 是一个窗口、一个进程：`app.requestSingleInstanceLock()` 在模块作用域取（输的那个进程
+要在开窗之前就没了），`second-instance` 把已有的窗口恢复并聚焦——再点 Dock 图标不是再开一个
+窗口，而是回到原来那个。`window:new` 同样折进已有窗口而不是 `createWindow()`：每个 push、
+每个不说「谁的」就操作「当前会话」的方法都是按一个客户端设计的。
+
+开发态是例外：`ELECTRON_RENDERER_URL` 有值时跳过锁。`electron-vite dev` 每次改主进程都会异步
+杀掉旧子进程再起新的，新进程可能在旧进程还没释放锁的时候来抢——那会让 `pnpm dev` 变成一个
+没有窗口也没有报错的应用（旧进程以为是自己被替换了，新进程以为旧的那个还在）。在主进程里，
+`false` 恰好是错的那个答案。
+
+## 子 agent 任务编排（DAG）
+
+主 agent 用 `dag_*` 动态生成依赖图，`PiProcessManager` 持有 `DagStore`、`DagScheduler`、工具宿主和运行记录。
+一个会话一张图；`/handoff` 只交接结果，不迁移或接管任务编排。设置里的 `dynamicDag` 只决定主 agent 的活动工具集。
+
+- **统一引擎、统一传输。** `ctx.ui.dag` → `runDagTool`，SSH Agent 注册相同的 `registerDagIpc`；`dag_changed` 经引擎事件推送。
+  `dag:list` 汇总本机与已连接主机，其余 `dag:*` 按 `conversationId` 路由。API 加在 `shared/api.ts`，方法进远端策略表。
+- **编号和尝试分开。** 节点 `T-0001`；尝试 `T-0001`、`T-0001.2`…。全局序号单独持久化，不因删图回退。
+  状态和转写以 `subagentKey(runId, conversationId)` 隔离；首次列表与实时推送由 `watchDagGraphs` 合并。
+- **角色可以复用。** `agent` 按名字取设置里的系统指令、工具、模型和推理强度；否则主 agent 写 `profile`。
+  显式授予的已连接 MCP 工具也可使用；`profile.skills` 明确开启技能目录。普通委派仍保持原来的工具行为。
+  新节点保存 `fallbackModel`，重启后恢复不会悄悄退回默认模型。
+- **受控层级。** `coordinator: true` 才能创建子任务，最多三层。协调者仅有只读工作区工具，写入交给执行节点。
+  `parentId` / `parentRunId` 是归属；`dependsOn` 是执行依赖，二者不能混用。子任务不能依赖等待它的父任务或父任务的下游。
+  宿主限制子协调者只能管理自己当前尝试创建的子树；执行节点只可读取自己的上游和历史结果。
+- **等待释放名额。** 同一引擎最多五个 DAG 执行者；实际宿主同一供应商最多三个。调度轮转覆盖全部图。
+  协调者的 `dag_wait` 释放名额，返回前重新获取，不能出现父任务占满槽位、孩子永远起不来的死锁。
+  同一个协调者只能有一个等待调用，等待范围必须是自己的子任务。取消也能释放等待恢复执行名额的调用。
+- **写入范围是调度契约。** `write_paths` 声明工作目录内的文件或目录；同一目录下重叠的写任务串行执行。
+  未声明范围的写任务保守地占整个工作区。它不是文件系统沙箱；不为每个节点自动建 worktree。
+- **依赖与输入分开。** `context_from` 是 `depends_on` 的子集；空数组表示只等执行顺序，不注入上游文字。
+  上游摘要合计最多 16000 字符，每个最多 6000；启动前还按模型窗口、完整系统规则和工具 schema 估算可用预算，留出输出与运行空间。
+  项目规则不会被自动删减；规则和必要任务说明本身放不下时，明确失败，不悄悄截掉约束。
+- **完整结果是产物。** `dag.json.results/<conversation>/<runId>.txt` 存完整输出，图内仅保留有界预览。
+  `dag_result` 支持 `offset` / `limit`、`query` 和旧 `run_id`；UI 的 `dag:output` 同样分页读取。不能把图内预览称为全文。
+  每个模型轮次结束保存当前执行过程和已有文字产出；结束后落盘的 DAG 转写从内存缓存释放，需要时读文件。
+- **显式结果与验收。** DAG 节点结束前必须 `dag_report`，给出 `completed` / `blocked` / `failed`、摘要、证据和产物路径。
+  有验收条件的任务声明完成必须带证据；协调者必须等子任务结束并对失败/取消分支作出解释与最终判断。
+  报告是 agent 的完成声明，不是自动独立验证；重要改动应另设验证节点。报告之后再调用其他工具会使报告失效。
+  `blocked` 与失败一样阻止下游，UI 单独显示。只能 `completed` 解锁依赖。
+- **时限与重试，不按 token 停。** 子任务不再因轮数或 token 用量被终止：缓存读取和读大文件会把累计 token 很快顶过旧的 30 万上限，任务还没写完就被掐掉。用量仍按消息增量记在节点和祖先上，只供查看，压缩或重试不清零，但不会停任务。
+  仍有执行时限（默认 3600 秒）和重试上限（默认 5 次）。`dag_update` 可修订未运行或失败/阻塞/取消任务的说明、验收、时限和重试次数，随后显式重试；运行中用 `dag_send` 补充证据。
+- **完成通知有回执。** `observedOutcome` 随图持久化，`dag_wait` 只确认它实际返回的节点。
+  历史取消节点不压住新结果；全图停止由独立的 `paused` 标记表达。失败/阻塞可以提前唤醒主 agent，正常完成按图收束。
+  通知失败保留未交付状态；隐藏 custom message 的 `noticeId` 防止模型后续响应失败导致重复投递。
+  `dag_status(after_revision)` 可只读变更，`dag_wait(mode:any)` 可先处理结束的分支；默认不回填所有节点的原始输出。
+- **停止和恢复。** 主会话 Stop 先停调度并取消整图；节点 Stop 级联取消它的子树。
+  退出先 `DagScheduler.stop()` 再释放会话，旧运行收尾不能起新任务。重启把未完成节点标为 cancelled，必须显式恢复。
+  恢复保留已完成工作；协调者新尝试不继承旧尝试的活动子任务，而是根据保存的产物重新规划。重试不会撤销已发生的外部副作用。
+  `#resumeWanted` 处理停止尚未收尾时的恢复，再次 Stop 以最后一次停止为准。
+- **校验整批原子执行。** 每批最多 30、每图最多 100，验证引用、工具、时限与重试、层级和环后才分配节点。
+  图节点对外返回深拷贝；完整输出保存成功后才发布完成。删会话同时停图、清产物和转写。
+- **展示。** `dag_add_tasks` 原位画本批内联图，留在运行过程折叠之外；最大化显示整张图。
+  节点详情展示父子任务、验收、结论、证据和分页结果。执行页复用 `SidePaneSubagent`，用 `dagRunStatus` 映射终态。
+  DAG 运行不自动打开标签页；侧栏子任务行按需打开所属会话里的执行页。
+
+
+## 测试
+
+`pnpm test` —— Node 自带 runner 跑 `test/**/*.test.ts`，只测**纯模块**（无 DOM、不引 zustand/React）：
+`lib/diff.ts` 的行号读取、`engine/pricing.ts` 的价格阶梯、`lib/todos.ts` 的 `n/N` 语义、
+`engine/checkpoint.ts` 的捕获与还原、`engine/resume.ts` 的「能不能原地继续」。这一层抓的是运行时不变式——比如「一个未跟踪路径不能让
+整批 `git checkout` 失败」、「`canResumeRun` 不能对 `continueTurn` 会拒绝的 transcript 说 true」
+——typecheck 看不见它们。
+
+## 运行时保持唤醒
+
+Settings → 通用 → 运行时保持唤醒 (`settings.keepAwake`, on by default) holds the machine
+awake while an agent run is in flight **or the remote-access server is listening**.
+
+- `src/main/engine/keep-awake.ts` owns a single `powerSaveBlocker` and is the only place
+  that starts or stops it. Two inputs decide the state: the preference, and whether
+  anything is streaming — so turning the switch off mid-run releases it at once, and the
+  last run to finish releases it while the switch stays on.
+- It blocks `prevent-app-suspension`, not `prevent-display-sleep`: the run survives, the
+  screen may still dim. A late-night run should not light the room.
+- Runs are tracked per conversation id from the engine's `conversation_running` event,
+  which is broadcast for background chats too, so a session the user switched away from
+  still counts. `before-quit` clears the set. A compaction counts too: it is minutes of
+  model work on the user's own machine, and it is the last thing to finish.
+- **A listening remote server counts too** (`setRemoteServing`, driven from `announce` /
+  `announceFromServer` in `remote.ts`). Counting runs alone let an idle Mac sleep under a
+  phone that was reading a transcript between prompts, which dropped the connection. Listening
+  (or the official connection being online — `setRemoteServing` takes a source for each) is the condition, not a connected client: a phone reconnects
+  whenever it likes, and sleeping between its visits is the same failure.
+- **A closed lid is out of reach, and the row says so.** `prevent-app-suspension` is IOKit's
+  `PreventUserIdleSystemSleep`, which the header documents as still sleeping «for lid close»;
+  only `sudo pmset -a disablesleep 1` or clamshell mode (power + external display) keeps a
+  closed MacBook up. Changing a machine-wide power setting is the user's call, not the app's.
+
+## 自动更新（updater）
+
+`src/main/updater.ts` owns electron-updater. Background checks run once shortly after
+launch and then every 10 minutes, and they only ever *announce* a version: downloads are
+user-initiated (`autoDownload` is off), from the manual-check dialog or the small button
+to the right of the sidebar's 设置 row. The sidebar button and the dialog both read the
+same `update:state` stream (`AppUpdateState`), so 「download → progress → restart」 cannot
+disagree between them.
+
+**`releaseNotes` is HTML, not markdown.** electron-updater's GitHub provider builds it
+from the releases **Atom feed** (`<content type="html">`), i.e. GitHub's already-rendered
+HTML — so rendering it with `react-markdown` showed the raw tags. `release-notes.tsx`
+parses it and rebuilds a whitelist subset as React elements (never `dangerouslySetInnerHTML`;
+unknown tags unwrap, `javascript:` hrefs and `<script>` are dropped), and falls back to the
+markdown renderer when a feed does hand us markdown.
+
+## Product constraints
+
+- Code / Office / Cowork are first-class; pi-coding-agent is the default backend.
+- Office and extra ACP agents come later; keep Host adapters (RPC/ACP) decoupled from the renderer.
+- There is no built-in model provider. The user adds one (a pi built-in or any compatible endpoint, e.g. the FastVibe relay at `https://fastvibe.dev/v1`) by pasting an API key; FastVibe fetches `/models`, writes isolated `models.json`, then starts the embedded engine. Do not mention the backend runtime in the UI.

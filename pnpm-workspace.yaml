@@ -1,0 +1,61 @@
+# No workspace packages: the website moved to tyuan511/fastvibe-services, and
+# apps/mobile_flutter is Flutter (no package.json). This file is kept for the settings
+# below, which pnpm reads whether or not anything is a workspace member.
+packages: []
+
+# Keep the default virtual store: electron-builder's pnpm collector resolves each
+# dependency from the path `pnpm list` reports, and under `nodeLinker: hoisted`
+# pnpm still reports `.pnpm/...` paths that no longer exist, so every dependency
+# silently falls back to the hoisted top-level copy (e.g. pi-coding-agent gets
+# minimatch@3 instead of the @10 it imports).
+
+# Native modules that ship one optional package per CPU (node-datachannel, esbuild, ...)
+# are installed for both macOS architectures. The x64 release is packaged on an arm64
+# runner, and without this its app would be missing the x64 libdatachannel and could not
+# answer a phone. electron-builder.yml prunes the other architecture from each package.
+supportedArchitectures:
+  os:
+    - current
+  cpu:
+    - current
+    - x64
+    - arm64
+
+# pnpm 11 merges onlyBuiltDependencies into allowBuilds. Every dependency with a
+# build script must be listed or strictDepBuilds aborts the install.
+allowBuilds:
+  '@google/genai': false
+  '@parcel/watcher': false
+  '@swc/core': false
+  electron: true
+  electron-winstaller: false
+  esbuild: true
+  koffi: false
+  node-pty: true
+  protobufjs: false
+  unrs-resolver: false
+
+minimumReleaseAgeExclude:
+  - electron@44.4.0
+  - '@earendil-works/chord@1.1.0'
+  - '@earendil-works/pi-agent-core@1.1.0'
+  - '@earendil-works/pi-ai@1.1.0'
+  - '@earendil-works/pi-coding-agent@1.1.0'
+  - '@earendil-works/pi-mcp@1.1.0'
+  - '@earendil-works/pi-codemode@1.1.0'
+  - '@earendil-works/pi-telemetry@1.1.0'
+  - '@earendil-works/pi-tui@1.1.0'
+
+# Pin the pi runtime to the exact SDK version FastVibe ships so the host and any
+# extension loaded into it share one pi-tui/pi-ai instance.
+overrides:
+  '@earendil-works/pi-ai': 1.1.0
+  '@earendil-works/pi-coding-agent': 1.1.0
+  '@earendil-works/pi-mcp': 1.1.0
+  '@earendil-works/pi-tui': 1.1.0
+
+peerDependencyRules:
+  allowedVersions:
+    '@earendil-works/pi-ai': '1.1.0'
+    '@earendil-works/pi-coding-agent': '1.1.0'
+    '@earendil-works/pi-tui': '1.1.0'

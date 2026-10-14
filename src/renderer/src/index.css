@@ -1,0 +1,901 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+/*
+ * KaTeX's stylesheet, for the LaTeX in replies and file previews
+ * (`components/chat/markdown-view.tsx` → `rehype-katex`). Importing it here rather
+ * than from JS keeps the fonts with it: its `url(fonts/…)` references resolve
+ * against the package, so Vite emits the twenty `.woff2` files into the renderer
+ * bundle and the app stays offline-clean under a `default-src 'self'` CSP. KaTeX colour
+ * needs no per-theme wiring and gets none (see the Math block further down).
+ */
+@import "katex/dist/katex.min.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Interface scale ----------------------------------------------------------------
+ * The 界面字号 setting writes `--ui-root-font-size` inline on <html>. Every size in
+ * the app is a rem-based Tailwind `text-*` utility (body copy is `text-sm`), so the
+ * root font size is the single knob that scales the whole interface. The 16px
+ * fallback is Tailwind's baseline, i.e. a 14px body.
+ */
+html {
+  font-size: var(--ui-root-font-size, 16px);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  --scrollbar-thumb: color-mix(in oklab, var(--foreground) 18%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--foreground) 36%, transparent);
+  /* Semantic status colours. The active theme overrides these inline. */
+  --warning: oklch(0.6 0.14 75);
+  --success: oklch(0.55 0.14 150);
+  --info: oklch(0.55 0.14 250);
+  /* Chat code fences + syntax highlighting, themed alongside the palette. */
+  --code-bg: oklch(0.97 0 0);
+  --code-inline-bg: oklch(0.145 0 0 / 6%);
+  --code-keyword: oklch(0.45 0.12 280);
+  --code-string: oklch(0.48 0.12 145);
+  --code-comment: oklch(0.55 0 0);
+  --code-number: oklch(0.5 0.12 40);
+  /* Map Shiki's CSS-variables theme onto the code tokens above. */
+  --shiki-foreground: var(--foreground);
+  --shiki-background: transparent;
+  --shiki-token-comment: var(--code-comment);
+  --shiki-token-keyword: var(--code-keyword);
+  --shiki-token-string: var(--code-string);
+  --shiki-token-string-expression: var(--code-string);
+  --shiki-token-constant: var(--code-number);
+  --shiki-token-function: var(--code-keyword);
+  --shiki-token-parameter: var(--code-number);
+  --shiki-token-punctuation: var(--muted-foreground);
+  --shiki-token-link: var(--code-string);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-scrollbar: var(--scrollbar-thumb);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --font-sans: 'Geist Variable', sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* 玻璃效果 (glass) ---------------------------------------------------------------
+   The window is drawn over the macOS blur (`data-glass`, set by `applyTheme`), and
+   every translucent fill stacks: the app's root already paints `--background`, so a
+   body painting it too would double the alpha and hide the blur it exists to show.
+   The settings overlay is translucent for the same reason it is everywhere else,
+   which means the shell under it would show through — so while it is open the shell
+   (and the browser pane's guest layer, which lives on <body>) is hidden rather than
+   unmounted, keeping its state exactly as a solid overlay would. */
+html[data-glass="true"] body {
+  background: transparent;
+}
+html[data-glass="true"] body:has([data-settings-overlay]) :is([data-shell-split], [data-side-pane-browser-layer]) {
+  visibility: hidden;
+}
+
+/* Floating panes ---------------------------------------------------------------
+   The side panels — the sidebar, the right pane, the settings list — float as rounded
+   panes inset 8px from the window edge, in every theme. A pane is filled with the
+   theme's sidebar colour and outlined by its hairline; 玻璃效果 swaps both for
+   glass below.
+
+   The inset is a transparent border, not a margin: the resizable panels size their
+   frame by `width` (and animate it through `--panel-width`), and a border sits
+   inside that width where a margin would push the pane past its column. Absolute
+   children are laid out against the padding box — the visible pane — which is why
+   the Glass rim is a pseudo-element at `inset: 0`.
+
+   Only above the narrow breakpoint (sidebar-visibility.ts's NARROW_QUERY): below it the
+   sidebar is a full-viewport drawer, and an inset card on a phone is just a smaller
+   screen. The traffic lights sit 8px further in to match (WINDOW_BUTTON_POSITION). */
+@media (min-width: 768px) {
+  :is([data-slot="panel-frame"], .floating-pane) {
+    border: 8px solid transparent;
+    border-radius: 24px;
+    background-clip: padding-box;
+    background-color: var(--sidebar);
+    /* Drawn inside the pane, where the clip below keeps it. */
+    box-shadow: inset 0 0 0 1px var(--sidebar-border);
+    /* What a pane holds paints its own backgrounds — a terminal, a file tree — and
+       square ones would stand out past the rounded corners. The clip is the padding
+       box, i.e. the visible pane with its 16px inner radius. */
+    overflow: hidden;
+  }
+  /* The right pane's empty state paints `bg-background`: a second fill inside a pane
+     that already has one, so its body read differently from the header strip above. */
+  [data-slot="panel-frame"] .side-pane-open-tab-shell {
+    background-color: transparent;
+  }
+  /* The conversation column starts where the panes do, so its first row and the
+     sidebar's sit on one line beside the traffic lights. */
+  [data-shell-split] main {
+    padding-top: 8px;
+  }
+  /* A splitter sits on the column boundary, which is now 8px outside the pane it
+     resizes — out in the gap, reading as a line belonging to nothing. Move each onto
+     its pane's edge (`translate`: the grab target goes with it, layout does not), and
+     keep it off the rounded corners: 8px of inset plus the 16px inner radius. */
+  [data-slot="resizable-handle"][data-pane-edge] {
+    margin-block: 24px;
+  }
+  [data-slot="resizable-handle"][data-pane-edge="sidebar"] {
+    translate: -8px 0;
+  }
+  [data-slot="resizable-handle"][data-pane-edge="side-pane"] {
+    translate: 8px 0;
+  }
+}
+
+/* Liquid Glass -----------------------------------------------------------------
+   macOS 26's look, approximated on top of the window's own blur: the floating panes
+   are glass, every glass edge carries a specular rim (bright where light would catch
+   it, top-left, fading round to the far corner), and floating layers are translucent
+   glass rather than solid cards. The colours are `--glass-*` tokens, written only by
+   glass, on top of any theme (`glassTokens` in themes.ts). */
+@media (min-width: 768px) {
+  html[data-glass="true"] :is([data-slot="panel-frame"], .floating-pane) {
+    background-color: var(--glass-pane);
+    box-shadow:
+      inset 0 0 0 0.5px var(--glass-edge),
+      inset 0 18px 32px -28px var(--glass-sheen);
+  }
+  html[data-glass="true"] :is([data-slot="panel-frame"], .floating-pane)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    padding: 1px;
+    background: var(--glass-rim);
+    -webkit-mask: var(--glass-ring-mask);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+/* The specular rim: a 1px gradient ring, cut out of a filled box with a mask. */
+html[data-glass="true"] {
+  --glass-rim: linear-gradient(
+    155deg,
+    var(--glass-rim-strong) 0%,
+    var(--glass-rim-weak) 22%,
+    transparent 48%,
+    transparent 62%,
+    var(--glass-rim-weak) 100%
+  );
+  --glass-ring-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+}
+html[data-glass="true"] :is(.glass-rim, .overlay-surface)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--glass-rim);
+  -webkit-mask: var(--glass-ring-mask);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+/* The rim is laid out against the nearest positioned box; a dialog is already
+   `fixed`, and the rest must not fall through to some larger ancestor. */
+html[data-glass="true"] .overlay-surface:not(.fixed, .absolute) {
+  position: relative;
+}
+/* A surface that exists to hide what scrolls under it — a sticky gutter, a "show more"
+   bar, a floating button over the transcript. Its fill is a token that glass turns into a
+   tint, so on its own it would let the content through; `.glass-cover` makes it the
+   floating-layer glass instead, blurring what is behind it. A no-op in solid themes. */
+html[data-glass="true"] .glass-cover {
+  background-color: var(--glass-overlay);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  backdrop-filter: blur(16px) saturate(1.6);
+}
+/* Its own hover fill would be a tint too — layer it over the cover instead. */
+html[data-glass="true"] .glass-cover:hover {
+  background-image: linear-gradient(var(--muted), var(--muted));
+}
+/* The command palette's list is a second popover fill inside the (glass) dialog. */
+html[data-glass="true"] .overlay-surface [data-slot="command"] {
+  background-color: transparent;
+}
+/* A bordered card (the composer): the ring covers its own hairline. */
+html[data-glass="true"] .glass-rim::after {
+  inset: -1px;
+  transition: opacity 150ms ease;
+}
+/* A card that clips its content would clip a ring drawn over its border, so there the
+   ring sits just inside it (the inline question panel). */
+html[data-glass="true"] .glass-rim.overflow-hidden::after {
+  inset: 0;
+}
+/* …which is also where its focus ring is drawn (`focus-within:border-ring`). The rim
+   sits on top of the border, so while it shows, the ring is only visible where the
+   gradient happens to be clear. Focus is the louder of the two states: the rim yields. */
+html[data-glass="true"] .glass-rim:focus-within::after {
+  opacity: 0;
+}
+/* The sticky prompt (message-list.tsx). Its solid `bg-background` is what hides the
+   reply under a pinned prompt in every other theme, but here that token is a 24% tint:
+   at rest it stacked on the root's own into a darker band around the bubble, and
+   pinned it let the reply through. So the row paints nothing; what scrolls under a
+   pinned prompt is masked off in message-list.tsx (`GLASS_CUT_FEATHER`), and the
+   gradient scrim that feathers that edge elsewhere has nothing to do. */
+html[data-glass="true"] .thread-prompt {
+  background-color: transparent;
+}
+html[data-glass="true"] .thread-prompt [data-prompt-scrim] {
+  display: none;
+}
+/* The follow-up queue (message-queue.tsx) tucks 1.75rem under the input card so the two
+   read as one shape, and the card's solid fill hides the part underneath. A glass card
+   hides nothing: the tray's fill doubled up into a lighter band across the top of the
+   input, with the tray's bottom hairline drawn through the placeholder. So the tray is
+   cut to the card's outline instead — everything above the card, plus the two spandrels
+   outside its rounded corners (the card's `rounded-[22px]`), which is what still joins
+   the tray's sides to the curve. */
+html[data-glass="true"] .composer-tray {
+  --tray-tuck: 1.75rem;
+  --card-radius: 22px;
+  mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--tray-tuck)) no-repeat,
+    radial-gradient(circle var(--card-radius) at 100% 100%, transparent calc(var(--card-radius) - 1px), #000 var(--card-radius))
+      left 0 bottom calc(var(--tray-tuck) - var(--card-radius)) / var(--card-radius) var(--card-radius) no-repeat,
+    radial-gradient(circle var(--card-radius) at 0 100%, transparent calc(var(--card-radius) - 1px), #000 var(--card-radius))
+      right 0 bottom calc(var(--tray-tuck) - var(--card-radius)) / var(--card-radius) var(--card-radius) no-repeat;
+}
+/* Floating layers are glass too. Their content is always over the page, so the
+   blur has something to work on, which is what keeps the text legible. */
+html[data-glass="true"] .overlay-surface {
+  /* Glass layers are rounder than cards; a 6px menu reads as a web dropdown. */
+  border-radius: 14px;
+  border-color: transparent;
+  background-color: var(--glass-overlay);
+  box-shadow:
+    0 0 0 0.5px var(--glass-edge),
+    0 18px 40px -14px var(--glass-shade),
+    0 2px 8px -2px var(--glass-shade);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  backdrop-filter: blur(28px) saturate(1.8);
+}
+
+/* Overlay surfaces ----------------------------------------------------------
+   Menus and popovers should feel attached to the desktop window, rather than
+   like cards floating over a web page. Keep the treatment in one place so a
+   context menu and a settings popover share the same edge, depth, and motion.
+   The shadow deliberately stays black in both light and dark themes: using the
+   foreground token would make dark-mode overlays glow instead of lift. */
+.overlay-surface {
+  border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent);
+  background-clip: padding-box;
+  box-shadow:
+    0 10px 24px -18px rgb(0 0 0 / 14%),
+    0 2px 6px rgb(0 0 0 / 5%);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes overlay-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+[data-overlay-surface][data-open] {
+  animation: overlay-fade-in 110ms ease-out both;
+}
+
+[data-overlay-surface][data-closed] {
+  animation: overlay-fade-out 90ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-overlay-surface][data-open],
+  [data-overlay-surface][data-closed] {
+    animation: none;
+  }
+}
+
+/* The desktop client does not use browser-style focus chrome. Keep focus itself
+   available for keyboard interaction, but do not paint the web accessibility ring. */
+:focus,
+:focus-visible {
+  outline: none !important;
+}
+
+:focus-visible {
+  box-shadow: none !important;
+}
+
+/*
+ * Chat gutter -------------------------------------------------------------------
+ * The transcript scrolls inside a `scrollbar-gutter: stable` box, so its content
+ * column is narrower than the pane by the scrollbar width — which is why the
+ * transcript and the composer used to sit a few pixels apart: 内容和 composer 的
+ * 边缘因为滚动条错开了。 This utility mirrors that reservation on a box that never
+ * scrolls, so the composer stack shares the transcript's column exactly.
+ *
+ * Both elements must carry the same class: the browser — not a hard-coded number —
+ * decides the width, and only equal `scrollbar-width` + `scrollbar-gutter` values
+ * reserve equal widths. `overflow: hidden` is what turns the plain wrapper into a
+ * scroll container at all, and it never clips because the wrapper only ever holds
+ * its own content.
+ */
+@utility transcript-gutter {
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+
+/* Side panel splitters --------------------------------------------------------
+   `react-resizable-panels` sizes the sidebar and the side pane with `flex-grow`,
+   so a collapse or expand has nothing to move unless the panel is told to
+   transition. `use-resizable-panel.ts` writes `data-animate` for the duration of
+   a programmatic collapse/expand only — a live drag must track the pointer
+   exactly, and the library rewrites `flex-grow` on every frame of one.
+
+   The `--panel-width` custom property is the panel's resting width. While the
+   panel is animating, its content holds that width instead of reflowing with the
+   clip, which is the reason the old splitter kept a fixed-width inner frame:
+   a sidebar that squashes its rows on the way out reads as a broken layout. */
+[data-slot="resizable-panel"][data-animate] {
+  transition: flex-grow 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-slot="resizable-panel"][data-animate] [data-slot="panel-frame"] {
+  width: var(--panel-width, 100%);
+}
+
+/* The library marks a separator while it is being dragged. Neither the panel it
+   moves nor the one opposite it may transition then. */
+[data-slot="resizable-panel-group"]:has([data-separator="active"]) [data-slot="resizable-panel"] {
+  transition: none;
+}
+
+[data-slot="resizable-panel-group"]:has([data-separator="active"]) [data-slot="panel-frame"] {
+  width: 100%;
+}
+
+/* Scrollbars -----------------------------------------------------------------
+   Slim, rounded thumbs with a transparent track, so the scrollbar reads as part
+   of the surface instead of a chrome bar. Chromium paints these through the
+   WebKit pseudo-elements; Base UI's ScrollArea draws its own bar, matched below
+   via data-slot. */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background-color: var(--scrollbar-thumb);
+  background-clip: content-box;
+  transition: background-color 120ms ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+[data-slot="scroll-area-thumb"] {
+  background-color: var(--scrollbar-thumb);
+  transition: background-color 120ms ease;
+}
+
+[data-slot="scroll-area-scrollbar"]:hover [data-slot="scroll-area-thumb"] {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.chat-markdown {
+  user-select: text;
+}
+
+.chat-caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 0.95em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: currentColor;
+  animation: chat-caret 1s steps(1) infinite;
+}
+
+@keyframes chat-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* In-flight labels (running tool calls, active reasoning).
+   A same-hue shimmer sweeps through the text — the wave is the signal, not a hue
+   change, so the row stays quiet. Ported from zcode's `animated-gradient-text`. */
+.animated-gradient-text {
+  --animated-gradient-text-strong: var(--muted-foreground);
+  --animated-gradient-text-soft: color-mix(in oklab, var(--muted-foreground) 22%, transparent);
+  background: linear-gradient(
+    90deg,
+    var(--animated-gradient-text-strong) 0%,
+    var(--animated-gradient-text-strong) 34%,
+    var(--animated-gradient-text-soft) 50%,
+    var(--animated-gradient-text-strong) 66%,
+    var(--animated-gradient-text-strong) 100%
+  );
+  background-size: 300% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-flow 4s linear infinite;
+  display: inline-block;
+  will-change: background-position;
+  transform: translateZ(0);
+}
+
+/* The transcript's run state ("正在工作") sits alone in an empty reply, so it needs
+   to read at a glance: same wave, but running on the foreground token instead of
+   the softer muted one the row-level shimmers use. */
+.animated-gradient-text-emphasis {
+  --animated-gradient-text-strong: var(--foreground);
+  --animated-gradient-text-soft: color-mix(in oklab, var(--foreground) 26%, transparent);
+}
+
+@keyframes gradient-flow {
+  0% {
+    background-position: 100% 0;
+  }
+  50% {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* The live reasoning ticker rolls a new line in from below as the model writes. */
+.reasoning-line {
+  animation: reasoning-line-in 240ms ease-out;
+}
+
+@keyframes reasoning-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.55em);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* F loader -------------------------------------------------------------------
+   The brand mark breathing under a soft halo, shared by the React <FLoader> and
+   the pre-JS boot splash in index.html. The splash inlines its own copy of these
+   rules because it has to animate before this stylesheet exists (in dev it is
+   injected by JS), so keep the two in sync.
+
+   The wrapper owns the size (callers pass `size-*`); the mark fills it and the
+   halo bleeds past its edges. */
+.fv-loader {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.fv-loader-glow {
+  position: absolute;
+  inset: -18%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(109, 124, 255, 0.45), rgba(109, 124, 255, 0) 68%);
+  filter: blur(6px);
+  animation: fv-loader-halo 3.6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+}
+
+.fv-loader-mark {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: fv-loader-breathe 3.6s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+}
+
+@keyframes fv-loader-breathe {
+  0%,
+  100% {
+    transform: scale(0.95);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes fv-loader-halo {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.93);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fv-loader-mark,
+  .fv-loader-glow {
+    animation: none;
+  }
+}
+
+.chat-markdown p {
+  margin: 0.4em 0;
+}
+
+.chat-markdown p:first-child {
+  margin-top: 0;
+}
+
+.chat-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-markdown pre {
+  overflow-x: auto;
+  border-radius: 0.6rem;
+  background: var(--code-bg);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.8rem;
+}
+
+.chat-markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+}
+
+.chat-markdown :not(pre) > code {
+  border-radius: 0.3rem;
+  background: var(--code-inline-bg);
+  padding: 0.1em 0.35em;
+}
+
+.chat-markdown ul,
+.chat-markdown ol {
+  margin: 0.4em 0;
+  padding-left: 1.5em;
+  list-style-position: outside;
+}
+
+/* Tailwind's preflight removes browser list markers globally. Restore them in
+ * rendered chat markdown so unordered and ordered lists remain distinguishable,
+ * including when a reply contains nested lists. */
+.chat-markdown ul {
+  list-style-type: disc;
+}
+
+.chat-markdown ol {
+  list-style-type: decimal;
+}
+
+.chat-markdown ul ul {
+  list-style-type: circle;
+}
+
+.chat-markdown ul ul ul {
+  list-style-type: square;
+}
+
+.chat-markdown ol ol {
+  list-style-type: lower-alpha;
+}
+
+.chat-markdown ol ol ol {
+  list-style-type: lower-roman;
+}
+
+.chat-markdown li::marker {
+  color: var(--muted-foreground);
+}
+
+.chat-markdown a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3 {
+  margin: 0.8em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.chat-markdown h1 { font-size: 1.15rem; }
+.chat-markdown h2 { font-size: 1.05rem; }
+.chat-markdown h3 { font-size: 1rem; }
+
+.chat-markdown hr {
+  margin: 0.8em 0;
+  border-color: var(--border);
+}
+
+/*
+ * Math ---------------------------------------------------------------------------
+ * KaTeX inherits `color` and the font stack from its surroundings, so a formula
+ * already follows the active theme with no per-theme set-up — no token overrides are
+ * needed here, and none are possible: KaTeX reads no custom properties of its own.
+ * `rehype-katex` gets `errorColor: "var(--destructive)"` (see markdown-view.tsx) so
+ * the one fragment it cannot parse follows the theme too.
+ *
+ * What is left is layout: a display block is its own row, and a wide one scrolls
+ * inside the bubble rather than stretching the transcript.
+ */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25em 0;
+}
+
+/* A display block carries KaTeX's own vertical padding; the paragraph spacing around
+ * it is the markdown renderer's, so trim the doubled gap it would otherwise get. */
+.chat-markdown > .katex-display:first-child,
+.chat-markdown > p:first-child > .katex-display {
+  margin-top: 0;
+}
+
+.side-pane-open-tab-shell {
+  container: side-pane-open-tab / inline-size;
+}
+
+@container side-pane-open-tab (width >= 480px) {
+  .side-pane-open-tab-content {
+    max-width: 34rem;
+  }
+  .side-pane-open-tab-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  }
+  .side-pane-open-tab-button {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.375rem;
+    height: 5.5rem;
+  }
+  .side-pane-open-tab-button-label {
+    text-align: center;
+    flex: 0 auto;
+  }
+}
+
+/* Shiki renders a whole <pre class="shiki">; strip its chrome so the
+   surrounding card or preview panel keeps its own background and padding. */
+.code-shiki pre {
+  margin: 0;
+  background: transparent !important;
+  font-size: inherit;
+  line-height: inherit;
+}
+.code-shiki code {
+  font-family: inherit;
+  font-variant-ligatures: none;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+  --warning: oklch(0.75 0.14 75);
+  --success: oklch(0.72 0.14 150);
+  --info: oklch(0.72 0.14 250);
+  --code-bg: oklch(0.205 0 0);
+  --code-inline-bg: oklch(1 0 0 / 10%);
+  --code-keyword: oklch(0.78 0.12 280);
+  --code-string: oklch(0.78 0.12 145);
+  --code-comment: oklch(0.6 0 0);
+  --code-number: oklch(0.78 0.12 60);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/*
+ * The home indicator's strip, on a phone.
+ *
+ * `viewport-fit=cover` (remote.html) lets the page paint under it, which is what keeps
+ * the background continuous to the bottom edge — so the last row of interactive chrome
+ * has to reserve that strip itself or the composer's controls sit under the bar. Zero on
+ * every desktop, where the inset does not exist.
+ */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/*
+ * The rest of a phone's edges. The top is the status bar of a home-screen web app, the
+ * sides are the notch in landscape; the bottom stays with `.safe-bottom`, which the
+ * composer row owns. All zero on a desktop.
+ */
+#root {
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+}
+
+/*
+ * A touchscreen with no mouse — a phone or tablet on the remote client.
+ *
+ * - Inputs are 16px: iOS zooms the whole page into any field smaller than that the
+ *   moment it is focused, and does not zoom back out, so tapping the composer left the
+ *   chat half off-screen. `!important` because the size is a utility on each input.
+ * - No grey tap flash: every row and chip here draws its own pressed/active state.
+ * - `manipulation` drops the double-tap-to-zoom wait, so a tap lands at once.
+ * - No pull-to-refresh: a drag down at the top of the transcript reloaded the page,
+ *   which on the remote client is a reconnect in the middle of reading.
+ */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  html,
+  body {
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Sigma fills its container with stacked canvases; the grab cursor is the pan affordance. */
+.memory-sigma .sigma-mouse {
+  cursor: grab;
+}
+.memory-sigma .sigma-mouse:active {
+  cursor: grabbing;
+}
+.memory-sigma.is-point .sigma-mouse {
+  cursor: pointer;
+}
