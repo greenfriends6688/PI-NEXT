@@ -97,6 +97,7 @@ import { externalizeToolEndEvent, savedToolImagePath, shrinkToolResultImages, to
 import { applyToolModes, toolModes } from "../engine/tool-modes";
 import { currentAiLanguageDirective, currentCustomSystemPrompt } from "../engine/ai-language";
 import { uiText } from "../engine/ui-text";
+import { conversationToMarkdown, type MarkdownExportOptions } from "../engine/export-markdown";
 import { mapEngineMessages } from "../engine/map-messages";
 import { canResumeRun } from "../engine/resume";
 import { ReasoningStore } from "../engine/reasoning-store";
@@ -2933,6 +2934,22 @@ export class PiProcessManager {
   async setSteeringMode(mode: "all" | "one-at-a-time", conversationId?: string): Promise<EngineSessionState> { (await this.#sessionFor(conversationId)).session.setSteeringMode(mode); return this.getState(conversationId); }
   async setFollowUpMode(mode: "all" | "one-at-a-time", conversationId?: string): Promise<EngineSessionState> { (await this.#sessionFor(conversationId)).session.setFollowUpMode(mode); return this.getState(conversationId); }
   async exportHtml(): Promise<string | undefined> { return (await this.#active()).exportToHtml(); }
+  /**
+   * 把当前会话导出成 Markdown —— HTML 那条产出的是一个页面，这一条是能贴进文档的文本。
+   *
+   * 思考与工具调用保留（思考默认关），但**不内联工具结果正文**：正文属于文件，不属于
+   * 这份文档。时间只在页头出现一次（`exportedAt`），正文里不放。
+   */
+  async exportMarkdown(conversationId?: string, options?: MarkdownExportOptions): Promise<string> {
+    const { id } = await this.#sessionFor(conversationId);
+    const snapshot = await this.getSnapshot(id ?? undefined);
+    const conversation = id ? this.#catalog.get(id) : undefined;
+    return conversationToMarkdown(snapshot.messages, {
+      cwd: conversation?.cwd,
+      exportedAt: new Date().toISOString(),
+      ...options,
+    });
+  }
   async setAutoCompaction(enabled: boolean, conversationId?: string): Promise<EngineSessionState> {
     // The preference is already in Pinext's settings (`settings.json`), and every new
     // session reads it there, so on the empty hero there is nothing to apply it to yet.
