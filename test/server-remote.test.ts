@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { connect as netConnect } from "node:net";
 import WebSocket from "ws";
 import { RemoteServer } from "../src/main/server/server.ts";
@@ -35,7 +35,7 @@ type Harness = {
 
 async function withServer(
   fn: (h: Harness) => Promise<void>,
-  options: { heartbeatMs?: number } = {},
+  options: { heartbeatMs?: number; webRoot?: string } = {},
 ): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), "pinext-remote-"));
   // The credential file is all this directory holds; the server serves no files.
@@ -62,6 +62,7 @@ async function withServer(
       statusChanges += 1;
     },
     heartbeatMs: options.heartbeatMs,
+    webRoot: options.webRoot,
     log: silent,
   });
   const { port } = await server.start({ port: 0, host: "127.0.0.1" });
@@ -150,6 +151,25 @@ async function upgrade(port: number, headers: Record<string, string>): Promise<s
     });
     socket.on("close", finish);
     socket.on("error", finish);
+  });
+}
+
+/**
+ * One raw `GET`, for paths a URL parser would rewrite before they leave.
+ *
+ * `fetch` normalises `..` and `%2e%2e` out of a path before the request is sent, so the
+ * server never sees them and the check that refuses them cannot be exercised through it.
+ */
+async function rawGet(port: number, target: string): Promise<string> {
+  return new Promise((settle, fail) => {
+    const socket = netConnect(port, "127.0.0.1", () => {
+      socket.write(`GET ${target} HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nConnection: close\r\n\r\n`);
+    });
+    let received = "";
+    socket.setEncoding("utf8");
+    socket.on("data", (chunk: string) => { received += chunk; });
+    socket.on("close", () => settle(received));
+    socket.on("error", fail);
   });
 }
 
@@ -497,6 +517,56 @@ test("a login is accepted only from this server's own page", async () => {
     const native = await post(port, "/api/login", { password: PASSWORD, label: "x" });
     assert.equal(native.status, 200);
   });
+});
+
+test("the web client is served from this origin, and nothing outside its directory", async () => {
+  // The browser gets its page from the same origin the API and the socket live on,
+  // because that is the only origin the socket accepts.
+  const root = await mkdtemp(join(tmpdir(), "pinext-web-"));
+  await mkdir(join(root, "assets"));
+  await writeFile(join(root, "index.html"), "<!doctype html><title>pinext</title>");
+  await writeFile(join(root, "assets", "app.js"), "export const one = 1;\n");
+  const outside = join(dirname(root), "pinext-outside-secret.txt");
+  await writeFile(outside, "not yours");
+  try {
+    await withServer(async ({ port }) => {
+      const shell = await fetch(`http://127.0.0.1:${port}/`);
+      assert.equal(shell.status, 200);
+      assert.match(shell.headers.get("content-type") ?? "", /text\/html/);
+      assert.equal(shell.headers.get("cache-control"), "no-store");
+      assert.match(await shell.text(), /pinext/);
+
+      const asset = await fetch(`http://127.0.0.1:${port}/assets/app.js`);
+      assert.equal(asset.status, 200);
+      assert.match(asset.headers.get("content-type") ?? "", /javascript/);
+      assert.match(asset.headers.get("cache-control") ?? "", /immutable/);
+
+      // A path with no file and no extension is the app shell (the router is on the hash).
+      const route = await fetch(`http://127.0.0.1:${port}/some/deep/route`);
+      assert.equal(route.status, 200);
+      assert.match(await route.text(), /pinext/);
+
+      // A missing *file* is not the shell. `fetch` normalises `..` away before sending,
+      // so this only says “no such file”.
+      assert.equal((await fetch(`http://127.0.0.1:${port}/nope.png`)).status, 404);
+      assert.equal((await fetch(`http://127.0.0.1:${port}/../pinext-outside-secret.txt`)).status, 404);
+      // The traversal vector is an *encoded separator*. The URL parser normalises a
+      // literal `..` — and even `%2e%2e` — out of a path before this code sees it, so the
+      // containment check is not what stops those. What it does stop is `%2f`: it stays
+      // encoded in `pathname`, and the decode below turns it into a separator, so one
+      // segment becomes `../../…` only after the check's own input is built.
+      assert.match(await rawGet(port, "/%2e%2e%2f%2e%2e%2fpinext-outside-secret.txt"), /^HTTP\/1\.1 403 /);
+      assert.match(await rawGet(port, "/assets%2f%2e%2e%2f%2e%2e%2fpinext-outside-secret.txt"), /^HTTP\/1\.1 403 /);
+
+      // And the API still wins where it lives: serving a page did not shadow it.
+      const hello = await fetch(`http://127.0.0.1:${port}/api/hello`);
+      assert.equal(hello.status, 200);
+      assert.equal((await hello.json()).configured, true);
+    }, { webRoot: root });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { force: true });
+  }
 });
 
 test("a socket that stops answering is dropped, and one that answers is kept", async () => {

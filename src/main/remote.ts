@@ -8,7 +8,7 @@ import { log } from "./engine/logger";
 import { readAppSettings, writeAppSettings } from "./engine/app-settings";
 import { passwordProblem } from "./server/auth";
 import { clearRemoteAccess, isConfigured, listDevices, revokeDevice, setPassword } from "./server/store";
-import { lanAddresses, RemoteServer } from "./server/server";
+import { builtWebRoot, lanAddresses, RemoteServer } from "./server/server";
 import { MdnsAdvertiser, mdnsInstanceName } from "./server/mdns";
 import { defaultDeviceName, deviceNameProblem, deviceNameSetting } from "@shared/device-name";
 import { uiText } from "./engine/ui-text";
@@ -60,6 +60,8 @@ function instance(): RemoteServer {
       dispatch(method, payload, { kind: "remote", window: null, origin: clientId }),
     subscribe: (client) => subscribe(client),
     onStatusChange: announceFromServer,
+    // The built web client, so a browser can load the app from this very origin.
+    webRoot: builtWebRoot(),
     log: {
       info: (message) => log.info(message),
       warn: (message) => log.warn(message),

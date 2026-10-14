@@ -1,7 +1,10 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomUUID, timingSafeEqual } from "node:crypto";
+import { createReadStream, existsSync, statSync } from "node:fs";
 import { networkInterfaces } from "node:os";
+import { dirname, extname, join, resolve, sep } from "node:path";
 import type { Duplex } from "node:stream";
+import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
 import { LoginThrottle, passwordProblem } from "./auth.ts";
 import { BackpressureGuard, BUFFER_GRACE_MS, BUFFER_SOFT_LIMIT } from "./backpressure.ts";
@@ -92,6 +95,12 @@ export type RemoteServerDeps = {
   capabilities?: readonly AppCapability[];
   /** Attach a push receiver; the returned function detaches it. Legacy clients only. */
   subscribe: (client: { id: string; send: (channel: string, payload: unknown) => void }) => () => void;
+  /**
+   * Directory holding the built web client, served on this origin so a browser has a page
+   * to load. Omitted means "next to this bundle" (`out/main/…` → `out/renderer`); when
+   * nothing is there the server just answers 404 as it always did.
+   */
+  webRoot?: string;
   /**
    * Told about a change the caller could not otherwise learn of: a device logging in
    * over plain HTTP, or a WebSocket attaching or dropping. None of those go through a
@@ -422,10 +431,63 @@ export class RemoteServer {
       pipeMediaHttp(request, response, filePath);
       return;
     }
-    // Nothing else is served: the phone app speaks `/api/login` and `/ws`, and a browser
-    // has no page here. The answer says what this port is for rather than leaving a
-    // blank error for someone who typed the address into one.
+    // The web client: the built renderer bundle, served from the same origin the API and
+    // the socket live on. A browser has to get its page from somewhere, and this is the
+    // only origin the socket accepts (see `isOwnOrigin`).
+    if (this.#serveWeb(request, response, url)) return;
+    // Nothing else is served: everything a client needs is the app itself, the API above,
+    // and `/ws`. The answer says what this port is for rather than leaving a blank error
+    // for someone who typed the address into a browser.
     this.#json(response, 404, { error: "not found", hint: "This is a Pinext remote access endpoint; open it from the Pinext app." });
+  }
+
+  /**
+   * Serve the built renderer, so a browser can load the app from this origin.
+   *
+   * Returns whether it answered. `false` means there is no web build next to this bundle
+   * (a packaged desktop that never built one, or a test fixture), and the caller falls
+   * through to the JSON 404 — which is the honest answer in that case.
+   *
+   * Only `GET`/`HEAD`, and only inside `webRoot`: the path is resolved against it and the
+   * result has to still be under it, so `..` cannot walk out. A request for a path with no
+   * file at it and no extension is answered with `index.html` — the app routes on the hash,
+   * but `/` and any future path route still need the shell.
+   */
+  #serveWeb(request: IncomingMessage, response: ServerResponse, url: URL): boolean {
+    if (request.method !== "GET" && request.method !== "HEAD") return false;
+    const root = this.#deps.webRoot;
+    if (!root || !existsSync(root)) return false;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(url.pathname);
+    } catch {
+      // A malformed percent-escape is not ours to answer: fall through to the same 404
+      // every other unroutable path gets, rather than inventing a second reply here.
+      return false;
+    }
+    const candidate = resolve(join(root, "." + decoded));
+    if (candidate !== root && !candidate.startsWith(root + sep)) {
+      this.#json(response, 403, { error: "forbidden" });
+      return true;
+    }
+    const file = isFile(candidate) ? candidate : extname(decoded) === "" ? join(root, "index.html") : null;
+    if (!file || !isFile(file)) return false;
+    response.writeHead(200, {
+      "content-type": WEB_CONTENT_TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
+      "content-length": String(statSync(file).size),
+      // No caching of the shell: a stale bundle against a new API is a bug report that
+      // looks like a server problem. Hashed asset names are immutable instead.
+      "cache-control": file.endsWith("index.html") ? "no-store" : "public, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff",
+      // The app is never framed, and never speaks for anything but itself.
+      "x-frame-options": "DENY",
+    });
+    if (request.method === "HEAD") {
+      response.end();
+      return true;
+    }
+    createReadStream(file).pipe(response);
+    return true;
   }
 
   async #handleLogin(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -930,6 +992,53 @@ function requestUrl(request: IncomingMessage): URL | null {
     return new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
   } catch {
     return null;
+  }
+}
+
+/** Content types for what a renderer bundle actually contains, and nothing more. */
+const WEB_CONTENT_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".map": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".ico": "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+  ".webm": "video/webm",
+  ".mp4": "video/mp4",
+  ".wasm": "application/wasm",
+};
+
+/**
+ * Where the built web client sits relative to this bundle.
+ *
+ * Derived rather than hard-coded: this module ships as `out/main/index.js` (electron-vite
+ * bundles main into a single file) and the renderer is built beside it as `out/renderer`,
+ * so both the packaged app and a local build land on the same answer.
+ *
+ * It is a function the caller passes in rather than a default inside the server, because a
+ * server that quietly starts serving whatever happens to be in `out/renderer` would make
+ * "is there a web client here?" depend on whether anybody ran a build — which is exactly
+ * the kind of ambient state a test cannot pin down.
+ */
+export function builtWebRoot(): string {
+  return resolve(dirname(fileURLToPath(import.meta.url)), "../../renderer");
+}
+
+function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
   }
 }
 

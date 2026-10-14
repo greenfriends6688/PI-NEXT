@@ -9,7 +9,7 @@ import { registerAgentIpc, agentChannels } from "./handlers";
 import { agentStreamWatch } from "./stream-watch";
 import { resolveListenHost } from "./listen";
 import { TerminalSessions } from "../main/engine/terminal-sessions";
-import { RemoteServer } from "../main/server/server";
+import { RemoteServer, builtWebRoot } from "../main/server/server";
 import { broadcast, subscribe } from "../main/ipc/broadcast";
 import { dispatch } from "../main/ipc/registry";
 import { applyShellPath } from "../main/engine/shell-path";
@@ -87,6 +87,8 @@ const server = new RemoteServer({
   // The bootstrap starts this process with the token it also hands the desktop over SSH.
   loopbackToken: process.env.PINEXT_AGENT_SYNC_TOKEN || undefined,
   dispatch: (method, payload, clientId) => dispatch(method, payload, { kind: "remote", window: null, origin: clientId }),
+  // The built web client, so a browser can load the app from this very origin.
+  webRoot: builtWebRoot(),
   subscribe,
   log: {
     info: (message) => console.info(`[pinext-agent] ${message}`),
