@@ -136,6 +136,8 @@ import { hasOAuthCredential, OAuthCredentialStore, readOrCreateDeviceId } from "
 import { priceUsage } from "../engine/pricing";
 import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-quota";
 import { createImageGenExtension } from "../pinext/imagegen/extension.ts";
+import { createWebSearchExtension } from "../pinext/websearch/extension.ts";
+import { maskedWebSearchSettings, readWebSearchSettings, writeWebSearchSettings, type WebSearchSettings } from "../pinext/websearch/settings.ts";
 import {
   emptyImageGenStatus,
   ensureGeneratedImagesRootRegistered,
@@ -2811,6 +2813,15 @@ export class PiProcessManager {
    * "looks configured" is not the same claim as "works" — and the status it records is the
    * only thing that lets anything else rely on this profile.
    */
+  /** 联网搜索偏好. The token is masked on the way out and merged on the way in. */
+  async getWebSearch(): Promise<WebSearchSettings> {
+    return maskedWebSearchSettings(readWebSearchSettings());
+  }
+
+  async setWebSearch(patch: Record<string, unknown>): Promise<WebSearchSettings> {
+    return maskedWebSearchSettings(writeWebSearchSettings(patch as Partial<WebSearchSettings>));
+  }
+
   async getImageGen(): Promise<ImageGenConfig> {
     return maskedImageGenConfig(readImageGenConfig(this.#paths.agentDir));
   }
@@ -3463,7 +3474,12 @@ export class PiProcessManager {
       // 生图. A tool rather than a skill on purpose: it spends money and writes files, so
       // it has to be nameable by the approval engine, countable, and configurable from
       // Settings — none of which a skill can offer.
-      createImageGenExtension(cwd), {
+      createImageGenExtension(cwd),
+      // 联网搜索. Replaces the built-in `web-search` extension, which registered the same
+      // tool name but could only work on `openai-responses` models — it asked the provider
+      // to run the search. This one has its own provider chain (SearXNG / Bing / DuckDuckGo
+      // / Mojeek / an aggregate), so any model can use it.
+      createWebSearchExtension(), {
         // Switches codemode, tool_search and the dag_* tools on or off from the settings
         // as they are at `session_start`, which a reload emits again — the SDK's
         // `defaultTools` setting can only add.

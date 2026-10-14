@@ -58,6 +58,7 @@ import type {
 import type { AccountState } from "@shared/account";
 import type { ProviderUsageId, ProviderUsageResult } from "@shared/provider-usage";
 import type { ImageGenConfig, ImageGenTestResult } from "@shared/imagegen";
+import type { WebSearchSettings } from "@shared/websearch";
 import type { RemoteHostProfile, RemoteHostConnectionState, RemoteHostTestResult, SshHostKeyScan } from "@shared/remote-host";
 import type {
   AppUpdateState,
@@ -281,6 +282,11 @@ export function createPinextApi(t: ApiTransport) {
    * its own endpoint, key, model and size per preset, and it never enters `enabledModels`.
    * The key is only ever seen as a mask.
    */
+  /** 联网搜索 (fork:websearch). Off by default: it goes out to the network. */
+  websearch: {
+    get: (): Promise<WebSearchSettings> => t.invoke(Ipc.websearchGet),
+    set: (patch: Partial<WebSearchSettings>): Promise<WebSearchSettings> => t.invoke(Ipc.websearchSet, patch),
+  },
   imagegen: {
     get: (): Promise<ImageGenConfig> => t.invoke(Ipc.imagegenGet),
     set: (input: { active: string; providers: Record<string, unknown> }): Promise<ImageGenConfig> =>

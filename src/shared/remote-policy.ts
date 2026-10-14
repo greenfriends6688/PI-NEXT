@@ -257,6 +257,9 @@ const ALLOWED = new Set<string>([
   // 生图. `get` returns the masked view, `set` writes a key the person just typed on this
   // machine, and `test` spends one small generation — the same bargain the usage query
   // above makes. All three are about this host's own configuration, not the account's.
+  // 联网搜索 is this host's own preference file, and the tool reads it on every call.
+  Ipc.websearchGet,
+  Ipc.websearchSet,
   Ipc.imagegenGet,
   Ipc.imagegenSet,
   Ipc.imagegenTest,

@@ -44,6 +44,7 @@ import { ShortcutsSettings } from "./shortcuts-settings";
 import { AboutSettings } from "./about-settings";
 import { PersonalizationSettings } from "./personalization-settings";
 import { ImageGenSettings } from "./imagegen-settings";
+import { WebSearchSettings } from "./websearch-settings";
 import { SubagentsSettings } from "./subagents-settings";
 import { SettingsGroup as Group, SettingsRow as Row } from "./settings-group";
 import {
@@ -425,6 +426,7 @@ export function SettingsDialog({
           {section === "browser" ? <BrowserSettings /> : null}
 
           {section === "imagegen" ? <ImageGenSettings /> : null}
+          {section === "websearch" ? <WebSearchSettings /> : null}
           {section === "subagents" ? <SubagentsSettings models={models} /> : null}
           {section === "decision" ? <DecisionSettings /> : null}
           {section === "memory" ? <MemorySettings models={models} /> : null}

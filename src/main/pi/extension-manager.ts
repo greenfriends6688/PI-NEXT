@@ -20,7 +20,6 @@ export const BUILTIN_EXTENSIONS: Array<{ source: string; file: string }> = [
   { source: "pinext:session-title", file: "session-title.ts" },
   { source: "pinext:browser-use", file: "browser-use.ts" },
   { source: "pinext:computer-use", file: "computer-use.ts" },
-  { source: "pinext:web-search", file: "web-search.ts" },
   { source: "pinext:conversation-search", file: "conversation-search.ts" },
   { source: "pinext:worktree", file: "worktree.ts" },
   { source: "pinext:present", file: "present.ts" },

@@ -9,6 +9,7 @@ import {
   ComputerIcon,
   Globe02Icon,
   AiImageIcon,
+  Search01Icon,
   ImportIcon,
   InformationCircleIcon,
   KeyboardIcon,
@@ -40,6 +41,7 @@ export type SectionId =
   | "usage"
   | "providers"
   | "imagegen"
+  | "websearch"
   | "subagents"
   | "decision"
   | "memory"
@@ -87,6 +89,7 @@ export const SETTINGS_SECTIONS: Array<{
     group: "integrations",
     items: [
       { id: "providers", icon: <HugeiconsIcon strokeWidth={2} icon={BoxesIcon} /> },
+      { id: "websearch", icon: <HugeiconsIcon strokeWidth={2} icon={Search01Icon} /> },
       { id: "imagegen", icon: <HugeiconsIcon strokeWidth={2} icon={AiImageIcon} /> },
       { id: "subagents", icon: <HugeiconsIcon strokeWidth={2} icon={BotIcon} /> },
       { id: "decision", icon: <HugeiconsIcon strokeWidth={2} icon={BrainCircuitIcon} /> },

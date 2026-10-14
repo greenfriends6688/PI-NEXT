@@ -197,6 +197,9 @@ export const Ipc = {
   /** Balance / quota for the providers with a published usage endpoint. */
   providersUsage: "providers:usage",
   /** 生图档案：读（掩码）/ 写 / 真出一张图的测试。 */
+  /** 联网搜索偏好：读（掩码）/ 写。 */
+  websearchGet: "websearch:get",
+  websearchSet: "websearch:set",
   imagegenGet: "imagegen:get",
   imagegenSet: "imagegen:set",
   imagegenTest: "imagegen:test",

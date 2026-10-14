@@ -13,6 +13,8 @@ function capabilityOf(method: string): AppCapability | null {
   if (method.startsWith("providers:")) return "providers";
   // 生图 is about which vendors this host can talk to — the same family.
   if (method.startsWith("imagegen:")) return "providers";
+  // 联网搜索 is a preference this host holds, like the rest of `settings:`.
+  if (method.startsWith("websearch:")) return "settings";
   if (method.startsWith("models-dev:")) return "providers";
   if (method.startsWith("settings:")) return "settings";
   if (method.startsWith("decision:")) return "settings";
