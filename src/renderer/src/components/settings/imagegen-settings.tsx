@@ -42,6 +42,8 @@ export function ImageGenSettings(): JSX.Element {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [tested, setTested] = useState<ImageGenTestResult | null>(null);
+  const [models, setModels] = useState<string[]>([]);
+  const [listing, setListing] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -101,6 +103,26 @@ export function ImageGenSettings(): JSX.Element {
       toast.error(t("imagegen.saveFailed", { error: cause instanceof Error ? cause.message : String(cause) }));
     } finally {
       setSaving(false);
+    }
+  };
+
+  /**
+   * Ask the provider what it actually serves.
+   *
+   * The preset table ships a default model name per vendor, and vendors rename things — so
+   * this reads the list rather than trusting the name in the table.
+   */
+  const listModels = async (): Promise<void> => {
+    if (!preset) return;
+    setListing(true);
+    try {
+      const found = await window.pinext.imagegen.models(preset);
+      setModels(found);
+      if (found.length === 0) toast.info(t("imagegen.modelsEmpty"));
+    } catch (cause) {
+      toast.error(t("imagegen.modelsFailed", { error: cause instanceof Error ? cause.message : String(cause) }));
+    } finally {
+      setListing(false);
     }
   };
 
@@ -173,14 +195,28 @@ export function ImageGenSettings(): JSX.Element {
         />
         <SettingsRow
           title={t("imagegen.model")}
-          description={t("imagegen.modelHint")}
+          description={models.length > 0 ? t("imagegen.modelPicked", { count: models.length }) : t("imagegen.modelHint")}
           control={
-            <Input
-              className="w-72"
-              value={draft.model}
-              placeholder={meta.model}
-              onChange={(event) => setDraft((value) => ({ ...value, model: event.target.value }))}
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                className="w-64"
+                value={draft.model}
+                placeholder={meta.model}
+                list="imagegen-models"
+                onChange={(event) => setDraft((value) => ({ ...value, model: event.target.value }))}
+              />
+              {/* A native datalist: the fetched names become suggestions without a second
+                  popup component, and typing a name that is not in the list still works. */}
+              <datalist id="imagegen-models">
+                {models.map((model) => (
+                  <option key={model} value={model} />
+                ))}
+              </datalist>
+              <Button size="sm" variant="outline" disabled={listing} onClick={() => void listModels()}>
+                {listing ? <HugeiconsIcon strokeWidth={2} icon={Loading03Icon} className="size-3.5 animate-spin" /> : null}
+                {t("imagegen.listModels")}
+              </Button>
+            </div>
           }
         />
         <SettingsRow

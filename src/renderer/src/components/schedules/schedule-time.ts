@@ -32,11 +32,57 @@ export function localTimeZone(): string {
 }
 
 /** IANA zones, with the machine's zone (and any saved zone) first. */
+/**
+ * The time zones to offer, **this machine's first**, then ordered by offset from UTC.
+ *
+ * `Intl.supportedValuesOf("timeZone")` returns IANA ids in plain alphabetical order, which
+ * puts `Africa/Abidjan` … `Africa/Bangui` … in front of `Asia/Shanghai`: finding your own
+ * zone means scrolling past a continent you are not on. Sorting by the offset each zone is
+ * actually at (evaluated now, so DST is accounted for) puts the neighbours of the one you
+ * want next to it, and the current zone stays pinned at the top.
+ */
 export function timeZoneOptions(current = localTimeZone()): string[] {
   const intl = Intl as typeof Intl & { supportedValuesOf?: (key: "timeZone") => string[] };
   const zones = intl.supportedValuesOf?.("timeZone") ?? [];
-  const preferred = [current, localTimeZone()].filter((zone) => zone.length > 0);
-  return [...new Set([...preferred, ...zones])];
+  const local = localTimeZone();
+  const preferred = [current, local, "UTC"].filter((zone) => zone.length > 0);
+  const rest = zones.filter((zone) => !preferred.includes(zone));
+  return [...new Set([...preferred, ...rest.sort((a, b) => zoneOffsetMinutes(a) - zoneOffsetMinutes(b) || a.localeCompare(b))])];
+}
+
+/** Minutes east of UTC for a zone right now (so DST is included). */
+export function zoneOffsetMinutes(zone: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "longOffset" })
+      .formatToParts(new Date())
+      .find((part) => part.type === "timeZoneName")?.value;
+    const match = /GMT([+-])(\d{2}):?(\d{2})?/.exec(parts ?? "");
+    if (!match) return 0;
+    return (match[1] === "-" ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3] ?? 0));
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * `Asia/Shanghai` → `中国标准时间`, via the platform's own name for it.
+ *
+ * A list of IANA ids is a list of strings; the person picking one is picking *their own
+ * clock*. `timeZoneName: "long"` is the name a person would recognise, and it follows the
+ * UI language, which the ids never did.
+ */
+export function timeZoneLabel(zone: string, locale: string, offsetMinutes?: number): string {
+  try {
+    const name = new Intl.DateTimeFormat(locale, { timeZone: zone, timeZoneName: "long" })
+      .formatToParts(new Date())
+      .find((part) => part.type === "timeZoneName")?.value;
+    const sign = (offsetMinutes ?? 0) >= 0 ? "+" : "-";
+    const abs = Math.abs(offsetMinutes ?? 0);
+    const offset = offsetMinutes === undefined ? "" : ` (UTC${sign}${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, "0")})`;
+    return name ? `${name}${offset}` : `${zone}${offset}`;
+  } catch {
+    return zone;
+  }
 }
 
 export function normalizeHm(value: string): string {

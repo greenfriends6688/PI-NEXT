@@ -145,6 +145,7 @@ import type { FileMutation } from "../../shared/file-mutation.ts";
 // this line is *not* upstream's, and everything above it is.
 import { isProviderUsageId, queryProviderUsage, type ProviderUsageResult } from "../engine/provider-usage";
 import { createImageGenExtension } from "../pinext/imagegen/extension.ts";
+import { imageGenPresetMeta } from "../../shared/imagegen.ts";
 import { createWebSearchExtension } from "../pinext/websearch/extension.ts";
 import { createImExtension } from "../pinext/im-bridge/extension.ts";
 import {
@@ -2001,6 +2002,28 @@ export class PiProcessManager {
       } as ImageGenConfig["providers"][typeof preset];
     }
     return maskedImageGenConfig(writeImageGenConfig({ version: 3, active, providers }, this.#paths.agentDir));
+  }
+
+  /**
+   * The configured profile's own model list, straight from the provider.
+   *
+   * The preset table ships a default model name per vendor, and names change — this asks the
+   * vendor instead of guessing, and the settings pane offers what came back.
+   */
+  async listImageGenModels(preset?: string): Promise<string[]> {
+    const config = readImageGenConfig(this.#paths.agentDir);
+    const target = typeof preset === "string" && (IMAGEGEN_PRESET_IDS as readonly string[]).includes(preset)
+      ? preset as ImageGenPreset
+      : config.active;
+    const profile = config.providers[target];
+    if (!profile?.baseUrl || !profile.apiKey) {
+      throw new Error(uiText("先填好端点和密钥", "Fill in the endpoint and the key first."));
+    }
+    // The image dialect is not a chat `api`, so map it: Google's list endpoint differs from
+    // the OpenAI-style one, and `fetchProviderModels` already knows both.
+    const api = imageGenPresetMeta(target).dialect === "google" ? "google-generative-ai" : undefined;
+    const models = await fetchProviderModels(profile.baseUrl, profile.apiKey, api);
+    return models.map((model) => model.id).sort((a, b) => a.localeCompare(b));
   }
 
   async testImageGen(preset?: string): Promise<{ ok: boolean; status: ImageGenStatus; image?: string; path?: string; error?: string }> {

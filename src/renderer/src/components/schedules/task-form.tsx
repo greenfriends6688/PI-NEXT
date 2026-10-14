@@ -1,5 +1,6 @@
 import { useMemo, type JSX } from "react";
 import { useTranslation } from "react-i18next";
+import { i18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,9 @@ import {
   WEEKDAY_ORDER,
   isoToDatetimeLocal,
   normalizeHm,
+  timeZoneLabel,
   timeZoneOptions,
+  zoneOffsetMinutes,
   type ScheduleFormError,
   type ScheduleFormState,
   type ScheduleKind,
@@ -175,7 +178,8 @@ export function TaskForm({
                   <SelectContent>
                     {zones.map((zone) => (
                       <SelectItem key={zone} value={zone}>
-                        {zone}
+                        {/* 人挑的是自己的钟，不是一串 IANA id —— 名字随界面语言。 */}
+                        {timeZoneLabel(zone, i18n.language, zoneOffsetMinutes(zone))}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -296,6 +296,7 @@ export function createPinextApi(t: ApiTransport) {
     set: (input: { active: string; providers: Record<string, unknown> }): Promise<ImageGenConfig> =>
       t.invoke(Ipc.imagegenSet, input),
     test: (provider?: string): Promise<ImageGenTestResult> => t.invoke(Ipc.imagegenTest, { provider }),
+    models: (provider?: string): Promise<string[]> => t.invoke(Ipc.imagegenModels, { provider }),
   },
   /** 联网搜索 (fork:websearch). Off by default: it goes out to the network. */
   websearch: {

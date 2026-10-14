@@ -266,6 +266,7 @@ const ALLOWED = new Set<string>([
   Ipc.imagegenGet,
   Ipc.imagegenSet,
   Ipc.imagegenTest,
+  Ipc.imagegenModels,
   Ipc.websearchGet,
   Ipc.websearchSet,
   Ipc.imGet,

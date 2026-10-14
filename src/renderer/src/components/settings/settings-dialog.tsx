@@ -427,8 +427,13 @@ export function SettingsDialog({
           {section === "subagents" ? <SubagentsSettings models={models} /> : null}
           {section === "imagegen" ? <ImageGenSettings /> : null}
           {section === "websearch" ? <WebSearchSettings /> : null}
-          {section === "im" ? <ImBridgeSettings /> : null}
-          {section === "bot-channel" ? <BotChannelSettings /> : null}
+          {section === "bots" ? (
+            // 出站推送（im_send）与入站渠道同属一件事，放在同一页的上下两半。
+            <div className="space-y-8">
+              <BotChannelSettings />
+              <ImBridgeSettings />
+            </div>
+          ) : null}
           {section === "decision" ? <DecisionSettings /> : null}
           {section === "memory" ? <MemorySettings models={models} /> : null}
           {section === "mcp" ? <McpSettings /> : null}

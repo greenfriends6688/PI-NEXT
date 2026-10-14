@@ -113,6 +113,8 @@ export const Ipc = {
   imagegenGet: "imagegen:get",
   imagegenSet: "imagegen:set",
   imagegenTest: "imagegen:test",
+  /** 拉取该档上游的模型清单，供设置页挑选。 */
+  imagegenModels: "imagegen:models",
   /** 联网搜索偏好：读（掩码）/ 写。 */
   websearchGet: "websearch:get",
   websearchSet: "websearch:set",

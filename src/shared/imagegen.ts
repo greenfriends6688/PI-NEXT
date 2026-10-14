@@ -36,9 +36,11 @@ export interface ImageGenPresetMeta {
  * Agnes 有国内与国际两个入口，凭证不互通，所以是两个档。
  */
 export const IMAGEGEN_PRESETS: Record<ImageGenPreset, ImageGenPresetMeta> = {
+  // 用户 2026-10-14 指定：Agnes 的默认请求地址是国际入口 `apihub.agnes-ai.com`。
+  // 国内入口 `api.agnes-ai.cn` 仍作为独立一档留着（凭证不互通，是两套账号）。
   agnes: {
     label: "Agnes AI（国内）",
-    baseUrl: "https://api.agnes-ai.cn/v1",
+    baseUrl: "https://apihub.agnes-ai.com/v1",
     model: "agnes-image-2.1-flash",
     size: "1K",
     dialect: "agnes",

@@ -177,7 +177,11 @@
   "testFailed": "测试失败：{{error}}",
   "resultTitle": "测试结果",
   "loading": "正在读取生图配置…",
-  "loadFailed": "读取生图配置失败：{{error}}"
+  "loadFailed": "读取生图配置失败：{{error}}",
+  "listModels": "获取模型列表",
+  "modelsEmpty": "该端点没有返回任何模型",
+  "modelsFailed": "获取模型失败：{{error}}",
+  "modelPicked": "已获取 {{count}} 个模型，点输入框可挑"
  },
  "sections": {
   "general": "偏好设置",
@@ -190,7 +194,6 @@
   "decision": "决策引擎",
   "imagegen": "生图模型",
   "websearch": "联网搜索",
-  "im": "推送机器人",
   "memory": "长期记忆",
   "mcp": "MCP 工具",
   "skills": "技能",
@@ -202,7 +205,7 @@
   "computer": "电脑操控",
   "proxy": "网络代理",
   "browser": "浏览器控制",
-  "bot-channel": "机器人渠道"
+  "bots": "机器人"
  },
  "backToApp": "返回应用",
  "personalization": {

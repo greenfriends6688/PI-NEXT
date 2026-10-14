@@ -177,7 +177,11 @@
   "testFailed": "Test failed: {{error}}",
   "resultTitle": "Test result",
   "loading": "Reading the image configuration…",
-  "loadFailed": "Could not read the image configuration: {{error}}"
+  "loadFailed": "Could not read the image configuration: {{error}}",
+  "listModels": "Fetch models",
+  "modelsEmpty": "The endpoint returned no models",
+  "modelsFailed": "Could not fetch models: {{error}}",
+  "modelPicked": "{{count}} models fetched — click the field to pick"
  },
  "sections": {
   "general": "Preferences",
@@ -190,7 +194,6 @@
   "decision": "Decision engine",
   "imagegen": "Image generation",
   "websearch": "Web search",
-  "im": "Push bots",
   "memory": "Long-term memory",
   "mcp": "MCP tools",
   "skills": "Skills",
@@ -202,7 +205,7 @@
   "computer": "Computer control",
   "proxy": "Network proxy",
   "browser": "Browser control",
-  "bot-channel": "Bot channels"
+  "bots": "Chat bots"
  },
  "backToApp": "Back to app",
  "personalization": {
