@@ -153,10 +153,15 @@ async function upgrade(port: number, headers: Record<string, string>): Promise<s
   });
 }
 
-async function post(port: number, path: string, body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
+async function post(
+  port: number,
+  path: string,
+  body: unknown,
+  headers: Record<string, string> = {},
+): Promise<{ status: number; body: Record<string, unknown> }> {
   const response = await fetch(`http://127.0.0.1:${port}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
   return { status: response.status, body: (await response.json()) as Record<string, unknown> };
@@ -450,22 +455,47 @@ test("a websocket upgrade with an unparseable host is refused, not thrown on", a
   });
 });
 
-test("a socket opened by a web page is refused, however the Host looks", async () => {
-  // The phone app and the desktop's SSH forward are the only clients, and neither is a
-  // browser, so neither sends `Origin`. A page that does is a page the user happens to be
-  // visiting, dialling a server it guessed — whether the address is this machine's own or
-  // arrives through someone's proxy that rewrote `Host` and added forwarding headers.
+test("a socket is refused from every origin but this server's own page", async () => {
+  // The phone app and the desktop's SSH forward send no `Origin`, so they are unaffected.
+  // A browser does send one, and cannot forge it — which is what makes “this server's own
+  // page” a decidable question. A page the user happens to be visiting has a different
+  // origin, and `Origin: null` (a sandboxed frame, a `file://` document) matches nothing.
   await withServer(async ({ port }) => {
     for (const headers of [
       { Host: `127.0.0.1:${port}`, Origin: "https://evil.example.com" },
-      { Host: `127.0.0.1:${port}`, Origin: `http://127.0.0.1:${port}` },
+      { Host: `127.0.0.1:${port}`, Origin: "null" },
+      { Host: `127.0.0.1:${port}`, Origin: "not a url" },
+      // Host rewritten by whatever sits in front, origin left alone: still not ours.
       { Host: "127.0.0.1:7777", Origin: "https://calm-otter-42.ngrok-free.app", "X-Forwarded-Host": "calm-otter-42.ngrok-free.app", "X-Forwarded-Proto": "https" },
     ]) {
       assert.doesNotMatch(await upgrade(port, headers), /101/, JSON.stringify(headers));
     }
+    // The web client is a browser and it *is* this server's own page, so the same host and
+    // port let it through. The scheme is not part of that identity: a tunnel terminating
+    // TLS in front of this server keeps its own name in both headers.
+    assert.match(await upgrade(port, { Host: `127.0.0.1:${port}`, Origin: `http://127.0.0.1:${port}` }), /^HTTP\/1\.1 101 /);
     // And with no Origin — a native client — the same upgrade goes through, which is what
     // makes the refusals above mean something.
     assert.match(await upgrade(port, { Host: `127.0.0.1:${port}` }), /^HTTP\/1\.1 101 /);
+  });
+});
+
+test("a login is accepted only from this server's own page", async () => {
+  // A login is a *simple* request: no preflight stands between a page and this endpoint, so
+  // without the origin check any page the user visits could send one and pay only the
+  // throttle's delay for a wrong password.
+  await withServer(async ({ port }) => {
+    const cross = await post(port, "/api/login", { password: PASSWORD, label: "x" }, { origin: "https://evil.example.com" });
+    assert.equal(cross.status, 403);
+    assert.equal(cross.body.token, undefined, "no token may be issued to another origin");
+
+    const own = await post(port, "/api/login", { password: PASSWORD, label: "x" }, { origin: `http://127.0.0.1:${port}` });
+    assert.equal(own.status, 200);
+    assert.equal(typeof own.body.token, "string");
+
+    // The phone app and the CLI send no Origin and are unaffected.
+    const native = await post(port, "/api/login", { password: PASSWORD, label: "x" });
+    assert.equal(native.status, 200);
   });
 });
 

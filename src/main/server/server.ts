@@ -393,6 +393,15 @@ export class RemoteServer {
       return;
     }
     if (url.pathname === "/api/login" && request.method === "POST") {
+      // The same rule the socket applies. A browser sends `Origin` on its own and cannot
+      // forge it, so a page the user happens to be visiting can be told apart from this
+      // server's own page. A login is a *simple* request — no preflight stands in the way
+      // — so without this an unrelated page could send one, and a wrong password would
+      // cost only the throttle's delay. There is no reason to accept it at all.
+      if (!isOwnOrigin(request)) {
+        this.#json(response, 403, { error: "forbidden" });
+        return;
+      }
       void this.#handleLogin(request, response).catch((error: unknown) => {
         // Not the request being malformed — that is answered inside. This is the write
         // of the issued token failing, and it must still end the request.
@@ -485,11 +494,16 @@ export class RemoteServer {
       socket.destroy();
       return;
     }
-    // A browser attaches `Origin` on its own and cannot forge it, and the only clients of
-    // this socket are the phone app and the desktop's own SSH forward — neither is a
-    // browser, so neither sends one. Any page that does is a page the user happens to be
-    // visiting trying a server it guessed, and gets nothing.
-    if (typeof request.headers.origin === "string") {
+    // A browser attaches `Origin` on its own and cannot forge it, so it is the one header
+    // that says which page a request came from — and it is checked, rather than the whole
+    // header being read as "a browser is here".
+    //
+    // This used to refuse any browser at all: the only clients were the phone app and the
+    // desktop's own SSH forward, and neither sends `Origin`. The web client is one now, so
+    // the rule becomes the one that was always meant — **this server's own page is
+    // allowed, any other page is not** — which is exactly the property the blanket refusal
+    // was protecting. See `isOwnOrigin`.
+    if (!isOwnOrigin(request)) {
       this.#deps.log.warn(`remote upgrade refused origin=${request.headers.origin}`);
       socket.destroy();
       return;
@@ -916,6 +930,35 @@ function requestUrl(request: IncomingMessage): URL | null {
     return new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Whether a browser's `Origin` names this very server.
+ *
+ * `Origin` is set by the browser and cannot be forged by a page, so it is the one header
+ * that answers "which page is this from". Same host and port as the request's own `Host`
+ * is this server's own page; every other origin, and the literal `null` a sandboxed frame
+ * or a `file://` document sends, is somebody else's.
+ *
+ * The **scheme** is deliberately not compared. The same server is reachable as
+ * `http://host:port` on the LAN and `https://host` through a tunnel that terminates TLS in
+ * front of it; both are the same server and both are its own page.
+ *
+ * A request with no `Origin` at all is not a browser — the phone app, the desktop's SSH
+ * forward, curl — and is none of this function's business. The device token is what
+ * authenticates those, as it does a browser; this check only decides which *pages* may ask.
+ */
+function isOwnOrigin(request: IncomingMessage): boolean {
+  const origin = request.headers.origin;
+  if (typeof origin !== "string") return true;
+  const host = request.headers.host;
+  if (typeof host !== "string" || host.length === 0) return false;
+  try {
+    return new URL(origin).host === host.trim().toLowerCase();
+  } catch {
+    // `Origin: null`, and anything else the URL parser rejects.
+    return false;
   }
 }
 
