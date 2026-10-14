@@ -63,6 +63,7 @@ import type { ImageGenConfig, ImageGenTestResult } from "@shared/imagegen";
 import type { WebSearchSettings } from "@shared/websearch";
 import type { ImSendOutcome, ImTarget, ImTargetView } from "@shared/im-bridge";
 import type { ChatChannelConfig } from "@shared/chat-channel";
+import type { FileMutation } from "@shared/file-mutation";
 import type { RemoteHostProfile, RemoteHostConnectionState, RemoteHostTestResult, SshHostKeyScan } from "@shared/remote-host";
 import type {
   AppUpdateState,
@@ -485,6 +486,13 @@ export function createPinextApi(t: ApiTransport) {
       fileIcons: (): Promise<FileIconMapping> => t.invoke(Ipc.workspaceFileIcons),
       readDir: (path: string): Promise<DirEntry[]> => t.invoke(Ipc.workspaceReadDir, { path }),
       /** Replace a text file the file pane already has open. Refuses anything that is not a regular file. */
+      /**
+       * 新增 / 重命名 / 删除。The engine decides whether a path may be touched (it has to be
+       * inside a project or conversation working directory); this call is not the authorisation.
+       */
+      mutate: (mutation: FileMutation): Promise<void> => t.invoke(Ipc.workspaceMutate, mutation),
+      /** A flat relative listing of one root, for the `@` menu. */
+      listFiles: (root: string): Promise<string[]> => t.invoke(Ipc.workspaceListFiles, { root }),
       writeFile: (path: string, text: string): Promise<void> => t.invoke(Ipc.workspaceWriteFile, { path, text }),
       gitStatus: (cwd: string): Promise<GitStatus> => t.invoke(Ipc.workspaceGitStatus, { cwd }),
       openTerminal: (cwd: string): Promise<void> => t.invoke(Ipc.workspaceOpenTerminal, { cwd }),

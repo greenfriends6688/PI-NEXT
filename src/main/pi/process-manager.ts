@@ -138,6 +138,8 @@ import { findNativeProvider } from "../engine/native-providers";
 import { hasOAuthCredential, OAuthCredentialStore, readOrCreateDeviceId } from "../engine/oauth-store";
 import { priceUsage } from "../engine/pricing";
 import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-quota";
+import { listWorkspaceFiles, mutateWorkspaceFile } from "../engine/workspace-mutate.ts";
+import type { FileMutation } from "../../shared/file-mutation.ts";
 // ── 本 fork 加的东西（相对上游 0.19.6）────────────────────────────────────────
 // Kept in one block so the next upstream sync can find them again by eye: everything below
 // this line is *not* upstream's, and everything above it is.
@@ -702,6 +704,32 @@ export class PiProcessManager {
   get memory(): MemoryHost { return this.#memory; }
 
   listWorkspace(): WorkspaceSnapshot { return this.#catalog.snapshot(); }
+
+  /**
+   * The directories a file-tree operation may touch: project folders and open conversations.
+   *
+   * This is the authorisation for create / rename / delete, and it is deliberately narrower
+   * than what *writing* an existing file allows — that one only asks the file to exist, which
+   * is fine for an editor and not fine for "make these, move these, delete these".
+   */
+  workspaceRoots(): string[] {
+    const snapshot = this.listWorkspace();
+    return [
+      ...snapshot.projects.map((project) => project.cwd),
+      ...snapshot.conversations.map((conversation) => conversation.cwd),
+    ];
+  }
+
+  async mutateWorkspaceFile(mutation: FileMutation): Promise<void> {
+    mutateWorkspaceFile(mutation, this.workspaceRoots());
+  }
+
+  /** `@` 菜单用的扁平清单；只肯走引擎已经认识的那些目录。 */
+  async listWorkspaceFiles(root: string): Promise<string[]> {
+    const resolved = resolve(root);
+    if (!this.workspaceRoots().some((known) => known === resolved)) return [];
+    return listWorkspaceFiles(resolved);
+  }
   searchConversations(query: string): Promise<ConversationSearchHit[]> {
     return searchConversationContent(query, this.#catalog.list());
   }

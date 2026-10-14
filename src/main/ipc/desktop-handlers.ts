@@ -15,6 +15,7 @@ import { registerEngineIpc } from "./engine-handlers";
 import { handle, type CallerContext } from "./registry";
 import { readFilePreview } from "../engine/file-preview";
 import { readWorkspaceDir, writeWorkspaceTextFile } from "../engine/workspace-fs";
+import type { FileMutation } from "../../shared/file-mutation.ts";
 import { existingFiles } from "../engine/path-exists";
 import { conversationCwd, readFileForPayload } from "../engine/file-chunk";
 import { loadModelsDev, type ModelsDevStats } from "../engine/models-dev";
@@ -329,6 +330,10 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       return [];
     }
   });
+  handle(Ipc.workspaceMutate, async (payload: FileMutation) => {
+    await engine.mutateWorkspaceFile(payload);
+  });
+  handle(Ipc.workspaceListFiles, async (payload: { root: string }) => engine.listWorkspaceFiles(payload.root));
   handle(Ipc.workspaceWriteFile, (payload: { path?: unknown; text?: unknown }) => {
     writeWorkspaceTextFile(payload?.path, payload?.text);
   });

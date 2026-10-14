@@ -304,6 +304,9 @@ const ALLOWED = new Set<string>([
   Ipc.workspaceReadDir,
   Ipc.workspaceReadFile,
   Ipc.workspaceWriteFile,
+  // 文件树的新增 / 重命名 / 删除与清单：引擎自己的门槛说了算，不是这张表。
+  Ipc.workspaceMutate,
+  Ipc.workspaceListFiles,
   Ipc.workspaceTerminalKill,
   Ipc.workspaceTerminalResize,
   Ipc.workspaceTerminalStart,

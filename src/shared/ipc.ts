@@ -130,6 +130,10 @@ export const Ipc = {
   workspaceFileIcons: "workspace:file-icons",
   workspaceReadDir: "workspace:read-dir",
   workspaceWriteFile: "workspace:write-file",
+  /** 文件树的新增文件夹 / 新增文件 / 重命名 / 删除。 */
+  workspaceMutate: "workspace:mutate",
+  /** `@` 菜单的扁平文件清单。 */
+  workspaceListFiles: "workspace:list-files",
   workspaceReadFile: "workspace:read-file",
   workspaceGitStatus: "workspace:git-status",
   workspaceOpenTerminal: "workspace:open-terminal",
