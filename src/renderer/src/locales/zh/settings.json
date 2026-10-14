@@ -93,6 +93,25 @@
   "system": "系统",
   "about": "关于"
  },
+  "im": {
+    "targetsTitle": "推送目标",
+    "empty": "还没有推送目标",
+    "emptyHint": "「im_send」需要一个目标才能发消息",
+    "label": "名字",
+    "secret": "签名密钥（开了加签才要）",
+    "add": "添加目标",
+    "remove": "移除",
+    "save": "保存",
+    "saved": "已保存",
+    "saveFailed": "保存失败：{{error}}",
+    "loadFailed": "读取失败：{{error}}",
+    "test": "测试",
+    "testOk": "已发到 {{label}}",
+    "testFailed": "发送失败：{{detail}}",
+    "toolTitle": "工具",
+    "tool": "im_send",
+    "toolHint": "让 agent 主动给你发消息；地址与密钥只存在本机"
+  },
   "websearch": {
     "title": "联网搜索",
     "enabled": "启用联网搜索",
@@ -171,6 +190,7 @@
   "decision": "决策引擎",
   "imagegen": "生图模型",
   "websearch": "联网搜索",
+  "im": "推送机器人",
   "memory": "长期记忆",
   "mcp": "MCP 工具",
   "skills": "技能",

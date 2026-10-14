@@ -15,6 +15,7 @@ function capabilityOf(method: string): AppCapability | null {
   if (method.startsWith("imagegen:")) return "providers";
   // 联网搜索 is a preference this host holds, like the rest of `settings:`.
   if (method.startsWith("websearch:")) return "settings";
+  if (method.startsWith("im:")) return "settings";
   if (method.startsWith("models-dev:")) return "providers";
   if (method.startsWith("settings:")) return "settings";
   if (method.startsWith("decision:")) return "settings";

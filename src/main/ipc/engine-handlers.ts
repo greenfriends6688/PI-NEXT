@@ -121,6 +121,9 @@ export function registerEngineIpc(engine: PiProcessManager): void {
   );
   handle(Ipc.engineListMcpServers, async () => engine.listMcpServers());
   handle(Ipc.engineSaveMcpServers, async (payload: { configs: import("@shared/types").McpServerConfig[] }) => engine.saveMcpServers(payload.configs));
+  handle(Ipc.imGet, async () => engine.getImBridge());
+  handle(Ipc.imSet, async (payload: { targets?: unknown }) => engine.setImBridge(payload ?? {}));
+  handle(Ipc.imTest, async (payload: { targetId: string }) => engine.testImBridge(payload.targetId));
   handle(Ipc.engineReadSkill, async (payload: { name: string }) => engine.readSkill(payload.name));
   handle(Ipc.engineSaveSkill, async (payload: { name: string; content: string }) => engine.saveSkill(payload.name, payload.content));
   handle(Ipc.engineListSkills, async () => engine.listSkills());

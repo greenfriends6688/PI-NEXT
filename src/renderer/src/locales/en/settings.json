@@ -93,6 +93,25 @@
   "system": "System",
   "about": "About"
  },
+  "im": {
+    "targetsTitle": "Push targets",
+    "empty": "No push target yet",
+    "emptyHint": "`im_send` needs one before it can send anything",
+    "label": "Name",
+    "secret": "Signing secret (only when signing is on)",
+    "add": "Add target",
+    "remove": "Remove",
+    "save": "Save",
+    "saved": "Saved",
+    "saveFailed": "Could not save: {{error}}",
+    "loadFailed": "Could not read: {{error}}",
+    "test": "Test",
+    "testOk": "Sent to {{label}}",
+    "testFailed": "Send failed: {{detail}}",
+    "toolTitle": "Tool",
+    "tool": "im_send",
+    "toolHint": "Lets the agent message you; the URL and secret stay on this machine"
+  },
   "websearch": {
     "title": "Web search",
     "enabled": "Enable web search",
@@ -171,6 +190,7 @@
   "decision": "Decision engine",
   "imagegen": "Image generation",
   "websearch": "Web search",
+  "im": "Push bots",
   "memory": "Long-term memory",
   "mcp": "MCP tools",
   "skills": "Skills",

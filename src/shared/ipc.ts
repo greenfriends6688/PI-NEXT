@@ -203,6 +203,10 @@ export const Ipc = {
   providersUsage: "providers:usage",
   /** 生图档案：读（掩码）/ 写 / 真出一张图的测试。 */
   /** 联网搜索偏好：读（掩码）/ 写。 */
+  /** IM 推送目标：读（掩码）/ 写 / 真发一条测试。 */
+  imGet: "im:get",
+  imSet: "im:set",
+  imTest: "im:test",
   websearchGet: "websearch:get",
   websearchSet: "websearch:set",
   imagegenGet: "imagegen:get",

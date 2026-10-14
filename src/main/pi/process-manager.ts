@@ -138,6 +138,17 @@ import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-
 import { writeWorkspaceFile } from "../engine/workspace-fs";
 import { createImageGenExtension } from "../pinext/imagegen/extension.ts";
 import { createWebSearchExtension } from "../pinext/websearch/extension.ts";
+import { createImExtension } from "../pinext/im-bridge/extension.ts";
+import {
+  maskedImTargets,
+  readImBridgeConfig,
+  resolveImTargets,
+  sendImMessage,
+  writeImBridgeConfig,
+  type ImBridgeConfig,
+  type ImSendOutcome,
+} from "../pinext/im-bridge/index.ts";
+import type { ImTarget, ImTargetView } from "../../shared/im-bridge.ts";
 import { maskedWebSearchSettings, readWebSearchSettings, writeWebSearchSettings, type WebSearchSettings } from "../pinext/websearch/settings.ts";
 import {
   emptyImageGenStatus,
@@ -2839,6 +2850,24 @@ export class PiProcessManager {
    * "looks configured" is not the same claim as "works" — and the status it records is the
    * only thing that lets anything else rely on this profile.
    */
+  /** IM 推送目标：掩码读出、整表写回。URL 与 secret 都是凭证。 */
+  async getImBridge(): Promise<ImTargetView[]> {
+    return maskedImTargets();
+  }
+
+  async setImBridge(input: { targets?: unknown }): Promise<ImTargetView[]> {
+    const targets = Array.isArray(input.targets) ? (input.targets as ImTarget[]) : [];
+    return maskedImTargets(writeImBridgeConfig({ version: 1, targets }));
+  }
+
+  /** 「测试」真的发一条 —— 配置对了没有，只有真发出去才知道。 */
+  async testImBridge(targetId: string): Promise<ImSendOutcome> {
+    const config = readImBridgeConfig();
+    const target = resolveImTargets(config, targetId)[0];
+    if (!target) throw new Error(uiText("找不到这个推送目标", "No such push target."));
+    return sendImMessage(target, { title: "PI NEXT", text: uiText("这是一条测试消息。", "This is a test message.") });
+  }
+
   /** 联网搜索偏好. The token is masked on the way out and merged on the way in. */
   async getWebSearch(): Promise<WebSearchSettings> {
     return maskedWebSearchSettings(readWebSearchSettings());
@@ -3505,7 +3534,10 @@ export class PiProcessManager {
       // tool name but could only work on `openai-responses` models — it asked the provider
       // to run the search. This one has its own provider chain (SearXNG / Bing / DuckDuckGo
       // / Mojeek / an aggregate), so any model can use it.
-      createWebSearchExtension(), {
+      createWebSearchExtension(),
+      // IM 推送. A tool, not a skill: it sends a message out of the machine and spends the
+      // person's own bot quota, so it has to be nameable by the approval engine.
+      createImExtension(), {
         // Switches codemode, tool_search and the dag_* tools on or off from the settings
         // as they are at `session_start`, which a reload emits again — the SDK's
         // `defaultTools` setting can only add.

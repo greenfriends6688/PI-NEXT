@@ -263,6 +263,11 @@ const ALLOWED = new Set<string>([
   // above makes. All three are about this host's own configuration, not the account's.
   // 联网搜索 is this host's own preference file, and the tool reads it on every call.
   Ipc.websearchGet,
+  // IM 推送: the settings are this host's own, and `test` sends through a bot the person
+  // configured with their own credentials.
+  Ipc.imGet,
+  Ipc.imSet,
+  Ipc.imTest,
   Ipc.websearchSet,
   Ipc.imagegenGet,
   Ipc.imagegenSet,

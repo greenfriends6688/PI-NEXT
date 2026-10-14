@@ -44,6 +44,7 @@ import { ShortcutsSettings } from "./shortcuts-settings";
 import { AboutSettings } from "./about-settings";
 import { PersonalizationSettings } from "./personalization-settings";
 import { ImageGenSettings } from "./imagegen-settings";
+import { ImBridgeSettings } from "./im-settings";
 import { WebSearchSettings } from "./websearch-settings";
 import { SubagentsSettings } from "./subagents-settings";
 import { SettingsGroup as Group, SettingsRow as Row } from "./settings-group";
@@ -427,6 +428,7 @@ export function SettingsDialog({
 
           {section === "imagegen" ? <ImageGenSettings /> : null}
           {section === "websearch" ? <WebSearchSettings /> : null}
+          {section === "im" ? <ImBridgeSettings /> : null}
           {section === "subagents" ? <SubagentsSettings models={models} /> : null}
           {section === "decision" ? <DecisionSettings /> : null}
           {section === "memory" ? <MemorySettings models={models} /> : null}

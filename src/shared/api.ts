@@ -59,6 +59,7 @@ import type { AccountState } from "@shared/account";
 import type { ProviderUsageId, ProviderUsageResult } from "@shared/provider-usage";
 import type { ImageGenConfig, ImageGenTestResult } from "@shared/imagegen";
 import type { WebSearchSettings } from "@shared/websearch";
+import type { ImBridgeConfig, ImSendOutcome, ImTarget, ImTargetView } from "@shared/im-bridge";
 import type { RemoteHostProfile, RemoteHostConnectionState, RemoteHostTestResult, SshHostKeyScan } from "@shared/remote-host";
 import type {
   AppUpdateState,
@@ -287,6 +288,12 @@ export function createPinextApi(t: ApiTransport) {
    * its own endpoint, key, model and size per preset, and it never enters `enabledModels`.
    * The key is only ever seen as a mask.
    */
+  /** IM 推送 (fork:im-bridge). URLs and secrets are credentials: the renderer sees hosts and masks. */
+  im: {
+    get: (): Promise<ImTargetView[]> => t.invoke(Ipc.imGet),
+    set: (targets: readonly ImTarget[]): Promise<ImTargetView[]> => t.invoke(Ipc.imSet, { targets }),
+    test: (targetId: string): Promise<ImSendOutcome> => t.invoke(Ipc.imTest, { targetId }),
+  },
   /** 联网搜索 (fork:websearch). Off by default: it goes out to the network. */
   websearch: {
     get: (): Promise<WebSearchSettings> => t.invoke(Ipc.websearchGet),
