@@ -97,6 +97,7 @@ export default defineConfig({
        */
       entries: [
         "index.html",
+        "web.html",
         "mock.html",
         "src/components/dag/dag-dialog.tsx",
         "src/components/settings/settings-dialog.tsx",
@@ -116,6 +117,9 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve("src/renderer/index.html"),
+          // The browser client. Same source tree, its own entry: it has to build the bridge
+          // before the app module runs (see src/renderer/src/web-main.tsx).
+          web: resolve("src/renderer/web.html"),
         },
       },
     },

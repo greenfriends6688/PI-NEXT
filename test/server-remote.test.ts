@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { connect as netConnect } from "node:net";
 import WebSocket from "ws";
-import { RemoteServer } from "../src/main/server/server.ts";
+import { RemoteServer, builtWebRoot } from "../src/main/server/server.ts";
+import { APP_PROTOCOL, APP_PROTOCOL_VERSION } from "../src/shared/app-protocol.ts";
 import { setPassword } from "../src/main/server/store.ts";
 import { Ipc } from "../src/shared/ipc.ts";
 import { registeredChannels } from "./registered-channels.ts";
@@ -171,6 +172,16 @@ async function rawGet(port: number, target: string): Promise<string> {
     socket.on("close", () => settle(received));
     socket.on("error", fail);
   });
+}
+
+/** Poll until a condition holds, or give up. Keeps the socket tests readable. */
+async function waitFor(condition: () => boolean, what: string, timeoutMs = 3000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (condition()) return;
+    await new Promise((settle) => setTimeout(settle, 10));
+  }
+  assert.fail(`timed out waiting for ${what}`);
 }
 
 async function post(
@@ -524,7 +535,10 @@ test("the web client is served from this origin, and nothing outside its directo
   // because that is the only origin the socket accepts.
   const root = await mkdtemp(join(tmpdir(), "pinext-web-"));
   await mkdir(join(root, "assets"));
-  await writeFile(join(root, "index.html"), "<!doctype html><title>pinext</title>");
+  // Both entries, because they are not interchangeable: `index.html` is the desktop shell
+  // and expects the Electron preload, `web.html` is the browser one.
+  await writeFile(join(root, "index.html"), "<!doctype html><title>desktop-shell</title>");
+  await writeFile(join(root, "web.html"), "<!doctype html><title>pinext</title>");
   await writeFile(join(root, "assets", "app.js"), "export const one = 1;\n");
   const outside = join(dirname(root), "pinext-outside-secret.txt");
   await writeFile(outside, "not yours");
@@ -534,7 +548,9 @@ test("the web client is served from this origin, and nothing outside its directo
       assert.equal(shell.status, 200);
       assert.match(shell.headers.get("content-type") ?? "", /text\/html/);
       assert.equal(shell.headers.get("cache-control"), "no-store");
+      // The browser entry, not the desktop one.
       assert.match(await shell.text(), /pinext/);
+      assert.doesNotMatch(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /desktop-shell/);
 
       const asset = await fetch(`http://127.0.0.1:${port}/assets/app.js`);
       assert.equal(asset.status, 200);
@@ -567,6 +583,60 @@ test("the web client is served from this origin, and nothing outside its directo
     await rm(root, { recursive: true, force: true });
     await rm(outside, { force: true });
   }
+});
+
+test("the browser client logs in, upgrades from its own page, and completes the handshake", async () => {
+  // The whole browser path, in one test, without a browser: the two things a browser
+  // cannot do — set `Authorization` on the upgrade, and be a native client — are exactly
+  // what the two server-side rules above exist for.
+  await withServer(async ({ port }) => {
+    const origin = `http://127.0.0.1:${port}`;
+    const { status, body } = await post(port, "/api/login", { password: PASSWORD, label: "web" }, { origin });
+    assert.equal(status, 200);
+    const token = body.token as string;
+
+    // `ws` does let a caller set `Origin` (unlike `Host`), which is the header this rule
+    // reads — so this is the browser's own upgrade, not an approximation of it.
+    const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`, { headers: { origin } });
+    await new Promise<void>((settle, fail) => {
+      socket.once("open", () => settle());
+      socket.once("error", fail);
+    });
+    const frames: Array<Record<string, unknown>> = [];
+    socket.on("message", (raw) => {
+      try {
+        frames.push(JSON.parse(String(raw)) as Record<string, unknown>);
+      } catch {
+        // Binary or malformed: not what this test is about.
+      }
+    });
+
+    // The credential rides the first frame, because a browser cannot put it in a header —
+    // and it has to go out before the App Protocol `hello`.
+    socket.send(JSON.stringify({ type: "auth", token }));
+    await waitFor(() => frames.some((frame) => frame.type === "auth" && frame.ok === true), "auth ok");
+
+    socket.send(JSON.stringify({
+      kind: "hello",
+      hello: {
+        protocol: APP_PROTOCOL,
+        protocolVersion: APP_PROTOCOL_VERSION,
+        client: { kind: "web", version: String(APP_PROTOCOL_VERSION) },
+      },
+    }));
+    await waitFor(() => frames.some((frame) => frame.kind === "welcome"), "welcome");
+
+    const welcome = frames.find((frame) => frame.kind === "welcome") as {
+      sessionId?: unknown;
+      epoch?: unknown;
+      capabilities?: unknown;
+    };
+    // What the client refuses a welcome without — see app-client.ts' handshake rules.
+    assert.equal(typeof welcome.sessionId, "string");
+    assert.equal(typeof welcome.epoch, "string");
+    assert.ok(Array.isArray(welcome.capabilities));
+    socket.close();
+  });
 });
 
 test("a socket that stops answering is dropped, and one that answers is kept", async () => {

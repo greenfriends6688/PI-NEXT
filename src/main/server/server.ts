@@ -450,8 +450,10 @@ export class RemoteServer {
    *
    * Only `GET`/`HEAD`, and only inside `webRoot`: the path is resolved against it and the
    * result has to still be under it, so `..` cannot walk out. A request for a path with no
-   * file at it and no extension is answered with `index.html` — the app routes on the hash,
-   * but `/` and any future path route still need the shell.
+   * file at it and no extension is answered with the **browser** shell — `web.html` when the
+   * build has one, `index.html` otherwise. The two are different entries on purpose:
+   * `index.html` expects the Electron preload to have installed `window.pinext`, and
+   * handing it to a browser would be handing it a page that cannot boot.
    */
   #serveWeb(request: IncomingMessage, response: ServerResponse, url: URL): boolean {
     if (request.method !== "GET" && request.method !== "HEAD") return false;
@@ -470,14 +472,15 @@ export class RemoteServer {
       this.#json(response, 403, { error: "forbidden" });
       return true;
     }
-    const file = isFile(candidate) ? candidate : extname(decoded) === "" ? join(root, "index.html") : null;
+    const shell = isFile(join(root, "web.html")) ? join(root, "web.html") : join(root, "index.html");
+    const file = isFile(candidate) ? candidate : extname(decoded) === "" ? shell : null;
     if (!file || !isFile(file)) return false;
     response.writeHead(200, {
       "content-type": WEB_CONTENT_TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
       "content-length": String(statSync(file).size),
       // No caching of the shell: a stale bundle against a new API is a bug report that
       // looks like a server problem. Hashed asset names are immutable instead.
-      "cache-control": file.endsWith("index.html") ? "no-store" : "public, max-age=31536000, immutable",
+      "cache-control": file === shell ? "no-store" : "public, max-age=31536000, immutable",
       "x-content-type-options": "nosniff",
       // The app is never framed, and never speaks for anything but itself.
       "x-frame-options": "DENY",
