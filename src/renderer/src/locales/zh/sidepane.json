@@ -13,7 +13,8 @@
       "error": "失败",
       "aborted": "已终止"
     },
-    "gitGraph": "Git 图谱"
+    "gitGraph": "Git 图谱",
+    "trace": "调用轨迹"
   },
   "pane": {
     "collapse": "收起侧边面板",
@@ -34,7 +35,8 @@
     "openTabsDesc": "选择要在侧边面板中打开的标签。",
     "unsupported": "当前远程项目不支持「{{feature}}」",
     "unavailable": "远程项目当前不可用（{{state}}）",
-    "gitGraph": "Git 图谱"
+    "gitGraph": "Git 图谱",
+    "trace": "调用轨迹"
   },
   "files": {
     "unbound": "当前对话未绑定项目，绑定项目后即可浏览文件。",
@@ -352,5 +354,12 @@
     "truncated": "已截断（只显示最近若干条）",
     "files": "正在读取改动文件…",
     "noFiles": "这个提交没有改动文件。"
+  },
+  "trace": {
+    "title": "调用轨迹",
+    "refresh": "刷新",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
+    "loading": "正在生成完整历史…"
   }
 }

@@ -1,9 +1,10 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
-import { existsSync, mkdirSync, realpathSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { mkdir, rm, unlink } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import { InMemoryModelsStore, type AssistantMessage, type AuthPrompt } from "@earendil-works/pi-ai";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
@@ -3075,6 +3076,24 @@ export class PiProcessManager {
   async setSteeringMode(mode: "all" | "one-at-a-time", conversationId?: string): Promise<EngineSessionState> { (await this.#sessionFor(conversationId)).session.setSteeringMode(mode); return this.getState(conversationId); }
   async setFollowUpMode(mode: "all" | "one-at-a-time", conversationId?: string): Promise<EngineSessionState> { (await this.#sessionFor(conversationId)).session.setFollowUpMode(mode); return this.getState(conversationId); }
   async exportHtml(): Promise<string | undefined> { return (await this.#active()).exportToHtml(); }
+  /**
+   * fork:trace-frame —— 同一份 pi 导出页，但**作为字符串**回给渲染层，装进右栏
+   * 「调用轨迹」的 iframe。写到 tmp 再读回来（SDK 只提供落盘接口），读完就删。
+   */
+  async exportHtmlDocument(conversationId?: string): Promise<string> {
+    const session = (await this.#sessionFor(conversationId)).session;
+    const file = join(tmpdir(), `pinext-export-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.html`);
+    try {
+      await session.exportToHtml(file);
+      return readFileSync(file, "utf8");
+    } finally {
+      try {
+        rmSync(file, { force: true });
+      } catch {
+        // Best effort: a leftover temp file is harmless.
+      }
+    }
+  }
   /**
    * 把当前会话导出成 Markdown —— HTML 那条产出的是一个页面，这一条是能贴进文档的文本。
    *

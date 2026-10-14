@@ -13,6 +13,7 @@ import {
   Folder01Icon,
   GitBranchIcon,
   GitCompareIcon,
+  HistoryIcon,
   MessageSquareIcon,
   MessageSquarePlusIcon,
   PanelLeftOpenIcon,
@@ -49,6 +50,7 @@ import { SidePaneChanges } from "./side-pane-changes";
 import { SidePaneFiles } from "./side-pane-files";
 import { SidePaneGit } from "./side-pane-git";
 import { GitGraphTab } from "./git-graph-tab";
+import { TraceFrame } from "./trace-frame";
 import { SidePaneDagNode } from "./side-pane-dag-node";
 import { SidePaneSubagent } from "./side-pane-subagent";
 import { releaseTerminal } from "./side-pane-terminal-registry";
@@ -164,6 +166,7 @@ function tabIcon(type: SidePaneTab["type"]) {
   if (type === "subagent" || type === "dag-node") return BotIcon;
   if (type === "git") return GitCompareIcon;
   if (type === "git-graph") return GitBranchIcon;
+  if (type === "trace") return HistoryIcon;
   if (type === "changes") return FileEditIcon;
   if (type === "terminal") return TerminalIcon;
   if (type === "browser") return ChromeIcon;
@@ -234,6 +237,8 @@ export const SidePane = memo(function SidePane({
   const openBrowser = useSidePaneStore((state) => state.openBrowser);
   const openFiles = useSidePaneStore((state) => state.openFiles);
   const openGitGraph = useSidePaneStore((state) => state.openGitGraph);
+  const openTrace = useSidePaneStore((state) => state.openTrace);
+  const activeId = useSessionStore((state) => state.activeId);
   const openFilePreview = useSidePaneStore((state) => state.openFilePreview);
   const openSideChat = useSidePaneStore((state) => state.openSideChat);
   const nextSideChatOrdinal = useSidePaneStore((state) => state.nextSideChatOrdinal);
@@ -349,6 +354,7 @@ export const SidePane = memo(function SidePane({
     { id: "files", label: t("pane.files"), icon: Folder01Icon, onOpen: () => openCapable("workspace", t("pane.files"), openFiles) },
     hasReviewTab ? null : { id: "review", label: t("pane.review"), icon: GitCompareIcon, onOpen: () => openCapable("git", t("pane.review"), openGit) },
     { id: "git-graph", label: t("pane.gitGraph"), icon: GitBranchIcon, onOpen: () => openCapable("git", t("pane.gitGraph"), () => openGitGraph(cwd)) },
+    { id: "trace", label: t("pane.trace"), icon: HistoryIcon, onOpen: () => openTrace(activeId ?? undefined) },
     // 修改记录 has no menu entry: the transcript's changes card mints that tab. An entry
     // here would let the pane open an empty turn-changes view on its own.
     { id: "terminal", label: t("pane.terminal"), icon: TerminalIcon, onOpen: () => openCapable("terminal", t("pane.terminal"), () => openTerminal(cwd)) },
@@ -475,6 +481,10 @@ export const SidePane = memo(function SidePane({
                 <HugeiconsIcon strokeWidth={2} icon={GitBranchIcon} />
                 {t("pane.gitGraph")}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openTrace(activeId ?? undefined)}>
+                <HugeiconsIcon strokeWidth={2} icon={HistoryIcon} />
+                {t("pane.trace")}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => openCapable("terminal", t("pane.terminal"), () => openTerminal(cwd))}>
                 <HugeiconsIcon strokeWidth={2} icon={TerminalIcon} />
                 {t("pane.terminal")}
@@ -557,6 +567,7 @@ export const SidePane = memo(function SidePane({
               }}
             />
           ) : null}
+          {active?.type === "trace" ? <TraceFrame conversationId={active.conversationId ?? activeId ?? undefined} /> : null}
           {active?.type === "changes" ? (
             <SidePaneChanges
               cwd={cwd}

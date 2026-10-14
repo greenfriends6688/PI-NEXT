@@ -75,6 +75,8 @@ export const Ipc = {
   engineSetSteering: "engine:set-steering",
   engineSetFollowUp: "engine:set-follow-up",
   engineExportHtml: "engine:export-html",
+  /** 同一份导出页，但作为字符串回给渲染层（右栏「调用轨迹」）。 */
+  engineExportHtmlDocument: "engine:export-html-document",
   /** 把当前会话导出成 Markdown（纯文本，贴进文档用）。 */
   engineExportMarkdown: "engine:export-markdown",
   engineImportSources: "engine:import-sources",

@@ -12,6 +12,7 @@ import { subagentKey } from "@shared/subagent-state";
 export type SidePaneTabType =
   | "git"
   | "git-graph"
+  | "trace"
   | "terminal"
   | "browser"
   | "selection-side-chat"
@@ -243,6 +244,8 @@ type SidePaneStore = {
   openGit: () => void;
   /** fork:git-graph —— 右栏 Git 图谱 tab。 */
   openGitGraph: (cwd?: string) => void;
+  /** fork:trace-frame —— 右栏「调用轨迹」tab（pi 导出页的 iframe）。 */
+  openTrace: (conversationId?: string) => void;
   /**
    * Open 审查 focused on one file's diff, so a caller that already knows the file
    * lands on it instead of the pane's last state.
@@ -714,6 +717,26 @@ export const useSidePaneStore = create<SidePaneStore>((set, get) => {
           title: i18n.t("sidepane:tabs.gitGraph") as string,
         }),
         ...(cwd ? { cwd } : {}),
+      };
+      return writeScope(
+        state,
+        scopeKeyOf(state),
+        { ...scope, tabs: upsert(scope.tabs, tab), activeTabId: tab.id },
+        { collapsed: false },
+      );
+    }),
+  openTrace: (conversationId) =>
+    set((state) => {
+      const scope = scopeOf(state);
+      const existing = scope.tabs.find((item) => item.type === "trace");
+      const tab: SidePaneTab = {
+        ...(existing ?? {
+          id: "trace",
+          type: "trace" as const,
+          openedAt: Date.now(),
+          title: i18n.t("sidepane:tabs.trace") as string,
+        }),
+        ...(conversationId ? { conversationId } : {}),
       };
       return writeScope(
         state,

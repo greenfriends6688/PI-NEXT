@@ -270,6 +270,9 @@ export function registerEngineIpc(engine: PiProcessManager): void {
     if (path) await shell.openPath(path);
     return path;
   });
+  handle(Ipc.engineExportHtmlDocument, async (payload: { conversationId?: string } | undefined) =>
+    engine.exportHtmlDocument(payload?.conversationId),
+  );
   // 设置 → 导入. Read-only scans of the other agents' data plus an explicit import;
   // nothing here runs on the live engine, so a scan cannot disturb the chat in flight.
   handle(Ipc.engineImportSources, async () => engine.importSources());

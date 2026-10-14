@@ -13,7 +13,8 @@
       "error": "Failed",
       "aborted": "Stopped"
     },
-    "gitGraph": "Git graph"
+    "gitGraph": "Git graph",
+    "trace": "Trace"
   },
   "pane": {
     "collapse": "Collapse side pane",
@@ -34,7 +35,8 @@
     "openTabsDesc": "Choose a tab to open in the side pane.",
     "unsupported": "This remote project does not support {{feature}}",
     "unavailable": "This remote project is unavailable ({{state}})",
-    "gitGraph": "Git graph"
+    "gitGraph": "Git graph",
+    "trace": "Trace"
   },
   "files": {
     "unbound": "This chat is not bound to a project. Bind one to browse files.",
@@ -352,5 +354,12 @@
     "truncated": "truncated (newest shown)",
     "files": "Reading changed files…",
     "noFiles": "This commit changed no files."
+  },
+  "trace": {
+    "title": "Trace",
+    "refresh": "Refresh",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "loading": "Building the full history…"
   }
 }

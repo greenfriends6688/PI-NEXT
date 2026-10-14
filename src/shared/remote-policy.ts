@@ -140,6 +140,8 @@ const DENIED = new Map<string, string>([
  */
 const ALLOWED = new Set<string>([
   Ipc.engineExportMarkdown,
+  /** 只回导出页的 HTML 字符串，不落盘 —— 远程客户端拿得到（与 export-html 不同）。 */
+  Ipc.engineExportHtmlDocument,
   Ipc.appGetInfo,
   Ipc.appLog,
   Ipc.conversationsCreate,
