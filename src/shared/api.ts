@@ -59,7 +59,8 @@ import type { AccountState } from "@shared/account";
 import type { ProviderUsageId, ProviderUsageResult } from "@shared/provider-usage";
 import type { ImageGenConfig, ImageGenTestResult } from "@shared/imagegen";
 import type { WebSearchSettings } from "@shared/websearch";
-import type { ImBridgeConfig, ImSendOutcome, ImTarget, ImTargetView } from "@shared/im-bridge";
+import type { ImSendOutcome, ImTarget, ImTargetView } from "@shared/im-bridge";
+import type { ChatChannelConfig } from "@shared/chat-channel";
 import type { RemoteHostProfile, RemoteHostConnectionState, RemoteHostTestResult, SshHostKeyScan } from "@shared/remote-host";
 import type {
   AppUpdateState,
@@ -288,6 +289,13 @@ export function createPinextApi(t: ApiTransport) {
    * its own endpoint, key, model and size per preset, and it never enters `enabledModels`.
    * The key is only ever seen as a mask.
    */
+  /** 入站机器人渠道 (fork:bot-channel). Inbound: the channel drives a conversation here. */
+  botChannel: {
+    get: (): Promise<ChatChannelConfig> => t.invoke(Ipc.botChannelGet),
+    set: (channels: Record<string, unknown>): Promise<ChatChannelConfig> => t.invoke(Ipc.botChannelSet, { channels }),
+    start: (id: string): Promise<{ ok: boolean; error?: string }> => t.invoke(Ipc.botChannelStart, { id }),
+    stop: (id: string): Promise<void> => t.invoke(Ipc.botChannelStop, { id }),
+  },
   /** IM 推送 (fork:im-bridge). URLs and secrets are credentials: the renderer sees hosts and masks. */
   im: {
     get: (): Promise<ImTargetView[]> => t.invoke(Ipc.imGet),

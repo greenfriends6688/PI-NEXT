@@ -204,6 +204,11 @@ export const Ipc = {
   /** 生图档案：读（掩码）/ 写 / 真出一张图的测试。 */
   /** 联网搜索偏好：读（掩码）/ 写。 */
   /** IM 推送目标：读（掩码）/ 写 / 真发一条测试。 */
+  /** 机器人渠道：读 / 写 / 启动 / 停止。 */
+  botChannelGet: "bot-channel:get",
+  botChannelSet: "bot-channel:set",
+  botChannelStart: "bot-channel:start",
+  botChannelStop: "bot-channel:stop",
   imGet: "im:get",
   imSet: "im:set",
   imTest: "im:test",

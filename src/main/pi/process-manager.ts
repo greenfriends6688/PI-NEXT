@@ -139,6 +139,8 @@ import { writeWorkspaceFile } from "../engine/workspace-fs";
 import { createImageGenExtension } from "../pinext/imagegen/extension.ts";
 import { createWebSearchExtension } from "../pinext/websearch/extension.ts";
 import { createImExtension } from "../pinext/im-bridge/extension.ts";
+import { startChatChannel, startConfiguredChatChannels, stopChatChannel, type BotChannelHost } from "../pinext/bot-channel/runtime.ts";
+import { CHANNELS, channelReadiness, readChatChannelConfig, writeChatChannelConfig, type ChatChannelConfig, type ChatChannelId } from "../pinext/bot-channel/config.ts";
 import {
   maskedImTargets,
   readImBridgeConfig,
@@ -2875,6 +2877,72 @@ export class PiProcessManager {
 
   async setWebSearch(patch: Record<string, unknown>): Promise<WebSearchSettings> {
     return maskedWebSearchSettings(writeWebSearchSettings(patch as Partial<WebSearchSettings>));
+  }
+
+  /**
+   * The bot-channel host, wired to this engine rather than to an HTTP surface.
+   *
+   * PI NEXT delivered over `POST /api/agent/<id>`; this host has no such face, so the same
+   * four questions arrive as methods. What is preserved is the guarantee that mattered —
+   * one path into a conversation, the same one the composer uses — not the transport.
+   */
+  botChannelHost(): BotChannelHost {
+    return {
+      isBusy: async (conversationId) => (await this.getSnapshot(conversationId)).running,
+      lastReply: async (conversationId) => {
+        const messages = (await this.getSnapshot(conversationId)).messages;
+        for (let index = messages.length - 1; index >= 0; index -= 1) {
+          const message = messages[index];
+          if (message.role === "assistant" && message.text.trim().length > 0) return message.text;
+        }
+        return "";
+      },
+      submit: async (conversationId, text) => {
+        // `enqueue: false` — the runtime already refused to inject into a running turn, so a
+        // queue here would only hide that decision from the person who made it.
+        await this.submitPrompt({ conversationId, text, enqueue: false });
+      },
+      workspaceConversation: async () => {
+        // A conversation with no project, which is what the scratch workspace is for. Never
+        // "the most recent one": a message from a phone must not land in whatever project is
+        // open on the desk.
+        const existing = this.listWorkspace().conversations.find((conversation) => !conversation.project);
+        if (existing) return existing.id;
+        const created = await this.createConversation(undefined, { activate: false });
+        return created.conversation.id;
+      },
+    };
+  }
+
+  /** 机器人渠道：配置读写 + 启停（长轮询是进程内的，所以由引擎持有）。 */
+  async getBotChannels(): Promise<ChatChannelConfig> {
+    return readChatChannelConfig();
+  }
+
+  async setBotChannels(input: { channels?: unknown }): Promise<ChatChannelConfig> {
+    const current = readChatChannelConfig();
+    const incoming = (input.channels ?? {}) as Record<string, Partial<ChatChannelConfig["channels"][ChatChannelId]>>;
+    const channels = { ...current.channels };
+    for (const spec of CHANNELS) {
+      const patch = incoming[spec.id];
+      if (!patch) continue;
+      const previous = channels[spec.id];
+      channels[spec.id] = {
+        ...previous,
+        ...patch,
+        // 凭证的掩码值 = 沿用已存值，与生图 / IM / 联网搜索同一条铁律。
+        token: typeof patch.token === "string" && patch.token.length > 0 ? patch.token : previous.token,
+      };
+    }
+    return writeChatChannelConfig({ version: 1, channels });
+  }
+
+  async startBotChannel(id: string): Promise<{ ok: boolean; error?: string }> {
+    return startChatChannel(id as ChatChannelId, this.botChannelHost());
+  }
+
+  async stopBotChannel(id: string): Promise<void> {
+    stopChatChannel(id as ChatChannelId);
   }
 
   async getImageGen(): Promise<ImageGenConfig> {

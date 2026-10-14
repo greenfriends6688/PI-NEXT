@@ -24,6 +24,7 @@ import { decisionModelConfigOf, JEV_KEY_ENV, type DecisionKeyState, type Decisio
 import { adoptLegacyJevProvider } from "./engine/providers";
 import { resolveSystemOne } from "./engine/decision/systemone";
 import { installBrowserTaskGlobal } from "./pi/browser-task-runner";
+import { startConfiguredChatChannels } from "./pinext/bot-channel/runtime.ts";
 import { installComputerTaskGlobal } from "./pi/computer-task-runner";
 import { installDecisionScenarioGlobals } from "./pi/decision-scenarios";
 import { installDecisionTaskDependencies, revokeDecisionTasks } from "./pi/decision-task-runner";
@@ -579,6 +580,10 @@ app.whenReady().then(async () => {
     refreshModelsDev,
   });
   registerDagIpc(engine);
+  // 入站机器人渠道：按配置自动拉起长轮询。
+  // `enabled` 在这里才有真语义 —— 它在跑，是因为有人把它打开了；显式停掉的不会自己回来。
+  // 只打日志、不抛：某个渠道起不来，不影响这个应用本身可用。
+  void startConfiguredChatChannels(engine.botChannelHost());
   registerUpdater(
     () => windows,
     () => createWindow(),
