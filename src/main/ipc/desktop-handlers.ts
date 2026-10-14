@@ -14,6 +14,7 @@ import { broadcast } from "./broadcast";
 import { registerEngineIpc } from "./engine-handlers";
 import { handle, type CallerContext } from "./registry";
 import { readFilePreview } from "../engine/file-preview";
+import { searchProjectFiles } from "../engine/project-files";
 import { readWorkspaceDir, writeWorkspaceTextFile } from "../engine/workspace-fs";
 import { setWebServerPort, startWebServer, stopWebServer, webServerState } from "../engine/web-server.ts";
 import type { FileMutation } from "../../shared/file-mutation.ts";
@@ -34,6 +35,7 @@ import { exportLogs, writeRendererLog } from "../engine/logger";
 import { applyKeepAwake } from "../engine/keep-awake";
 import { toolModeSettingsChanged } from "../engine/tool-modes";
 import { assertProxySettings, proxySettingsOf } from "../../shared/proxy";
+import { rekeyProjectSettings } from "../../shared/project-folders.ts";
 import { mergeClientSettings, remoteSettingsOf } from "../../shared/settings-merge";
 import { getFileIconMapping } from "../engine/file-icons";
 import { collectUsageStats } from "../engine/usage-stats";
@@ -299,6 +301,36 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
   handle(Ipc.projectsReorder, (payload: { cwds: string[] }) => {
     return engine.reorderProjects(Array.isArray(payload?.cwds) ? payload.cwds : []);
   });
+  handle(Ipc.projectsCreate, (payload: { name?: string; folders?: string[] }) => {
+    return engine.createProject(payload ?? {});
+  });
+  handle(Ipc.projectsPickFolder, async () => {
+    const result = await dialog.showOpenDialog({
+      title: uiText("添加文件夹", "Add folder"),
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    return result.filePaths[0];
+  });
+  handle(Ipc.projectsAddFolder, (payload: { cwd?: string; folder?: string }) => {
+    return engine.addProjectFolder(payload?.cwd ?? "", payload?.folder ?? "");
+  });
+  handle(Ipc.projectsRemoveFolder, (payload: { cwd?: string; folder?: string }) => {
+    return engine.removeProjectFolder(payload?.cwd ?? "", payload?.folder ?? "");
+  });
+  handle(Ipc.projectsSetPrimary, async (payload: { cwd?: string; folder?: string }) => {
+    const result = engine.setProjectPrimary(payload?.cwd ?? "", payload?.folder ?? "");
+    if (result.previous !== result.next) {
+      await queueSettingsWrite(async () => {
+        const paths = getPinextPaths();
+        const next = rekeyProjectSettings(readAppSettings(paths), result.previous, result.next);
+        writeAppSettings(paths, next);
+        broadcastSettings(undefined, next);
+      });
+    }
+    return result.snapshot;
+  });
+  handle(Ipc.projectsRepos, (payload: { cwd?: string }) => engine.projectRepos(payload?.cwd ?? ""));
   handle(Ipc.workspaceReveal, async (payload: { cwd: string }) => {
     if (!payload.cwd) return { ok: false as const, reason: "invalid" as const };
     try {
@@ -339,6 +371,9 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
   handle(Ipc.webServerStop, async () => stopWebServer());
   handle(Ipc.webServerPort, async (payload: { port: number }) => setWebServerPort(payload.port));
   handle(Ipc.workspaceListFiles, async (payload: { root: string }) => engine.listWorkspaceFiles(payload.root));
+  handle(Ipc.workspaceSearchFiles, (payload: { cwd?: unknown; query?: unknown }) =>
+    searchProjectFiles(payload?.cwd, payload?.query),
+  );
   handle(Ipc.workspaceWriteFile, (payload: { path?: unknown; text?: unknown }) => {
     writeWorkspaceTextFile(payload?.path, payload?.text);
   });

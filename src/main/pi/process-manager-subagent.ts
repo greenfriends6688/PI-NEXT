@@ -95,6 +95,7 @@ export type SubagentRunHost = {
    * still has the message waiting rather than losing it.
    */
   wakeSession(sessionId: string, text: string): Promise<void>;
+  folderPrompt?(cwd: string): Promise<string | undefined>;
   timeReasoning(
     key: string,
     event: AgentSessionEvent,
@@ -207,10 +208,12 @@ export class SubagentTurnRunner {
       // A delegated run never loads the `output-language` extension (`noExtensions`), so
       // its system prompt carries the same AI 偏好语言 requirement directly — a subagent
       // report the user cannot read is a bug, not a preference.
+      const folderPrompt = await this.#host.folderPrompt?.(cwd);
       const appendSystemPrompt = [
         request.systemPrompt.trim(),
         currentAiLanguageDirective(),
         currentCustomSystemPrompt(),
+        folderPrompt,
       ].filter(
         (value): value is string => Boolean(value),
       );

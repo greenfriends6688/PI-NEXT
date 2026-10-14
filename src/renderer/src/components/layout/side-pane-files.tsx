@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, Cancel01Icon, FileAddIcon, FolderAddIcon, FolderOpenIcon, RefreshIcon, Search01Icon, SourceCodeIcon, ViewIcon } from "@hugeicons/core-free-icons";
 import { editableFileText, prefersSourceEditor } from "@shared/editable-preview";
+import { folderName } from "@shared/project-folders";
 import { IconButton } from "@/components/icon-button";
 import { Input } from "@/components/ui/input";
 import {
@@ -112,16 +113,25 @@ function withText(preview: FilePreview, text: string): FilePreview {
 export function SidePaneFiles({
   tab,
   cwd,
+  roots,
   remote,
   onError,
 }: {
   tab: SidePaneTab;
   cwd?: string;
+  /**
+   * A project's folders when it has more than one. `cwd` is the primary and the
+   * project's identity; the tree groups them by root. Absent on a single-folder project.
+   */
+  roots?: string[];
   remote?: boolean;
   onError: (message: string) => void;
 }): JSX.Element {
   const { t } = useTranslation("sidepane");
   const patchTab = useSidePaneStore((state) => state.patchTab);
+  /** The folders to draw, primary first. */
+  const treeRoots = roots && roots.length > 0 ? roots : cwd ? [cwd] : [];
+  const rootsKey = treeRoots.join("\0");
   const [children, setChildren] = useState<DirMap>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -135,11 +145,14 @@ export function SidePaneFiles({
    * 惰加载的树只能筛已经展开的目录，搜一个还没展开的深层文件会一无所获 —— 那不是
    * 「没找到」，是「没去看」。所以搜索打开时另取一份整棵项目的扁平清单来筛。
    */
-  const [allFiles, setAllFiles] = useState<string[]>([]);
+  const [allFiles, setAllFiles] = useState<Array<{ root: string; relative: string }>>([]);
   const [listingNonce, setListingNonce] = useState(0);
   /** 正在输入的「新增 / 重命名」目标：null = 没有在输入。 */
   const [naming, setNaming] = useState<{ kind: "mkdir" | "touch" | "rename"; parent: string; from?: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  /** The folder a path lives under, so reveal/relative work in a multi-folder project. */
+  const rootOf = (path: string): string | undefined =>
+    treeRoots.find((root) => path === root || path.startsWith(`${root.replace(/\/+$/, "")}/`));
   const split = useSplitWidth("files", 224);
   const preview = tab.preview;
   const previewPath = preview?.path ?? null;
@@ -171,27 +184,29 @@ export function SidePaneFiles({
   // A project opens collapsed. Previously expanded folders are not brought back:
   // opening a file should not dump the whole tree open.
   const reset = useCallback(
-    (path: string | undefined): void => {
+    (paths: string[]): void => {
       setChildren({});
       setExpanded(new Set());
-      if (!path) return;
-      void loadDir(path);
+      for (const path of paths) void loadDir(path);
     },
     [loadDir],
   );
 
   useEffect(() => {
-    reset(cwd);
-  }, [cwd, reset]);
+    reset(treeRoots);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rootsKey is the stable identity of the list
+  }, [rootsKey, reset]);
 
   // 搜索打开时才取扁平清单（它是整棵项目的遍历，不该在每次切目录时白跑）。
   useEffect(() => {
-    if (!searchOpen || !cwd) return;
+    if (!searchOpen || treeRoots.length === 0) return;
     let cancelled = false;
     void (async () => {
       try {
-        const listed = await window.pinext.workspace.listFiles(cwd);
-        if (!cancelled) setAllFiles(listed);
+        const perRoot = await Promise.all(
+          treeRoots.map(async (root) => (await window.pinext.workspace.listFiles(root)).map((relative) => ({ root, relative }))),
+        );
+        if (!cancelled) setAllFiles(perRoot.flat());
       } catch {
         if (!cancelled) setAllFiles([]);
       }
@@ -199,25 +214,28 @@ export function SidePaneFiles({
     return () => {
       cancelled = true;
     };
-  }, [searchOpen, cwd, listingNonce]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rootsKey is the stable identity of the list
+  }, [searchOpen, rootsKey, listingNonce]);
 
   // A preview click (or a file already on the tab when it mounts) reveals only that
   // file. A click inside this tree sets `openedHere` and leaves the folders as they are.
   useEffect(() => {
     const path = tab.path;
-    if (!cwd || !path) return;
+    if (treeRoots.length === 0 || !path) return;
     if (openedHere.current === path) {
       openedHere.current = null;
       return;
     }
-    const dirs = ancestorDirs(cwd, path);
+    const root = rootOf(path) ?? treeRoots[0];
+    const dirs = ancestorDirs(root, path);
     setExpanded(new Set(dirs));
     for (const dir of dirs) void loadDir(dir);
-  }, [cwd, tab.path, loadDir]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rootsKey is the stable identity of the list
+  }, [rootsKey, tab.path, loadDir]);
 
   function refreshTree(): void {
-    if (!cwd) return;
-    void loadDir(cwd);
+    if (treeRoots.length === 0) return;
+    for (const root of treeRoots) void loadDir(root);
     for (const dir of expanded) void loadDir(dir);
     setListingNonce((value) => value + 1);
   }
@@ -348,7 +366,7 @@ export function SidePaneFiles({
   const searchNeedle = filter.trim().toLowerCase();
   const searchResults =
     searchNeedle.length > 0
-      ? allFiles.filter((file) => file.toLowerCase().includes(searchNeedle)).slice(0, 300)
+      ? allFiles.filter((file) => file.relative.toLowerCase().includes(searchNeedle)).slice(0, 300)
       : [];
 
   return (
@@ -490,45 +508,57 @@ export function SidePaneFiles({
                     <div className="px-3 py-2 text-xs text-muted-foreground">{t("files.noResults")}</div>
                   ) : (
                     searchResults.map((file) => {
-                      const full = joinPath(cwd, file);
+                      const full = joinPath(file.root, file.relative);
                       const active = preview?.path === full;
                       return (
                         <button
-                          key={file}
+                          key={full}
                           type="button"
                           aria-current={active ? "true" : undefined}
                           className={cn("chat-tree-row", active && "is-active")}
                           title={full}
                           onClick={() => void openFile(full)}
                         >
-                          <FileIcon name={baseName(file)} kind="file" />
-                          <span className="min-w-0 flex-1 truncate">{file}</span>
+                          <FileIcon name={baseName(file.relative)} kind="file" />
+                          <span className="min-w-0 flex-1 truncate">
+                            {treeRoots.length > 1 ? `${folderName(file.root)}/${file.relative}` : file.relative}
+                          </span>
                         </button>
                       );
                     })
                   )
                 ) : (
-                  <TreeLevel
-                    dir={cwd}
-                    depth={0}
-                    children={children}
-                    expanded={expanded}
-                    selected={preview?.path}
-                    dirty={dirty}
-                    cwd={cwd}
-                    remote={remote}
-                    onRename={(path) => setNaming({ kind: "rename", parent: dirnameOf(path), from: path })}
-                    onDelete={(path) => {
-                      // 删除不是可撤销的动作，所以先问一句 —— 目录还会连带里面的东西。
-                      void (async () => {
-                        const ok = window.confirm(t("files.deleteConfirm", { name: baseName(path) }));
-                        if (ok) await mutate({ kind: "delete", path });
-                      })();
-                    }}
-                    onToggle={toggleDir}
-                    onOpen={openFile}
-                    onRefresh={refreshTree}
-                  />
+                  treeRoots.map((root) => (
+                    <div key={root}>
+                      {treeRoots.length > 1 ? (
+                        <div className="truncate px-2 py-1 text-xs text-muted-foreground" title={root}>
+                          {folderName(root)}
+                          {root === treeRoots[0] ? ` · ${t("files.primary")}` : ""}
+                        </div>
+                      ) : null}
+                      <TreeLevel
+                        dir={root}
+                        depth={0}
+                        children={children}
+                        expanded={expanded}
+                        selected={preview?.path}
+                        dirty={dirty}
+                        cwd={root}
+                        remote={remote}
+                        onRename={(path) => setNaming({ kind: "rename", parent: dirnameOf(path), from: path })}
+                        onDelete={(path) => {
+                          // 删除不是可撤销的动作，所以先问一句 —— 目录还会连带里面的东西。
+                          void (async () => {
+                            const ok = window.confirm(t("files.deleteConfirm", { name: baseName(path) }));
+                            if (ok) await mutate({ kind: "delete", path });
+                          })();
+                        }}
+                        onToggle={toggleDir}
+                        onOpen={openFile}
+                        onRefresh={refreshTree}
+                      />
+                    </div>
+                  ))
                 )}
               </div>
               {/* Blank space under the list is the project root, same menu as the header. */}

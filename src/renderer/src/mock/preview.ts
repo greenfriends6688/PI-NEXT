@@ -262,7 +262,7 @@ const status: EngineStatus = { state: "ready", cwd: fixtureCwd };
 
 const APP_INFO: AppInfo = {
   version: "0.1.0",
-  engineVersion: "1.1.0",
+  engineVersion: "1.2.0",
   userData: "/Users/dev/Library/Application Support/Pinext",
   runtimeRoot: "/Users/dev/Library/Application Support/Pinext/runtime/engine",
   platform,
@@ -642,6 +642,17 @@ const api = {
     writeFile: async () => undefined,
     filesExist: async (paths: string[]) => paths.filter((path) => /\.[A-Za-z0-9]{1,12}$/.test(path)),
     fileIcons: loadIconMapping,
+    searchFiles: async (_cwd: string, query?: string) => {
+      const files = [
+        "src/renderer/src/components/chat/composer.tsx",
+        "src/renderer/src/App.tsx",
+        "src/shared/types.ts",
+      ];
+      const needle = (query ?? "").trim().toLowerCase();
+      return files
+        .filter((relative) => !needle || relative.toLowerCase().includes(needle))
+        .map((relative) => ({ relative, path: `/preview/${relative}` }));
+    },
     readDir: async (path: string) => {
       const decoded = decodeRemoteProjectKey(path);
       const raw = decoded?.remoteWorkspaceId ?? path;

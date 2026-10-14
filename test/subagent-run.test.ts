@@ -89,6 +89,9 @@ function fixture(options: { setup?: () => Promise<void>; create?: () => Promise<
     extensionUi: () => ({}),
     timeReasoning() {}, withThinkingTiming() {}, fileSubagentReasoning() {},
     resolvePendingUi: (_: unknown, owner: string) => { cleared.push(owner); },
+    // The extracted method keeps `this.host` (private `#host`). Point it at the
+    // same bag of fields the harness already assigns, so `folderPrompt` stays optional.
+    host,
     publishSubagentState: (subagentId: string, conversationId: string) => host.emit({ type: "subagent_state", subagentId, conversationId, model: session.model, thinkingLevel: "high" }),
     // 信箱投递的落点；这个 harness 里没有真会话，所以只记录调用。
     wakeSession: async () => undefined,

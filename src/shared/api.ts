@@ -12,12 +12,14 @@ import type {
   ConversationHistoryPage,
   ConversationReadyEvent,
   DirEntry,
+  ProjectFileHit,
   PinextModel,
   SessionStats,
   EngineSessionState,
   EngineStatus,
   EngineEvent,
   ProjectAddResult,
+  ProjectRepo,
   PromptImage,
   ProviderConfig,
   ProviderModel,
@@ -498,6 +500,18 @@ export function createPinextApi(t: ApiTransport) {
       /** Persist a drag-reordered project list; the new order is the sidebar order. */
       reorder: (cwds: string[]): Promise<WorkspaceSnapshot> =>
         t.invoke(Ipc.projectsReorder, { cwds }),
+      /** Create a project from one or more local folders. The first folder is primary. */
+      create: (input: { name?: string; folders: string[] }): Promise<ProjectAddResult> =>
+        t.invoke(Ipc.projectsCreate, input),
+      /** Native folder picker. Returns the chosen path, or null when cancelled. */
+      pickFolder: (): Promise<string | null> => t.invoke(Ipc.projectsPickFolder),
+      addFolder: (cwd: string, folder: string): Promise<WorkspaceSnapshot> =>
+        t.invoke(Ipc.projectsAddFolder, { cwd, folder }),
+      removeFolder: (cwd: string, folder: string): Promise<WorkspaceSnapshot> =>
+        t.invoke(Ipc.projectsRemoveFolder, { cwd, folder }),
+      setPrimary: (cwd: string, folder: string): Promise<WorkspaceSnapshot> =>
+        t.invoke(Ipc.projectsSetPrimary, { cwd, folder }),
+      repos: (cwd: string): Promise<ProjectRepo[]> => t.invoke(Ipc.projectsRepos, { cwd }),
     },
     workspace: {
       pick: (): Promise<{ cwd: string; status: EngineStatus } | null> =>
@@ -510,6 +524,9 @@ export function createPinextApi(t: ApiTransport) {
         t.invoke(Ipc.workspaceFilesExist, { paths, cwd }),
       fileIcons: (): Promise<FileIconMapping> => t.invoke(Ipc.workspaceFileIcons),
       readDir: (path: string): Promise<DirEntry[]> => t.invoke(Ipc.workspaceReadDir, { path }),
+      /** Files in the current project matching a composer `@` query. Paths stay on that machine. */
+      searchFiles: (cwd: string, query?: string): Promise<ProjectFileHit[]> =>
+        t.invoke(Ipc.workspaceSearchFiles, { cwd, query }),
       /** Replace a text file the file pane already has open. Refuses anything that is not a regular file. */
       /**
        * 新增 / 重命名 / 删除。The engine decides whether a path may be touched (it has to be

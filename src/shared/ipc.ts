@@ -113,6 +113,12 @@ export const Ipc = {
   projectsRename: "projects:rename",
   projectsRemove: "projects:remove",
   projectsReorder: "projects:reorder",
+  projectsCreate: "projects:create",
+  projectsPickFolder: "projects:pick-folder",
+  projectsAddFolder: "projects:add-folder",
+  projectsRemoveFolder: "projects:remove-folder",
+  projectsSetPrimary: "projects:set-primary",
+  projectsRepos: "projects:repos",
   workspaceReveal: "workspace:reveal",
   workspacePreview: "workspace:preview",
   /** 生图档案：读（掩码）/ 写 / 真出一张图的测试。 */
@@ -141,6 +147,7 @@ export const Ipc = {
   workspaceFilesExist: "workspace:files-exist",
   workspaceFileIcons: "workspace:file-icons",
   workspaceReadDir: "workspace:read-dir",
+  workspaceSearchFiles: "workspace:search-files",
   workspaceWriteFile: "workspace:write-file",
   /** 文件树的新增文件夹 / 新增文件 / 重命名 / 删除。 */
   workspaceMutate: "workspace:mutate",
