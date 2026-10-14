@@ -73,7 +73,14 @@ function artifactFor(source: AgentRuntimeSource, target: AgentRuntimeTarget): Ag
 }
 
 export function agentRuntimeUrl(source: AgentRuntimeSource, target: AgentRuntimeTarget): string {
-  const base = (source.releaseBaseUrl || "https://github.com/tyuan511/fastvibe/releases/download").replace(/\/$/, "");
+  const base = source.releaseBaseUrl?.trim().replace(/\/$/, "");
+  if (!base) {
+    // No fallback on purpose. The previous default pointed at the upstream app's GitHub
+    // releases, and downloading somebody else's build onto a user's remote host is not a
+    // failure mode worth keeping around. Either PINEXT_AGENT_RELEASE_BASE_URL or a local
+    // artifactDirectory has to say where this build's agent archives live.
+    throw new Error(`没有配置 Agent runtime 的下载来源：请设置 PINEXT_AGENT_RELEASE_BASE_URL，或在构建里带上本地 artifactDirectory（${source.release}）`);
+  }
   return `${base}/${encodeURIComponent(source.release)}/${agentRuntimeFilename(target)}`;
 }
 

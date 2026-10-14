@@ -207,34 +207,20 @@ test("a fresh install has no provider at all", (t) => {
   assert.deepEqual(api.readProviders(paths), []);
 });
 
-test("the retired built-in FastVibe provider becomes a custom one with its key and models", async (t) => {
+test("a retired built-in provider entry is dropped, never resurrected as a custom one", async (t) => {
   const { paths, api } = fixture(t);
   writeFileSync(paths.providersFile, JSON.stringify({ version: 2, providers: [oldFastVibeEntry()] }));
   writeFileSync(paths.agentEnv, "FASTVIBE_API_KEY=sk-kept\n");
 
-  const [carried] = api.readProviders(paths);
-  assert.equal(carried.id, "fastvibe", "transcripts recorded this id");
-  assert.equal(carried.kind, "custom");
-  assert.equal(carried.apiKeyEnv, "FASTVIBE_API_KEY");
-  assert.equal(carried.baseUrl, "https://fastvibe.dev/v1");
-  assert.equal(carried.api, "openai-completions", "a v2 file's protocol was the user's choice");
-  assert.deepEqual(carried.models.map((m) => m.id), ["claude-sonnet-5-5"]);
-  assert.equal((await api.loadProviderKeys(paths))[carried.apiKeyEnv], "sk-kept");
-
-  // The next write stores it as an ordinary provider, and it can now be removed.
-  api.updateProvider(paths, "fastvibe", { name: "My relay" });
-  const stored = JSON.parse(readFileSync(paths.providersFile, "utf8"));
-  assert.equal(stored.version, 3);
-  assert.equal(stored.providers[0].kind, "custom");
-  await api.removeProvider(paths, "fastvibe");
+  // Its endpoint belonged to a service this build does not use. Reading the entry as a
+  // custom provider would point the stored key at somebody else's host, so the row goes.
   assert.deepEqual(api.readProviders(paths), []);
-  assert.equal((await api.loadProviderKeys(paths)).FASTVIBE_API_KEY, undefined);
 });
 
-test("a v1 file's built-in protocol was the code's default, not a choice", (t) => {
+test("the drop is version-independent: a v1 file loses its built-in entry too", (t) => {
   const { paths, api } = fixture(t);
   writeFileSync(paths.providersFile, JSON.stringify({ version: 1, providers: [oldFastVibeEntry({ api: "openai-completions" })] }));
-  assert.equal(api.readProviders(paths)[0].api, "openai-responses");
+  assert.deepEqual(api.readProviders(paths), []);
 });
 
 test("a built-in that was never connected leaves no empty row behind", (t) => {

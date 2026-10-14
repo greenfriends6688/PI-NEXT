@@ -219,9 +219,16 @@ linux:
     - AppImage
     - deb
 
-# Baked into app-update.yml so electron-updater can find GitHub releases.
-# Packaging still uses `--publish never`; CI uploads assets via action-gh-release.
-publish:
-  provider: github
-  owner: tyuan511
-  repo: fastvibe
+# Deliberately empty.
+#
+# This block is what electron-builder bakes into `app-update.yml`, and `app-update.yml` is
+# how electron-updater finds releases. Leaving it out means this build ships no feed at
+# all: `src/main/updater.ts` reports the update row as disabled instead of asking a
+# stranger's GitHub repository whether a newer build of *their* app exists.
+#
+# Fill it in with your own owner/repo (and add a release pipeline) before you publish.
+#
+# publish:
+#   provider: github
+#   owner: <your-github-owner>
+#   repo: <your-repo>

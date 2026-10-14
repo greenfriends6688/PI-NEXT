@@ -14,6 +14,9 @@ const runtime: AgentRuntimeSource = {
     "linux-x64": { runtimeHash: "a".repeat(64) },
     "linux-arm64": { runtimeHash: "b".repeat(64) },
   },
+  // `agentRuntimeUrl` has no built-in fallback on purpose (see `agent-runtime.ts`), so a
+  // source that is meant to be downloadable has to name where its archives live.
+  releaseBaseUrl: "https://github.com/pinext/pinext/releases/download",
 };
 
 const unix = process.platform !== "win32";

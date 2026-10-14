@@ -1,0 +1,63 @@
+pinext
+Copyright (C) 2026 pinext contributors
+
+---
+
+Where the code comes from
+=========================
+
+pinext is assembled from two bodies of work. This file records both, because the
+licence of the whole follows from the stricter of the two.
+
+1. **FastVibe 0.19.5** — https://github.com/tyuan511/fastvibe
+   MIT licensed. The original text is kept verbatim in `LICENSE-FASTVIBE-MIT`.
+   FastVibe supplied the application as it stands today: the Electron main
+   process and engine, the renderer, the headless agent, the mobile client under
+   `apps/mobile_flutter`, and the whole `resources/` tree.
+
+2. **Pi Web / PI NEXT** — https://github.com/agegr/pi-web
+   Distributed as a whole under the GNU General Public License v3.0 or later
+   (see `LICENSE`), with `LICENSE-MIT` covering the parts that record their own
+   MIT notice, including the upstream project that work is based on.
+   PI NEXT is the source of the features this project adds on top of FastVibe:
+   document preview and document tools, image generation, the web-search
+   provider chain, the IM bridge and inbound bot channels, the automation
+   scheduler, the MCP management surface, the git graph, the call-trace view and
+   Markdown export. Ported code carries a `fork:` marker naming what it came
+   from.
+
+Because the combined work contains GPL-3.0-or-later code, the combined work as a
+whole is distributed under the GNU General Public License v3.0 or later:
+
+  This program is free software: you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation, either version 3 of the License, or (at your option) any later
+  version.
+
+  This program is distributed in the hope that it will be useful, but WITHOUT ANY
+  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+  PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+---
+
+Third-party binaries fetched at build time
+=========================================
+
+The computer-use driver (`@trycua/cua-driver`, fetched by
+`scripts/fetch-cua-driver.mjs` into `resources/cua-driver/`) and the remote agent
+runtime archives are **not** part of this source tree. Each is pinned and
+checksummed by the script that fetches it; see `scripts/`. Their own licences
+apply to those artifacts.
+
+---
+
+Services this build deliberately does not use
+=============================================
+
+This build does not talk to any upstream service. In particular it does not
+contact `fastvibe.dev` / `app.fastvibe.dev` — the upstream account and WebRTC
+relay — and it does not use the upstream GitHub repository as an update feed or
+as a download source for remote agent runtimes. Those are replaced by the
+operator's own service (see `docs/pinext-cloud-contract-2026-10-13.md`) or left
+unconfigured, in which case the corresponding feature reports itself as disabled
+instead of failing against a stranger's host.

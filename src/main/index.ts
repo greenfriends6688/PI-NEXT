@@ -152,7 +152,7 @@ const sshManager = new SshManager({
       ? join(app.getAppPath(), "agent-runtimes")
       : join(__dirname, "../../release/agent-runtime"),
     cacheDirectory: join(getFastVibePaths().runtimeRoot, "ssh-agent-runtimes"),
-    releaseBaseUrl: process.env.FASTVIBE_AGENT_RELEASE_BASE_URL,
+    releaseBaseUrl: process.env.PINEXT_AGENT_RELEASE_BASE_URL,
   },
 });
 
@@ -235,7 +235,7 @@ const remoteConnections = new RemoteConnectionManager({
         ? join(app.getAppPath(), "agent-runtimes")
         : join(__dirname, "../../release/agent-runtime"),
       cacheDirectory: join(getFastVibePaths().runtimeRoot, "ssh-agent-runtimes"),
-      releaseBaseUrl: process.env.FASTVIBE_AGENT_RELEASE_BASE_URL,
+      releaseBaseUrl: process.env.PINEXT_AGENT_RELEASE_BASE_URL,
     },
     log: {
       info: (message) => log.info(message),

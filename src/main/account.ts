@@ -9,12 +9,12 @@ import { broadcast } from "./ipc/broadcast";
 import { handle } from "./ipc/registry";
 
 /**
- * The site the account lives on. `FASTVIBE_CLOUD_URL` points a development build at a
- * local server; anything that is not a plain http(s) origin is ignored rather than
- * trusted, because the sign-in token is sent to whatever this names.
+ * The site the account lives on. `PINEXT_CLOUD_URL` points a development build at a local
+ * server; anything that is not a plain http(s) origin is ignored rather than trusted,
+ * because the sign-in token is sent to whatever this names.
  */
 function accountOrigin(): string {
-  const raw = process.env.FASTVIBE_CLOUD_URL?.trim();
+  const raw = process.env.PINEXT_CLOUD_URL?.trim();
   if (!raw) return DEFAULT_ACCOUNT_ORIGIN;
   try {
     const url = new URL(raw);
@@ -22,7 +22,7 @@ function accountOrigin(): string {
   } catch {
     // fall through to the default
   }
-  log.warn("FASTVIBE_CLOUD_URL is not an http(s) URL; using the default site");
+  log.warn("PINEXT_CLOUD_URL is not an http(s) URL; using the default site");
   return DEFAULT_ACCOUNT_ORIGIN;
 }
 

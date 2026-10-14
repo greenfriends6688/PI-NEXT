@@ -15,14 +15,6 @@ import type { FastVibePaths } from "./paths";
 import { orderProviderModels } from "@shared/model-order";
 
 /**
- * What the retired built-in FastVibe provider was, for carrying it over (see `migrateBuiltin`).
- * It is an ordinary custom provider now: this id and key variable are only kept so the
- * conversations that recorded `fastvibe/<model>` and the key already in `agent/.env` keep working.
- */
-const LEGACY_FASTVIBE_API_KEY_ENV = "FASTVIBE_API_KEY";
-const LEGACY_FASTVIBE_API: ProviderApi = "openai-responses";
-
-/**
  * `native` entries point at a pi-coding-agent built-in provider: the id is the SDK
  * provider id itself (e.g. `deepseek`) and `models` is the user's chosen subset of
  * the built-in catalog, including any edited metadata. `baseUrl` / `api` / `name` are
@@ -58,10 +50,9 @@ type ProvidersFile = {
 /**
  * On-disk schema version.
  *
- * 2 made the built-in FastVibe provider's protocol user-selectable (in v1 the code pinned
- * it, so a v1 entry's `api` is the old default rather than a choice). 3 removed the
- * built-in provider altogether: its entry is read as a custom provider (`migrateBuiltin`)
- * and the next write stores it as one.
+ * 3 dropped the upstream app's built-in provider: a stored entry of that kind is discarded
+ * on read (`keepsStoredProvider`) rather than read as a custom provider, because its
+ * endpoint belonged to a service this build does not use.
  */
 const PROVIDERS_VERSION = 3;
 
@@ -86,11 +77,9 @@ export function readProviders(paths: FastVibePaths): StoredProvider[] {
     // No providers.json yet: a fresh install has no provider, and the empty model list
     // is the whole «not connected» signal.
     if (!parsed) return [];
-    const protocolWasPinned = !(typeof parsed.version === "number" && parsed.version >= 2);
     return parsed.providers
       .filter(isStoredProvider)
-      .map((entry) => migrateBuiltin(entry, protocolWasPinned))
-      .filter((entry): entry is StoredProviderInput => entry !== null)
+      .filter(keepsStoredProvider)
       .map(hydrateProvider)
       .filter(isLiveProvider);
   } catch {
@@ -99,25 +88,14 @@ export function readProviders(paths: FastVibePaths): StoredProvider[] {
 }
 
 /**
- * The built-in FastVibe provider is gone: it was an ordinary Sub2API relay at
- * `fastvibe.dev` with a code-owned name and endpoint. A stored entry of that kind becomes a
- * custom provider in place — same id, same key variable, same models — so the key the user
- * pasted and the conversations that recorded `fastvibe/<model>` carry over untouched.
+ * A retired `kind: "builtin"` entry is dropped, never carried over.
  *
- * An entry with no models was never connected (a key without models reaches no model
- * anywhere), so there is nothing to carry and it is dropped rather than left as an empty row.
- * `protocolWasPinned` is a file from before the protocol was selectable, where the stored
- * `api` was the code's default and not a decision.
+ * That kind named the upstream app's own Sub2API relay — a host that is not ours. Reading
+ * it as a custom provider would point a key the user pasted at somebody else's endpoint,
+ * which is worse than losing one provider row they can add back in a minute.
  */
-function migrateBuiltin(entry: StoredProviderInput, protocolWasPinned: boolean): StoredProviderInput | null {
-  if ((entry as { kind?: unknown }).kind !== "builtin") return entry;
-  if (!Array.isArray(entry.models) || entry.models.length === 0) return null;
-  return {
-    ...entry,
-    kind: "custom",
-    api: protocolWasPinned || !isProviderApi(entry.api) ? LEGACY_FASTVIBE_API : entry.api,
-    apiKeyEnv: entry.apiKeyEnv || LEGACY_FASTVIBE_API_KEY_ENV,
-  };
+function keepsStoredProvider(entry: StoredProvider): boolean {
+  return (entry as { kind?: unknown }).kind !== "builtin";
 }
 
 /**

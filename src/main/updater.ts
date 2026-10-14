@@ -113,6 +113,18 @@ function notifyDownloaded(version: string): void {
   );
 }
 
+/**
+ * Whether this build carries an update feed at all.
+ *
+ * electron-builder bakes `app-update.yml` from the `publish` block. This repository leaves
+ * that block empty on purpose (see `electron-builder.yml`), so a build made from it has no
+ * feed — and asking electron-updater to read one would surface an error about a missing
+ * file. Reporting "disabled" says the true thing: this build does not update itself.
+ */
+function hasUpdateFeed(): boolean {
+  return existsSync(join(process.resourcesPath, "app-update.yml"));
+}
+
 function macAppBundle(): string | null {
   if (process.platform !== "darwin" || !app.isPackaged) return null;
   const bundle = join(process.execPath, "..", "..", "..");
@@ -143,6 +155,21 @@ function spawnMacInstaller(zipPath: string, appBundle: string): void {
 
 async function checkForUpdates(manual: boolean): Promise<AppUpdateState> {
   if (!app.isPackaged) return state;
+  // No feed baked into this build: say so once when asked, and never turn it into an
+  // error notice about a file the person cannot do anything about.
+  if (!hasUpdateFeed()) {
+    if (manual) {
+      setState({
+        status: "disabled",
+        error: uiText(
+          "这个构建没有配置更新来源，不会自动更新。",
+          "This build has no update feed configured, so it never updates itself.",
+        ),
+        progress: undefined,
+      });
+    }
+    return state;
+  }
   manualCheck = manual;
   try {
     await autoUpdater.checkForUpdates();
@@ -221,8 +248,16 @@ export function registerUpdater(getWindows: () => Iterable<BrowserWindow>, openW
   windows = getWindows;
   createWindow = openWindow;
   state = {
-    status: app.isPackaged ? "idle" : "disabled",
+    status: app.isPackaged && hasUpdateFeed() ? "idle" : "disabled",
     currentVersion: app.getVersion(),
+    ...(app.isPackaged && !hasUpdateFeed()
+      ? {
+          error: uiText(
+            "这个构建没有配置更新来源，不会自动更新。",
+            "This build has no update feed configured, so it never updates itself.",
+          ),
+        }
+      : {}),
   };
 
   handle(Ipc.updateGetState, () => state);
