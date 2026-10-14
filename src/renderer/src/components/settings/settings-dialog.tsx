@@ -48,7 +48,6 @@ import { ImBridgeSettings } from "./im-settings";
 import { WebSearchSettings } from "./websearch-settings";
 import { PluginsPage } from "@/components/plugins/plugins-page";
 import { TasksPage } from "@/components/schedules/tasks-page";
-import { WebServerSettings } from "./web-server-settings";
 import { SubagentsSettings } from "./subagents-settings";
 import { SettingsGroup as Group, SettingsRow as Row } from "./settings-group";
 import {
@@ -440,7 +439,6 @@ export function SettingsDialog({
               不是每天要点的入口，而侧栏那两行挤掉了会话列表的位置。 */}
           {/* 弹窗里没有侧栏可展开，所以那两个 shell 属性给恒定值；打开会话仍走 shell 的路径。 */}
           {section === "plugins" ? <PluginsPage sidebarCollapsed={false} onExpandSidebar={() => undefined} /> : null}
-          {section === "web-server" ? <WebServerSettings /> : null}
           {section === "tasks" ? (
             <TasksPage
               projects={projects}
