@@ -13,6 +13,8 @@ import type {
   ConversationReadyEvent,
   DirEntry,
   ProjectFileHit,
+  GitLogResponse,
+  GitCommitFilesResponse,
   PinextModel,
   SessionStats,
   EngineSessionState,
@@ -544,6 +546,9 @@ export function createPinextApi(t: ApiTransport) {
       },
       writeFile: (path: string, text: string): Promise<void> => t.invoke(Ipc.workspaceWriteFile, { path, text }),
       gitStatus: (cwd: string): Promise<GitStatus> => t.invoke(Ipc.workspaceGitStatus, { cwd }),
+      gitLog: (cwd: string, limit?: number): Promise<GitLogResponse> => t.invoke(Ipc.workspaceGitLog, { cwd, limit }),
+      gitCommitFiles: (cwd: string, hash: string): Promise<GitCommitFilesResponse> =>
+        t.invoke(Ipc.workspaceGitCommitFiles, { cwd, hash }),
       openTerminal: (cwd: string): Promise<void> => t.invoke(Ipc.workspaceOpenTerminal, { cwd }),
       gitBranches: (cwd: string): Promise<GitBranch[]> => t.invoke(Ipc.workspaceGitBranches, { cwd }),
       gitCheckout: (cwd: string, branch: string): Promise<GitStatus> => t.invoke(Ipc.workspaceGitCheckout, { cwd, branch }),

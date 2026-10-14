@@ -66,6 +66,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createNetworkProxy } from "../engine/network-proxy";
 import { collectCommitMessageMaterial, readCommitStatusFiles, readGitStatus } from "../workspace-git";
+import { readGitLog, readGitCommitFiles } from "../engine/git-graph";
 
 const execFileAsync = promisify(execFile);
 
@@ -386,6 +387,15 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     if (!cwd) return { cwd, isRepository: false, changed: 0, staged: 0, additions: 0, deletions: 0, files: [] };
     return readGitStatus(cwd);
   });
+  handle(Ipc.workspaceGitLog, async (payload: { cwd?: unknown; limit?: unknown }) =>
+    readGitLog(typeof payload.cwd === "string" ? payload.cwd : "", typeof payload.limit === "number" ? payload.limit : undefined),
+  );
+  handle(Ipc.workspaceGitCommitFiles, async (payload: { cwd?: unknown; hash?: unknown }) =>
+    readGitCommitFiles(
+      typeof payload.cwd === "string" ? payload.cwd : "",
+      typeof payload.hash === "string" ? payload.hash : "",
+    ),
+  );
   handle(Ipc.workspaceOpenTerminal, async (payload: { cwd: string }): Promise<void> => {
     const cwd = typeof payload.cwd === "string" ? payload.cwd.trim() : "";
     if (!cwd) return;

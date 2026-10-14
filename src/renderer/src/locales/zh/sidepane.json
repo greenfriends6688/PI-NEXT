@@ -12,7 +12,8 @@
       "completed": "已完成",
       "error": "失败",
       "aborted": "已终止"
-    }
+    },
+    "gitGraph": "Git 图谱"
   },
   "pane": {
     "collapse": "收起侧边面板",
@@ -32,7 +33,8 @@
     "openTabs": "打开标签页",
     "openTabsDesc": "选择要在侧边面板中打开的标签。",
     "unsupported": "当前远程项目不支持「{{feature}}」",
-    "unavailable": "远程项目当前不可用（{{state}}）"
+    "unavailable": "远程项目当前不可用（{{state}}）",
+    "gitGraph": "Git 图谱"
   },
   "files": {
     "unbound": "当前对话未绑定项目，绑定项目后即可浏览文件。",
@@ -342,5 +344,13 @@
     "openTasks": "查看子任务",
     "attention": "{{count}} 项待处理",
     "viewAll": "查看全部 {{count}} 项"
+  },
+  "gitGraph": {
+    "loading": "正在读取提交历史…",
+    "notRepo": "这个工作区不是一个 Git 仓库。",
+    "title": "提交图谱",
+    "truncated": "已截断（只显示最近若干条）",
+    "files": "正在读取改动文件…",
+    "noFiles": "这个提交没有改动文件。"
   }
 }

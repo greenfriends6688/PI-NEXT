@@ -160,6 +160,8 @@ export const Ipc = {
   webServerPort: "web-server:port",
   workspaceReadFile: "workspace:read-file",
   workspaceGitStatus: "workspace:git-status",
+  workspaceGitLog: "workspace:git-log",
+  workspaceGitCommitFiles: "workspace:git-commit-files",
   workspaceOpenTerminal: "workspace:open-terminal",
   workspaceGitBranches: "workspace:git-branches",
   workspaceGitCheckout: "workspace:git-checkout",

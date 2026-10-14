@@ -312,6 +312,8 @@ const ALLOWED = new Set<string>([
   Ipc.workspaceGitPush,
   Ipc.workspaceGitStage,
   Ipc.workspaceGitStatus,
+  Ipc.workspaceGitLog,
+  Ipc.workspaceGitCommitFiles,
   Ipc.workspaceGitUnstage,
   Ipc.workspacePreview,
   Ipc.workspaceFilesExist,

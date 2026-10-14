@@ -1179,6 +1179,37 @@ export type ProjectRepo = {
   branch?: string;
 };
 
+/** One commit for the Git graph (fork:git-graph). */
+export type GitLogCommit = {
+  hash: string;
+  parents: string[];
+  author: string;
+  /** Unix seconds (`%at`). */
+  timestamp: number;
+  subject: string;
+  /** Ref decorations (`%D`), e.g. `HEAD -> main`, `origin/main`, `tag: v1`. */
+  refs: string[];
+};
+
+export type GitLogResponse = {
+  isGitRepository: boolean;
+  commits: GitLogCommit[];
+  truncated: boolean;
+};
+
+export type GitCommitFile = {
+  /** Absolute path (renames use the new path). */
+  filePath: string;
+  /** `git name-status` letter: M / A / D / R / C / T / U. */
+  code: string;
+  originalPath?: string;
+};
+
+export type GitCommitFilesResponse = {
+  supported: boolean;
+  files: GitCommitFile[];
+};
+
 /**
  * A workspace another App Server offers.
  *

@@ -11,6 +11,7 @@ import {
   File01Icon,
   FileEditIcon,
   Folder01Icon,
+  GitBranchIcon,
   GitCompareIcon,
   MessageSquareIcon,
   MessageSquarePlusIcon,
@@ -47,6 +48,7 @@ import { SidePaneChat } from "./side-pane-chat";
 import { SidePaneChanges } from "./side-pane-changes";
 import { SidePaneFiles } from "./side-pane-files";
 import { SidePaneGit } from "./side-pane-git";
+import { GitGraphTab } from "./git-graph-tab";
 import { SidePaneDagNode } from "./side-pane-dag-node";
 import { SidePaneSubagent } from "./side-pane-subagent";
 import { releaseTerminal } from "./side-pane-terminal-registry";
@@ -161,6 +163,7 @@ function MaximizeButton(): JSX.Element {
 function tabIcon(type: SidePaneTab["type"]) {
   if (type === "subagent" || type === "dag-node") return BotIcon;
   if (type === "git") return GitCompareIcon;
+  if (type === "git-graph") return GitBranchIcon;
   if (type === "changes") return FileEditIcon;
   if (type === "terminal") return TerminalIcon;
   if (type === "browser") return ChromeIcon;
@@ -230,6 +233,8 @@ export const SidePane = memo(function SidePane({
   const folders = workspace && !isRemoteProject(workspace) ? projectFolderPaths(workspace) : undefined;
   const openBrowser = useSidePaneStore((state) => state.openBrowser);
   const openFiles = useSidePaneStore((state) => state.openFiles);
+  const openGitGraph = useSidePaneStore((state) => state.openGitGraph);
+  const openFilePreview = useSidePaneStore((state) => state.openFilePreview);
   const openSideChat = useSidePaneStore((state) => state.openSideChat);
   const nextSideChatOrdinal = useSidePaneStore((state) => state.nextSideChatOrdinal);
   const hasReviewTab = useSidePaneStore((state) => state.tabs.some((item) => item.type === "git"));
@@ -343,6 +348,7 @@ export const SidePane = memo(function SidePane({
       : null,
     { id: "files", label: t("pane.files"), icon: Folder01Icon, onOpen: () => openCapable("workspace", t("pane.files"), openFiles) },
     hasReviewTab ? null : { id: "review", label: t("pane.review"), icon: GitCompareIcon, onOpen: () => openCapable("git", t("pane.review"), openGit) },
+    { id: "git-graph", label: t("pane.gitGraph"), icon: GitBranchIcon, onOpen: () => openCapable("git", t("pane.gitGraph"), () => openGitGraph(cwd)) },
     // 修改记录 has no menu entry: the transcript's changes card mints that tab. An entry
     // here would let the pane open an empty turn-changes view on its own.
     { id: "terminal", label: t("pane.terminal"), icon: TerminalIcon, onOpen: () => openCapable("terminal", t("pane.terminal"), () => openTerminal(cwd)) },
@@ -465,6 +471,10 @@ export const SidePane = memo(function SidePane({
                   {t("pane.review")}
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onClick={() => openCapable("git", t("pane.gitGraph"), () => openGitGraph(cwd))}>
+                <HugeiconsIcon strokeWidth={2} icon={GitBranchIcon} />
+                {t("pane.gitGraph")}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => openCapable("terminal", t("pane.terminal"), () => openTerminal(cwd))}>
                 <HugeiconsIcon strokeWidth={2} icon={TerminalIcon} />
                 {t("pane.terminal")}
@@ -534,6 +544,17 @@ export const SidePane = memo(function SidePane({
               focusPath={active.gitFocusPath}
               focusSource={active.gitFocusSource}
               onFocusHandled={() => patchTab(active.id, { gitFocusPath: undefined, gitFocusSource: undefined })}
+            />
+          ) : null}
+          {active?.type === "git-graph" ? (
+            <GitGraphTab
+              cwd={cwd ?? ""}
+              onOpenFile={(filePath) => {
+                void window.pinext.workspace
+                  .preview(filePath)
+                  .then((preview) => openFilePreview(preview))
+                  .catch(() => undefined);
+              }}
             />
           ) : null}
           {active?.type === "changes" ? (

@@ -12,7 +12,8 @@
       "completed": "Done",
       "error": "Failed",
       "aborted": "Stopped"
-    }
+    },
+    "gitGraph": "Git graph"
   },
   "pane": {
     "collapse": "Collapse side pane",
@@ -32,7 +33,8 @@
     "openTabs": "Open a tab",
     "openTabsDesc": "Choose a tab to open in the side pane.",
     "unsupported": "This remote project does not support {{feature}}",
-    "unavailable": "This remote project is unavailable ({{state}})"
+    "unavailable": "This remote project is unavailable ({{state}})",
+    "gitGraph": "Git graph"
   },
   "files": {
     "unbound": "This chat is not bound to a project. Bind one to browse files.",
@@ -342,5 +344,13 @@
     "openTasks": "View sub-tasks",
     "attention": "{{count}} need attention",
     "viewAll": "View all {{count}} tasks"
+  },
+  "gitGraph": {
+    "loading": "Reading commit history…",
+    "notRepo": "This workspace is not a Git repository.",
+    "title": "Commit graph",
+    "truncated": "truncated (newest shown)",
+    "files": "Reading changed files…",
+    "noFiles": "This commit changed no files."
   }
 }
