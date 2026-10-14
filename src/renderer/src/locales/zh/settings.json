@@ -751,7 +751,16 @@
    "direct": "所有工具都会交给模型。",
    "deferred": "模型先搜索，再使用找到的工具。即使关闭了工具搜索也会启用。",
    "codemode": "模型只能在脚本里调用这些工具。即使关闭了代码模式也会启用。"
-  }
+  },
+  "importFrom": "从其他工具导入",
+  "importTitle": "从其他工具导入 MCP server",
+  "importDesc": "在本机发现 {{count}} 个已配置的 server。勾选要搬过来的那些 —— 不会自动采用。",
+  "importEmpty": "没有发现任何已配置的 MCP server。",
+  "importShadowed": "已被项目级覆盖",
+  "importDisabled": "源文件里是关闭的",
+  "importPick": "导入 {{count}} 个",
+  "imported": "已导入 {{count}} 个",
+  "discoverFailed": "发现失败"
  },
  "skills": {
   "detailDesc": "直接编辑这个技能自己的 markdown；保存后下一次对话即可生效。",

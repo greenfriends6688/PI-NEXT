@@ -139,6 +139,8 @@ import { hasOAuthCredential, OAuthCredentialStore, readOrCreateDeviceId } from "
 import { priceUsage } from "../engine/pricing";
 import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-quota";
 import { listWorkspaceFiles, mutateWorkspaceFile } from "../engine/workspace-mutate.ts";
+import { discoverMcpServers } from "../pinext/mcp/discovery.ts";
+import type { McpDiscoveredServer } from "../../shared/mcp-discovery.ts";
 import {
   beginRegistration,
   cancelRegistration,
@@ -1917,6 +1919,11 @@ export class PiProcessManager {
     const errors = managed.extensions.errors.map((error) => ({ path: error.path, name: error.path.split(/[\\/]/).pop() ?? error.path, commands: 0, tools: 0, error: error.error }));
     return [...loaded, ...errors];
   }
+  /** 别的 agent 已经配好的 MCP server（只读发现）。 */
+  async discoverMcpServers(): Promise<McpDiscoveredServer[]> {
+    return discoverMcpServers(this.#cwd);
+  }
+
   async listMcpServers(): Promise<McpServerStatus[]> { await this.#mcp.load(); return this.#mcp.list(); }
   async #scheduleMcpReload(): Promise<void> {
     if (this.#mcpReloadPromise) return this.#mcpReloadPromise;

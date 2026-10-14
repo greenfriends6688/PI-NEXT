@@ -213,6 +213,8 @@ const ALLOWED = new Set<string>([
   Ipc.engineListExtensionPackages,
   Ipc.engineListMarketPackages,
   Ipc.engineListMcpServers,
+  // 只读发现：报出别的工具里写了什么，导入是另一步。
+  Ipc.engineDiscoverMcp,
   Ipc.engineListSkills,
   Ipc.engineNewSession,
   Ipc.enginePermissionRespond,

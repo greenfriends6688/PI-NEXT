@@ -753,7 +753,16 @@
    "direct": "Every tool is given to the model.",
    "deferred": "The model searches first, then uses what it finds. Stays on even if tool search is switched off.",
    "codemode": "The model can only call these tools from a script. Stays on even if code mode is switched off."
-  }
+  },
+  "importFrom": "Import from other tools",
+  "importTitle": "Import MCP servers from other tools",
+  "importDesc": "{{count}} configured servers found on this machine. Tick the ones to bring over — nothing is adopted automatically.",
+  "importEmpty": "No configured MCP server was found.",
+  "importShadowed": "shadowed by a project definition",
+  "importDisabled": "off in its source file",
+  "importPick": "Import {{count}}",
+  "imported": "Imported {{count}}",
+  "discoverFailed": "Discovery failed"
  },
  "skills": {
   "detailDesc": "Edit this skill's own markdown; it takes effect on the next turn.",

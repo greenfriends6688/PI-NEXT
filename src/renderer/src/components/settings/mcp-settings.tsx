@@ -3,15 +3,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  Add01Icon,
-  AlertCircleIcon,
-  CheckmarkCircle02Icon,
-  Delete02Icon,
-  Edit02Icon,
-  Loading03Icon,
-  Plug01Icon,
-} from "@hugeicons/core-free-icons";
+import { Add01Icon, AlertCircleIcon, CheckmarkCircle02Icon, Delete02Icon, Download01Icon, Edit02Icon, Loading03Icon, Plug01Icon } from "@hugeicons/core-free-icons";
 import { IconButton } from "@/components/icon-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatMap, mergeServers, parseMap, parseMcpJson, serializeMcpJson, type McpJsonError } from "@shared/mcp-config";
 import type { McpExposure, McpServerConfig, McpServerStatus } from "@shared/types";
+import type { McpDiscoveredServer } from "@shared/mcp-discovery";
 
 /**
  * The server form's draft; also doubles as the dialog's open state. `id` is set while
@@ -152,6 +145,9 @@ export function McpSettings(): JSX.Element {
   const [servers, setServers] = useState<McpServerStatus[]>([]);
   const [draft, setDraft] = useState<ServerDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  /** 从别的工具发现到的 server；null = 没在挑。 */
+  const [found, setFound] = useState<McpDiscoveredServer[] | null>(null);
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
 
   async function refresh(): Promise<void> {
     try {
@@ -164,6 +160,40 @@ export function McpSettings(): JSX.Element {
   useEffect(() => {
     void refresh();
   }, []);
+
+  /**
+   * 从别的工具发现 server。
+   *
+   * **发现只是报告**：这些配置是别人为另一个工具写的，不是把它们搬进来的同意。
+   * 所以列出来、由人选，不自动采用 —— 预选也只勾没被更高优先级覆盖的那些。
+   */
+  async function discover(): Promise<void> {
+    try {
+      const listed = await window.pinext.engine.discoverMcp();
+      setFound(listed);
+      setChosen(new Set(listed.filter((server) => !server.shadowed).map((server) => `${server.tool}:${server.name}`)));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("mcp.discoverFailed"));
+    }
+  }
+
+  /** 把勾中的那些并进现有配置（同名的先删后加，避免留下两条同名）。 */
+  async function importChosen(): Promise<void> {
+    if (!found) return;
+    const picking = found.filter((server) => chosen.has(`${server.tool}:${server.name}`));
+    const names = new Set(picking.map((server) => server.name));
+    const kept = servers.filter((server) => !names.has(server.id)).map(toConfig);
+    const added = picking.map((server) => ({
+      id: server.name,
+      name: server.name,
+      enabled: !server.disabled,
+      ...server.def,
+    })) as McpServerConfig[];
+    if (await save([...kept, ...added])) {
+      setFound(null);
+      toast.success(t("mcp.imported", { count: added.length }));
+    }
+  }
 
   /** Never throws: callers act on the boolean so row edits cannot produce an
    *  unhandled rejection, and failures surface as a toast. */
@@ -245,6 +275,11 @@ export function McpSettings(): JSX.Element {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium">{t("mcp.configured")}</span>
+        <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" disabled={saving} onClick={() => void discover()}>
+          <HugeiconsIcon strokeWidth={2} icon={Download01Icon} />
+          {t("mcp.importFrom")}
+        </Button>
         <Button
           size="sm"
           disabled={saving}
@@ -255,7 +290,66 @@ export function McpSettings(): JSX.Element {
           <HugeiconsIcon strokeWidth={2} icon={Add01Icon} />
           {t("mcp.add")}
         </Button>
+        </div>
       </div>
+
+      {found ? (
+        <Dialog open onOpenChange={(open) => !open && setFound(null)}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{t("mcp.importTitle")}</DialogTitle>
+              <DialogDescription>
+                {/* 这些配置是别人为另一个工具写的 —— 列出来由人挑，不自动采用。 */}
+                {found.length === 0 ? t("mcp.importEmpty") : t("mcp.importDesc", { count: found.length })}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-96 space-y-1 overflow-y-auto">
+              {found.map((server) => {
+                const key = `${server.tool}:${server.name}`;
+                return (
+                  <label
+                    key={key}
+                    className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={chosen.has(key)}
+                      onChange={(event) =>
+                        setChosen((value) => {
+                          const next = new Set(value);
+                          if (event.target.checked) next.add(key);
+                          else next.delete(key);
+                          return next;
+                        })
+                      }
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="truncate font-medium">{server.name}</span>
+                        <Badge variant="secondary" className="shrink-0">{server.tool}</Badge>
+                        <Badge variant="outline" className="shrink-0">{server.scope}</Badge>
+                        {/* 被更高优先级覆盖、或被源文件标为关闭：仍然列出来，但说清原因。 */}
+                        {server.shadowed ? <span className="text-xs text-muted-foreground">{t("mcp.importShadowed")}</span> : null}
+                        {server.disabled ? <span className="text-xs text-muted-foreground">{t("mcp.importDisabled")}</span> : null}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">{server.path}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setFound(null)}>
+                {t("mcp.cancel")}
+              </Button>
+              <Button disabled={saving || chosen.size === 0} onClick={() => void importChosen()}>
+                {t("mcp.importPick", { count: chosen.size })}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
       {servers.length ? (
         <div className="grid gap-2.5">

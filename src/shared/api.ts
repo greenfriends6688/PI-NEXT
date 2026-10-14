@@ -64,6 +64,7 @@ import type { WebSearchSettings } from "@shared/websearch";
 import type { ImSendOutcome, ImTarget, ImTargetView } from "@shared/im-bridge";
 import type { ChatChannelConfig } from "@shared/chat-channel";
 import type { FileMutation } from "@shared/file-mutation";
+import type { McpDiscoveredServer } from "@shared/mcp-discovery";
 import type { WebServerState } from "@shared/web-server";
 import type { RemoteHostProfile, RemoteHostConnectionState, RemoteHostTestResult, SshHostKeyScan } from "@shared/remote-host";
 import type {
@@ -190,6 +191,14 @@ export function createPinextApi(t: ApiTransport) {
         t.invoke(Ipc.engineRemoveExtensionPackage, { source }),
       listMarketPackages: (query?: import("@shared/types").MarketPackageQuery): Promise<import("@shared/types").MarketPackagePage> =>
         t.invoke(Ipc.engineListMarketPackages, query),
+      /**
+       * Servers already configured in *other* agents on this machine.
+       *
+       * Read-only discovery: it reports what those files say, and importing is a separate,
+       * deliberate step — a config the person wrote for another tool is not consent to
+       * adopt it here.
+       */
+      discoverMcp: (): Promise<McpDiscoveredServer[]> => t.invoke(Ipc.engineDiscoverMcp),
       listMcpServers: (): Promise<McpServerStatus[]> => t.invoke(Ipc.engineListMcpServers),
       saveMcpServers: (configs: McpServerConfig[]): Promise<McpServerStatus[]> => t.invoke(Ipc.engineSaveMcpServers, { configs }),
       readSkill: (name: string): Promise<{ name: string; content: string; editable: boolean }> =>

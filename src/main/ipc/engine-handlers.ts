@@ -120,6 +120,7 @@ export function registerEngineIpc(engine: PiProcessManager): void {
     Ipc.engineListMarketPackages,
     async (payload: import("@shared/types").MarketPackageQuery) => fetchPackageCatalog(payload),
   );
+  handle(Ipc.engineDiscoverMcp, async () => engine.discoverMcpServers());
   handle(Ipc.engineListMcpServers, async () => engine.listMcpServers());
   handle(Ipc.engineSaveMcpServers, async (payload: { configs: import("@shared/types").McpServerConfig[] }) => engine.saveMcpServers(payload.configs));
   handle(Ipc.providersUsage, async (payload: { id: string }) => engine.getProviderUsage(payload.id));
