@@ -309,6 +309,8 @@ type PinextExtensionUIContext = ExtensionUIContext & {
   startSubagentInBackground(ownerId: string | undefined, request: SubagentHostRequest): string;
   /** The latest result of a run by id; `wait` polls until it reaches a terminal status. */
   awaitSubagentResult(subagentId: string, wait: boolean, signal?: AbortSignal): Promise<SubagentRunResult>;
+  /** Inject a correction into a live run. `false` means it had already finished. */
+  steerSubagent(subagentId: string, message: string): Promise<boolean>;
   searchConversation(request: ConversationSearchHostRequest): Promise<ConversationSearchHostResult>;
   createWorktree(options?: { path?: string; branch?: string; label?: string }): Promise<WorktreeHostResult>;
   bindWorktree(path: string): Promise<WorktreeHostResult>;
@@ -1782,6 +1784,39 @@ export class PiProcessManager {
         resolve(read());
       }, { once: true });
     });
+  }
+
+  /**
+   * Inject a message into a run that is already going.
+   *
+   * The point is to correct a delegation without killing it: a role that has drifted, or a
+   * brief that turns out to need one more constraint, would otherwise be a choice between
+   * waiting out the wrong answer and starting over.
+   *
+   * Delivered as a steer, so the SDK holds it until the current tool call finishes — the
+   * instruction lands between steps, which is where a correction is useful. `all` is set on
+   * the run first: the default `one-at-a-time` would queue a second steer behind the first
+   * and make a repeated correction look like it did nothing.
+   *
+   * Answers whether a live run took it. A finished or unknown id is a no, not an error:
+   * the caller raced the run's own end, and the result it already produced stands.
+   */
+  async steerSubagent(subagentId: string, message: string): Promise<boolean> {
+    const text = message.trim();
+    if (!text) return false;
+    const session = this.#subagentSessions.get(subagentId);
+    if (!session) return false;
+    const info = this.#subagents.get(subagentId);
+    if (!info || subagentFinished(info.status)) return false;
+    try {
+      session.setSteeringMode("all");
+      await session.prompt(text, { streamingBehavior: "steer" });
+      return true;
+    } catch {
+      // The run ended between the check above and the prompt. Not an error: nothing was
+      // promised that is now missing.
+      return false;
+    }
   }
 
   async abortSubagent(subagentId: string, conversationId?: string): Promise<void> {
@@ -5510,6 +5545,7 @@ export class PiProcessManager {
       // and the transcript all address it identically.
       startSubagentInBackground: (_ownerId, request) => this.startSubagentInBackground(conversationId, request),
       awaitSubagentResult: (subagentId, wait, signal) => this.awaitSubagentResult(subagentId, wait, signal),
+      steerSubagent: (subagentId, message) => this.steerSubagent(subagentId, message),
       searchConversation: (request) => this.#searchConversationForAgent(request),
       createWorktree: (options) => this.#hostCreateWorktree(conversationId, options),
       bindWorktree: (path) => this.#hostBindWorktree(conversationId, path),

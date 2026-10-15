@@ -82,6 +82,8 @@ type PinextUIContext = {
 	startSubagentInBackground?: (conversationId: string | undefined, request: HostSubagentRequest) => string;
 	/** The latest result of a run, by id. `wait` polls until it reaches a terminal status. */
 	awaitSubagentResult?: (subagentId: string, wait: boolean, signal?: AbortSignal) => Promise<HostSubagentResult>;
+	/** Inject a correction into a live run. `false` means it had already finished. */
+	steerSubagent?: (subagentId: string, message: string) => Promise<boolean>;
 };
 
 type HostSubagentResult =
@@ -1101,6 +1103,52 @@ export default function (pi: ExtensionAPI) {
 	 * An unknown id is reported as such — never as "still running", which would make a
 	 * poller wait forever on a run that does not exist.
 	 */
+	/**
+	 * Correct a run that is already going.
+	 *
+	 * The alternative to this is waiting out an answer you can see is wrong, or killing the
+	 * run and paying for the work twice. Delivered as a steer, so the SDK holds it until the
+	 * current tool call finishes — the instruction lands between steps.
+	 */
+	pi.registerTool({
+		name: "steer_subagent",
+		label: "Steer subagent",
+		description: "Send an instruction to a subagent run that is still going. It is delivered after the current step.",
+		promptSnippet: "Correct a running subagent with steer_subagent({ id, message })",
+		promptGuidelines: [
+			"Use steer_subagent when a running delegation has drifted or needs one more constraint — it is cheaper than stopping and restarting.",
+			"The message is delivered after the current tool call, so write it as the next instruction, not as a question.",
+			"A `false` answer means the run had already finished; read what it produced with get_subagent_result instead of steering again.",
+		],
+		parameters: Type.Object({
+			id: Type.String({ description: "The subagent run id, as returned by the subagent tool." }),
+			message: Type.String({ description: "The instruction to deliver after the current step." }),
+		}),
+
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+			const host = ctx.ui as unknown as PinextUIContext;
+			if (!host.steerSubagent) {
+				return {
+					content: [{ type: "text", text: "当前宿主不支持 steer 子 Agent。" }],
+					details: { id: params.id, steered: false },
+					isError: true,
+				};
+			}
+			const steered = await host.steerSubagent(params.id, params.message);
+			return {
+				content: [
+					{
+						type: "text",
+						text: steered
+							? `Delivered to \`${params.id}\`.`
+							: `\`${params.id}\` is not running — it finished or never existed. Read it with get_subagent_result.`,
+					},
+				],
+				details: { id: params.id, steered },
+			};
+		},
+	});
+
 	pi.registerTool({
 		name: "get_subagent_result",
 		label: "Subagent result",

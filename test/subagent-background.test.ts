@@ -70,3 +70,15 @@ test("wait polls the registry rather than subscribing", () => {
   assert.match(manager, /setInterval\(\(\) => \{/, "it polls");
   assert.match(manager, /signal\?\.addEventListener\("abort"/, "an aborted wait resolves with what it has");
 });
+
+test("steer is delivered as a steer, and a finished run is a no rather than an error", () => {
+  assert.match(manager, /async steerSubagent\(subagentId: string, message: string\)/, "the host has it");
+  // `one-at-a-time` would queue a second steer behind the first, so a repeated correction
+  // would look like it did nothing.
+  assert.match(manager, /session\.setSteeringMode\("all"\)/, "the run accepts more than one steer");
+  assert.match(manager, /streamingBehavior: "steer"/, "it is a steer, not a new turn");
+  // Raced the run's own end: the result it already produced stands, so this is not an error.
+  assert.match(manager, /if \(!info \|\| subagentFinished\(info\.status\)\) return false;/, "a finished run refuses");
+  assert.match(extension, /name: "steer_subagent"/, "the tool is registered");
+  assert.match(extension, /is not running — it finished or never existed/, "the model is told which case it hit");
+});
