@@ -239,18 +239,29 @@ export const Sidebar = memo(function Sidebar({
     });
   }
 
+  /**
+   * Newest activity first. `updatedAt` is written by the catalog on every prompt,
+   * rename and project change; `createdAt` is immutable and would leave a chat started
+   * just now below every chat ever started before it.
+   *
+   * Opening a chat must not move it — `openConversation` used to stamp `updatedAt`
+   * just for loading a session. Main now keeps that write out of the sort key, so
+   * reading the list does not reshuffle it. Renaming still counts, which is why the
+   * catalog writes it there.
+   */
   function sortSessions(items: Conversation[]): Conversation[] {
-    // Creation order, not activity order: opening or renaming a chat must not
-    // make it jump to the top of the list.
-    return [...items].sort((a, b) => b.createdAt - a.createdAt || a.id.localeCompare(b.id));
+    return [...items].sort(
+      (a, b) => b.updatedAt - a.updatedAt || b.createdAt - a.createdAt || a.id.localeCompare(b.id),
+    );
   }
 
   const pinnedItems = useMemo(() => {
     const items = conversations.filter(
       (item) => item.preview && pinned[item.id] !== undefined && !archived.has(item.id),
     );
+    // Pins stay in the order they were pinned; only ties fall back to recency.
     const sorted = [...items].sort(
-      (a, b) => (pinned[b.id] ?? 0) - (pinned[a.id] ?? 0) || b.createdAt - a.createdAt || a.id.localeCompare(b.id),
+      (a, b) => (pinned[b.id] ?? 0) - (pinned[a.id] ?? 0) || b.updatedAt - a.updatedAt || a.id.localeCompare(b.id),
     );
     return applyManualOrder(sorted, sidebarOrder?.[sectionKey("pinned")]);
   }, [conversations, pinned, archived, sidebarOrder]);

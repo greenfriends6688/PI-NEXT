@@ -302,16 +302,53 @@ export class ConversationCatalog {
   }
 
   update(id: string, patch: Partial<Conversation>): Conversation | undefined {
+    return this.#apply(id, patch, true);
+  }
+
+  /**
+   * Mark a conversation as just used, without changing anything else.
+   *
+   * The user turn's own write is `update`d with its title and preview only the first
+   * time; a turn after that would otherwise leave `updatedAt` where it was, and the
+   * sidebar sorts by it.
+   */
+  touchActivity(id: string): void {
+    const current = this.#items.find((item) => item.id === id);
+    if (!current) return;
+    current.updatedAt = Date.now();
+    this.#write();
+  }
+
+  /**
+   * Record what the engine knows about a session (its file, its id) **without** counting
+   * that as activity.
+   *
+   * Opening a chat loads its session and learns these two fields; going through `update`
+   * stamped `updatedAt` for the read, and the sidebar sorts by `updatedAt` — so merely
+   * looking at a chat moved it to the top. Everything that *is* activity (a prompt, a
+   * rename, a project change) still goes through `update`.
+   */
+  updateSession(id: string, session: { sessionFile?: string; sessionId?: string }): Conversation | undefined {
+    const current = this.#items.find((item) => item.id === id);
+    if (!current) return undefined;
+    // Nothing to record: skip the write so a no-op open does not even touch the file.
+    const sessionFile = session.sessionFile ?? current.sessionFile;
+    const sessionId = session.sessionId ?? current.sessionId;
+    if (sessionFile === current.sessionFile && sessionId === current.sessionId) return current;
+    return this.#apply(id, { sessionFile, sessionId }, false);
+  }
+
+  #apply(id: string, patch: Partial<Conversation>, touch: boolean): Conversation | undefined {
     const index = this.#items.findIndex((item) => item.id === id);
     if (index < 0) return undefined;
     const current = this.#items[index];
-    // `createdAt` is immutable: it is the sidebar's sort key.
+    // `createdAt` is immutable: it is the sidebar's secondary sort key.
     const next: Conversation = {
       ...current,
       ...patch,
       id,
       createdAt: current.createdAt,
-      updatedAt: Date.now(),
+      updatedAt: touch ? Date.now() : current.updatedAt,
     };
     if ("project" in patch) {
       next.project = normalizeProject(patch.project);
