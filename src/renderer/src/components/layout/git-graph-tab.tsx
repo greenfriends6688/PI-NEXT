@@ -52,6 +52,7 @@ export function GitGraphTab({
   const darkTheme = useSettingsStore((state) => state.settings.darkTheme);
   const [data, setData] = useState<GitLogResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
   const [commitFiles, setCommitFiles] = useState<GitCommitFile[] | null>(null);
   const [filesLoading, setFilesLoading] = useState(false);
@@ -59,13 +60,15 @@ export function GitGraphTab({
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     setCommitFiles(null);
     setSelectedHash(null);
     try {
       const response = await window.pinext.workspace.gitLog(cwd, 300);
       setData(response);
-    } catch {
+    } catch (cause) {
       setData(null);
+      setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setLoading(false);
     }
@@ -126,6 +129,10 @@ export function GitGraphTab({
         {t("gitGraph.loading")}
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="flex flex-1 items-center justify-center px-6 text-center text-xs text-muted-foreground">{error}</div>;
   }
 
   if (!data || !data.isGitRepository) {

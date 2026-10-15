@@ -528,6 +528,9 @@ export function createPinextApi(t: ApiTransport) {
         t.invoke(Ipc.workspaceFilesExist, { paths, cwd }),
       fileIcons: (): Promise<FileIconMapping> => t.invoke(Ipc.workspaceFileIcons),
       readDir: (path: string): Promise<DirEntry[]> => t.invoke(Ipc.workspaceReadDir, { path }),
+      /** 允许浏览一条项目外目录链接的目标；成功后再 readDir 就能列到内容。 */
+      allowLink: (path: string, target: string): Promise<{ ok: boolean; error?: string }> =>
+        t.invoke(Ipc.workspaceAllowLink, { path, target }),
       /** Files in the current project matching a composer `@` query. Paths stay on that machine. */
       searchFiles: (cwd: string, query?: string): Promise<ProjectFileHit[]> =>
         t.invoke(Ipc.workspaceSearchFiles, { cwd, query }),

@@ -657,7 +657,12 @@
     "quotaPlanBusiness": "ChatGPT Business",
     "quotaPlanEnterprise": "ChatGPT Enterprise",
     "quotaPlanEducation": "ChatGPT Education",
-    "quotaPlanEdu": "ChatGPT Edu"
+    "quotaPlanEdu": "ChatGPT Edu",
+    "usageWindowRolling": "Rolling",
+    "usageWindowWeekly": "Weekly",
+    "usageWindowMonthly": "Monthly",
+    "usageWindowDaily": "Daily",
+    "usageRemaining": "left"
   },
   "modelPicker": {
     "native": "Built-in",

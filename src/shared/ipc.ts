@@ -149,6 +149,8 @@ export const Ipc = {
   workspaceFilesExist: "workspace:files-exist",
   workspaceFileIcons: "workspace:file-icons",
   workspaceReadDir: "workspace:read-dir",
+  /** fork:linked-directory —— 显式允许浏览某条目录链接的目标（一次性，进程内）。 */
+  workspaceAllowLink: "workspace:allow-link",
   workspaceSearchFiles: "workspace:search-files",
   workspaceWriteFile: "workspace:write-file",
   /** 文件树的新增文件夹 / 新增文件 / 重命名 / 删除。 */

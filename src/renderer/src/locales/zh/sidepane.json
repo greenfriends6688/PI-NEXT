@@ -13,8 +13,8 @@
       "error": "失败",
       "aborted": "已终止"
     },
-    "gitGraph": "Git 图谱",
-    "trace": "调用轨迹"
+    "trace": "调用轨迹",
+    "git-graph": "Git 图谱"
   },
   "pane": {
     "collapse": "收起侧边面板",
@@ -92,7 +92,12 @@
     "nameNoSlash": "名字里不能有斜杠",
     "mutateFailed": "操作失败",
     "openInFinder": "在访达中打开",
-    "noResults": "没有匹配的文件"
+    "noResults": "没有匹配的文件",
+    "linkOutside": "此目录链接指向项目外：{{target}}",
+    "linkTitle": "此目录指向项目外。",
+    "linkAllow": "允许浏览",
+    "linkEncloses": "这条链接会打开项目或主目录范围（{{target}}）。仍要允许浏览吗？",
+    "allowFailed": "无法允许浏览"
   },
   "changes": {
     "count": "{{count}} 个文件",

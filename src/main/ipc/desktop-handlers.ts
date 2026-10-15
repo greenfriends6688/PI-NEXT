@@ -16,6 +16,7 @@ import { handle, type CallerContext } from "./registry";
 import { readFilePreview } from "../engine/file-preview";
 import { searchProjectFiles } from "../engine/project-files";
 import { readWorkspaceDir, writeWorkspaceTextFile } from "../engine/workspace-fs";
+import { allowOutsideLink, checkLinkedDirectoryApproval } from "../engine/linked-directory";
 import { setWebServerPort, startWebServer, stopWebServer, webServerState } from "../engine/web-server.ts";
 import type { FileMutation } from "../../shared/file-mutation.ts";
 import { existingFiles } from "../engine/path-exists";
@@ -359,10 +360,22 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
   handle(Ipc.workspaceFileIcons, () => getFileIconMapping());
   handle(Ipc.workspaceReadDir, async (payload: { path: string }) => {
     try {
-      return await readWorkspaceDir(payload.path);
-    } catch {
+      return await readWorkspaceDir(payload.path, engine.workspaceRoots());
+    } catch (error) {
+      // 「目录链接指向项目外」不是「空目录」：把目标带回渲染层，让它能提「允许浏览」。
+      if (error instanceof Error && error.message.startsWith("OUTSIDE_LINK:")) throw error;
       return [];
     }
+  });
+  handle(Ipc.workspaceAllowLink, async (payload: { path?: unknown; target?: unknown }) => {
+    const check = checkLinkedDirectoryApproval(
+      typeof payload.path === "string" ? payload.path : "",
+      typeof payload.target === "string" ? payload.target : "",
+      engine.workspaceRoots(),
+    );
+    if (!check.ok) return { ok: false, error: check.error };
+    allowOutsideLink(check.target);
+    return { ok: true };
   });
   handle(Ipc.workspaceMutate, async (payload: FileMutation) => {
     await engine.mutateWorkspaceFile(payload);

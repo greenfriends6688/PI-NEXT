@@ -71,15 +71,37 @@ export function ProviderUsage({ provider }: { provider: ProviderConfig }): JSX.E
 
 /** Percent windows read as "label 42%"; money and counts read as the number itself. */
 function UsageValue({ result }: { result: Extract<ProviderUsageResult, { status: "ready" }> }): JSX.Element {
+  const { t } = useTranslation("settings");
+  // The window labels come from the provider as English (`Rolling` / `Weekly` /
+  // `Monthly`); the pane is the only place a person reads them, so they are
+  // translated here rather than shipped localised from the engine.
+  const windowLabel = (label: string): string => {
+    const key = label.toLowerCase();
+    if (key.includes("rolling")) return t("providers.usageWindowRolling");
+    if (key.includes("week")) return t("providers.usageWindowWeekly");
+    if (key.includes("month")) return t("providers.usageWindowMonthly");
+    if (key.includes("day") || key.includes("today")) return t("providers.usageWindowDaily");
+    return label;
+  };
   const parts = result.report.buckets.slice(0, 3).map((bucket) => {
+    const label = windowLabel(bucket.label);
     if (bucket.unit === "percent") {
-      const used = bucket.used ?? 0;
-      return `${bucket.label} ${Math.round(used)}%`;
+      // **What is left**, not what was spent: the number a person wants when they
+      // glance at a quota is how much they still have.
+      const remaining =
+        bucket.remaining ??
+        (bucket.limit !== undefined && bucket.used !== undefined
+          ? bucket.limit - bucket.used
+          : bucket.used !== undefined
+            ? 100 - bucket.used
+            : undefined);
+      if (remaining === undefined) return label;
+      return `${label} ${t("providers.usageRemaining")} ${Math.round(remaining)}%`;
     }
     const amount = bucket.remaining ?? bucket.used ?? bucket.limit;
-    if (amount === undefined) return bucket.label;
+    if (amount === undefined) return label;
     const money = bucket.unit === "currency" ? `${bucket.currency ?? ""}${amount}` : String(amount);
-    return `${bucket.label} ${money}`;
+    return `${label} ${money}`;
   });
   if (parts.length === 0) {
     const metric = result.report.metrics[0];

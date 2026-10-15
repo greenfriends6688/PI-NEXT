@@ -414,6 +414,13 @@ export type DirEntry = {
   name: string;
   path: string;
   kind: "file" | "directory";
+  /**
+   * fork:linked-directory —— 这条目录（一个符号链接）解析后落在 roots 之外。
+   * 在操作员显式点一次「允许浏览」之前，它下面读不到。
+   */
+  outsideLinkTarget?: string;
+  /** 允许它会连带打开项目或主目录（链到 `/`、`~`、项目的父级）—— UI 先警告。 */
+  outsideLinkEncloses?: boolean;
 };
 
 /** One project file the composer `@` menu can turn into a path reference. */

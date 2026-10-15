@@ -13,8 +13,8 @@
       "error": "Failed",
       "aborted": "Stopped"
     },
-    "gitGraph": "Git graph",
-    "trace": "Trace"
+    "trace": "Trace",
+    "git-graph": "Git graph"
   },
   "pane": {
     "collapse": "Collapse side pane",
@@ -92,7 +92,12 @@
     "nameNoSlash": "A name cannot contain a slash",
     "mutateFailed": "That did not work",
     "openInFinder": "Show in file manager",
-    "noResults": "No matching files"
+    "noResults": "No matching files",
+    "linkOutside": "This linked folder points outside the project: {{target}}",
+    "linkTitle": "This folder points outside the project.",
+    "linkAllow": "Allow browsing",
+    "linkEncloses": "This link would open the project or home folder area ({{target}}). Allow browsing anyway?",
+    "allowFailed": "Could not allow browsing"
   },
   "changes": {
     "count": "{{count}} files",

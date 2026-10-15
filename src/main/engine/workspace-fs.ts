@@ -8,6 +8,7 @@ import {
   readFileSync,
   readdirSync,
   renameSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -15,6 +16,13 @@ import { dirname, join } from "node:path";
 import type { DirEntry } from "@shared/types";
 import { uiText } from "./ui-text.ts";
 import { getFileTreeHiddenReasons } from "./file-tree-visibility.ts";
+import {
+  OutsideLinkError,
+  getOutsideLinkTarget,
+  isOutsideLinkAllowed,
+  resolveRealRoots,
+  withOutsideLinkTargets,
+} from "./linked-directory.ts";
 
 /** Largest file the pane will load or write back. Past this it stays a size-only preview. */
 export const MAX_TEXT_FILE_BYTES = 4 * 1024 * 1024;
@@ -26,18 +34,43 @@ export const MAX_TEXT_FILE_BYTES = 4 * 1024 * 1024;
  * 条目（被跟踪的 `build/` 照常可浏览），Git 看不见的目录退回名字表。可见性**不是**
  * 授权：隐藏的条目仍可按路径读到。
  */
-export async function readWorkspaceDir(dirPath: string): Promise<DirEntry[]> {
+export async function readWorkspaceDir(dirPath: string, roots: readonly string[] = []): Promise<DirEntry[]> {
+  const usingRoots = roots.length > 0;
+  // Descending into a directory that leads outside the roots needs an explicit allowance.
+  if (usingRoots) {
+    try {
+      if (lstatSync(dirPath).isSymbolicLink()) {
+        const target = getOutsideLinkTarget(dirPath, resolveRealRoots(roots));
+        if (target && !isOutsideLinkAllowed(target)) throw new OutsideLinkError(target);
+      }
+    } catch (error) {
+      if (error instanceof OutsideLinkError) throw error;
+      // A failed lstat is left to readdir below, which reports the real error.
+    }
+  }
+  const dirents = readdirSync(dirPath, { withFileTypes: true });
   const entries: DirEntry[] = [];
   const names: string[] = [];
-  for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
-    const kind = entry.isDirectory() ? "directory" : entry.isFile() ? "file" : null;
-    // Symlinks, sockets and the like are skipped: the tree only previews real files.
+  for (const entry of dirents) {
+    const full = join(dirPath, entry.name);
+    let kind: "file" | "directory" | null = entry.isDirectory() ? "directory" : entry.isFile() ? "file" : null;
+    // A symlinked directory is invisible to `withFileTypes`; stat it so the tree can show it.
+    if (!kind && usingRoots && entry.isSymbolicLink()) {
+      try {
+        const targetStat = statSync(full);
+        if (targetStat.isDirectory()) kind = "directory";
+        else if (targetStat.isFile()) kind = "file";
+      } catch {
+        kind = null;
+      }
+    }
     if (!kind) continue;
-    entries.push({ name: entry.name, path: join(dirPath, entry.name), kind });
+    entries.push({ name: entry.name, path: full, kind });
     names.push(entry.name);
   }
   const hiddenReason = await getFileTreeHiddenReasons(dirPath, names);
-  const visible = entries.filter((entry) => hiddenReason(entry.name) === null);
+  let visible = entries.filter((entry) => hiddenReason(entry.name) === null);
+  if (usingRoots) visible = withOutsideLinkTargets(dirPath, visible, dirents, roots) as DirEntry[];
   visible.sort((a, b) =>
     a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "directory" ? -1 : 1,
   );

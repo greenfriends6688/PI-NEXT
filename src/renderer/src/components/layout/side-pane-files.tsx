@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, Cancel01Icon, FileAddIcon, FolderAddIcon, FolderOpenIcon, RefreshIcon, Search01Icon, SourceCodeIcon, ViewIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, ArrowUpRight01Icon, Cancel01Icon, FileAddIcon, FolderAddIcon, FolderOpenIcon, RefreshIcon, Search01Icon, SourceCodeIcon, ViewIcon } from "@hugeicons/core-free-icons";
 import { editableFileText, prefersSourceEditor } from "@shared/editable-preview";
 import { folderName } from "@shared/project-folders";
 import { IconButton } from "@/components/icon-button";
@@ -134,6 +134,8 @@ export function SidePaneFiles({
   const rootsKey = treeRoots.join("\0");
   const [children, setChildren] = useState<DirMap>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  /** 目录链接的目标（路径 → 目标）。有待办说明它下面还没获准读。 */
+  const [outsideLinks, setOutsideLinks] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   /** 树里的过滤词。空 = 原样的树。 */
   const [filter, setFilter] = useState("");
@@ -176,10 +178,37 @@ export function SidePaneFiles({
     try {
       const entries = await window.pinext.workspace.readDir(path);
       setChildren((prev) => ({ ...prev, [path]: entries }));
-    } catch {
+      setOutsideLinks((prev) => {
+        if (!(path in prev)) return prev;
+        const next = { ...prev };
+        delete next[path];
+        return next;
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const marker = message.indexOf("OUTSIDE_LINK:");
+      if (marker >= 0) setOutsideLinks((prev) => ({ ...prev, [path]: message.slice(marker + "OUTSIDE_LINK:".length).trim() }));
       setChildren((prev) => ({ ...prev, [path]: [] }));
     }
   }, []);
+
+  /** 显式允许浏览一条目录链接的目标；成功后再读一次就能列到内容。 */
+  async function allowLink(path: string): Promise<void> {
+    const target = outsideLinks[path];
+    if (!target) return;
+    const entry = (children[dirnameOf(path)] ?? []).find((item) => item.path === path);
+    if (entry?.outsideLinkEncloses && !window.confirm(t("files.linkEncloses", { target }))) return;
+    try {
+      const result = await window.pinext.workspace.allowLink(path, target);
+      if (!result.ok) {
+        onError(result.error ?? t("files.allowFailed"));
+        return;
+      }
+      await loadDir(path);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : t("files.allowFailed"));
+    }
+  }
 
   // A project opens collapsed. Previously expanded folders are not brought back:
   // opening a file should not dump the whole tree open.
@@ -545,6 +574,8 @@ export function SidePaneFiles({
                         dirty={dirty}
                         cwd={root}
                         remote={remote}
+                        outsideLinks={outsideLinks}
+                        onAllowLink={allowLink}
                         onRename={(path) => setNaming({ kind: "rename", parent: dirnameOf(path), from: path })}
                         onDelete={(path) => {
                           // 删除不是可撤销的动作，所以先问一句 —— 目录还会连带里面的东西。
@@ -722,6 +753,8 @@ function TreeLevel({
   onRefresh,
   onRename,
   onDelete,
+  outsideLinks,
+  onAllowLink,
 }: {
   dir: string;
   depth: number;
@@ -736,6 +769,8 @@ function TreeLevel({
   onRefresh: () => void;
   onRename?: (path: string) => void;
   onDelete?: (path: string) => void;
+  outsideLinks?: Record<string, string>;
+  onAllowLink?: (path: string) => void;
 }): JSX.Element {
   const { t } = useTranslation("sidepane");
   const entries = children[dir] ?? [];
@@ -766,6 +801,13 @@ function TreeLevel({
                   </span>
                   <FileIcon name={entry.name} kind={isDir ? "folder" : "file"} expanded={open} />
                   <span className="min-w-0 flex-1 truncate">{entry.name}</span>
+                  {entry.outsideLinkTarget ? (
+                    <HugeiconsIcon
+                      strokeWidth={2}
+                      icon={ArrowUpRight01Icon}
+                      className="size-3 shrink-0 text-muted-foreground"
+                    />
+                  ) : null}
                   {unsaved ? (
                     <span className="size-1.5 shrink-0 rounded-full bg-warning" title={t("files.unsaved")} />
                   ) : null}
@@ -784,21 +826,39 @@ function TreeLevel({
               </ContextMenuContent>
             </ContextMenu>
             {open ? (
-              <TreeLevel
-                dir={entry.path}
-                depth={depth + 1}
-                children={children}
-                expanded={expanded}
-                selected={selected}
-                onRename={onRename}
-                onDelete={onDelete}
-                dirty={dirty}
-                cwd={cwd}
-                remote={remote}
-                onToggle={onToggle}
-                onOpen={onOpen}
-                onRefresh={onRefresh}
-              />
+              outsideLinks?.[entry.path] && onAllowLink ? (
+                <div className="flex flex-col gap-1 py-1 pl-6 pr-2 text-xs">
+                  <span className="text-muted-foreground">{t("files.linkTitle")}</span>
+                  <span className="truncate font-mono text-[10px] text-muted-foreground" title={outsideLinks[entry.path]}>
+                    {outsideLinks[entry.path]}
+                  </span>
+                  <button
+                    type="button"
+                    className="self-start rounded-md border border-border px-2 py-0.5 text-xs hover:bg-muted"
+                    onClick={() => onAllowLink(entry.path)}
+                  >
+                    {t("files.linkAllow")}
+                  </button>
+                </div>
+              ) : (
+                <TreeLevel
+                  dir={entry.path}
+                  depth={depth + 1}
+                  children={children}
+                  expanded={expanded}
+                  selected={selected}
+                  onRename={onRename}
+                  onDelete={onDelete}
+                  dirty={dirty}
+                  cwd={cwd}
+                  remote={remote}
+                  onToggle={onToggle}
+                  onOpen={onOpen}
+                  onRefresh={onRefresh}
+                  outsideLinks={outsideLinks}
+                  onAllowLink={onAllowLink}
+                />
+              )
             ) : null}
           </div>
         );

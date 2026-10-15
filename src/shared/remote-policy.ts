@@ -320,6 +320,7 @@ const ALLOWED = new Set<string>([
   Ipc.workspacePreview,
   Ipc.workspaceFilesExist,
   Ipc.workspaceReadDir,
+  Ipc.workspaceAllowLink,
   Ipc.workspaceSearchFiles,
   Ipc.workspaceReadFile,
   Ipc.workspaceWriteFile,

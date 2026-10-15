@@ -766,7 +766,22 @@ export async function refreshProviderModels(
 ): Promise<ProviderModel[]> {
   const provider = readProviders(paths).find((item) => item.id === id);
   if (!provider) throw new Error("供应商不存在");
-  if (provider.kind === "native") return findNativeProvider(id)?.models ?? [];
+  if (provider.kind === "native") {
+    // The SDK ships a bundled catalog, but it lags the provider's live list — a new
+    // model (e.g. Step 5 Preview Free) only appears once we ask the endpoint. Fetch
+    // when a key is stored; an OAuth-only provider has none, so it keeps the bundle.
+    const bundled = findNativeProvider(id)?.models ?? [];
+    const key = (await loadProviderKeys(paths))[provider.apiKeyEnv];
+    if (key && provider.baseUrl) {
+      try {
+        const live = await fetchProviderModels(provider.baseUrl, key, provider.api);
+        if (live.length > 0) return live;
+      } catch {
+        // Unreachable or refused: the bundled list is still a valid answer.
+      }
+    }
+    return bundled;
+  }
   const keys = await loadProviderKeys(paths);
   const models = await fetchProviderModels(provider.baseUrl, keys[provider.apiKeyEnv] ?? "", provider.api);
   if (provider.kind === "custom" && !provider.gateway) {

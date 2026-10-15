@@ -382,7 +382,7 @@ function SkillDetailDialog({
   const { t } = useTranslation("settings");
   return (
     <Dialog open={detail !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] max-h-[85vh] overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{detail?.name ?? ""}</DialogTitle>
           <DialogDescription>
@@ -395,7 +395,7 @@ function SkillDetailDialog({
           value={draft}
           readOnly={!detail?.editable}
           spellCheck={false}
-          className="min-h-96 resize-y font-mono text-xs leading-5"
+          className="h-full min-h-40 resize-none overflow-auto font-mono text-xs leading-5"
           onChange={(event) => onChange(event.target.value)}
         />
         <DialogFooter className="gap-2">
