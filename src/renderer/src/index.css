@@ -1476,3 +1476,54 @@ html[data-glass="true"] .overlay-surface {
 .memory-sigma.is-point .sigma-mouse {
   cursor: pointer;
 }
+
+/* ---------------------------------------------------------------------------
+ * fork:pr23-resize —— 输入卡顶部手柄的竖向缩放（取自 PI NEXT 的同名实现）。
+ *
+ * 手柄骑在卡片上边缘并绝对定位，所以卡片必须保持 `position: relative`（它本来就是），
+ * 手柄才会画在卡片描边之上而不是被裁掉。
+ * ------------------------------------------------------------------------- */
+.pn-composer-resize {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 9px;
+  z-index: 3;
+  cursor: row-resize;
+  touch-action: none;
+  outline: none;
+}
+.pn-composer-resize::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--ring);
+  opacity: 0;
+  transition: opacity 120ms ease;
+  /* 两端淡出：读起来是「抓手」，不是第二条边框。 */
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 18%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 18%, #000 82%, transparent 100%);
+}
+.pn-composer-resize:hover::before,
+.pn-composer-resize:focus-visible::before,
+.pn-composer-resize.is-resizing::before {
+  opacity: 1;
+}
+/* 手动高度：卡片变列布局，多出来的空间给 textarea，它改为内部滚动。
+   这里的 `!important` 是承重的 —— 自动增高那段 effect 会往 textarea 上写行内
+   height，而手动模式必须压过它。两者互斥由调用方保证（manualMode）。 */
+.pn-composer-card.is-manual-height {
+  display: flex;
+  flex-direction: column;
+}
+.pn-composer-card.is-manual-height > textarea {
+  flex: 1 1 auto;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: auto;
+}

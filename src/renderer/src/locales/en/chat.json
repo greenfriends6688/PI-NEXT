@@ -36,7 +36,8 @@
     "resume": "Continue",
     "queue": "Add to queue",
     "send": "Send",
-    "seeAttachments": "See the attachment"
+    "seeAttachments": "See the attachment",
+    "resizeHandle": "Drag to resize the composer"
   },
   "newSession": {
     "explore": "Explore the code",

@@ -36,7 +36,8 @@
     "resume": "继续",
     "queue": "加入队列",
     "send": "发送",
-    "seeAttachments": "请查看附件"
+    "seeAttachments": "请查看附件",
+    "resizeHandle": "拖动调整输入框高度"
   },
   "newSession": {
     "explore": "探索代码",
