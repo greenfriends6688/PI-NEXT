@@ -1,4 +1,5 @@
 import { decodeScopedId } from "./server-scope.ts";
+import { mediaUrl } from "./media-base.ts";
 
 // Not `node:path`: the renderer imports this module too, and a bundled browser build has
 // no `path` to call — `extname` would be `undefined` the first time a reply shows a file.
@@ -103,10 +104,14 @@ export function authorizeMediaMime(requested: string, real: string): string | nu
   return mime;
 }
 
+/**
+ * The URL one file's bytes are served at.
+ *
+ * The scheme below is the desktop's; a browser client gets the same bytes from the server
+ * that served it (`shared/media-base.ts` decides, so there is one place that knows).
+ */
 export function mediaPreviewUrl(filePath: string): string {
-  const url = new URL(`${MEDIA_SCHEME}://media/play`);
-  url.searchParams.set("path", filePath);
-  return url.toString();
+  return mediaUrl(filePath);
 }
 
 export function mediaPathFromUrl(requestUrl: string): string | null {

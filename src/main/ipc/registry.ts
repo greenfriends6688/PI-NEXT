@@ -1,4 +1,26 @@
-import type { BrowserWindow } from "electron";
+/**
+ * What a handler may do to the window that asked.
+ *
+ * Deliberately structural, not Electron's `BrowserWindow`: this module is on the path a
+ * headless Agent (and a browser client) loads, and importing the type would drag the
+ * Electron runtime in with it — `import type` is erased, but the runtime import of this
+ * file is not, and the built Agent entry died on `import { nativeTheme } from "electron"`.
+ * A real `BrowserWindow` satisfies this, so nothing at the call sites changed; the few
+ * members listed are the ones the window-control and dialog handlers actually call.
+ */
+export type CallerWindow = {
+  minimize(): void;
+  close(): void;
+  isMaximized(): boolean;
+  maximize(): void;
+  unmaximize(): void;
+  focus(): void;
+  isDestroyed(): boolean;
+  /** Real windows carry a `webContents`; only the handlers that need it reach for it. */
+  webContents?: unknown;
+  /** Present on `BrowserWindow`; used to parent a modal. */
+  id?: number;
+};
 
 /**
  * The transport-neutral call table.
@@ -21,7 +43,7 @@ export type CallerContext = {
    * The window that asked, when the call came over IPC — null for a remote caller.
    * Window controls act on it, and a save dialog is parented to it.
    */
-  window: BrowserWindow | null;
+  window: CallerWindow | null;
   /**
    * The caller's broadcast identity, so a write is not echoed back to whoever made it.
    * Matches `Subscriber.id` in `broadcast.ts`.

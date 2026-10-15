@@ -1,8 +1,40 @@
 import { existsSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { nativeTheme, type BrowserWindow } from "electron";
-import { THINKING_EFFORT_LEVELS, type ComputerSettings, type EngineModel, type ProjectModelDefault, type ThinkingLevel } from "@shared/types";
+import { THINKING_EFFORT_LEVELS, type EngineModel, type ProjectModelDefault, type ThinkingLevel } from "@shared/types";
 import { isGlassEnabled } from "@shared/glass";
 import type { PinextPaths } from "./paths";
+
+/**
+ * The OS appearance, with the one thing that needs Electron removed from this module's
+ * import graph.
+ *
+ * `nativeTheme` is a *runtime* Electron import, and this file sits on the path the
+ * headless Agent loads — the built entry died on it (`import { nativeTheme } from
+ * "electron"` under plain Node, where `electron` is a CommonJS package with no such
+ * named export). The native half is registered once by the Electron host
+ * (`src/main/index.ts`); everywhere else — the Agent, a test, a future browser host —
+ * the defaults below are what is used instead.
+ *
+ * A headless runtime has no OS theme to follow and no window to repaint, so "system"
+ * resolving to light is the honest answer rather than a stub.
+ */
+export type NativeAppearance = {
+  /** Apply a theme mode to the OS-facing chrome (the window frame, native menus). */
+  setThemeSource(mode: "light" | "dark" | "system"): void;
+  /** Whether the OS currently draws dark. Used only for the pre-paint window colour. */
+  prefersDark(): boolean;
+};
+
+const headlessAppearance: NativeAppearance = {
+  setThemeSource: () => undefined,
+  prefersDark: () => false,
+};
+
+let appearance: NativeAppearance = headlessAppearance;
+
+/** Installed once by the Electron host; the Agent and tests keep the headless default. */
+export function setNativeAppearance(next: NativeAppearance): void {
+  appearance = next;
+}
 
 const VERSION = 1;
 
@@ -92,24 +124,6 @@ function isProjectModelDefault(value: unknown): value is ProjectModelDefault {
   return Boolean(readEngineModel(candidate.model)) && readThinkingLevel(candidate.thinkingLevel) !== undefined;
 }
 
-/**
- * 电脑操控 (设置 → 电脑操控).
- *
- * Read per call rather than cached in the bridge, so turning the master switch off stops
- * a run that is already going instead of only the next one. `readAppSettings` is itself
- * stat-cached, so this stays cheap enough to sit in front of every desktop action.
- */
-export function readComputerSettings(paths: PinextPaths): ComputerSettings {
-  const settings = readAppSettings(paths);
-  return {
-    // Defaults match the renderer's: a machine whose settings file has not been written
-    // yet must not be drivable, which is the opposite of how the other preferences fail.
-    enabled: settings.computerEnabled === true,
-    clipboard: settings.computerClipboard === true,
-    preferBackground: settings.computerPreferBackground !== false,
-  };
-}
-
 export function writeAppSettings(paths: PinextPaths, settings: PersistedSettings): void {
   const payload: SettingsFile = { version: VERSION, settings };
   writeFileSync(paths.settingsFile, `${JSON.stringify(payload, null, 2)}\n`);
@@ -125,7 +139,7 @@ export function clearAppSettings(paths: PinextPaths): void {
 
 export function applyNativeTheme(settings: PersistedSettings): void {
   const mode = settings.themeMode;
-  nativeTheme.themeSource = mode === "light" || mode === "dark" || mode === "system" ? mode : "system";
+  appearance.setThemeSource(mode === "light" || mode === "dark" || mode === "system" ? mode : "system");
 }
 
 /**
@@ -146,7 +160,7 @@ export function windowBackgroundColor(glass = false): string {
   if (glass) return "#00000000";
   // Pre-paint only: the colour the window shows before the renderer applies a theme
   // (the default GitHub Light / Dark background).
-  return nativeTheme.shouldUseDarkColors ? "#0d1117" : "#ffffff";
+  return appearance.prefersDark() ? "#0d1117" : "#ffffff";
 }
 
 /** The macOS material behind a Glass window. */
@@ -164,7 +178,17 @@ export function windowVibrancy(glass: boolean): typeof GLASS_MATERIAL | undefine
  */
 export const WINDOW_BUTTON_POSITION = { x: 24, y: 24 } as const;
 
-export function paintWindows(windows: Iterable<BrowserWindow>, settings: Record<string, unknown>): void {
+/**
+ * The window a paint may touch. Structural for the same reason `NativeAppearance` is:
+ * this module is loaded by the headless Agent, which has no Electron windows at all.
+ */
+export type PaintedWindow = {
+  isDestroyed(): boolean;
+  setBackgroundColor(color: string): void;
+  setVibrancy(material: string | null): void;
+};
+
+export function paintWindows(windows: Iterable<PaintedWindow>, settings: Record<string, unknown>): void {
   const glass = windowIsGlass(settings);
   const color = windowBackgroundColor(glass);
   for (const window of windows) {

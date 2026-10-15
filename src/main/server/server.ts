@@ -23,6 +23,7 @@ import {
 } from "../../shared/binary-attachment.ts";
 import { AppServer } from "../app-server/app-server.ts";
 import type { ClientSession } from "../app-server/client-session.ts";
+import { iconFileFor } from "../engine/file-icons-base.ts";
 import { pipeMediaHttp } from "../engine/media-http.ts";
 
 /**
@@ -401,6 +402,31 @@ export class RemoteServer {
       this.#json(response, 200, { configured: isConfigured(this.#deps.accessFile) });
       return;
     }
+    if (url.pathname === "/api/web-token" && request.method === "GET") {
+      // The 独立 Web 版's own door: the page was served from this origin and is being read
+      // on this machine, so it is handed the loopback token instead of being asked for a
+      // password that a loopback-only server does not have.
+      //
+      // Two independent conditions, and both are needed. The *peer address* must be
+      // loopback — the same rule `#attach` applies to the socket, so a phone on the LAN
+      // cannot fetch it — and the request must come from this origin, which a browser
+      // sends and cannot forge, so a page the user happens to be visiting cannot read it.
+      // `sameOrigin` is what the login endpoint checks; here it matters more, because this
+      // response *is* the credential.
+      if (!isLoopbackAddress(request.socket.remoteAddress) || !isOwnOrigin(request)) {
+        this.#json(response, 403, { error: "forbidden" });
+        return;
+      }
+      const token = this.#deps.loopbackToken;
+      // No token configured: this listener belongs to a password-protected remote setup,
+      // and the page should show the login form rather than be told it needs nothing.
+      if (!token) {
+        this.#json(response, 404, { error: "not found" });
+        return;
+      }
+      this.#json(response, 200, { token });
+      return;
+    }
     if (url.pathname === "/api/login" && request.method === "POST") {
       // The same rule the socket applies. A browser sends `Origin` on its own and cannot
       // forge it, so a page the user happens to be visiting can be told apart from this
@@ -417,6 +443,40 @@ export class RemoteServer {
         this.#deps.log.error("remote login failed", error);
         this.#fail(response);
       });
+      return;
+    }
+    if (url.pathname.startsWith("/icons/") && (request.method === "GET" || request.method === "HEAD")) {
+      // The file-icon SVGs, for the browser client: the desktop window loads them over
+      // `pinext-icon://`, which a page has no equivalent of. `fileIconsDirectory()` exists
+      // for exactly this and had no caller until now.
+      //
+      // Not behind the credential: an icon is not a file of the user's, and an `<img>` tag
+      // cannot carry an `Authorization` header anyway. The name is validated against the
+      // directory rather than joined onto it, so nothing outside it can be named.
+      let name: string;
+      try {
+        name = decodeURIComponent(url.pathname.slice("/icons/".length));
+      } catch {
+        this.#json(response, 404, { error: "not found" });
+        return;
+      }
+      const file = iconFileFor(name);
+      if (!file) {
+        this.#json(response, 404, { error: "not found" });
+        return;
+      }
+      response.writeHead(200, {
+        "content-type": "image/svg+xml",
+        "content-length": String(statSync(file).size),
+        // The icon set ships with the app; a name only changes with a release.
+        "cache-control": "public, max-age=31536000, immutable",
+        "x-content-type-options": "nosniff",
+      });
+      if (request.method === "HEAD") {
+        response.end();
+        return;
+      }
+      createReadStream(file).pipe(response);
       return;
     }
     if (url.pathname === "/api/media" && (request.method === "GET" || request.method === "HEAD")) {
@@ -853,6 +913,18 @@ export class RemoteServer {
   }
 
   #authorizeMedia(request: IncomingMessage): boolean {
+    // A page served from this origin on this machine, asking for a file the transcript
+    // already named. `<img src>` cannot carry a header, so the browser client has no
+    // token to present — and it does not need one, because this is the app's own page
+    // on the app's own machine.
+    //
+    // Both conditions are required and neither is a formality. `isOwnOrigin` requires an
+    // `Origin` header that matches this host: a browser sends it and cannot forge it, so
+    // a page the user happens to be visiting cannot ask — and neither can `curl`, or a
+    // server-side fetch, which send none at all. `isLoopbackAddress` keeps a phone on
+    // the LAN out even if it copied the page. The desktop window never takes this path;
+    // it loads `pinext-media://` instead.
+    if (isLoopbackAddress(request.socket.remoteAddress) && hasOwnOrigin(request)) return true;
     const header = request.headers.authorization;
     const match = /^Bearer\s+(\S+)$/i.exec(typeof header === "string" ? header : "");
     const token = match?.[1] ?? "";
@@ -1078,6 +1150,27 @@ function isOwnOrigin(request: IncomingMessage): boolean {
   }
 }
 
+/**
+ * The same check, but an absent `Origin` is a **no** rather than a yes.
+ *
+ * `isOwnOrigin` is written for requests that carry a credential of their own (a login
+ * body, a bearer token): there the header is only there to stop a *different* page from
+ * using the visitor's browser, and a request without one is a non-browser client that
+ * authenticated some other way. Where this is used instead, the request has no credential
+ * at all — so "no `Origin`" has to mean "not the app's page", or `curl` and a server-side
+ * fetch would be served the user's files.
+ */
+function hasOwnOrigin(request: IncomingMessage): boolean {
+  return typeof request.headers.origin === "string" && isOwnOrigin(request);
+}
+
+/**
+ * The icon file for one name from `/icons/<name>.svg`, or null.
+ *
+ * Resolved against the directory's own listing rather than joined onto its path: a name is
+ * whatever a caller put in the URL, and `../../etc/passwd` must not become a path. The
+ * extension is fixed here, so a name never carries one.
+ */
 /** Read a request body with a hard ceiling, so a login cannot be used to exhaust memory. */
 async function readBody(request: IncomingMessage, limit: number): Promise<string> {
   const chunks: Buffer[] = [];

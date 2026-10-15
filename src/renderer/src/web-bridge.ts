@@ -159,13 +159,43 @@ async function promptForToken(): Promise<string | null> {
   });
 }
 
+/**
+ * The token this page connects with.
+ *
+ * Two ways, and the order matters. A 独立 Web 版 server on loopback has no password to
+ * ask for, and hands this page a loopback token at `/api/web-token` — that request is
+ * answered only for a loopback peer from this origin, so it is the server deciding, not
+ * the page asking nicely. Anything else (a phone, a password-protected remote setup)
+ * gets no token there and falls through to the form.
+ *
+ * A stored token is reused across reloads: it is a device token the server issued, and
+ * asking again on every reload would mint a new device each time.
+ */
 async function ensureToken(): Promise<string> {
   const stored = localStorage.getItem(TOKEN_KEY);
   if (stored) return stored;
+  const handed = await fetchLoopbackToken();
+  if (handed) {
+    localStorage.setItem(TOKEN_KEY, handed);
+    return handed;
+  }
   const token = await promptForToken();
   if (!token) throw new Error("没有可用的令牌");
   localStorage.setItem(TOKEN_KEY, token);
   return token;
+}
+
+/** The loopback token, when this server offers one to this page. `null` means ask for a password. */
+async function fetchLoopbackToken(): Promise<string | null> {
+  try {
+    const response = await fetch("/api/web-token");
+    if (!response.ok) return null;
+    const body = (await response.json()) as { token?: unknown };
+    return typeof body.token === "string" && body.token ? body.token : null;
+  } catch {
+    // No such endpoint, or the network is down: the form is the answer either way.
+    return null;
+  }
 }
 
 /** Connect, install `window.pinext`, and resolve once the handshake has landed. */

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
@@ -20,14 +21,66 @@ import { createAppServer, initAppServer } from "../main/app-server/runtime";
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultDataRoot = join(homedir(), ".pinext");
 
+/**
+ * Read one option, in both spellings a person will try: `--port=7800` and `--port 7800`.
+ *
+ * The SSH bootstrap always writes the `=` form (one argv entry, nothing to mis-split),
+ * but somebody starting the web server by hand types the space form, and an option that
+ * silently falls back to its default is the worst answer — the port reports a number
+ * nobody asked for and the browser opens nothing.
+ */
 function option(name: string): string | undefined {
   const prefix = `${name}=`;
-  const value = process.argv.find((item) => item.startsWith(prefix));
-  return value ? value.slice(prefix.length) : undefined;
+  const args = process.argv;
+  for (let index = 0; index < args.length; index += 1) {
+    const item = args[index];
+    if (item.startsWith(prefix)) return item.slice(prefix.length);
+    if (item === name) {
+      const next = args[index + 1];
+      // A following flag is not a value: `--port --headless` must not read "--headless".
+      if (next && !next.startsWith("--")) return next;
+    }
+  }
+  return undefined;
+}
+
+function flag(name: string): boolean {
+  return process.argv.includes(name);
 }
 
 const userData = option("--data-dir") || process.env.PINEXT_USER_DATA || defaultDataRoot;
-const port = Number(option("--port") ?? (process.env.PINEXT_AGENT_PORT || 7777));
+/**
+ * The 独立 Web 版: the same server, serving the browser client.
+ *
+ * It is a mode of the Agent entry rather than a second program: the engine, the call table,
+ * the App Protocol and the static web root are all already here, and a second binary would
+ * be a second copy of them. `--web` only changes what the banner says and which port is the
+ * default (7800, the pane's own port, not the SSH tunnel's 7777) so the two never collide.
+ *
+ * It is a full client, not a remote control: on loopback there is no password and no
+ * device token — `RemoteServer` honours the loopback token only for a socket whose peer
+ * address is loopback, which is exactly who this is for. Reach it from another machine
+ * and the ordinary rules apply: 设置 → 远程访问 must have a password, or the listener
+ * refuses to bind beyond loopback.
+ */
+const webMode = flag("--web") || flag("--headless");
+const defaultPort = webMode ? 7800 : 7777;
+/**
+ * The token the browser client presents, minted per run and never written down.
+ *
+ * `RemoteServer` refuses to listen without either a password or a loopback token, and the
+ * 独立 Web 版 has no password to offer: it is the same machine, and the browser page is
+ * served from this very origin. A loopback token is exactly the door that fits — the
+ * server honours it only for a socket whose peer address is loopback (`#attach`), so
+ * nothing off this machine can use it even if it somehow learned the value.
+ *
+ * Per run, in memory: a token that outlived the process would be a credential with no
+ * owner, and the page fetches it from `/api/hello`-adjacent bootstrap data anyway.
+ */
+function webLoopbackToken(): string {
+  return randomBytes(32).toString("base64url");
+}
+const port = Number(option("--port") ?? (process.env.PINEXT_AGENT_PORT || defaultPort));
 /**
  * Where this Agent records its pid, port and version once listening (`<data>/agent.json`).
  *
@@ -85,7 +138,7 @@ const server = new RemoteServer({
   channels: agentChannels,
   policyScope: "subset",
   // The bootstrap starts this process with the token it also hands the desktop over SSH.
-  loopbackToken: process.env.PINEXT_AGENT_SYNC_TOKEN || undefined,
+  loopbackToken: process.env.PINEXT_AGENT_SYNC_TOKEN || (webMode ? webLoopbackToken() : undefined),
   dispatch: (method, payload, clientId) => dispatch(method, payload, { kind: "remote", window: null, origin: clientId }),
   // The built web client, so a browser can load the app from this very origin.
   webRoot: builtWebRoot(join(here, "../..")),
@@ -115,6 +168,11 @@ await runtime.engine.start();
 const listening = (await server.start({ port, host: listen.host })).port ?? port;
 writeStateFile(listening);
 broadcast("agent:ready", { port: listening, userData });
+if (webMode) {
+  // The address a person can paste. `0.0.0.0` is not one — it is "every interface" — so
+  // the printable form names loopback, which is what a local browser reaches either way.
+  console.info(`[pinext-agent] web client on http://127.0.0.1:${listening}/`);
+}
 console.info(`[pinext-agent] ready on ${listen.host}:${listening}`);
 
 /**
@@ -132,8 +190,7 @@ function writeStateFile(listeningPort: number): void {
 }
 
 /** Remove the state file only if it is still ours — a successor may already own it. */
-function removeStateFile(): void {
-  try {
+function removeStateFile(): void {  try {
     const recorded = JSON.parse(readFileSync(stateFile, "utf8")) as { pid?: unknown };
     if (recorded.pid === process.pid) rmSync(stateFile, { force: true });
   } catch {

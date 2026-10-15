@@ -15,6 +15,7 @@ import {
   clearAppSettings,
   paintWindows,
   readAppSettings,
+  setNativeAppearance,
   writeAppSettings,
 } from "./engine/app-settings";
 import { configurePinextUserData, getPinextPaths, type PinextPaths } from "./engine/paths";
@@ -25,7 +26,6 @@ import { adoptLegacyJevProvider } from "./engine/providers";
 import { resolveSystemOne } from "./engine/decision/systemone";
 import { installBrowserTaskGlobal } from "./pi/browser-task-runner";
 import { startConfiguredChatChannels } from "./pinext/bot-channel/runtime.ts";
-import { installComputerTaskGlobal } from "./pi/computer-task-runner";
 import { installDecisionScenarioGlobals } from "./pi/decision-scenarios";
 import { installDecisionTaskDependencies, revokeDecisionTasks } from "./pi/decision-task-runner";
 import { loadProviderKeys, setProviderKey } from "./engine/providers";
@@ -64,16 +64,6 @@ import { wireElectronAppTransport } from "./transport/electron";
 import type { RemoteHostConnectionActivity, RemoteHostProfile, RemoteHostConnectionState, RemoteTransferProgress, SshErrorCode } from "@shared/remote-host";
 import { stopBrowserCdp } from "./engine/browser-cdp";
 import { attachBrowserRenderer, guardGuestPopups, installBrowserGlobal, respondBrowserRequest } from "./pi/browser-bridge";
-import {
-  computerPermissions,
-  installComputerGlobal,
-  listComputerApps,
-  openComputerSettings,
-  requestComputerPermissions,
-  startComputerDrag,
-} from "./pi/cua-bridge";
-import { cancelGrantFlow, grantFlowState, startGrantFlow } from "./pi/computer-grant-flow";
-import { syncComputerComponent } from "./pi/cua-component";
 import { syncScheduleTray, disposeScheduleTray } from "./schedule-tray";
 
 app.setName("Pinext");
@@ -540,18 +530,17 @@ app.whenReady().then(async () => {
     completeText: (conversationId, system, user, signal) => engine.completeDecisionText(conversationId, system, user, signal),
   });
   installBrowserTaskGlobal();
-  installComputerTaskGlobal();
   installDecisionScenarioGlobals();
-  // Registers the bridge global and an at-quit driver shutdown. The native library is
-  // still not loaded here — a user who never turns the feature on pays nothing for it.
-  // An install that already had it on starts the download, which is not a load.
-  installComputerGlobal();
-  // Already on from a previous launch: fetch the component without waiting for the
-  // settings page. A first run stays quiet until the switch is turned on.
-  if (readAppSettings(getPinextPaths()).computerEnabled === true) syncComputerComponent(true);
-  // The grant panel is a window, so it is torn down where the other windows are, not
-  // inside the bridge — which would make the bridge and the flow import each other.
-  app.once("will-quit", () => cancelGrantFlow());
+  // The one place Electron's `nativeTheme` is attached to the appearance seam
+  // (`engine/app-settings.ts`). Everything else reads it through that seam, so the
+  // module itself can be loaded by a runtime without Electron at all — that is what
+  // killed the headless Agent entry on startup.
+  setNativeAppearance({
+    setThemeSource: (mode) => {
+      nativeTheme.themeSource = mode;
+    },
+    prefersDark: () => nativeTheme.shouldUseDarkColors,
+  });
   applyAppIcon();
   const startupSettings = readAppSettings(getPinextPaths());
   networkProxy = await createNetworkProxy(startupSettings);

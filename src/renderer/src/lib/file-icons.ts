@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { fileIconUrl as sharedFileIconUrl } from "@shared/media-base";
 import type { FileIconMapping } from "@shared/types";
 
 /**
@@ -65,9 +66,13 @@ export function resolveFileIcon(mapping: FileIconMapping, name: string, kind: "f
 }
 
 /**
- * Where to fetch one icon: `pinext-icon://` is a `protocol.handle` registered in Main, which
- * serves the icon theme's directory to the window.
+ * Where to fetch one icon.
+ *
+ * `pinext-icon://` is a `protocol.handle` registered in Main, which serves the icon
+ * theme's directory to the desktop window; the browser client gets the same files over
+ * HTTP from the server that served it. `shared/media-base.ts` is the one place that
+ * decides, so a new caller cannot pick the wrong one.
  */
 export function fileIconUrl(icon: string): string {
-  return `pinext-icon://icons/${icon}.svg`;
+  return sharedFileIconUrl(icon);
 }

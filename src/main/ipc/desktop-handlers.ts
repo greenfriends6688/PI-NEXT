@@ -45,15 +45,6 @@ import { PiProcessManager } from "../pi/process-manager";
 import { TerminalSessions } from "../engine/terminal-sessions";
 import { RemoteGateway } from "../remote/gateway";
 import { respondBrowserRequest } from "../pi/browser-bridge";
-import {
-  computerPermissions,
-  listComputerApps,
-  openComputerSettings,
-  requestComputerPermissions,
-  startComputerDrag,
-} from "../pi/cua-bridge";
-import { cancelComputerComponent, computerComponentStatus, ensureComputerComponent, syncComputerComponent } from "../pi/cua-component";
-import { cancelGrantFlow, grantFlowState, startGrantFlow } from "../pi/computer-grant-flow";
 import { importBrowserProfile, listBrowserProfiles } from "../engine/browser-profiles";
 import {
   browserProfileDir,
@@ -128,31 +119,6 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     session.fromPartition("persist:pinext-browser").clearStorageData(),
   );
   handle(Ipc.browserListEngines, () => installedBrowsers());
-  handle(Ipc.computerPermissions, () => computerPermissions());
-  handle(Ipc.computerRequestPermissions, () => requestComputerPermissions());
-  handle(Ipc.computerOpenSettings, () => openComputerSettings());
-  handle(Ipc.computerListApps, () => listComputerApps());
-  handle(Ipc.computerStartDrag, (_payload, ctx) => {
-    // A drag belongs to the window the gesture started in — in practice the floating
-    // grant panel, which is a window of its own. A remote caller has no `webContents`
-    // to drag from, which is why the policy denies this method outright.
-    const contents = ctx.window?.webContents;
-    if (!contents) throw new Error(uiText("需要在桌面端窗口中拖拽", "Dragging requires a desktop window"));
-    startComputerDrag(contents);
-  });
-  handle(Ipc.computerStartGrantFlow, () => startGrantFlow());
-  handle(Ipc.computerCancelGrantFlow, () => cancelGrantFlow());
-  handle(Ipc.computerGetGrantFlow, () => grantFlowState());
-  handle(Ipc.computerComponent, () => computerComponentStatus());
-  handle(Ipc.computerEnsureComponent, async (payload?: { force?: boolean }) => {
-    await ensureComputerComponent({ force: payload?.force === true }).catch(() => undefined);
-    return computerComponentStatus();
-  });
-  handle(Ipc.computerCancelComponent, () => {
-    cancelComputerComponent();
-    return computerComponentStatus();
-  });
-
   registerEngineIpc(engine);
 
   handle(Ipc.providersList, async () => {
@@ -569,7 +535,11 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     writeRendererLog(payload);
   });
   handle(Ipc.appExportLogs, async (_payload: void, ctx) => {
-    return exportLogs(ctx.window);
+    // `exportLogs` parents a native save dialog, which needs a real `BrowserWindow`.
+    // `CallerContext.window` is structural so this module can be loaded without
+    // Electron (the headless Agent); the cast is the one place that narrows back, and
+    // it is safe because only the Electron transport ever puts a window there.
+    return exportLogs(ctx.window as Parameters<typeof exportLogs>[0]);
   });
   /**
    * Pull the current models.dev catalog (Settings → 关于) and apply it to the running
@@ -629,10 +599,6 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     applyKeepAwake(payload);
     // 代码模式 / 工具搜索 reach a session only when it reloads.
     if (toolModeSettingsChanged(previous, payload)) void engine.refreshToolModes().catch(() => undefined);
-    // The component is not in the installer. Turning the switch on is the request
-    // to fetch it; turning it off drops a download that has not finished.
-    if (payload.computerEnabled === true && previous.computerEnabled !== true) syncComputerComponent(true);
-    else if (payload.computerEnabled !== true && previous.computerEnabled === true) syncComputerComponent(false);
     paintWindows(windows, payload);
     scheduleUpdateCheck(payload.autoCheckUpdates !== false);
     // The other windows hold their own copy, loaded once at startup.
@@ -666,7 +632,6 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     applyLanguages({});
     applyKeepAwake({});
     if (toolModeSettingsChanged(previous, {})) void engine.refreshToolModes().catch(() => undefined);
-    if (previous.computerEnabled === true) syncComputerComponent(false);
     paintWindows(windows, {});
     // 恢复默认 is a write like any other: the other windows hold their own copy and
     // would otherwise keep — and later re-save — the settings that were just reset.

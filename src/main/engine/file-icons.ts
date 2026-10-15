@@ -1,7 +1,7 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { protocol } from "electron";
+import { availableIconNames, FILE_ICON_SCHEME, iconsDir } from "./file-icons-base.ts";
 import { MEDIA_SCHEME } from "@shared/media-preview";
 import type { FileIconMapping } from "@shared/types";
 
@@ -12,7 +12,7 @@ import type { FileIconMapping } from "@shared/types";
  * over a private scheme and hands the renderer the lookup table, so the chat's
  * change chips and (later) the project file tree share one icon source.
  */
-export const FILE_ICON_SCHEME = "pinext-icon";
+export { FILE_ICON_SCHEME, fileIconsDirectory } from "./file-icons-base.ts";
 
 type ThemeManifest = {
   fileExtensions: Record<string, string>;
@@ -22,43 +22,10 @@ type ThemeManifest = {
   folderExpanded: string;
 };
 
-let packageRoot: string | null = null;
 let cachedMapping: FileIconMapping | null = null;
-let availableIcons: Set<string> | null = null;
 
-function iconsRoot(): string {
-  if (!packageRoot) {
-    const require = createRequire(import.meta.url);
-    packageRoot = dirname(require.resolve("material-icon-theme/package.json"));
-  }
-  return packageRoot;
-}
-
-function iconsDir(): string {
-  return join(iconsRoot(), "icons");
-}
-
-/**
- * Where the SVGs are, for a transport that cannot use the private scheme.
- *
- * The browser client has no `protocol.handle`, so the remote server serves the same
- * directory over HTTP (`server/server.ts`). One directory, two transports — the same
- * reason the call table itself is shared.
- */
-export function fileIconsDirectory(): string {
-  return iconsDir();
-}
-
-/** Icon names that actually ship as files (the manifest also names generated clones). */
 function available(): Set<string> {
-  if (!availableIcons) {
-    availableIcons = new Set(
-      readdirSync(iconsDir())
-        .filter((file) => file.endsWith(".svg"))
-        .map((file) => file.slice(0, -4).toLowerCase()),
-    );
-  }
-  return availableIcons;
+  return availableIconNames();
 }
 
 function iconOrFallback(name: string, fallback: string): string {
@@ -103,7 +70,7 @@ export function registerFileIconProtocol(): void {
 export function getFileIconMapping(): FileIconMapping {
   if (cachedMapping) return cachedMapping;
   const manifest = JSON.parse(
-    readFileSync(join(iconsRoot(), "dist", "material-icons.json"), "utf8"),
+    readFileSync(join(iconsDir(), "..", "dist", "material-icons.json"), "utf8"),
   ) as ThemeManifest;
   const pick = (name: string): string => iconOrFallback(name, manifest.file);
   cachedMapping = {
