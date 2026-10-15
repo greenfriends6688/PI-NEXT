@@ -39,6 +39,8 @@ const PER_TASK_OUTPUT_CAP = 50 * 1024;
  * a host without it (a bare TUI host) simply cannot run subagents.
  */
 type HostSubagentRequest = {
+	/** Continue a finished run's session instead of starting a fresh one. */
+	resumeFrom?: string;
 	subagentId: string;
 	agent: string;
 	agentSource?: "user" | "project";
@@ -84,6 +86,8 @@ type PinextUIContext = {
 	awaitSubagentResult?: (subagentId: string, wait: boolean, signal?: AbortSignal) => Promise<HostSubagentResult>;
 	/** Inject a correction into a live run. `false` means it had already finished. */
 	steerSubagent?: (subagentId: string, message: string) => Promise<boolean>;
+	/** Create an isolated checkout for one run (`isolation: "worktree"`). */
+	createWorktree?: (options?: { path?: string; branch?: string; label?: string }) => Promise<{ path: string; branch: string }>;
 };
 
 type HostSubagentResult =
@@ -318,6 +322,7 @@ async function runSingleAgent(
 	makeDetails: (results: SingleResult[]) => SubagentDetails,
 	host: PinextUIContext,
 	subagentId: string,
+	resumeFrom?: string,
 ): Promise<SingleResult> {
 	const agent = agents.find((a) => a.name === agentName);
 
@@ -380,6 +385,7 @@ async function runSingleAgent(
 			thinkingLevel: agent.thinkingLevel,
 			cwd: cwd ?? defaultCwd,
 			signal,
+			...(resumeFrom ? { resumeFrom } : {}),
 		});
 		currentResult.messages = response.messages ?? [];
 		currentResult.exitCode = response.exitCode ?? 0;
@@ -428,6 +434,18 @@ const SubagentParams = Type.Object({
 		Type.Boolean({
 			description:
 				"Start the run and return immediately instead of waiting for it. Collect the result later with get_subagent_result. Use it for independent work so several delegations actually run at once.",
+		}),
+	),
+	resume: Type.Optional(
+		Type.String({
+			description:
+				"Id of a finished run to continue, keeping what it already did and learned. Omit the other creation options (agent, cwd) — they come from the run being continued.",
+		}),
+	),
+	isolation: Type.Optional(
+		Type.String({
+			description:
+				'Set to "worktree" to run in an isolated git checkout, so its edits do not touch the working tree you are in. The branch is reported back and kept — nothing is merged or deleted automatically.',
 		}),
 	),
 });
@@ -504,6 +522,36 @@ export default function (pi: ExtensionAPI) {
 			const agents = discovery.agents;
 			const confirmProjectAgents = params.confirmProjectAgents ?? true;
 
+			// An isolated run gets its own checkout, so its edits never touch the tree the
+			// caller is in. Created before the dispatch so the same `cwd` reaches every
+			// branch; a failure is reported rather than silently falling back to the shared
+			// tree, which would defeat the point of asking for isolation.
+			let isolatedCwd = params.cwd;
+			let isolationNote = "";
+			if (params.isolation === "worktree") {
+				if (!host.createWorktree) {
+					return {
+						content: [{ type: "text", text: "当前宿主不支持 worktree 隔离。" }],
+						details: { mode: "single", agentScope, projectAgentsDir: discovery.projectAgentsDir, results: [] },
+						isError: true,
+					};
+				}
+				try {
+					const checkout = await host.createWorktree({ label: params.agent ?? "subagent" });
+					isolatedCwd = checkout.path;
+					// Reported, not cleaned up: merging or deleting somebody's branch is the
+					// user's call, and an isolated run that nobody can find afterwards is worse
+					// than one that leaves a checkout behind.
+					isolationNote = `\n\nIsolated in \`${checkout.path}\` on branch \`${checkout.branch}\`. Nothing was merged or removed.`;
+				} catch (error) {
+					return {
+						content: [{ type: "text", text: `无法创建 worktree：${error instanceof Error ? error.message : String(error)}` }],
+						details: { mode: "single", agentScope, projectAgentsDir: discovery.projectAgentsDir, results: [] },
+						isError: true,
+					};
+				}
+			}
+
 			const hasChain = (params.chain?.length ?? 0) > 0;
 			const hasTasks = (params.tasks?.length ?? 0) > 0;
 			const hasSingle = Boolean(params.agent && params.task);
@@ -517,6 +565,45 @@ export default function (pi: ExtensionAPI) {
 					projectAgentsDir: discovery.projectAgentsDir,
 					results,
 				});
+
+			// Resume is its own mode: it continues one run, so it takes neither a role nor a
+			// fan-out. `agent` and `cwd` are deliberately not read here — the continued run
+			// already has them, and accepting a new value would silently switch the role
+			// mid-task while keeping the old context.
+			const resumeId = params.resume?.trim();
+			if (resumeId) {
+				const agent = agents.find((a) => a.name === params.agent) ?? agents[0];
+				if (!agent) {
+					const available = agents.map((a) => `${a.name} (${a.source})`).join(", ") || "none";
+					return {
+						content: [{ type: "text", text: `没有可用的角色，无法继续。Available: ${available}` }],
+						details: { mode: "single", agentScope, projectAgentsDir: discovery.projectAgentsDir, results: [] },
+						isError: true,
+					};
+				}
+				const task = params.task ?? "(continue)";
+				const result = await runSingleAgent(
+					ctx.cwd,
+					dispatchDefaults,
+					agents,
+					agent.name,
+					task,
+					params.cwd,
+					undefined,
+					signal,
+					onUpdate,
+					makeDetails("single"),
+					host,
+					`${toolCallId}:0`,
+					resumeId,
+				);
+				const isError = isFailedResult(result);
+				return {
+					content: [{ type: "text", text: isError ? `Resume ${result.stopReason || "failed"}: ${getResultOutput(result)}` : getFinalOutput(result.messages) || "(no output)" }],
+					details: makeDetails("single")([result]),
+					...(isError ? { isError: true } : {}),
+				};
+			}
 
 			if (modeCount !== 1) {
 				const available = agents.map((a) => `${a.name} (${a.source})`).join(", ") || "none";
@@ -747,7 +834,7 @@ export default function (pi: ExtensionAPI) {
 					agents,
 					params.agent,
 					params.task,
-					params.cwd,
+					isolatedCwd,
 					undefined,
 					signal,
 					onUpdate,
@@ -759,13 +846,13 @@ export default function (pi: ExtensionAPI) {
 				if (isError) {
 					const errorMsg = getResultOutput(result);
 					return {
-						content: [{ type: "text", text: `Agent ${result.stopReason || "failed"}: ${errorMsg}` }],
+						content: [{ type: "text", text: `Agent ${result.stopReason || "failed"}: ${errorMsg}${isolationNote}` }],
 						details: makeDetails("single")([result]),
 						isError: true,
 					};
 				}
 				return {
-					content: [{ type: "text", text: getFinalOutput(result.messages) || "(no output)" }],
+					content: [{ type: "text", text: (getFinalOutput(result.messages) || "(no output)") + isolationNote }],
 					details: makeDetails("single")([result]),
 				};
 			}

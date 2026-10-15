@@ -16,6 +16,7 @@ import { subagentFinished } from "../src/shared/subagent-state.ts";
 
 const extension = readFileSync(new URL("../resources/extensions/subagent/index.ts", import.meta.url), "utf8");
 const manager = readFileSync(new URL("../src/main/pi/process-manager.ts", import.meta.url), "utf8");
+const runner = readFileSync(new URL("../src/main/pi/process-manager-subagent.ts", import.meta.url), "utf8");
 
 test("background is an opt-in parameter, not the default", () => {
   assert.match(extension, /background:\s*Type\.Optional\(/, "the parameter exists");
@@ -81,4 +82,38 @@ test("steer is delivered as a steer, and a finished run is a no rather than an e
   assert.match(manager, /if \(!info \|\| subagentFinished\(info\.status\)\) return false;/, "a finished run refuses");
   assert.match(extension, /name: "steer_subagent"/, "the tool is registered");
   assert.match(extension, /is not running — it finished or never existed/, "the model is told which case it hit");
+});
+
+test("resume continues a finished run from what it left behind", () => {
+  // A delegated session is `SessionManager.inMemory`, so its entries exist only in the
+  // process that ran it. Keeping them is the whole mechanism.
+  assert.match(runner, /#subagentHistories: Map<string, FileEntry\[\]>/, "histories are kept");
+  assert.match(runner, /SessionManager\.inMemory\(cwd, undefined, request\.resumeFrom/, "they seed the new session");
+  assert.match(runner, /this\.#subagentHistories\.set\(subagentId, session\.sessionManager\.getEntries\(\)\)/, "a finished run records its entries");
+  // A resumed run starts from the old list and must not read it again while extending it.
+  assert.match(runner, /if \(request\.resumeFrom\) this\.#subagentHistories\.delete\(request\.resumeFrom\)/, "the source is dropped on use");
+  assert.match(extension, /resume: Type\.Optional/, "the parameter exists");
+  assert.match(extension, /resumeId/, "the resume mode is its own branch");
+});
+
+test("resume does not let a caller switch the role mid-task", () => {
+  // The continued run already has its role; accepting a new one would keep the old context
+  // while silently changing who is answering.
+  assert.match(extension, /`agent` and `cwd` are deliberately not read here/, "the reason is written down");
+  assert.match(extension, /const agent = agents\.find\(\(a\) => a\.name === params\.agent\) \?\? agents\[0\]/, "it reuses the existing role");
+});
+
+test("kept histories are bounded", () => {
+  // A conversation delegates many times and each history is a whole transcript.
+  assert.match(runner, /#HISTORY_LIMIT = 32/, "there is a limit");
+  assert.match(runner, /#trimSubagentHistories/, "and it is enforced");
+});
+
+test("worktree isolation is opt-in and never cleans up on its own", () => {
+  assert.match(extension, /isolation: Type\.Optional/, "the parameter exists");
+  assert.match(extension, /if \(params\.isolation === "worktree"\)/, "it is gated on the exact value");
+  // Merging or deleting a branch is the user's call.
+  assert.match(extension, /Nothing was merged or removed/, "the result says what was left behind");
+  // Falling back to the shared tree would defeat the point of asking for isolation.
+  assert.match(extension, /无法创建 worktree/, "a failure is reported, not swallowed");
 });

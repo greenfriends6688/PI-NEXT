@@ -9,6 +9,7 @@ import {
   type AgentSession,
   type AgentSessionEvent,
   type ExtensionUIContext,
+  type FileEntry,
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { ChatMessage, ThinkingTiming } from "@shared/types";
@@ -48,6 +49,18 @@ export type SubagentHostRequest = {
   thinkingLevel?: ThinkingLevel;
   cwd: string;
   signal?: AbortSignal;
+  /**
+   * Continue a run that already finished, instead of starting a fresh one.
+   *
+   * A delegated session is `SessionManager.inMemory` — nothing is on disk — so its history
+   * lives only as long as this process remembers it. `#subagentHistories` is that memory:
+   * the entries a finished run left behind, which seed the new in-memory session so the
+   * agent remembers what it did instead of being asked to start over.
+   *
+   * The profile (system prompt, tools, model) still comes from the caller: a resume is the
+   * same role continuing, and reading the old resource policy back would need it persisted.
+   */
+  resumeFrom?: string;
   dag?: {
     coordinator?: boolean;
     skills?: boolean;
@@ -118,6 +131,14 @@ export class SubagentTurnRunner {
   #subagentControls: Map<string, SubagentControl>;
   #subagentSessions: Map<string, AgentSession>;
   #subagentMessages: Map<string, ChatMessage[]>;
+  /**
+   * What a finished run's session held, kept so `resumeFrom` can continue it.
+   *
+   * A delegated session is `SessionManager.inMemory`, so its entries exist only here. Only
+   * terminal runs are kept — a live one is still reachable through `#subagentSessions` —
+   * and the map is bounded because a long conversation delegates many times.
+   */
+  #subagentHistories: Map<string, FileEntry[]> = new Map();
   #subagentReasoning: Map<string, Map<string, ThinkingTiming[]>>;
   #reasoningRun: Map<string, ReasoningBlocks>;
   #stoppedSubagents: Set<string>;
@@ -271,7 +292,7 @@ export class SubagentTurnRunner {
         cwd,
         agentDir: this.#paths.agentDir,
         modelRuntime: this.#runtime,
-        sessionManager: SessionManager.inMemory(cwd),
+        sessionManager: SessionManager.inMemory(cwd, undefined, request.resumeFrom ? this.#subagentHistories.get(request.resumeFrom) : undefined),
         settingsManager,
         resourceLoader: loader,
         tools: request.dag ? [...tools, ...(request.dag.coordinator ? DAG_COORDINATOR_TOOLS : DAG_WORKER_TOOLS)] : tools,
@@ -281,6 +302,9 @@ export class SubagentTurnRunner {
       session = created.session;
       control.bind(session);
       const activeSession = session;
+      // A resumed run starts from the entries the previous one left; drop them now so a
+      // second resume does not read a list this run is about to extend.
+      if (request.resumeFrom) this.#subagentHistories.delete(request.resumeFrom);
       // Bind the parent's UI so a prompt raised inside the run renders in the same
       // composer panel as the parent's own.
       await session.bindExtensions({ mode: "rpc", uiContext: this.#extensionUi(conversationId, subagentId) });
@@ -377,6 +401,17 @@ export class SubagentTurnRunner {
       errorMessage = uiText("已被用户终止", "Stopped by the user");
     }
     const failed = stopReason === "error" || stopReason === "aborted";
+    // Keep what this run held, so `resume` can continue it. Read before the session is
+    // released below, and only from a session that actually existed — a run that failed
+    // during setup has nothing to continue from.
+    if (session) {
+      try {
+        this.#subagentHistories.set(subagentId, session.sessionManager.getEntries());
+        this.#trimSubagentHistories();
+      } catch {
+        // A session that cannot hand back its entries simply cannot be resumed.
+      }
+    }
     try {
       // Cache and state land before the terminal event: a pane reacting to it can
       // now read the complete transcript, never a half-finalised live session.
@@ -411,6 +446,23 @@ export class SubagentTurnRunner {
    */
   #resolveSubagentModel(spec?: string, fallback?: string): ReturnType<ModelRegistry["find"]> {
     return resolveSubagentModel(this.#models, spec, fallback);
+  }
+
+  /**
+   * How many finished runs stay resumable.
+   *
+   * A conversation delegates many times and each kept history is a whole transcript, so an
+   * unbounded map is a leak that only shows up in a long session. Oldest first — a run
+   * somebody wants back is nearly always a recent one.
+   */
+  static #HISTORY_LIMIT = 32;
+
+  #trimSubagentHistories(): void {
+    while (this.#subagentHistories.size > SubagentTurnRunner.#HISTORY_LIMIT) {
+      const oldest = this.#subagentHistories.keys().next();
+      if (oldest.done) return;
+      this.#subagentHistories.delete(oldest.value);
+    }
   }
 
   run(conversationId: string, request: SubagentHostRequest): Promise<SubagentHostResponse> {
