@@ -192,6 +192,7 @@ const ALLOWED = new Set<string>([
   Ipc.engineListAgentConfigs,
   Ipc.engineRemoveAgentConfig,
   Ipc.engineSaveAgentConfig,
+  Ipc.engineSetAgentEnabled,
   Ipc.engineImportCandidates,
   Ipc.engineImportSessions,
   Ipc.engineImportSources,

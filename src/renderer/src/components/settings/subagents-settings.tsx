@@ -107,6 +107,21 @@ export function SubagentsSettings({ models }: { models: PinextModel[] }): JSX.El
   const builtins = useMemo(() => agents.filter((agent) => agent.source === "builtin"), [agents]);
   const custom = useMemo(() => agents.filter((agent) => agent.source === "custom"), [agents]);
 
+  /**
+   * Switch one built-in role on or off.
+   *
+   * A switch, not a delete: the role file ships with the app and cannot be removed
+   * (`remove` refuses a built-in), so without this a role turned off would be a one-way
+   * door. The engine re-reads the list every turn, so the change applies to an open chat.
+   */
+  async function toggleBuiltin(agent: SubagentConfig, enabled: boolean): Promise<void> {
+    try {
+      setAgents(await window.pinext.engine.setAgentEnabled(agent.id, enabled));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("subagents.saveFailed"));
+    }
+  }
+
   async function saveBuiltin(
     agent: SubagentConfig,
     patch: { model?: EngineModel; thinkingLevel: ThinkingLevel },
@@ -197,6 +212,7 @@ export function SubagentsSettings({ models }: { models: PinextModel[] }): JSX.El
         className={cn(
           "items-start gap-3 bg-card/80 p-3 transition-colors hover:border-primary/30 hover:bg-muted/20",
           isBuiltin && "flex-wrap sm:flex-nowrap",
+          isBuiltin && agent.enabled === false && "opacity-60",
         )}
       >
         <ItemMedia variant="icon" className="mt-0.5 size-9 rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
@@ -224,6 +240,15 @@ export function SubagentsSettings({ models }: { models: PinextModel[] }): JSX.El
           </ItemActions>
         ) : null}
         <ItemActions className={cn("ml-auto shrink-0 self-center", isBuiltin && "hidden sm:flex")}>
+          {/* Only built-ins carry this: a custom role is a file the user owns, and deleting
+              it is already reversible. A built-in cannot be deleted, so it needs a switch. */}
+          {isBuiltin ? (
+            <Switch
+              checked={agent.enabled !== false}
+              onCheckedChange={(checked) => void toggleBuiltin(agent, checked)}
+              aria-label={t("subagents.enabled")}
+            />
+          ) : null}
           <div className="hidden max-w-64 sm:block">
             {isBuiltin ? renderConfig(agent) : (
               <button type="button" className="flex w-fit max-w-64 items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-left text-sm hover:border-primary/40" onClick={() => setEditor(formFrom(agent))}>

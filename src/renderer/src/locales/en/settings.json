@@ -385,7 +385,8 @@
     "removeDesc": "Running delegations are unaffected; the role cannot be called again.",
     "loadFailed": "Could not load subagents",
     "saveFailed": "Could not save subagent",
-    "removeFailed": "Could not delete subagent"
+    "removeFailed": "Could not delete subagent",
+    "enabled": "Enabled"
   },
   "shortcuts": {
     "search": "Search shortcuts",

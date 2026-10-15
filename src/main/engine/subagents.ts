@@ -18,6 +18,15 @@ type StoredOverrides = {
   version: 2;
   models: Record<string, string>;
   thinkingLevels: Record<string, ThinkingLevel>;
+  /**
+   * Built-in roles switched off by name.
+   *
+   * A switch rather than a deletion: the role file ships with the app, and a user who turns
+   * one off must be able to turn it back on — deleting a built-in is not possible anyway
+   * (`remove` refuses), so an off switch is the only reversible way to hide one.
+   * pi-web keeps the same shape (`disabledBuiltIns`, ADR 0005).
+   */
+  disabled?: string[];
 };
 
 const BUILTIN_IDS = ["explorer", "planner", "worker", "reviewer"] as const;
@@ -104,6 +113,9 @@ export class SubagentManager {
         source: "builtin" as const,
         thinkingLevel: overrides.thinkingLevels[id] ?? config?.thinkingLevel ?? "medium",
         ...((overrides.models[id] ?? config?.model) ? { model: overrides.models[id] ?? config?.model } : {}),
+        // The switch only exists for built-ins: a custom role is removed by deleting its
+        // file, which is already reversible by writing it again.
+        enabled: !(overrides.disabled ?? []).includes(id),
       } satisfies SubagentConfig;
     });
 
@@ -186,6 +198,24 @@ export class SubagentManager {
     return this.list();
   }
 
+  /**
+   * Switch one built-in role on or off.
+   *
+   * Only built-ins: a custom role is a file the user owns, and deleting it is already a
+   * reversible act. Returns the whole list so the caller does not have to re-read it.
+   */
+  setBuiltinEnabled(id: string, enabled: boolean): SubagentConfig[] {
+    if (!(BUILTIN_IDS as readonly string[]).includes(id)) {
+      throw new Error(uiText("只能开关内置子 Agent", "Only built-in subagents can be switched off"));
+    }
+    const overrides = this.#readOverrides();
+    const disabled = new Set(overrides.disabled ?? []);
+    if (enabled) disabled.delete(id);
+    else disabled.add(id);
+    this.#writeOverrides({ ...overrides, disabled: [...disabled] });
+    return this.list();
+  }
+
   #newId(name: string): string {
     const base = name.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "agent";
     const used = new Set(this.list().map((item) => item.id));
@@ -219,9 +249,12 @@ export class SubagentManager {
       delete safeModels[LEGACY_SCOUT_ID];
       delete safeThinkingLevels[LEGACY_SCOUT_ID];
 
-      return { version: 2, models: safeModels, thinkingLevels: safeThinkingLevels };
+      const disabled = Array.isArray(value.disabled)
+        ? [...new Set(value.disabled.filter((id): id is string => typeof id === "string" && Boolean(id)))]
+        : [];
+      return { version: 2, models: safeModels, thinkingLevels: safeThinkingLevels, disabled };
     } catch {
-      return { version: 2, models: {}, thinkingLevels: {} };
+      return { version: 2, models: {}, thinkingLevels: {}, disabled: [] };
     }
   }
 

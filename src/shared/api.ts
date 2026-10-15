@@ -228,6 +228,9 @@ export function createPinextApi(t: ApiTransport) {
         t.invoke(Ipc.engineSaveAgentConfig, draft),
       removeAgentConfig: (id: string): Promise<SubagentConfig[]> =>
         t.invoke(Ipc.engineRemoveAgentConfig, { id }),
+      /** Switch one built-in role on or off. Only built-ins: a custom role is deleted by file. */
+      setAgentEnabled: (id: string, enabled: boolean): Promise<SubagentConfig[]> =>
+        t.invoke(Ipc.engineSetAgentEnabled, { id, enabled }),
       getSubagentMessages: (subagentId: string, conversationId?: string): Promise<ChatMessage[]> =>
         t.invoke(Ipc.engineGetSubagentMessages, { subagentId, conversationId }),
       /** A retry's file checkpoint, so the dialog can offer to unwind the workspace too. */

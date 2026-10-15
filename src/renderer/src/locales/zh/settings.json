@@ -385,7 +385,8 @@
     "removeDesc": "正在运行的委派不受影响，之后无法再调用这个角色。",
     "loadFailed": "无法加载子 Agent",
     "saveFailed": "无法保存子 Agent",
-    "removeFailed": "无法删除子 Agent"
+    "removeFailed": "无法删除子 Agent",
+    "enabled": "启用"
   },
   "shortcuts": {
     "search": "搜索快捷键",

@@ -42,6 +42,8 @@ export const Ipc = {
   engineListAgentConfigs: "engine:list-agent-configs",
   engineSaveAgentConfig: "engine:save-agent-config",
   engineRemoveAgentConfig: "engine:remove-agent-config",
+  /** 开关一个内置子 Agent（不删文件，见 `engine/subagents.ts`）。 */
+  engineSetAgentEnabled: "engine:set-agent-enabled",
   engineGetSubagentMessages: "engine:get-subagent-messages",
   /** A retry's file checkpoint: what the last turn wrote, and undoing it. */
   engineGetCheckpoint: "engine:get-checkpoint",

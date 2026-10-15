@@ -305,6 +305,14 @@ export type SubagentConfig = {
   thinkingLevel: ThinkingLevel;
   systemPrompt: string;
   source: "builtin" | "custom";
+  /**
+   * Whether the role is offered to the model.
+   *
+   * Only built-ins carry this: a custom role is a file the user owns, so deleting it is
+   * already the way to remove it. A built-in cannot be deleted (`remove` refuses), which
+   * is why it needs a switch — otherwise turning one off would be a one-way door.
+   */
+  enabled?: boolean;
 };
 
 export type SubagentDraft = {

@@ -311,6 +311,8 @@ type PinextExtensionUIContext = ExtensionUIContext & {
   awaitSubagentResult(subagentId: string, wait: boolean, signal?: AbortSignal): Promise<SubagentRunResult>;
   /** Inject a correction into a live run. `false` means it had already finished. */
   steerSubagent(subagentId: string, message: string): Promise<boolean>;
+  /** Built-in roles switched off in 设置 → 子 Agent, read fresh each turn. */
+  disabledBuiltIns(): readonly string[];
   searchConversation(request: ConversationSearchHostRequest): Promise<ConversationSearchHostResult>;
   createWorktree(options?: { path?: string; branch?: string; label?: string }): Promise<WorktreeHostResult>;
   bindWorktree(path: string): Promise<WorktreeHostResult>;
@@ -2511,6 +2513,11 @@ export class PiProcessManager {
 
   removeAgentConfig(id: string): SubagentConfig[] {
     return this.#subagentManager.remove(id);
+  }
+
+  /** Switch one built-in role on or off (设置 → 子 Agent). */
+  setAgentEnabled(id: string, enabled: boolean): SubagentConfig[] {
+    return this.#subagentManager.setBuiltinEnabled(id, enabled);
   }
   respondPermission(payload: { id: string; confirmed?: boolean; value?: string; cancelled?: boolean; answers?: Array<string | null> }): void {
     const pending = this.#pendingUi.get(payload.id);
@@ -5546,6 +5553,7 @@ export class PiProcessManager {
       startSubagentInBackground: (_ownerId, request) => this.startSubagentInBackground(conversationId, request),
       awaitSubagentResult: (subagentId, wait, signal) => this.awaitSubagentResult(subagentId, wait, signal),
       steerSubagent: (subagentId, message) => this.steerSubagent(subagentId, message),
+      disabledBuiltIns: () => this.#subagentManager.list().filter((item) => item.source === "builtin" && item.enabled === false).map((item) => item.id),
       searchConversation: (request) => this.#searchConversationForAgent(request),
       createWorktree: (options) => this.#hostCreateWorktree(conversationId, options),
       bindWorktree: (path) => this.#hostBindWorktree(conversationId, path),

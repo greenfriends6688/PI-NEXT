@@ -138,12 +138,27 @@ function findNearestProjectAgentsDir(cwd: string): string | null {
 	}
 }
 
+/**
+ * Built-in roles switched off in 设置 → 子 Agent.
+ *
+ * Set by the host before the roster is built. Read from a module-level slot rather than
+ * threaded through every caller because discovery runs in three places (registration, the
+ * per-turn roster, and the tool's own execute) and a missed one would offer a role that
+ * the settings page says is off.
+ */
+let disabledBuiltIns: readonly string[] = [];
+
+export function setDisabledBuiltIns(ids: readonly string[]): void {
+	disabledBuiltIns = ids;
+}
+
 export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryResult {
 	const userDir = path.join(getAgentDir(), "agents");
 	const projectAgentsDir = findNearestProjectAgentsDir(cwd);
 
 	const builtinDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "agents");
-	const userAgents = scope === "project" ? [] : [...loadAgentsFromDir(builtinDir, "user"), ...loadAgentsFromDir(userDir, "user")];
+	const builtin = loadAgentsFromDir(builtinDir, "user").filter((agent) => !disabledBuiltIns.includes(agent.name));
+	const userAgents = scope === "project" ? [] : [...builtin, ...loadAgentsFromDir(userDir, "user")];
 	const projectAgents = scope === "user" || !projectAgentsDir ? [] : loadAgentsFromDir(projectAgentsDir, "project");
 
 	const agentMap = new Map<string, AgentConfig>();

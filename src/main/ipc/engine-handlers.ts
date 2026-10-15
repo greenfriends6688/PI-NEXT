@@ -161,6 +161,7 @@ export function registerEngineIpc(engine: PiProcessManager): void {
   handle(Ipc.engineListAgentConfigs, () => engine.getAgentConfigs());
   handle(Ipc.engineSaveAgentConfig, (payload: import("@shared/types").SubagentDraft) => engine.saveAgentConfig(payload));
   handle(Ipc.engineRemoveAgentConfig, (payload: { id: string }) => engine.removeAgentConfig(payload.id));
+  handle(Ipc.engineSetAgentEnabled, (payload: { id: string; enabled: boolean }) => engine.setAgentEnabled(payload.id, payload.enabled));
 
   handle(Ipc.engineGetSubagentMessages, async (payload: { subagentId: string; conversationId?: string }) => {
     return engine.getSubagentMessages(payload.subagentId, payload.conversationId);

@@ -17,6 +17,9 @@ import { subagentFinished } from "../src/shared/subagent-state.ts";
 const extension = readFileSync(new URL("../resources/extensions/subagent/index.ts", import.meta.url), "utf8");
 const manager = readFileSync(new URL("../src/main/pi/process-manager.ts", import.meta.url), "utf8");
 const runner = readFileSync(new URL("../src/main/pi/process-manager-subagent.ts", import.meta.url), "utf8");
+const store = readFileSync(new URL("../src/main/engine/subagents.ts", import.meta.url), "utf8");
+const roster = readFileSync(new URL("../resources/extensions/subagent/agents.ts", import.meta.url), "utf8");
+const policy = readFileSync(new URL("../src/shared/remote-policy.ts", import.meta.url), "utf8");
 
 test("background is an opt-in parameter, not the default", () => {
   assert.match(extension, /background:\s*Type\.Optional\(/, "the parameter exists");
@@ -116,4 +119,27 @@ test("worktree isolation is opt-in and never cleans up on its own", () => {
   assert.match(extension, /Nothing was merged or removed/, "the result says what was left behind");
   // Falling back to the shared tree would defeat the point of asking for isolation.
   assert.match(extension, /无法创建 worktree/, "a failure is reported, not swallowed");
+});
+
+test("a built-in role is switched off, never deleted", () => {
+  // The role file ships with the app and `remove` refuses a built-in, so without a switch
+  // turning one off would be a one-way door.
+  assert.match(store, /setBuiltinEnabled\(id: string, enabled: boolean\)/, "there is a switch");
+  assert.match(store, /disabled\?: string\[\]/, "it is stored as a list, not by touching the file");
+  assert.match(store, /只能开关内置子 Agent/, "only built-ins can be switched");
+  assert.match(store, /enabled: !\(overrides\.disabled \?\? \[\]\)\.includes\(id\)/, "the list is reported back");
+});
+
+test("the switch reaches a conversation that is already open", () => {
+  // Read fresh every turn, and from the live tool context — the lifecycle events carry no
+  // `ui`, so a cached value from registration would freeze the roster at startup.
+  assert.match(extension, /disabledBuiltIns\?: \(\) => readonly string\[\]/, "the host provides it");
+  assert.match(extension, /if \(host\.disabledBuiltIns\) \{/, "the tool context captures it");
+  assert.match(extension, /setDisabledBuiltIns\(disabledProvider\(\)\)/, "the roster is rebuilt from it");
+  assert.match(roster, /filter\(\(agent\) => !disabledBuiltIns\.includes\(agent\.name\)\)/, "discovery honours it");
+});
+
+test("every method the switch adds is classified for remote callers", () => {
+  // `assertPolicyCoverage` refuses to start the server when a method is in neither set.
+  assert.match(policy, /Ipc\.engineSetAgentEnabled/, "the new channel is classified");
 });

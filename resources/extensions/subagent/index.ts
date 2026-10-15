@@ -23,7 +23,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { type AgentConfig, type AgentScope, discoverAgents } from "./agents";
+import { type AgentConfig, type AgentScope, discoverAgents, setDisabledBuiltIns } from "./agents";
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
@@ -88,6 +88,14 @@ type PinextUIContext = {
 	steerSubagent?: (subagentId: string, message: string) => Promise<boolean>;
 	/** Create an isolated checkout for one run (`isolation: "worktree"`). */
 	createWorktree?: (options?: { path?: string; branch?: string; label?: string }) => Promise<{ path: string; branch: string }>;
+	/**
+	 * Built-in roles switched off in 设置 → 子 Agent.
+	 *
+	 * Read here rather than from the role files, which carry no such field: the switch lives
+	 * in `subagents.json`, which the extension cannot reach. Re-read every turn so flipping
+	 * it applies to a conversation that is already open.
+	 */
+	disabledBuiltIns?: () => readonly string[];
 };
 
 type HostSubagentResult =
@@ -450,6 +458,14 @@ const SubagentParams = Type.Object({
 	),
 });
 
+/**
+ * The host's disabled-role list, filled from `ctx.ui` on each turn.
+ *
+ * A module-level slot because the two places that need it — registration time and the
+ * per-turn roster — run before a tool context exists, and the switch has to reach both.
+ */
+let disabledProvider: () => readonly string[] = () => [];
+
 export default function (pi: ExtensionAPI) {
 	// Advertise the actual roles so the main agent knows what it can hand off. The
 	// tool is a custom tool, and the SDK omits custom tools from the system prompt
@@ -471,6 +487,14 @@ export default function (pi: ExtensionAPI) {
 	// roster to each turn as well, so a role created in Settings becomes visible to an
 	// already-running conversation without restarting the engine.
 	pi.on("before_agent_start", (event) => {
+		// The roster is rebuilt from whatever the switch last reported. The provider itself
+		// is captured in `execute`, which is the only place a tool context exists — the
+		// lifecycle events carry no `ui`.
+		try {
+			setDisabledBuiltIns(disabledProvider());
+		} catch {
+			// A host without the provider keeps the previous list.
+		}
 		let current: AgentConfig[] = [];
 		try {
 			current = discoverAgents(process.cwd(), "user").agents;
@@ -508,6 +532,12 @@ export default function (pi: ExtensionAPI) {
 		async execute(toolCallId, params, signal, onUpdate, ctx) {
 			const agentScope: AgentScope = params.agentScope ?? "user";
 			const host = ctx.ui as unknown as PinextUIContext;
+			// Capture the switch from the live context: it is re-read every turn, so a role
+			// turned off in Settings stops being offered without restarting the engine.
+			if (host.disabledBuiltIns) {
+				disabledProvider = host.disabledBuiltIns;
+				setDisabledBuiltIns(disabledProvider());
+			}
 			if (!host.runSubagent) {
 				return {
 					content: [{ type: "text", text: "当前宿主不支持子 Agent：缺少进程内 runner。" }],
