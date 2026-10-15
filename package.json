@@ -9,10 +9,6 @@
     "email": "dev@pinext.dev"
   },
   "homepage": "https://pinext.dev",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/tyuan511/pinext.git"
-  },
   "type": "module",
   "main": "./out/main/index.js",
   "bin": {
