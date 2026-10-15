@@ -318,6 +318,27 @@ export type SubagentDraft = {
   systemPrompt: string;
 };
 
+/**
+ * What a `get_subagent_result` call answered.
+ *
+ * `found` is separate from `terminal` on purpose: "no such run" and "a run that is still
+ * going" are different answers, and a caller that treated a missing row as "not finished"
+ * would poll forever. `messages` is only carried once the run has ended — a live
+ * transcript is the pane's job, and shipping a partial one in a tool result would invite
+ * the model to read a half-written reply as the answer.
+ */
+export type SubagentRunResult =
+  | { found: false }
+  | {
+      found: true;
+      status: string;
+      terminal: boolean;
+      agent?: string;
+      description?: string;
+      error?: string;
+      messages: unknown[];
+    };
+
 export type SubagentInfo = {
   id: string;
   /** Monotonic engine event sequence for stale-snapshot rejection. */

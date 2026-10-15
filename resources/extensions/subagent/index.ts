@@ -75,7 +75,26 @@ type HostSubagentResponse = {
 
 type PinextUIContext = {
 	runSubagent?: (request: HostSubagentRequest) => Promise<HostSubagentResponse>;
+	/**
+	 * Start a run and return its id without waiting. Absent means this host cannot run
+	 * anything in the background, and the tool falls back to the foreground form.
+	 */
+	startSubagentInBackground?: (conversationId: string | undefined, request: HostSubagentRequest) => string;
+	/** The latest result of a run, by id. `wait` polls until it reaches a terminal status. */
+	awaitSubagentResult?: (subagentId: string, wait: boolean, signal?: AbortSignal) => Promise<HostSubagentResult>;
 };
+
+type HostSubagentResult =
+	| { found: false }
+	| {
+			found: true;
+			status: string;
+			terminal: boolean;
+			agent?: string;
+			description?: string;
+			error?: string;
+			messages: Message[];
+	  };
 
 function formatTokens(count: number): string {
 	if (count < 1000) return count.toString();
@@ -403,6 +422,12 @@ const SubagentParams = Type.Object({
 		Type.Boolean({ description: "Prompt before running project-local agents. Default: true.", default: true }),
 	),
 	cwd: Type.Optional(Type.String({ description: "Working directory for the agent process (single mode)" })),
+	background: Type.Optional(
+		Type.Boolean({
+			description:
+				"Start the run and return immediately instead of waiting for it. Collect the result later with get_subagent_result. Use it for independent work so several delegations actually run at once.",
+		}),
+	),
 });
 
 export default function (pi: ExtensionAPI) {
@@ -677,6 +702,43 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (params.agent && params.task) {
+				const agent = agents.find((a) => a.name === params.agent);
+				if (!agent) {
+					const available = agents.map((a) => `${a.name} (${a.source})`).join(", ") || "none";
+					return {
+						content: [{ type: "text", text: `Unknown agent: "${params.agent}". Available: ${available}` }],
+						details: makeDetails("single")([]),
+						isError: true,
+					};
+				}
+				// Background: hand the run to the host and return its id now. The run is
+				// registered under this id, so `get_subagent_result` and the pane both find
+				// it; completion arrives as a lifecycle event the parent sees.
+				if (params.background && host.startSubagentInBackground) {
+					const subagentId = `${toolCallId}:0`;
+					host.startSubagentInBackground((ctx.ui as { conversationId?: string } | undefined)?.conversationId, {
+						subagentId,
+						agent: agent.name,
+						agentSource: agent.source,
+						task: params.task,
+						systemPrompt: agent.systemPrompt,
+						tools: agent.tools,
+						model: agent.model,
+						fallbackModel: dispatchDefaults.model,
+						thinkingLevel: agent.thinkingLevel,
+						cwd: params.cwd ?? ctx.cwd,
+						signal,
+					});
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Started \`${agent.name}\` in the background (id \`${subagentId}\`). Collect it with get_subagent_result.`,
+							},
+						],
+						details: { mode: "single", agentScope, projectAgentsDir: discovery.projectAgentsDir, results: [], backgroundId: subagentId },
+					};
+				}
 				const result = await runSingleAgent(
 					ctx.cwd,
 					dispatchDefaults,
@@ -1026,6 +1088,77 @@ export default function (pi: ExtensionAPI) {
 
 			const text = result.content[0];
 			return new Text(text?.type === "text" ? text.text : "(no output)", 0, 0);
+		},
+	});
+
+	/**
+	 * Collect a run started with `background: true`.
+	 *
+	 * A separate tool rather than a mode of `subagent`, because the two are asked at
+	 * different times: one starts work, the other comes back for it. `wait` turns this into
+	 * a poll, which is how a caller collects a run it does not need to be interrupted by.
+	 *
+	 * An unknown id is reported as such — never as "still running", which would make a
+	 * poller wait forever on a run that does not exist.
+	 */
+	pi.registerTool({
+		name: "get_subagent_result",
+		label: "Subagent result",
+		description:
+			"Read a background subagent run by the id the subagent tool returned. Set wait: true to block until it finishes.",
+		promptSnippet: "Collect a background subagent run started with subagent({ background: true })",
+		promptGuidelines: [
+			"Use get_subagent_result after starting a run with background: true, passing the id the subagent tool printed.",
+			"Use wait: true when the next step depends on the run; omit it to check without blocking.",
+			"An id reported as not found means the run never started or has been discarded — do not poll it again.",
+		],
+		parameters: Type.Object({
+			id: Type.String({ description: "The subagent run id, as returned by the subagent tool." }),
+			wait: Type.Optional(Type.Boolean({ description: "Block until the run finishes. Default: false." })),
+		}),
+
+		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+			const host = ctx.ui as unknown as PinextUIContext;
+			if (!host.awaitSubagentResult) {
+				return {
+					content: [{ type: "text", text: "当前宿主不支持查询子 Agent 结果：缺少进程内 runner。" }],
+					details: { id: params.id, status: "unsupported" },
+					isError: true,
+				};
+			}
+			const result = await host.awaitSubagentResult(params.id, params.wait === true, signal);
+			if (!result.found) {
+				return {
+					content: [{ type: "text", text: `No subagent run with id \`${params.id}\`.` }],
+					details: { id: params.id, status: "missing" },
+					isError: true,
+				};
+			}
+			if (!result.terminal) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `\`${params.id}\` is still ${result.status}. Call again with wait: true to block until it finishes.`,
+						},
+					],
+					details: { id: params.id, status: result.status, terminal: false },
+				};
+			}
+			const output = getFinalOutput((result.messages ?? []) as Message[]);
+			const failed = result.status !== "completed";
+			return {
+				content: [
+					{
+						type: "text",
+						text: failed
+							? `Subagent \`${params.id}\` ${result.status}${result.error ? `: ${result.error}` : ""}${output ? `\n\n${output}` : ""}`
+							: output || "(no output)",
+					},
+				],
+				details: { id: params.id, status: result.status, terminal: true, agent: result.agent },
+				isError: failed,
+			};
 		},
 	});
 }

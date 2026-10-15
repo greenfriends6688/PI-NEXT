@@ -53,6 +53,7 @@ import type {
   SkillInfo,
   SlashCommand,
   SubagentInfo,
+  SubagentRunResult,
   ThinkingTiming,
   TranscriptTail,
   WorkspaceSnapshot,
@@ -203,7 +204,7 @@ import { fetchGatewayBalance, gatewayTargets, probeGateway, readGatewayCredentia
 import { ensureScratchWorkspace, getPinextPaths, scratchWorkspace, type PinextPaths } from "../engine/paths";
 import { DisabledMemoryHost, type MemoryHost } from "../engine/memory-host";
 import { SubagentManager } from "../engine/subagents";
-import { reduceSubagent } from "@shared/subagent-state";
+import { reduceSubagent, subagentFinished } from "@shared/subagent-state";
 import { SubagentControl } from "./subagent-control";
 import { resolveSubagentModel } from "./subagent-model";
 import { runMemoryAgent } from "./memory-agent";
@@ -300,6 +301,14 @@ type PinextExtensionUIContext = ExtensionUIContext & {
    * no `pi` CLI to spawn (see `resources/extensions/subagent/index.ts`).
    */
   runSubagent(request: SubagentHostRequest): Promise<SubagentHostResponse>;
+  /**
+   * Start a run and return its id without waiting for it. The tool returns at once, which
+   * is what lets several delegations actually overlap — a foreground run holds its caller
+   * open, so `parallel` there is only as parallel as the tool loop allows.
+   */
+  startSubagentInBackground(ownerId: string | undefined, request: SubagentHostRequest): string;
+  /** The latest result of a run by id; `wait` polls until it reaches a terminal status. */
+  awaitSubagentResult(subagentId: string, wait: boolean, signal?: AbortSignal): Promise<SubagentRunResult>;
   searchConversation(request: ConversationSearchHostRequest): Promise<ConversationSearchHostResult>;
   createWorktree(options?: { path?: string; branch?: string; label?: string }): Promise<WorktreeHostResult>;
   bindWorktree(path: string): Promise<WorktreeHostResult>;
@@ -1705,6 +1714,76 @@ export class PiProcessManager {
    * by chat id), and the `tool_call` hook cannot observe the abort while it awaits one,
    * so those are answered first — scoped to this owner, not the parent's prompts.
    */
+  /**
+   * Start a delegated run and hand back its id **without waiting for it**.
+   *
+   * The tool call returns at once and the parent's turn is not held open, which is what
+   * makes several independent delegations actually concurrent — a foreground run blocks
+   * its caller, so `parallel` there is only as parallel as the tool loop allows.
+   *
+   * The run is tracked under `subagentId` in the same registry the pane reads, so
+   * `getSubagentMessages` / `abortSubagent` / the tab all address it exactly as a
+   * foreground one. Completion is announced once (`subagent_lifecycle`), which is what the
+   * renderer and `notifyParent` both consume.
+   *
+   * Returns the id; the caller never awaits the run itself.
+   */
+  startSubagentInBackground(conversationId: string | undefined, request: SubagentHostRequest): string {
+    const { subagentId } = request;
+    // Detached on purpose: the promise's rejection is handled inside `#runSubagent`, which
+    // records it as the run's terminal state rather than throwing at its caller.
+    void this.#runSubagent(conversationId ?? this.#activeId ?? "", request).catch(() => undefined);
+    return subagentId;
+  }
+
+  /**
+   * The latest result of a run, by id, whether it is still going or long finished.
+   *
+   * `wait` turns it into a poll: it resolves when the run reaches a terminal status. That
+   * is what lets a caller that started something in the background collect it later
+   * without the run having to notify anybody.
+   */
+  async awaitSubagentResult(subagentId: string, wait: boolean, signal?: AbortSignal): Promise<SubagentRunResult> {
+    const read = (): SubagentRunResult => {
+      const info = this.#subagents.get(subagentId);
+      if (!info) return { found: false };
+      const terminal = subagentFinished(info.status);
+      return {
+        found: true,
+        status: info.status ?? "unknown",
+        terminal,
+        agent: info.agent,
+        description: info.description,
+        error: info.error,
+        messages: terminal ? (this.#subagentMessages.get(subagentId) ?? []) : [],
+      };
+    };
+    const first = read();
+    if (!wait || !first.found || first.terminal) return first;
+    // Wait for the run to end. The registry is the single source of truth, so this polls
+    // it rather than subscribing: a run can end between two events, and a subscription
+    // that missed that boundary would wait forever.
+    return new Promise<SubagentRunResult>((resolve) => {
+      const timer = setInterval(() => {
+        if (signal?.aborted) {
+          clearInterval(timer);
+          resolve(read());
+          return;
+        }
+        const current = read();
+        if (!current.found || current.terminal) {
+          clearInterval(timer);
+          resolve(current);
+        }
+      }, 500);
+      timer.unref?.();
+      signal?.addEventListener("abort", () => {
+        clearInterval(timer);
+        resolve(read());
+      }, { once: true });
+    });
+  }
+
   async abortSubagent(subagentId: string, conversationId?: string): Promise<void> {
     const owner = this.#subagents.get(subagentId)?.conversationId;
     if (conversationId && owner && owner !== conversationId) return;
@@ -5426,6 +5505,11 @@ export class PiProcessManager {
         dialog<Array<string | null> | undefined>("questions", { title, questions, timeout: opts?.timeout }, undefined, opts?.timeout),
       conversationId,
       runSubagent: (request) => this.#runSubagent(conversationId, request),
+      // The background pair: one starts a run and returns its id, the other reads it back.
+      // Both go through the same registry as a foreground run, so the pane, `abortSubagent`
+      // and the transcript all address it identically.
+      startSubagentInBackground: (_ownerId, request) => this.startSubagentInBackground(conversationId, request),
+      awaitSubagentResult: (subagentId, wait, signal) => this.awaitSubagentResult(subagentId, wait, signal),
       searchConversation: (request) => this.#searchConversationForAgent(request),
       createWorktree: (options) => this.#hostCreateWorktree(conversationId, options),
       bindWorktree: (path) => this.#hostBindWorktree(conversationId, path),
