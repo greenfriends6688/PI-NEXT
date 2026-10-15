@@ -236,7 +236,8 @@
   "files": {
     "edited_one": "Edited {{count}} file",
     "edited_other": "Edited {{count}} files",
-    "review": "Review"
+    "review": "Review",
+    "files": "Files"
   },
   "preview": {
     "reveal": "Show in Finder",

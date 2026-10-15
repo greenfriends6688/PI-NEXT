@@ -31,6 +31,25 @@ function fileLabel(path: string, cwd?: string): string {
   return shown.replace(/\\/g, "/");
 }
 
+/** Split a label so the directory ellipsizes and the file name stays whole. */
+function splitLabel(label: string): { dir: string; base: string } {
+  const slash = label.lastIndexOf("/");
+  return slash >= 0
+    ? { dir: label.slice(0, slash + 1), base: label.slice(slash + 1) }
+    : { dir: "", base: label };
+}
+
+/**
+ * The absolute path a chip's rows act on.
+ *
+ * Tool arguments are often project-relative, and Main's preview/reveal `stat` the string
+ * as given, so a relative path would miss the file the file tree can still open.
+ */
+function absolutePath(file: ChangedFile): string {
+  const { conversations, activeId } = useSessionStore.getState();
+  return resolvePath(file.path, conversations.find((item) => item.id === activeId)?.cwd);
+}
+
 function FileRow({
   file,
   cwd,
@@ -42,12 +61,9 @@ function FileRow({
 }): JSX.Element {
   const { t } = useTranslation("chat");
   const label = fileLabel(file.path, cwd);
-  const absolute = (): string => {
-    const { conversations, activeId } = useSessionStore.getState();
-    return resolvePath(file.path, conversations.find((item) => item.id === activeId)?.cwd);
-  };
+  const { dir, base } = splitLabel(label);
   const reveal = async (): Promise<void> => {
-    const result = await window.pinext.workspace.reveal(absolute());
+    const result = await window.pinext.workspace.reveal(absolutePath(file));
     if (result && result.ok === false) toast.error(t("preview.pathMissing"));
   };
   return (
@@ -62,15 +78,20 @@ function FileRow({
           />
         }
       >
-        <span className="min-w-0 flex-1 truncate text-sm text-foreground">{label}</span>
+        {/* The directory ellipsizes; the file name never does. Truncating the whole
+            path hid the one thing the row exists to name. */}
+        <span className="flex min-w-0 flex-1 items-baseline text-sm text-foreground">
+          {dir ? <span className="min-w-0 truncate text-muted-foreground">{dir}</span> : null}
+          <span className="shrink-0">{base}</span>
+        </span>
         <DiffStatBadge added={file.added} removed={file.removed} />
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        <ContextMenuItem onClick={() => void useSessionStore.getState().openPreview(absolute())}>
+        <ContextMenuItem onClick={() => void useSessionStore.getState().openPreview(absolutePath(file))}>
           {t("preview.pathPreview")}
         </ContextMenuItem>
         <ContextMenuItem onClick={() => void reveal()}>{t("preview.pathReveal")}</ContextMenuItem>
-        <ContextMenuItem onClick={() => void navigator.clipboard?.writeText(absolute())}>
+        <ContextMenuItem onClick={() => void navigator.clipboard?.writeText(absolutePath(file))}>
           {t("preview.pathCopy")}
         </ContextMenuItem>
       </ContextMenuContent>
@@ -80,8 +101,17 @@ function FileRow({
 
 /**
  * One turn's writes, as the Codex card: a header naming how many files changed
- * and the line totals, with the paths underneath. The header folds the list;
- * a path (or 审查) opens that turn's own diff, not the working tree.
+ * and the line totals, with the paths underneath.
+ *
+ * Two ways in, and they are different questions:
+ *
+ * - **文件** opens the file itself — the paths are the answer, and a path opens its
+ *   content in the right pane.
+ * - **审查** opens the turn's own diff (not the working tree's): what changed this turn,
+ *   which is what reviewing a reply is about.
+ *
+ * Clicking a path does the first — the list names files, so a click on one should show
+ * that file. It used to open the diff, which meant the card had no way to read a file.
  */
 export function TurnFileChips({ files, className }: { files: ChangedFile[]; className?: string }): JSX.Element | null {
   const { t } = useTranslation("chat");
@@ -92,6 +122,7 @@ export function TurnFileChips({ files, className }: { files: ChangedFile[]; clas
   const added = files.reduce((sum, file) => sum + file.added, 0);
   const removed = files.reduce((sum, file) => sum + file.removed, 0);
   const review = (): void => openTurnChanges(files, files[0].path);
+  const openContent = (file: ChangedFile): void => void useSessionStore.getState().openPreview(absolutePath(file));
   return (
     <Collapsible
       open={open}
@@ -121,14 +152,19 @@ export function TurnFileChips({ files, className }: { files: ChangedFile[]; clas
             <DiffStatBadge added={added} removed={removed} />
           </span>
         </CollapsibleTrigger>
-        <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={review}>
-          {t("files.review")}
-        </Button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button type="button" variant="ghost" size="sm" className="rounded-full" onClick={() => setOpen(true)}>
+            {t("files.files")}
+          </Button>
+          <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={review}>
+            {t("files.review")}
+          </Button>
+        </div>
       </div>
       <CollapsibleContent>
         <div className="max-h-60 overflow-y-auto px-1.5 pb-1.5">
           {files.map((file) => (
-            <FileRow key={file.path} file={file} cwd={cwd} onOpen={(changed) => openTurnChanges(files, changed.path)} />
+            <FileRow key={file.path} file={file} cwd={cwd} onOpen={openContent} />
           ))}
         </div>
       </CollapsibleContent>
