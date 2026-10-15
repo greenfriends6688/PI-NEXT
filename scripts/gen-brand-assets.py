@@ -45,6 +45,8 @@ print("desktop / app icon")
 write_many("resources/icon.png", 1024)
 
 # macOS .icns — iconutil wants an .iconset directory of exact names.
+# The mark keeps its own transparency: the owner asked for the logo alone, not the
+# logo on a white tile, so no background is composited in here.
 iconset = "/tmp/pinext.iconset"
 import os
 import shutil
@@ -53,9 +55,9 @@ import subprocess
 shutil.rmtree(iconset, ignore_errors=True)
 os.makedirs(iconset)
 for px in (16, 32, 64, 128, 256, 512):
-    composed(px, True).save(f"{iconset}/icon_{px}x{px}.png")
+    composed(px).save(f"{iconset}/icon_{px}x{px}.png")
 for px in (32, 64, 128, 256, 512, 1024):
-    composed(px, True).save(f"{iconset}/icon_{px // 2}x{px // 2}@2x.png")
+    composed(px).save(f"{iconset}/icon_{px // 2}x{px // 2}@2x.png")
 subprocess.run(["iconutil", "-c", "icns", iconset, "-o", f"{ROOT}/resources/icon.icns"], check=True)
 print(f"  {'resources/icon.icns':72s} (from {iconset})")
 
@@ -72,7 +74,7 @@ write_many("src/renderer/public/icon-dark.png", 256)
 write_many("src/renderer/public/icon.png", 256)
 # Browsers ask for `/favicon.ico` on their own whenever a page has no icon link they can
 # use, and a JSON 404 in that slot is the kind of thing that shows up as a broken tab.
-composed(64, True).save(f"{ROOT}/src/renderer/public/favicon.ico", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
+composed(64).save(f"{ROOT}/src/renderer/public/favicon.ico", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
 print(f"  {'src/renderer/public/favicon.ico':72s} multi-size")
 
 print("mobile sources")
