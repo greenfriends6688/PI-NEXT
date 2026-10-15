@@ -213,7 +213,7 @@ class Connection extends ChangeNotifier {
     _reset(server: server, status: ConnectionStatus.connecting);
     final remote = RemoteClient(version: appVersion);
     try {
-      final token = await remote.login(server.origin, password, 'Pinext ${server.alias}');
+      final token = await remote.login(server.origin, password, 'PI NEXT ${server.alias}');
       if (selection != _selectionGeneration) return;
       await writeToken(server.id, token);
       if (selection != _selectionGeneration) return;

@@ -536,7 +536,7 @@ class BrandLoading extends StatelessWidget {
             const BrandLogo(size: 72),
             const SizedBox(height: 10),
             Text(
-              'Pinext',
+              'PI NEXT',
               style: TextStyle(
                 color: palette.text,
                 fontSize: 18,

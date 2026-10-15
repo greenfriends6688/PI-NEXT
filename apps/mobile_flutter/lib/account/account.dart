@@ -379,5 +379,5 @@ Future<String> _defaultDeviceName() async {
   } catch (_) {
     // The name is only a label in the account's device list.
   }
-  return 'Pinext';
+  return 'PI NEXT';
 }

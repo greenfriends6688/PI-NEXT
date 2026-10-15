@@ -111,6 +111,27 @@ void main() {
       expect((out! as IncomingFrame).data, data);
     });
 
+    test('a large compressed frame can be handed back packed and inflated later', () {
+      final big = utf8.encode(List<String>.filled(40, json).join());
+      final packed = compressFrame(big)!;
+      expect(packed.length >= deferInflateBytes, isTrue, reason: 'big enough to defer');
+      final assembler = FrameAssembler(32 * 1024 * 1024);
+      Incoming? out;
+      for (final message in splitFrame(packed, binary: false, deflated: true)) {
+        out = assembler.push(message, deferInflate: true);
+      }
+      final deferred = out! as IncomingDeflated;
+      expect(inflateFrame(deferred.packed, deferred.maxFrameBytes), big);
+      expect(() => inflateFrame(deferred.packed, 1024), throwsA(isA<FrameError>()));
+      // A small one is still inflated on the spot, deferral or not.
+      final small = compressFrame(utf8.encode(json))!;
+      Incoming? quick;
+      for (final message in splitFrame(small, binary: false, deflated: true)) {
+        quick = assembler.push(message, deferInflate: true);
+      }
+      expect(quick, isA<IncomingFrame>());
+    });
+
     test('a frame too short, or that does not shrink, is not compressed', () {
       expect(compressFrame(utf8.encode('short')), isNull);
       final noise = Uint8List.fromList(List<int>.generate(compressMinBytes * 4, (i) => (i * 2654435761 >> 7) & 0xff));
@@ -142,7 +163,7 @@ void main() {
     // Produced by the desktop's `deflateRawSync(..., { level: 3 })`: the two sides must agree
     // on the bytes, not only on each other's round trip.
     test('reads what the desktop wrote', () {
-      const wire = <int>[0xab, 0x56, 0xca, 0x48, 0xcd, 0xc9, 0xc9, 0x57, 0xb2, 0x52, 0x4a, 0x4b, 0x2c, 0x2e, 0x29, 0xcb, 0x4c, 0x4a, 0x55, 0x48, 0x2b, 0x4a, 0xcc, 0x4d, 0x2d, 0x56, 0xd2, 0x51, 0xca, 0x53, 0xb2, 0x8a, 0x36, 0xd4, 0x31, 0xd2, 0x31, 0xd6, 0x31, 0xd1, 0x31, 0xd5, 0x31, 0xd3, 0x31, 0xd7, 0xb1, 0xd0, 0xb1, 0xd4, 0x31, 0x34, 0x88, 0xad, 0x05, 0x00];
+      const wire = <int>[0xab, 0x56, 0xca, 0x48, 0xcd, 0xc9, 0xc9, 0x57, 0xb2, 0x52, 0x2a, 0xc8, 0xcc, 0x4b, 0xad, 0x28, 0x51, 0x48, 0x2b, 0x4a, 0xcc, 0x4d, 0x2d, 0x56, 0xd2, 0x51, 0xca, 0x53, 0xb2, 0x8a, 0x36, 0xd4, 0x31, 0xd2, 0x31, 0xd6, 0x31, 0xd1, 0x31, 0xd5, 0x31, 0xd3, 0x31, 0xd7, 0xb1, 0xd0, 0xb1, 0xd4, 0x31, 0x34, 0x88, 0xad, 0x05, 0x00];
       final out = FrameAssembler(1 << 20).push(Uint8List.fromList(<int>[fragLast | fragDeflate, ...wire])) as IncomingFrame;
       expect(utf8.decode(out.data), '{"hello":"pinext frames","n":[1,2,3,4,5,6,7,8,9,10]}');
     });

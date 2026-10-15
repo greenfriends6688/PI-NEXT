@@ -12,7 +12,7 @@
 			<string>zh-Hans</string>
 		</array>
 		<key>CFBundleDisplayName</key>
-		<string>Pinext</string>
+		<string>PI NEXT</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -20,7 +20,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>Pinext</string>
+		<string>PI NEXT</string>
 		<key>NSAppTransportSecurity</key>
 		<dict>
 			<!-- 设置 → 远程访问 copies a plain http LAN address, and a phone on the same
@@ -29,15 +29,15 @@
 			<true/>
 		</dict>
 		<key>NSLocalNetworkUsageDescription</key>
-		<string>Connect to Pinext on your local network.</string>
+		<string>Connect to PI NEXT on your local network.</string>
 		<key>NSBonjourServices</key>
 		<array>
 			<string>_pinext._tcp</string>
 		</array>
 		<key>NSCameraUsageDescription</key>
-		<string>Scan the QR code on your computer to connect to Pinext.</string>
+		<string>Scan the QR code on your computer to connect to PI NEXT.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>Choose photos to send to Pinext.</string>
+		<string>Choose photos to send to PI NEXT.</string>
 		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
 		<key>CFBundlePackageType</key>

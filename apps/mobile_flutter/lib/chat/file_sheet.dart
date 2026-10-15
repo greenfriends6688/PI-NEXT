@@ -29,7 +29,7 @@ typedef DownloadDirectory = Future<Directory> Function();
 typedef FileOpener = Future<bool> Function(String path);
 
 Future<Directory> defaultDownloadDirectory() async {
-  // On iOS the documents directory is what the Files app lists under 「Pinext」
+  // On iOS the documents directory is what the Files app lists under 「PI NEXT」
   // (`UIFileSharingEnabled`), so a download is something the person can find again.
   final root = await getApplicationDocumentsDirectory();
   return Directory('${root.path}/Downloads');

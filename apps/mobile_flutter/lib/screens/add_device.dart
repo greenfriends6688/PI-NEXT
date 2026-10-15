@@ -97,7 +97,7 @@ class _AddDeviceScreenState extends State<AddDeviceScreen> {
       final token = await remote.login(
         address.origin,
         _password.text,
-        'Pinext $name',
+        'PI NEXT $name',
       );
       final saved = await ServerStore.instance.upsert(
         SavedServer(

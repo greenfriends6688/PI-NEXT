@@ -11,7 +11,7 @@
     <!-- Pinext listens on plain http on the LAN, which the phone has to be able to reach. -->
     <application
         android:usesCleartextTraffic="true"
-        android:label="Pinext"
+        android:label="PI NEXT"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
