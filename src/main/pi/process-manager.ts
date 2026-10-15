@@ -4,7 +4,6 @@ import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { mkdir, rm, unlink } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import { InMemoryModelsStore, type AssistantMessage, type AuthPrompt } from "@earendil-works/pi-ai";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
@@ -247,7 +246,7 @@ import type { ScheduledTask, ScheduledTaskDraft, ScheduledTaskPatch, ScheduledTa
 import { runDagTool } from "../dag-tools";
 import { builtinExtensionFile, builtinExtensionPaths, builtinSkillPaths, ExtensionManager } from "./extension-manager";
 import { branchExists, createGitWorktree, gitBranch, gitCommonRoot, gitToplevel, listGitWorktrees, removeGitWorktree } from "./git-worktree";
-import { bindBrowserConversation, bindComputerConversation } from "./conversation-binding";
+import { bindBrowserConversation } from "./conversation-binding";
 import { createTuiWidget, renderTuiComponent, type TuiComponent } from "./tui-bridge";
 import { ActivationTicket } from "./activation-ticket";
 
@@ -276,6 +275,17 @@ function lastAssistantText(messages: unknown[]): string {
       .trim();
   }
   return "";
+}
+
+/**
+ * The file one conversation's 调用轨迹 page is written to.
+ *
+ * A conversation id reaches this from the catalog, but a session created before its id is
+ * known (or the active one with none) has to land somewhere legal, so the fallback is a
+ * fixed name rather than an empty one: an empty name would make the path a directory.
+ */
+function traceFileName(conversationId: string | undefined): string {
+  return sanitizeSegment(conversationId ?? "active") || "active";
 }
 
 type ManagedSession = { conversationId: string; cwd: string; session: AgentSession; extensions: LoadExtensionsResult; unsubscribe: () => void };
@@ -1397,7 +1407,7 @@ export class PiProcessManager {
     }
     const state = this.#state(managed.session, conversation.id);
     const updated =
-      this.#catalog.update(conversation.id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
+      this.#catalog.updateSession(conversation.id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
     return this.#opened(updated, [], state);
   }
   async steer(
@@ -2454,7 +2464,7 @@ export class PiProcessManager {
       await this.#ensureReady();
       const managed = await this.#ensureSession(conversation);
       const state = this.#state(managed.session, conversation.id);
-      const updated = this.#catalog.update(conversation.id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
+      const updated = this.#catalog.updateSession(conversation.id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
       return this.#opened(updated, this.#messages(managed.session, conversation.id), state);
   }
 
@@ -2470,7 +2480,7 @@ export class PiProcessManager {
       if (this.#activationTicket.isCurrent(activation)) this.#activate(managed);
       const state = this.#state(managed.session, id);
       const messages = this.#messages(managed.session, id);
-      const updated = this.#catalog.update(id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
+      const updated = this.#catalog.updateSession(id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
       return this.#opened(updated, messages, state);
   }
 
@@ -2530,6 +2540,9 @@ export class PiProcessManager {
     this.#runTouchedFiles.delete(id);
     clearCheckpoint(id);
     await rm(join(this.#paths.toolImagesDir, toolImageFolder(id)), { recursive: true, force: true }).catch(() => undefined);
+    // The chat's 调用轨迹 page goes with it: it is a copy of the transcript, and leaving
+    // it behind would let the deleted conversation be read from disk afterwards.
+    await rm(join(this.#paths.tracesDir, `${traceFileName(id)}.html`), { force: true }).catch(() => undefined);
     return { ...this.#catalog.snapshot(), nextId: wasActive ? (this.#catalog.activeId ?? null) : null };
   }
   async setConversationProject(id: string, project: string | null): Promise<WorkspaceSnapshot> {
@@ -3077,22 +3090,23 @@ export class PiProcessManager {
   async setFollowUpMode(mode: "all" | "one-at-a-time", conversationId?: string): Promise<EngineSessionState> { (await this.#sessionFor(conversationId)).session.setFollowUpMode(mode); return this.getState(conversationId); }
   async exportHtml(): Promise<string | undefined> { return (await this.#active()).exportToHtml(); }
   /**
-   * fork:trace-frame —— 同一份 pi 导出页，但**作为字符串**回给渲染层，装进右栏
-   * 「调用轨迹」的 iframe。写到 tmp 再读回来（SDK 只提供落盘接口），读完就删。
+   * fork:trace-frame —— 同一份 pi 导出页，**落到磁盘**并返回文件路径，由 `pinext-media://`
+   * 作为独立文档服务给右栏「调用轨迹」的 iframe。
+   *
+   * 不回字符串、不用 `srcDoc`：那样得到的文档会继承应用的 CSP
+   * （`src/renderer/index.html` 是 `script-src 'self'`，没有 `'unsafe-inline'`），
+   * 而导出页整个 UI 都靠一段内联 `<script>` 构建 —— 脚本被拒，iframe 里就是一片空白。
+   * 走 `pinext-media://` 时响应头由 `media-protocol.ts` 自己写（`INLINE_HTML_CSP`
+   * 允许内联脚本），与内联 HTML 预览是同一条路。
+   *
+   * 每个对话一个固定文件（`<conversationId>.html`），刷新就是重写同一个文件，
+   * 所以磁盘占用是一个对话一个页面，也不会留住已关闭对话的副本 ——
+   * 下次删除对话时它在 `tracesDir` 里一并消失。
    */
   async exportHtmlDocument(conversationId?: string): Promise<string> {
-    const session = (await this.#sessionFor(conversationId)).session;
-    const file = join(tmpdir(), `pinext-export-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.html`);
-    try {
-      await session.exportToHtml(file);
-      return readFileSync(file, "utf8");
-    } finally {
-      try {
-        rmSync(file, { force: true });
-      } catch {
-        // Best effort: a leftover temp file is harmless.
-      }
-    }
+    const { id, session } = await this.#sessionFor(conversationId);
+    const file = join(getPinextPaths().tracesDir, `${traceFileName(id)}.html`);
+    return session.exportToHtml(file);
   }
   /**
    * 把当前会话导出成 Markdown —— HTML 那条产出的是一个页面，这一条是能贴进文档的文本。
@@ -3570,7 +3584,7 @@ export class PiProcessManager {
       managed.session.setThinkingLevel(inheritedThinking);
     }
     const state = this.#state(managed.session, conversation.id);
-    let updated = this.#catalog.update(conversation.id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
+    let updated = this.#catalog.updateSession(conversation.id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
     // `setup` may have seeded the chat; without a preview it would read as the blank draft.
     this.#healPreview(updated);
     updated = this.#catalog.get(conversation.id) ?? updated;
@@ -3627,7 +3641,7 @@ export class PiProcessManager {
     const managed = await this.#ensureSession(conversation);
     const state = this.#state(managed.session, conversation.id);
     const messages = this.#messages(managed.session, conversation.id);
-    let updated = this.#catalog.update(conversation.id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
+    let updated = this.#catalog.updateSession(conversation.id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
     this.#healPreview(updated);
     updated = this.#catalog.get(conversation.id) ?? updated;
     if (!this.#activationTicket.isCurrent(activation)) return { cancelled: false };
@@ -3793,7 +3807,7 @@ export class PiProcessManager {
     const managed = await this.#ensureSession(conversation);
     if (this.#activationTicket.isCurrent(activation)) this.#activate(managed);
     const state = this.#state(managed.session, conversation.id);
-    const updated = this.#catalog.update(conversation.id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
+    const updated = this.#catalog.updateSession(conversation.id, { sessionFile: state.sessionFile, sessionId: state.sessionId }) ?? conversation;
     return this.#opened(updated, [], state);
   }
   /**
@@ -4008,13 +4022,9 @@ export class PiProcessManager {
         },
       }],
     });
-    // browser-use and computer-use both close over the conversation id at factory time,
-    // which is this reload. Nested rather than merged: each bridge owns its own global
-    // and its own serialisation, and a reload is the only moment either needs stamping.
+    // browser-use closes over the conversation id at factory time, which is this reload.
     lap("setup");
-    await bindBrowserConversation(conversation.id, () =>
-      bindComputerConversation(conversation.id, () => resourceLoader.reload()),
-    );
+    await bindBrowserConversation(conversation.id, () => resourceLoader.reload());
     lap("extensions");
     const result = await createAgentSession({
       cwd,
@@ -5005,6 +5015,13 @@ export class PiProcessManager {
     if (!conversationId) return;
     this.#runTouchedFiles.delete(conversationId);
     clearCheckpoint(conversationId);
+    // A user turn is activity: this is what keeps the chat at the top of the sidebar it
+    // was just sent from. Opening a chat is not (see `updateSession`), so reading the
+    // list never reshuffles it — only sending, renaming and re-binding do.
+    //
+    // It lives here, not in `#writePromptPreview`: that one only writes while the preview
+    // is still empty, so every turn after the first would leave `updatedAt` where it was.
+    this.#catalog.touchActivity(conversationId);
   }
 
   /**

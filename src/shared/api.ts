@@ -291,6 +291,12 @@ export function createPinextApi(t: ApiTransport) {
       setFollowUpMode: (mode: "all" | "one-at-a-time", conversationId?: string): Promise<EngineSessionState> =>
         t.invoke(Ipc.engineSetFollowUp, { mode, conversationId }),
       exportHtml: (): Promise<string | undefined> => t.invoke(Ipc.engineExportHtml),
+      /**
+       * The 调用轨迹 page for one conversation, written to disk and returned as its path.
+       *
+       * A path, not the HTML: the page only runs as a document of its own (see
+       * `trace-frame.tsx`) — inside `srcDoc` the app's CSP would refuse its inline script.
+       */
       exportHtmlDocument: (conversationId?: string): Promise<string> =>
         t.invoke(Ipc.engineExportHtmlDocument, { conversationId }),
       /** The same conversation as plain Markdown — the thing a person pastes into a document. */
@@ -711,26 +717,6 @@ export function createPinextApi(t: ApiTransport) {
     },
     stats: {
       usage: (range: UsageRange): Promise<UsageStats> => t.invoke(Ipc.statsUsage, { range }),
-    },
-    computer: {
-      permissions: (): Promise<import("@shared/types").ComputerPermissionStatus> => t.invoke(Ipc.computerPermissions),
-      requestPermissions: (): Promise<import("@shared/types").ComputerPermissionStatus> =>
-        t.invoke(Ipc.computerRequestPermissions),
-      openSettings: (): Promise<void> => t.invoke(Ipc.computerOpenSettings),
-      listApps: (): Promise<import("@shared/types").ComputerAppInfo[]> => t.invoke(Ipc.computerListApps),
-      startDrag: (): Promise<void> => t.invoke(Ipc.computerStartDrag),
-      startGrantFlow: (): Promise<import("@shared/types").GrantFlowState> => t.invoke(Ipc.computerStartGrantFlow),
-      cancelGrantFlow: (): Promise<void> => t.invoke(Ipc.computerCancelGrantFlow),
-      getGrantFlow: (): Promise<import("@shared/types").GrantFlowState> => t.invoke(Ipc.computerGetGrantFlow),
-      onGrantFlowState: (listener: (state: import("@shared/types").GrantFlowState) => void): (() => void) =>
-        t.subscribe(Ipc.computerGrantFlowState, listener),
-      component: (): Promise<import("@shared/types").ComputerComponentStatus> => t.invoke(Ipc.computerComponent),
-      ensureComponent: (force?: boolean): Promise<import("@shared/types").ComputerComponentStatus> =>
-        t.invoke(Ipc.computerEnsureComponent, force ? { force: true } : {}),
-      cancelComponent: (): Promise<import("@shared/types").ComputerComponentStatus> =>
-        t.invoke(Ipc.computerCancelComponent),
-      onComponentState: (listener: (state: import("@shared/types").ComputerComponentStatus) => void): (() => void) =>
-        t.subscribe(Ipc.computerComponentState, listener),
     },
     browser: {
       listProfiles: (): Promise<BrowserProfileInfo[]> => t.invoke(Ipc.browserListProfiles),

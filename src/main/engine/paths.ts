@@ -52,6 +52,15 @@ export type PinextPaths = {
   memoriesBaselineDir: string;
   /** Pictures tool results returned, saved once as `<conversationId>/<toolCallId>-<n>.<ext>`; the transcript carries only these paths. */
   toolImagesDir: string;
+  /**
+   * 调用轨迹：pi 导出的那份完整历史页，每个对话一个文件，`<conversationId>.html`。
+   *
+   * 它必须落在磁盘上而不是回给渲染层当字符串：那个页面整个 UI 都靠一段内联
+   * `<script>` 构建，而 `srcDoc` 的文档会继承应用的 CSP（`script-src 'self'`），
+   * 内联脚本被拒后 iframe 里永远是空白。作为独立文档由 `pinext-media://` 服务时，
+   * 响应的 CSP 由我们自己在 `media-protocol.ts` 里写（允许内联脚本）。
+   */
+  tracesDir: string;
   /** Durable, engine-owned future Agent runs and their recent outcomes. */
   schedulesFile: string;
   /** Durable, Main-owned user message queue. */
@@ -151,8 +160,9 @@ function buildPinextPaths(): PinextPaths {
   const sessionsDir = join(agentDir, "sessions");
   const worktreesDir = join(runtimeRoot, "wt");
   const scratchDir = join(runtimeRoot, "scratch");
+  const tracesDir = join(runtimeRoot, "traces");
 
-  for (const dir of [logs, agentDir, skillsDir, sessionsDir, worktreesDir, scratchDir]) {
+  for (const dir of [logs, agentDir, skillsDir, sessionsDir, worktreesDir, scratchDir, tracesDir]) {
     mkdirSync(dir, { recursive: true });
   }
 
@@ -187,6 +197,7 @@ function buildPinextPaths(): PinextPaths {
     memoriesDir: join(runtimeRoot, "memories"),
     memoriesBaselineDir: join(runtimeRoot, "memories-baseline"),
     toolImagesDir: join(runtimeRoot, "tool-images"),
+    tracesDir,
     schedulesFile: join(runtimeRoot, "scheduled-tasks.json"),
     messageQueueFile: join(runtimeRoot, "message-queue.json"),
     remoteAccessFile: join(userData, "remote-access.json"),
