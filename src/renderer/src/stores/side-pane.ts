@@ -714,7 +714,7 @@ export const useSidePaneStore = create<SidePaneStore>((set, get) => {
           id: "git-graph",
           type: "git-graph" as const,
           openedAt: Date.now(),
-          title: i18n.t("sidepane:tabs.gitGraph") as string,
+          title: i18n.t("sidepane:tabs.git-graph") as string,
         }),
         ...(cwd ? { cwd } : {}),
       };
