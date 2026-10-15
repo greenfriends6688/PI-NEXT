@@ -28,12 +28,10 @@ const REMOVED_ON_PURPOSE = {
 };
 
 /**
- * The same, for what only one platform's `files` filters remove. The Linux build drops the whole
- * `@trycua/cua-driver` SDK because computer use is not offered there, and the app declares it.
+ * The same, for what only one platform's `files` filters remove. Nothing is dropped by a
+ * single platform at the moment; the map stays as the place that says so.
  */
-const REMOVED_ON_PURPOSE_BY_PLATFORM = {
-  linux: { pinext: ["@trycua/cua-driver"] },
-};
+const REMOVED_ON_PURPOSE_BY_PLATFORM = {};
 
 function skippedDeps(packageName, platform) {
   return new Set([...(REMOVED_ON_PURPOSE[packageName] ?? []), ...(REMOVED_ON_PURPOSE_BY_PLATFORM[platform]?.[packageName] ?? [])]);

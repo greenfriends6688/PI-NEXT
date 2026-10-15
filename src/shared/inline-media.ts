@@ -159,7 +159,7 @@ function isWriteTool(name: string): boolean {
 }
 
 /** Tools whose images are the *input* of the work or a viewport, not something it made. */
-const NO_RESULT_IMAGES = /^(read|view|browser_|computer_|screenshot|todo|question)/i;
+const NO_RESULT_IMAGES = /^(read|view|browser_|screenshot|todo|question)/i;
 /** Tools whose printed result is worth scanning for a path the work produced. */
 const SCANNED_RESULTS = /^(bash|shell|mcp_|codemode)/i;
 

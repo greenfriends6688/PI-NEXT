@@ -191,26 +191,6 @@ export const Ipc = {
   browserClearData: "browser:clear-data",
   /** Browsers installed on this machine, so the settings picker can offer them. */
   browserListEngines: "browser:list-engines",
-  /** Cua Driver permission state. The tools themselves need no IPC — the driver is
-   * loaded into Main, so a `computer_*` call never leaves the process. */
-  computerPermissions: "computer:permissions",
-  computerRequestPermissions: "computer:request-permissions",
-  computerOpenSettings: "computer:open-settings",
-  computerListApps: "computer:list-apps",
-  /** Starts the native drag that carries Pinext.app into the Privacy & Security list. */
-  computerStartDrag: "computer:start-drag",
-  /** The guided grant sequence, and the floating panel it drives. */
-  computerStartGrantFlow: "computer:start-grant-flow",
-  computerCancelGrantFlow: "computer:cancel-grant-flow",
-  /** Read once on mount; the broadcast below only fires when a step changes, so a
-   * Settings pane opened mid-sequence would otherwise show nothing for 1.5 seconds. */
-  computerGetGrantFlow: "computer:get-grant-flow",
-  computerGrantFlowState: "computer:grant-flow-state",
-  /** On-demand component: not in the installer, fetched when computer control is turned on. */
-  computerComponent: "computer:component",
-  computerEnsureComponent: "computer:ensure-component",
-  computerCancelComponent: "computer:cancel-component",
-  computerComponentState: "computer:component-state",
   enginePromptConversation: "engine:prompt-conversation",
   engineGetConversationMessages: "engine:get-conversation-messages",
   conversationsCreateSide: "conversations:create-side",

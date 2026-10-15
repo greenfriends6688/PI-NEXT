@@ -17,7 +17,7 @@ const STANDALONE_FAMILIES = new Set<ToolFamily>(["question", "todo", "agent", "p
 export function foldsIntoRun(name: string): boolean {
   const key = name.trim().toLowerCase();
   if (!key || key.startsWith("dag_")) return false;
-  if (key === "browser_task" || key === "computer_task") return false;
+  if (key === "browser_task") return false;
   return !STANDALONE_FAMILIES.has(familyOf(key));
 }
 

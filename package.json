@@ -17,11 +17,13 @@
   "scripts": {
     "sync:models": "node scripts/sync-models-dev.mjs",
     "sync": "node scripts/sync-models-dev.mjs",
-    "predev": "node scripts/ensure-electron.mjs && node scripts/sync-models-dev.mjs && node scripts/fetch-cua-driver.mjs",
+    "predev": "node scripts/ensure-electron.mjs && node scripts/sync-models-dev.mjs",
     "dev": "electron-vite dev",
     "prebuild": "node scripts/sync-models-dev.mjs && node scripts/check-injected-scripts.mjs",
     "build": "electron-vite build",
     "agent": "node out/main/agent.js --headless",
+    "web": "node out/main/agent.js --web",
+    "web:dev": "pnpm build && node out/main/agent.js --web",
     "build:agent-runtime": "node scripts/build-agent-runtime.mjs",
     "install:agent-service": "node scripts/install-agent-service.mjs",
     "preview": "electron-vite preview",
@@ -39,8 +41,7 @@
     "flutter:test": "cd apps/mobile_flutter && PATH=\"$HOME/development/flutter/bin:$PATH\" flutter test",
     "flutter:ios": "cd apps/mobile_flutter && PATH=\"$HOME/development/flutter/bin:$PATH\" flutter build ios --release --no-codesign",
     "flutter:apk": "cd apps/mobile_flutter && PATH=\"$HOME/development/flutter/bin:$PATH\" tool/build_release.sh",
-    "flutter:i18n": "node apps/mobile_flutter/tool/gen_i18n.mjs",
-    "fetch:cua-driver": "node scripts/fetch-cua-driver.mjs"
+    "flutter:i18n": "node apps/mobile_flutter/tool/gen_i18n.mjs"
   },
   "packageManager": "pnpm@11.22.0",
   "dependencies": {
@@ -51,7 +52,6 @@
     "@earendil-works/pi-tui": "1.2.0",
     "@larksuiteoapi/node-sdk": "^1.75.0",
     "@tanstack/react-virtual": "^3.14.13",
-    "@trycua/cua-driver": "0.28.2",
     "agent-base": "^9.0.0",
     "bonjour-service": "^1.4.4",
     "electron-updater": "^6.8.9",

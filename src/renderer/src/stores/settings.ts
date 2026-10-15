@@ -150,13 +150,6 @@ export type AppSettings = ProxySettings & {
    * from its section's list keeps the section's default position (creation order,
    * or pin time for 置顶).
    */
-  /**
-   * 电脑操控 (设置 → 电脑操控). Mirrors `ComputerSettings`; kept as flat keys because
-   * `settings.json` is a flat bag that Main reads one preference at a time.
-   */
-  computerEnabled: boolean;
-  computerClipboard: boolean;
-  computerPreferBackground: boolean;
   sidebarOrder?: Record<string, string[]>;
   /** Project cwds (and section keys) folded shut in the sidebar. */
   sidebarCollapsedProjects?: string[];
@@ -202,9 +195,6 @@ const DEFAULTS: AppSettings = {
   // Off until the user turns it on. Driving the desktop is not something an app should
   // start doing because it was installed — unlike every other default here, the cost of
   // guessing wrong is an action taken in someone else's application.
-  computerEnabled: false,
-  computerClipboard: false,
-  computerPreferBackground: true,
   autoArchiveDays: DEFAULT_AUTO_ARCHIVE_DAYS,
 };
 
@@ -213,7 +203,19 @@ const DEFAULTS: AppSettings = {
  * rules they remembered, and the retired interface-font pick). Dropped on load, so the
  * next save no longer carries them.
  */
-const REMOVED_KEYS = ["permissionMode", "defaultPermissionMode", "fullAccessConfirmed", "permissionAlways", "computerAllowedApps", "uiFont"] as const;
+const REMOVED_KEYS = [
+  "permissionMode",
+  "defaultPermissionMode",
+  "fullAccessConfirmed",
+  "permissionAlways",
+  "computerAllowedApps",
+  // 电脑操控 was removed outright (macOS 13+ only, see docs/pinext-next-plan-2026-10-15.md).
+  // A machine that had it on keeps the key in its file; it is dropped on load like the rest.
+  "computerEnabled",
+  "computerClipboard",
+  "computerPreferBackground",
+  "uiFont",
+] as const;
 
 /** Drop malformed persisted theme values so a stale id can never crash the app. */
 function sanitize(parsed: Partial<AppSettings>): Partial<AppSettings> {
@@ -241,9 +243,6 @@ function sanitize(parsed: Partial<AppSettings>): Partial<AppSettings> {
   if (!isNumberMap(next.sidePaneSplits)) delete next.sidePaneSplits;
   if (!isIdList(next.archivedConversations)) delete next.archivedConversations;
   if (!isAutoArchiveDays(next.autoArchiveDays)) delete next.autoArchiveDays;
-  if (typeof next.computerEnabled !== "boolean") delete next.computerEnabled;
-  if (typeof next.computerClipboard !== "boolean") delete next.computerClipboard;
-  if (typeof next.computerPreferBackground !== "boolean") delete next.computerPreferBackground;
   if (!isIdListMap(next.sidebarOrder)) delete next.sidebarOrder;
   if (!isIdList(next.sidebarCollapsedProjects)) delete next.sidebarCollapsedProjects;
   if (!isIdList(next.sidebarExpandedProjects)) delete next.sidebarExpandedProjects;

@@ -43,9 +43,7 @@ export function classifyRemotePush(channel: string): RemotePushKind {
     channel === Ipc.accountState ||
     channel === Ipc.windowState ||
     channel === Ipc.providersOAuthEvent ||
-    channel === Ipc.browserRequest ||
-    channel === Ipc.computerComponentState ||
-    channel === Ipc.computerGrantFlowState
+    channel === Ipc.browserRequest
   ) {
     return "drop";
   }

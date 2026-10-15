@@ -19,7 +19,6 @@ export const BUILTIN_EXTENSIONS: Array<{ source: string; file: string }> = [
   { source: "pinext:folder-consent", file: "folder-consent.ts" },
   { source: "pinext:session-title", file: "session-title.ts" },
   { source: "pinext:browser-use", file: "browser-use.ts" },
-  { source: "pinext:computer-use", file: "computer-use.ts" },
   { source: "pinext:web-search", file: "web-search.ts" },
   { source: "pinext:conversation-search", file: "conversation-search.ts" },
   { source: "pinext:worktree", file: "worktree.ts" },
@@ -51,7 +50,7 @@ function resourcesRoot(): string {
 }
 
 /** Built-in skills, by directory name under `resources/skills`. */
-const BUILTIN_SKILLS = ["browser-use", "computer-use", "pinext-setup", "skill-creator", "find-skills", "pdf"];
+const BUILTIN_SKILLS = ["browser-use", "pinext-setup", "skill-creator", "find-skills", "pdf"];
 
 export function builtinSkillPaths(): string[] {
   const dir = join(resourcesRoot(), "skills");

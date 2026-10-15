@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { AiImageIcon, Analytics01Icon, Archive04Icon, BotIcon, BoxesIcon, BrainCircuitIcon, Clock01Icon, ComputerIcon, Globe02Icon, ImportIcon, InformationCircleIcon, KeyboardIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Router01Icon, Search01Icon, SentIcon, ServerStack01Icon, Settings02Icon, SparklesIcon, StickyNote01Icon, UserCircle02Icon, Wifi01Icon } from "@hugeicons/core-free-icons";
+import { AiImageIcon, Analytics01Icon, Archive04Icon, BotIcon, BoxesIcon, BrainCircuitIcon, Clock01Icon, Globe02Icon, ImportIcon, InformationCircleIcon, KeyboardIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Router01Icon, Search01Icon, SentIcon, ServerStack01Icon, Settings02Icon, SparklesIcon, StickyNote01Icon, UserCircle02Icon, Wifi01Icon } from "@hugeicons/core-free-icons";
 import { i18n } from "@/lib/i18n";
 
 /**
@@ -33,7 +33,6 @@ export type SectionId =
   | "import"
   | "remote"
   | "ssh"
-  | "computer"
   | "proxy"
   | "browser"
   | "about";
@@ -87,7 +86,6 @@ export const SETTINGS_SECTIONS: Array<{
   {
     group: "system",
     items: [
-      { id: "computer", icon: <HugeiconsIcon strokeWidth={2} icon={ComputerIcon} /> },
       { id: "browser", icon: <HugeiconsIcon strokeWidth={2} icon={Globe02Icon} /> },
       { id: "proxy", icon: <HugeiconsIcon strokeWidth={2} icon={Router01Icon} /> },
       { id: "remote", icon: <HugeiconsIcon strokeWidth={2} icon={Wifi01Icon} /> },

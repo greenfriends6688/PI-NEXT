@@ -138,9 +138,6 @@ mac:
     # runners, which may not have clipboard-darwin-x64 installed). Drop the
     # other arch's package; the loader tries universal first, then ${arch}.
     - "!**/node_modules/@mariozechner/clipboard-darwin-!(${arch}|universal){,/**/*}"
-    # Downloaded when 电脑操控 is turned on, not shipped. The JS bindings stay;
-    # the platform package is the ~50 MB native library.
-    - "!**/node_modules/@trycua/cua-driver-*/**"
   # No `arch:` here on purpose. `computeArchToTargetNamesMap` only falls back to the
   # architectures named on the command line when a target declares none of its own
   # (`archs == null ? defaultArchs : asArray(archs)`), so listing them here made
@@ -165,8 +162,6 @@ win:
     - "!**/node_modules/@mariozechner/clipboard-win32-!(${arch}*){,/**/*}"
     - "!**/node_modules/@node-datachannel/{darwin,linux,android}-*{,/**/*}"
     - "!**/node_modules/@node-datachannel/win32-!(${arch}*){,/**/*}"
-    # Downloaded when 电脑操控 is turned on, not shipped.
-    - "!**/node_modules/@trycua/cua-driver-*/**"
   target:
     - target: nsis
       arch:
@@ -195,12 +190,6 @@ linux:
     - "!**/node_modules/@mariozechner/clipboard-linux-!(${arch}*){,/**/*}"
     - "!**/node_modules/@node-datachannel/{darwin,win32,android}-*{,/**/*}"
     - "!**/node_modules/@node-datachannel/linux-!(${arch}-gnu){,/**/*}"
-    - "!**/node_modules/@trycua/cua-driver-{darwin,win32}-*{,/**/*}"
-    - "!**/node_modules/@trycua/cua-driver-linux-!(${arch}*){,/**/*}"
-    # Pinext does not offer computer use on Linux, so omit the SDK and its
-    # platform bindings rather than shipping the ~40 MB Linux native library.
-    - "!**/node_modules/@trycua/cua-driver{,/**/*}"
-    - "!**/node_modules/@trycua/cua-driver-linux-*{,/**/*}"
     - "!**/node_modules/@ubjs/{,/**/*}"
   target:
     - AppImage

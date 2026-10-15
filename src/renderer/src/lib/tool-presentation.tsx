@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { BotIcon, ChromeIcon, ComputerIcon, FileEditIcon, FileMinusIcon, FilePlusIcon, FileTextIcon, FolderTreeIcon, Image01Icon, ListChecksIcon, MessageQuestionIcon, Plug01Icon, Search01Icon, SourceCodeIcon, SparklesIcon, SquareTerminalIcon, WorkflowSquare01Icon, Wrench01Icon } from "@hugeicons/core-free-icons";
+import { BotIcon, ChromeIcon, FileEditIcon, FileMinusIcon, FilePlusIcon, FileTextIcon, FolderTreeIcon, Image01Icon, ListChecksIcon, MessageQuestionIcon, Plug01Icon, Search01Icon, SourceCodeIcon, SparklesIcon, SquareTerminalIcon, WorkflowSquare01Icon, Wrench01Icon } from "@hugeicons/core-free-icons";
 import type { ToolCallBlock } from "@shared/types";
 import { i18n } from "@/lib/i18n";
 import { codemodeCalls, codemodeCode, codemodeFailures, codemodeSummary } from "./codemode";
@@ -122,7 +122,7 @@ export function describeTool(tool: ToolCallBlock, cwd?: string): ToolView {
   const label = familyLabel(family, running);
   const statusLabel = tool.status === "error" ? (i18n.t("common:tool.failed") as string) : undefined;
   const view: ToolView = { family, icon: ICONS[family], label, statusLabel, running };
-  if (tool.name === "browser_task" || tool.name === "computer_task") return describeDecisionTask(tool, view);
+  if (tool.name === "browser_task") return describeDecisionTask(tool, view);
   if (DAG_ACTIONS.has(tool.name)) return describeDagTool(tool, view);
 
   switch (family) {
@@ -275,15 +275,14 @@ export function describeTool(tool: ToolCallBlock, cwd?: string): ToolView {
 }
 
 /**
- * `browser_task` / `computer_task`: a whole run decided by the decision model (Jev), not
- * one step. The row says so — which engine, how many steps, how long, and whether it got
- * to the end — because the only other way to tell a Jev run from the main model clicking
- * through `browser_*` tools itself was to open the raw result.
+ * `browser_task`: a whole run decided by the decision model (Jev), not one step. The row
+ * says so — which engine, how many steps, how long, and whether it got to the end —
+ * because the only other way to tell a Jev run from the main model clicking through
+ * `browser_*` tools itself was to open the raw result.
  */
 function describeDecisionTask(tool: ToolCallBlock, view: ToolView): ToolView {
-  const computer = tool.name === "computer_task";
-  view.icon = computer ? <HugeiconsIcon strokeWidth={2} icon={ComputerIcon} className="size-3.5" /> : ICONS.browser;
-  view.label = i18n.t(`common:tool.${computer ? "computerTask" : "browserTask"}.${view.running ? "running" : "done"}`) as string;
+  view.icon = ICONS.browser;
+  view.label = i18n.t(`common:tool.browserTask.${view.running ? "running" : "done"}`) as string;
   const goal = argString(tool.args, ["goal"]);
   view.subject = goal || tool.name;
   view.title = goal || tool.name;

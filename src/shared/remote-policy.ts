@@ -62,23 +62,6 @@ const DENIED = new Map<string, string>([
   [Ipc.browserImportProfile, "\u6d4f\u89c8\u5668\u5de5\u5177\u4f9d\u8d56\u684c\u9762\u7aef\u7684\u5185\u5d4c\u6d4f\u89c8\u5668"],
   [Ipc.browserClearData, "\u6d4f\u89c8\u5668\u5de5\u5177\u4f9d\u8d56\u684c\u9762\u7aef\u7684\u5185\u5d4c\u6d4f\u89c8\u5668"],
   [Ipc.browserListEngines, "\u6d4f\u89c8\u5668\u5de5\u5177\u4f9d\u8d56\u684c\u9762\u7aef\u7684\u5185\u5d4c\u6d4f\u89c8\u5668"],
-  // Granting the driver its macOS permissions opens System Settings and a TCC prompt on
-  // the machine running the server \u2014 (a) and (b) at once. The `computer_*` tools
-  // themselves stay available remotely: the agent runs on the host, so driving the host's
-  // desktop is what a remote client is asking for, not a misdirected action.
-  [Ipc.computerPermissions, "\u7535\u8111\u64cd\u4f5c\u6743\u9650\u53ea\u80fd\u5728\u672c\u673a\u67e5\u770b\u548c\u6388\u6743"],
-  [Ipc.computerRequestPermissions, "\u7535\u8111\u64cd\u4f5c\u6743\u9650\u53ea\u80fd\u5728\u672c\u673a\u67e5\u770b\u548c\u6388\u6743"],
-  [Ipc.computerOpenSettings, "\u7535\u8111\u64cd\u4f5c\u6743\u9650\u53ea\u80fd\u5728\u672c\u673a\u67e5\u770b\u548c\u6388\u6743"],
-  [Ipc.computerListApps, "\u7535\u8111\u64cd\u4f5c\u6743\u9650\u53ea\u80fd\u5728\u672c\u673a\u67e5\u770b\u548c\u6388\u6743"],
-  // A drag has to start from a real window's webContents, and the panel it starts from
-  // is a window opened on the server's own screen. A web client has neither.
-  [Ipc.computerStartDrag, "\u62d6\u62fd\u6388\u6743\u53ea\u80fd\u5728\u684c\u9762\u7aef\u5b8c\u6210"],
-  [Ipc.computerStartGrantFlow, "\u62d6\u62fd\u6388\u6743\u53ea\u80fd\u5728\u684c\u9762\u7aef\u5b8c\u6210"],
-  [Ipc.computerCancelGrantFlow, "\u62d6\u62fd\u6388\u6743\u53ea\u80fd\u5728\u684c\u9762\u7aef\u5b8c\u6210"],
-  [Ipc.computerGetGrantFlow, "\u62d6\u62fd\u6388\u6743\u53ea\u80fd\u5728\u684c\u9762\u7aef\u5b8c\u6210"],
-  [Ipc.computerComponent, "\u7535\u8111\u64cd\u63a7\u7ec4\u4ef6\u53ea\u80fd\u5728\u672c\u673a\u4e0b\u8f7d"],
-  [Ipc.computerEnsureComponent, "\u7535\u8111\u64cd\u63a7\u7ec4\u4ef6\u53ea\u80fd\u5728\u672c\u673a\u4e0b\u8f7d"],
-  [Ipc.computerCancelComponent, "\u7535\u8111\u64cd\u63a7\u7ec4\u4ef6\u53ea\u80fd\u5728\u672c\u673a\u4e0b\u8f7d"],
   // A subscription login opens the system browser on the server's machine and waits on
   // a loopback callback there. Nothing about it can complete from another device.
   [Ipc.providersOAuthLogin, "\u8ba2\u9605\u767b\u5f55\u9700\u8981\u5728\u672c\u673a\u6d4f\u89c8\u5668\u4e2d\u5b8c\u6210"],

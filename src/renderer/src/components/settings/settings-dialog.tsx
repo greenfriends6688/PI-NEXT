@@ -33,7 +33,6 @@ import { DecisionSettings } from "./decision-settings";
 import { MemorySettings } from "./memory-settings";
 import { RemoteSettings } from "./remote-settings";
 import { RemoteHostsSettings } from "./remote-hosts-settings";
-import { ComputerSettings } from "./computer-settings";
 import { ProxySettings } from "./proxy-settings";
 import { BrowserSettings } from "./browser-settings";
 import { SkillsSettings } from "./skills-settings";
@@ -430,7 +429,6 @@ export function SettingsDialog({
           {section === "usage" ? <UsageSettings /> : null}
           {section === "remote" ? <RemoteSettings /> : null}
           {section === "ssh" ? <RemoteHostsSettings /> : null}
-          {section === "computer" ? <ComputerSettings /> : null}
           {section === "proxy" ? <ProxySettings /> : null}
           {section === "browser" ? <BrowserSettings /> : null}
 

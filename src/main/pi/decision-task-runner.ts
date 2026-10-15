@@ -13,11 +13,10 @@ import { uiText } from "../engine/ui-text";
 import type { DecisionModelConfig } from "@shared/decision";
 
 /**
- * What `browser_task` and `computer_task` share (docs/decision-layer.md §7): the
- * decision-model loop (`runBrowserAgent`, jev-ultrafast's), wrapped with the parts that
- * do not depend on what is being driven — which backend decides, the field-text helper,
- * revocation, and the result the tool returns.
- * Each tool brings only its control layer.
+ * The decision-model loop behind `browser_task` (docs/decision-layer.md §7):
+ * `runBrowserAgent` (jev-ultrafast's), wrapped with the parts that do not depend on what
+ * is being driven — which backend decides, the field-text helper, revocation, and the
+ * result the tool returns.
  */
 
 export type DecisionTaskRequest = {
@@ -54,11 +53,7 @@ export function browserTasksEnabled(): boolean {
   return config.kind === "jev" && config.browserControl;
 }
 
-/** Whether sessions should be offered `computer_task` (re-read at the start of every turn). */
-export function computerTasksEnabled(): boolean {
-  const config = readDecisionConfig(getPinextPaths().decisionFile);
-  return config.kind === "jev" && config.computerControl;
-}
+
 
 /**
  * Stop every running task — the decision model was switched off or its key cleared.

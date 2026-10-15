@@ -1,30 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bindBrowserConversation, bindComputerConversation } from "../src/main/pi/conversation-binding.ts";
+import { bindBrowserConversation } from "../src/main/pi/conversation-binding.ts";
 
 const globals = globalThis as Record<string, unknown>;
 const browserKey = "__pinextBrowserConversationId";
-const computerKey = "__pinextComputerConversationId";
 
-test("concurrent extension reloads capture their own browser and computer conversation", async () => {
+test("concurrent extension reloads capture their own browser conversation", async () => {
   const beforeBrowser = globals[browserKey];
-  const beforeComputer = globals[computerKey];
   const seen: string[] = [];
   const results = await Promise.all(["a", "b", "c"].map((id) =>
-    bindBrowserConversation(id, () => bindComputerConversation(id, async () => {
+    bindBrowserConversation(id, async () => {
       assert.equal(globals[browserKey], id);
-      assert.equal(globals[computerKey], id);
       await new Promise((resolve) => setTimeout(resolve, 5));
       assert.equal(globals[browserKey], id);
-      assert.equal(globals[computerKey], id);
       seen.push(id);
       return id;
-    })),
+    }),
   ));
   assert.deepEqual(results, ["a", "b", "c"]);
   assert.deepEqual(seen, results);
   assert.equal(globals[browserKey], beforeBrowser);
-  assert.equal(globals[computerKey], beforeComputer);
 });
 
 test("failed reload restores existing scope and does not poison the next reload", async () => {
