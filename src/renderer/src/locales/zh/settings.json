@@ -1128,17 +1128,17 @@
     "buildHint": "它服务的是构建产物；没有产物时启动会明确报「找不到 web 产物」，而不是起一个只回 404 的监听器"
   },
   "identity": {
-    "avatar": "头像",
-    "changeAvatar": "更换头像",
-    "resetAvatar": "恢复默认头像",
+    "avatar": "Logo",
+    "changeAvatar": "更换 Logo",
+    "resetAvatar": "恢复默认 Logo",
     "name": "名字",
-    "nameHint": "聊天里显示的名字；留空则用「PI NEXT」。",
+    "nameHint": "显示的名字；留空则用「PI NEXT」。",
     "save": "保存",
     "sync": "同步用户资料",
     "syncHint": "跟随「{{name}}」的名称与首字母头像。",
     "syncUnavailable": "读不到本机用户名，无法同步。",
-    "footer": "这只影响聊天里显示成谁；agent 在系统提示词里的自我描述不在这里改。",
-    "avatarTooLarge": "头像太大（{{kb}} KB > 上限 {{max}} KB）。",
+    "footer": "这只影响侧栏 / 顶栏显示的 Logo 与名字；agent 在系统提示词里的自我描述不在这里改。",
+    "avatarTooLarge": "Logo 太大（{{kb}} KB > 上限 {{max}} KB）。",
     "avatarNotImage": "只能选图片文件。"
   }
 }

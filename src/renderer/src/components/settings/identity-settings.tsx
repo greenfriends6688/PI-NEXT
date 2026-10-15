@@ -165,11 +165,8 @@ function AvatarPreview({
     );
   }
   if (view.imageUrl) {
-    return <img src={view.imageUrl} alt="" className="size-10 shrink-0 rounded-full object-cover" />;
+    // 上传的 logo **原样显示**：不套灰底、不强制成圆形。
+    return <img src={view.imageUrl} alt="" className="size-10 shrink-0 object-contain" />;
   }
-  return (
-    <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-muted">
-      <AppLogo className="size-7" />
-    </span>
-  );
+  return <AppLogo className="size-10 shrink-0" />;
 }

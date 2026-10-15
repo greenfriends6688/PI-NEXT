@@ -1130,17 +1130,17 @@
     "buildHint": "It serves the built renderer; with none, starting says “no web build found” rather than opening a listener that only answers 404"
   },
   "identity": {
-    "avatar": "Avatar",
-    "changeAvatar": "Change avatar",
-    "resetAvatar": "Reset avatar",
+    "avatar": "Logo",
+    "changeAvatar": "Change logo",
+    "resetAvatar": "Reset logo",
     "name": "Name",
-    "nameHint": "The name shown in chat; empty falls back to “PI NEXT”.",
+    "nameHint": "The name shown; empty falls back to “PI NEXT”.",
     "save": "Save",
     "sync": "Sync user profile",
     "syncHint": "Follow “{{name}}”'s name and initials avatar.",
     "syncUnavailable": "Could not read the local user name, so sync is unavailable.",
-    "footer": "This only changes who is shown in chat; the agent's self-description in the system prompt is not edited here.",
-    "avatarTooLarge": "Avatar is too large ({{kb}} KB > {{max}} KB limit).",
+    "footer": "This only changes the logo and name in the sidebar / title bar; the agent's self-description in the system prompt is not edited here.",
+    "avatarTooLarge": "Logo is too large ({{kb}} KB > {{max}} KB limit).",
     "avatarNotImage": "Only image files are accepted."
   }
 }

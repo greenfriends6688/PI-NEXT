@@ -45,7 +45,7 @@ import { CollapsiblePanel } from "@/components/layout/collapsible-panel";
 import { setSidebarCollapsed, useIsNarrowViewport, useSidebarCollapsed } from "@/lib/sidebar-visibility";
 import { SidebarAccount } from "@/components/layout/sidebar-account";
 import { SidebarUpdateButton } from "@/components/layout/sidebar-update-button";
-import { AppLogo } from "@/components/app-logo";
+import { IdentityLogo, IdentityName } from "@/components/identity-brand";
 import { cn } from "@/lib/utils";
 import { useDagStore } from "@/stores/dag";
 import { useSidePaneStore } from "@/stores/side-pane";
@@ -562,8 +562,8 @@ export const Sidebar = memo(function Sidebar({
               </div>
             ) : (
               <div className="flex items-center gap-2 px-2">
-                <AppLogo className="size-7 shrink-0" />
-                <span className="text-sm font-semibold tracking-[0.08em]">PI NEXT</span>
+                <IdentityLogo className="size-7" />
+                <IdentityName className="text-sm font-semibold tracking-[0.08em]" />
               </div>
             )}
             <div className="flex items-center gap-0.5">

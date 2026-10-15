@@ -4,7 +4,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
-} from "@hugeicons/core-free-icons";import { AppLogo } from "@/components/app-logo";
+} from "@hugeicons/core-free-icons";import { IdentityLogo, IdentityName } from "@/components/identity-brand";
 import { IconButton } from "@/components/icon-button";
 import { useHistoryNav } from "@/lib/use-history-nav";
 import { cn } from "@/lib/utils";
@@ -42,8 +42,8 @@ export function TitleBar(): JSX.Element {
     >
       <div className="no-drag flex min-w-0 items-center gap-3">
         <div className="flex shrink-0 items-center gap-2">
-          <AppLogo className="size-7 shrink-0" />
-          <span className="truncate text-sm font-semibold tracking-[0.08em]">PI NEXT</span>
+          <IdentityLogo className="size-7" />
+          <IdentityName className="truncate text-sm font-semibold tracking-[0.08em]" />
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <IconButton
