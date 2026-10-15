@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, ArrowUpRight01Icon, Cancel01Icon, FileAddIcon, FolderAddIcon, FolderOpenIcon, RefreshIcon, Search01Icon, SourceCodeIcon, ViewIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, ArrowUpRight01Icon, Cancel01Icon, FileAddIcon, FolderAddIcon, FolderOpenIcon, RefreshIcon, Search01Icon } from "@hugeicons/core-free-icons";
 import { editableFileText, prefersSourceEditor } from "@shared/editable-preview";
 import { folderName } from "@shared/project-folders";
 import { IconButton } from "@/components/icon-button";
@@ -17,6 +17,8 @@ import { copyPath, revealPath } from "@/components/path-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileIcon } from "@/components/file-icon";
 import { PreviewSurface, previewText } from "@/components/chat/preview-panel";
+import { DiffView } from "@/components/chat/diff-view";
+import { isRemoteRef } from "@/lib/remote-project";
 import { HighlightedEditor } from "@/components/chat/highlighted-editor";
 import { FileBreadcrumb } from "@/components/layout/file-breadcrumb";
 import { cn } from "@/lib/utils";
@@ -26,7 +28,7 @@ import type { DirEntry, FilePreview } from "@shared/types";
 import type { FileMutation } from "@shared/file-mutation";
 
 import { createTextAttachment } from "@/lib/attachments";
-import { useSessionStore } from "@/stores/session";
+import { useSessionStore, useWorkspacePath } from "@/stores/session";
 import { toast } from "sonner";
 
 type DirMap = Record<string, DirEntry[]>;
@@ -631,6 +633,34 @@ export function SidePaneFiles({
   );
 }
 
+/**
+ * Which of the three views a file tab is showing.
+ *
+ * Orthogonal to `editing`, which is a permission (can this file be written back?) rather
+ * than a view: a file can be editable and shown as a diff, and a rendered Markdown page is
+ * not editable at all. Kept apart because merging them left "show me the diff" with no
+ * state of its own, so it could only be reached by opening a different tab.
+ */
+type FileDisplayMode = "source" | "preview" | "diff";
+
+/**
+ * Which modes this file can actually be shown in.
+ *
+ * `diff` appears only when there is a diff to show — the same rule pi-web applies
+ * (`FileViewer.tsx:1601`), and the reason a file with no changes does not offer a button
+ * that would open an empty pane. `preview` is for the kinds that render (Markdown, HTML,
+ * media); a plain source file has nothing to render.
+ */
+function displayModesFor(preview: FilePreview, hasDiff: boolean): FileDisplayMode[] {
+  const rendered =
+    preview.kind === "markdown" ||
+    preview.kind === "html" ||
+    preview.kind === "image" ||
+    preview.kind === "video" ||
+    preview.kind === "pdf";
+  return ["source", ...(rendered ? (["preview"] as const) : []), ...(hasDiff ? (["diff"] as const) : [])];
+}
+
 function FilePreviewPane({
   preview,
   draft,
@@ -665,6 +695,46 @@ function FilePreviewPane({
   const shown = draft !== undefined && saved !== null ? withText(preview, draft) : preview;
   const text = previewText(shown);
   const source = editing && editable;
+  const cwd = useWorkspacePath();
+
+  // The file's diff against HEAD, fetched as soon as the file is open. `null` means "not
+  // fetched yet" and `""` means "fetched, nothing to show" — the difference decides
+  // whether 差异 appears at all, so they cannot be collapsed into one value.
+  const [diff, setDiff] = useState<string | null>(null);
+  const [mode, setMode] = useState<FileDisplayMode | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDiff(null);
+    setMode(null);
+    // A remote file has no local repository to diff against.
+    if (!cwd || isRemoteRef(preview.path)) return undefined;
+    void window.pinext.workspace
+      .gitDiff(cwd, preview.path, "unstaged")
+      .then((value) => {
+        if (!cancelled) setDiff(value);
+      })
+      .catch(() => {
+        // Not a repository, or the file sits outside it: no diff to offer.
+        if (!cancelled) setDiff("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cwd, preview.path]);
+
+  const modes = displayModesFor(preview, Boolean(diff));
+  // The reader's pick, or the one this file is best shown in. A rendered kind opens
+  // rendered (that is what the file *is*); everything else opens as source.
+  const effective: FileDisplayMode = mode && modes.includes(mode) ? mode : modes[0];
+  const showDiff = effective === "diff";
+  const showSource = effective === "source" && editable;
+
+  const MODE_LABELS: Record<FileDisplayMode, string> = {
+    source: t("files.modeSource"),
+    preview: t("files.modePreview"),
+    diff: t("files.modeDiff"),
+  };
 
   function attachSelection(code: string): void {
     const store = useSessionStore.getState();
@@ -700,27 +770,44 @@ function FilePreviewPane({
           onOpenFile={onOpenFile}
         />
         {dirty ? <span className="size-1.5 shrink-0 rounded-full bg-warning" title={t("files.unsaved")} /> : null}
-        {/* The source toggle is the only control left. It keeps its own width so the
-            path can use the rest of the row. */}
+        {/* 源码 / 预览 / 差异, as a segmented control, and only when there is a choice to
+            make: a plain source file with no changes has exactly one view, and a one-button
+            switch is chrome that explains nothing. The diff is the turn's own — what
+            changed against HEAD — not the working tree's whole state. */}
         <div className="flex shrink-0 items-center gap-1.5">
-          {editable ? (
-            // The one control the viewer keeps, at the end of the row: it names what the
-            // click will show — a `</>` while the document is rendered, an eye while the
-            // source is. Saving is ⌘S; a button for it is a second way to do what the
-            // keyboard already does.
-            <IconButton
-              size="icon-xs"
-              variant="ghost"
-              aria-pressed={source}
-              label={source ? t("files.previewMode") : t("files.viewSource")}
-              onClick={() => onEdit(!source)}
-            >
-              <HugeiconsIcon strokeWidth={2} icon={source ? ViewIcon : SourceCodeIcon} />
-            </IconButton>
+          {modes.length > 1 ? (
+            <div className="flex items-center rounded-md bg-muted p-0.5" role="group" aria-label={t("files.displayMode")}>
+              {modes.map((candidate) => (
+                <button
+                  key={candidate}
+                  type="button"
+                  aria-pressed={effective === candidate}
+                  onClick={() => {
+                    setMode(candidate);
+                    // `editing` is the source view's own state, so entering source turns it
+                    // on and leaving it turns it off. Without this a draft kept collecting
+                    // keystrokes after the reader switched to the rendered view.
+                    onEdit(candidate === "source");
+                  }}
+                  className={cn(
+                    "rounded px-1.5 py-0.5 text-xs transition-colors",
+                    effective === candidate
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {MODE_LABELS[candidate]}
+                </button>
+              ))}
+            </div>
           ) : null}
         </div>
       </div>
-      {source && baseline !== undefined ? (
+      {showDiff ? (
+        <ScrollArea className="min-h-0 flex-1">
+          <DiffView text={diff ?? ""} className="mt-0 rounded-none border-0" />
+        </ScrollArea>
+      ) : showSource && baseline !== undefined ? (
         <HighlightedEditor
           value={value}
           language={editorLanguage(preview)}

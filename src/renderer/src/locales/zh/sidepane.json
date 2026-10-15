@@ -97,7 +97,11 @@
     "linkTitle": "此目录指向项目外。",
     "linkAllow": "允许浏览",
     "linkEncloses": "这条链接会打开项目或主目录范围（{{target}}）。仍要允许浏览吗？",
-    "allowFailed": "无法允许浏览"
+    "allowFailed": "无法允许浏览",
+    "modeSource": "源码",
+    "modePreview": "预览",
+    "modeDiff": "差异",
+    "displayMode": "显示方式"
   },
   "changes": {
     "count": "{{count}} 个文件",

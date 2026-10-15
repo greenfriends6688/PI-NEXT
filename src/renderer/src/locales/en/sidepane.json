@@ -97,7 +97,11 @@
     "linkTitle": "This folder points outside the project.",
     "linkAllow": "Allow browsing",
     "linkEncloses": "This link would open the project or home folder area ({{target}}). Allow browsing anyway?",
-    "allowFailed": "Could not allow browsing"
+    "allowFailed": "Could not allow browsing",
+    "modeSource": "Source",
+    "modePreview": "Preview",
+    "modeDiff": "Diff",
+    "displayMode": "Display mode"
   },
   "changes": {
     "count": "{{count}} files",
