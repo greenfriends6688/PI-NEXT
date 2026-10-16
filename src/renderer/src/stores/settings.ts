@@ -11,6 +11,7 @@ import {
   type ThemeMode,
 } from "@/lib/themes";
 import { normalizeNotificationSettings } from "@shared/notifications";
+import { DEFAULT_SOUND_PRESET, isSoundPresetId, type SoundPresetId } from "@/lib/sound-presets";
 import { DEFAULT_AUTO_ARCHIVE_DAYS, isAutoArchiveDays } from "@shared/auto-archive";
 import { detectSystemLanguage, isUiLanguage, type UiLanguage } from "@/lib/language";
 import { sanitizeShortcutOverrides, type ShortcutOverrides } from "@/lib/shortcuts";
@@ -58,6 +59,17 @@ export type AppSettings = ProxySettings & {
   notifyError: boolean;
   notifyApproval: boolean;
   notifyUpdate: boolean;
+  /**
+   * 完成提示音 (设置 → 通用): a tone when a run settles or a prompt is waiting.
+   *
+   * Its own switch, not a second thing the notification switch turns on: the two answer
+   * different questions ("tell me on screen" vs "let me hear it"), and the tone plays
+   * only while no window is in front — the same gate the system notification uses, so the
+   * two never both fire for one event. Absent means on.
+   */
+  soundEnabled: boolean;
+  /** Which tone (`lib/sound-presets.ts`). An id no build knows falls back to the default. */
+  soundPreset: SoundPresetId;
   /**
    * Provider/model a brand-new conversation starts on. Persisted like every other
    * preference and read by the engine when it creates a session — the SDK's own
@@ -192,6 +204,10 @@ const DEFAULTS: AppSettings = {
   notifyError: true,
   notifyApproval: true,
   notifyUpdate: true,
+  // 完成提示音. On, like the notifications it accompanies — but it is the silent half of
+  // the pair, so an install that never touches Settings still hears a run finish.
+  soundEnabled: true,
+  soundPreset: DEFAULT_SOUND_PRESET,
   // Off until the user turns it on. Driving the desktop is not something an app should
   // start doing because it was installed — unlike every other default here, the cost of
   // guessing wrong is an action taken in someone else's application.
@@ -252,6 +268,8 @@ function sanitize(parsed: Partial<AppSettings>): Partial<AppSettings> {
   // `notifications` is the three-valued key this replaced, dropped rather than migrated.
   normalizeNotificationSettings(next);
   delete (next as Record<string, unknown>).notifications;
+  if (typeof next.soundEnabled !== "boolean") delete next.soundEnabled;
+  if (!isSoundPresetId(next.soundPreset)) delete next.soundPreset;
   delete (next as Record<string, unknown>).fullDiskAccessDismissed;
   if (typeof next.keepAwake !== "boolean") delete next.keepAwake;
   if (typeof next.glass !== "boolean") delete next.glass;

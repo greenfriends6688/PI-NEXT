@@ -245,7 +245,18 @@
     "keepAwake": "运行时保持唤醒",
     "keepAwakeDesc": "任务运行或远程访问开启时阻止系统空闲休眠，合盖仍会休眠",
     "notifications": "系统通知",
-    "notificationsDesc": "完成、出错、需要确认和应用更新时提醒"
+    "notificationsDesc": "完成、出错、需要确认和应用更新时提醒",
+    "sound": "完成提示音",
+    "soundDesc": "任务完成、出错或有会话在等你时播放声音，窗口在前台时不播",
+    "soundPreset": "提示音音色",
+    "soundPresetDesc": "任务出错时音调向下，有会话在等你时重复一次",
+    "soundPreview": "试听",
+    "soundPresets": {
+      "chime": "铃声",
+      "marimba": "木琴",
+      "ping": "单音",
+      "blip": "电子音"
+    }
   },
   "chat": {
     "title": "对话",

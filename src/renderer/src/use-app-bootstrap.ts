@@ -12,9 +12,31 @@ import { resolvePath } from "@/lib/workspace-path";
 import { isRemoteRef, shouldFollowCatalogActive } from "@/lib/remote-project";
 import { useSessionStore, working } from "@/stores/session";
 import { useSidePaneStore } from "@/stores/side-pane";
+import { useSettingsStore } from "@/stores/settings";
+import { isBlockingPrompt } from "@shared/notifications";
+import { installSoundUnlock, playSound } from "@/lib/completion-sound";
+import { soundEnabled, type SoundEvent } from "@/lib/sound-presets";
 import type { ConversationOpenResult, EngineEvent, EngineSessionState, EngineStatus, SlashCommand, WorkspaceSnapshot } from "@shared/types";
 
 const { refreshStats, reloadActiveState, reloadActiveMessages } = createConversationRefresh(engine, useSessionStore.getState);
+
+/**
+ * 完成提示音 — the one place that decides whether a tone plays.
+ *
+ * The gate mirrors `raiseNotification` in Main on purpose: a tone is for the person who is
+ * in another window. A run that finishes on screen is already visible, and Main suppresses
+ * the system notice for a focused window, so this suppresses the tone in exactly the same
+ * case — the two channels never both fire for one event.
+ *
+ * Nothing here is awaited: a tone must never be able to hold up the event loop that draws
+ * the reply, and a browser that refuses to play it has nothing to report.
+ */
+function playCompletionSound(event: SoundEvent): void {
+  if (typeof document !== "undefined" && document.hasFocus()) return;
+  const { settings } = useSettingsStore.getState();
+  if (!soundEnabled(settings)) return;
+  playSound(event, settings.soundPreset);
+}
 
 export type ConversationOpenSource = "user" | "history" | "remote" | "restore";
 
@@ -55,6 +77,10 @@ export function useAppBootstrap(args: AppBootstrapArgs): boolean {
   useEffect(() => {
     let disposed = false;
     let statusPushed = false;
+    // Open the audio context on the first real interaction. Until then the browser keeps it
+    // suspended and a tone would be silently dropped — including the one for the first run
+    // of the session, which is the one the reader is most likely to be waiting for.
+    const stopSoundUnlock = installSoundUnlock();
     const restore = createWorkspaceRestore({
       hasSelection: () => Boolean(useSessionStore.getState().activeId || intendedActiveId.current),
       restore: async (id) => { await openLatest.current?.(id, "restore"); },
@@ -167,6 +193,12 @@ export function useAppBootstrap(args: AppBootstrapArgs): boolean {
       // system notification only fires when no window is focused, so this used to be
       // silent: the row just lost its 运行中 mark, exactly as a finished chat does. The
       // row keeps a mark until the chat is opened; the toast says which one and goes there.
+      if (event.type === "conversation_activity" && conversationId) {
+        // The tone goes with every end-of-run verdict — background chats included, which is
+        // most of the point of having one. `verdictAnnouncesActivity` upstream already keeps
+        // a user-caused stop out of this event, so a Stop is silent here for free.
+        playCompletionSound(event.status === "failed" ? "error" : "done");
+      }
       if (event.type === "conversation_activity" && conversationId && event.status === "failed") {
         const store = useSessionStore.getState();
         if (conversationId !== store.activeId) {
@@ -218,6 +250,10 @@ export function useAppBootstrap(args: AppBootstrapArgs): boolean {
       // that this chat needs the user, and the sidebar mark and the notification both
       // have to see it even though its panel is only drawn for the chat on screen.
       if (event.type === "extension_ui_request" || event.type === "extension_ui_dismiss") {
+        // A parked prompt is the third thing a tone announces, and the only one that says
+        // "nothing moves until you answer". Only the blocking methods count: `notify` and
+        // `setStatus` are one-way and would make the app beep at itself.
+        if (event.type === "extension_ui_request" && isBlockingPrompt(event)) playCompletionSound("approval");
         useSessionStore.getState().applyEvent(event);
         if (conversationId && conversationId !== useSessionStore.getState().activeId) {
           useSidePaneStore.getState().applyConversationEvent(conversationId, event);
@@ -339,6 +375,7 @@ export function useAppBootstrap(args: AppBootstrapArgs): boolean {
     return () => {
       disposed = true;
       restore.dispose();
+      stopSoundUnlock();
       offStatus();
       offReady();
       offEvent();

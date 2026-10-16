@@ -245,7 +245,18 @@
     "keepAwake": "Keep awake while running",
     "keepAwakeDesc": "Prevents idle sleep while an agent runs or remote access is on. Closing the lid still sleeps",
     "notifications": "Desktop notifications",
-    "notificationsDesc": "Notify when a task finishes, fails, needs an answer, or an update is ready"
+    "notificationsDesc": "Notify when a task finishes, fails, needs an answer, or an update is ready",
+    "sound": "Completion sound",
+    "soundDesc": "Play a tone when a task finishes, fails, or a chat is waiting — silent while a window is in front",
+    "soundPreset": "Tone",
+    "soundPresetDesc": "A failure falls in pitch; a waiting chat repeats the motif",
+    "soundPreview": "Preview",
+    "soundPresets": {
+      "chime": "Chime",
+      "marimba": "Marimba",
+      "ping": "Ping",
+      "blip": "Blip"
+    }
   },
   "chat": {
     "title": "Chat",

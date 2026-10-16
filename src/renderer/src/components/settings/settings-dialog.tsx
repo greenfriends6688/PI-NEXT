@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useMemo, useState, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -16,6 +16,13 @@ import {
 import { Switch } from "@/components/ui/switch";
 import type { PinextModel, ImportRunResult, Project, WorkspaceSnapshot } from "@shared/types";
 import { notificationsEnabled } from "@shared/notifications";
+import {
+  DEFAULT_SOUND_PRESET,
+  SOUND_PRESETS,
+  soundEnabled,
+  type SoundPresetId,
+} from "@/lib/sound-presets";
+import { playSound } from "@/lib/completion-sound";
 import { useSettingsStore } from "@/stores/settings";
 import { useIsNarrowViewport } from "@/lib/sidebar-visibility";
 import { i18n } from "@/lib/i18n";
@@ -395,6 +402,28 @@ export function SettingsDialog({
                     />
                   }
                 />
+                <Row
+                  title={t("common.sound")}
+                  description={t("common.soundDesc")}
+                  control={
+                    <Switch
+                      checked={soundEnabled(settings)}
+                      onCheckedChange={(checked) => update({ soundEnabled: checked })}
+                    />
+                  }
+                />
+                {soundEnabled(settings) ? (
+                  <Row
+                    title={t("common.soundPreset")}
+                    description={t("common.soundPresetDesc")}
+                    control={
+                      <SoundPresetControl
+                        value={settings.soundPreset ?? DEFAULT_SOUND_PRESET}
+                        onChange={(next) => update({ soundPreset: next })}
+                      />
+                    }
+                  />
+                ) : null}
               </Group>
               <Group title={t("chat.title")}>
                 <Row
@@ -465,6 +494,48 @@ export function SettingsDialog({
       </ScrollArea>
       </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * 提示音音色 + 试听.
+ *
+ * A small component rather than two inline elements because the preset list has to be
+ * translated at render time (the labels follow 界面语言), so the `items` map cannot be a
+ * module constant — and building it inline would be a new object on every keystroke
+ * anywhere in Settings.
+ */
+function SoundPresetControl({
+  value,
+  onChange,
+}: {
+  value: SoundPresetId;
+  onChange: (id: SoundPresetId) => void;
+}): JSX.Element {
+  const { t } = useTranslation("settings");
+  const items = useMemo(
+    () => Object.fromEntries(SOUND_PRESETS.map((preset) => [preset.id, t(`common.soundPresets.${preset.id}`)])),
+    [t],
+  );
+  return (
+    <div className="flex items-center gap-2">
+      <Select items={items} value={value} onValueChange={(next) => onChange(next as SoundPresetId)}>
+        <SelectTrigger size="sm" className="w-28">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {SOUND_PRESETS.map((preset) => (
+            <SelectItem key={preset.id} value={preset.id}>
+              {t(`common.soundPresets.${preset.id}`)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {/* 试听 plays the tone a finished run plays, so picking one is a choice and not a guess. */}
+      <Button size="xs" variant="outline" onClick={() => playSound("done", value)}>
+        {t("common.soundPreview")}
+      </Button>
     </div>
   );
 }
