@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { VERSION as piVersion } from "@earendil-works/pi-coding-agent";
 import { Ipc } from "@shared/ipc";
+import { getFileIconMapping } from "../main/engine/file-icons-base";
 import type { AgentConfigSyncPayload } from "@shared/agent-config";
 import type { CallerContext } from "../main/ipc/registry";
 import { broadcast, subscribe } from "../main/ipc/broadcast";
@@ -226,7 +227,12 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
     const line = `${new Date().toISOString()} [${level}] ${entry.message.slice(0, 16_384).replace(/\r?\n/g, "\\n")}\n`;
     try { appendFileSync(join(paths.logs, "renderer.log"), line); } catch { /* a log line must never fail the call */ }
   });
-  handle(Ipc.workspaceFileIcons, () => ({ files: {}, folders: {} }));
+    // The real association table, not a stub. It was `{ files: {}, folders: {} }`, which is
+  // not the shape the renderer reads: every `FileIcon` in the browser client asked
+  // `undefined.fileNames["auth.ts"]` and took the window down with `Cannot read
+  // properties of undefined`. `getFileIconMapping` lives in the Electron-free half of
+  // `main/engine/file-icons` for exactly this reason.
+  handle(Ipc.workspaceFileIcons, () => getFileIconMapping());
   handle(Ipc.statsUsage, (_payload?: { range?: UsageRange }) => ({ range: "30d", from: "", to: "", totals: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, tokens: 0, cost: 0, requests: 0, toolCalls: 0, activeDays: 0 }, days: [], models: [], sessions: 0, longestSessionMinutes: 0, currentStreak: 0, longestStreak: 0 }));
 
   handle(Ipc.providersList, () => engine.listProviders());

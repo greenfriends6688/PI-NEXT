@@ -19,13 +19,14 @@ export function FileIcon({
   className?: string;
 }): JSX.Element {
   const mapping = useFileIcons();
-  const icon = !mapping
-    ? "file"
-    : kind === "folder"
-      ? expanded
-        ? mapping.folderExpanded
-        : mapping.folder
-      : resolveFileIcon(mapping, name);
+  const icon =
+    !mapping?.fileNames || !mapping.fileExtensions
+      ? "file"
+      : kind === "folder"
+        ? expanded
+          ? (mapping.folderExpanded ?? mapping.folder ?? "folder")
+          : (mapping.folder ?? "folder")
+        : resolveFileIcon(mapping, name);
   return (
     <img
       src={fileIconUrl(icon)}

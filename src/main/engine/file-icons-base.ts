@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import type { FileIconMapping } from "@shared/types";
 
 /**
  * Where the file-icon SVGs are, and which names are real — the half of `file-icons.ts`
@@ -78,4 +79,48 @@ export function readIcon(name: string): Buffer | null {
   } catch {
     return null;
   }
+}
+
+type ThemeManifest = {
+  fileExtensions: Record<string, string>;
+  fileNames: Record<string, string>;
+  file: string;
+  folder: string;
+  folderExpanded: string;
+};
+
+let cachedMapping: FileIconMapping | null = null;
+
+/**
+ * The association table the renderer resolves a file or folder name against.
+ *
+ * It lives here, beside the directory it is built from, rather than in `file-icons.ts`:
+ * **both hosts serve it** and only one of them can import Electron. It was answered by a
+ * stub on the browser side — `{ files: {}, folders: {} }` — which is not that shape at
+ * all, so every `FileIcon` in the browser client read `undefined.fileNames["auth.ts"]`
+ * and took the whole window down with `Cannot read properties of undefined`. A table that
+ * is wrong is worse than one that is missing: a missing one leaves the generic glyph.
+ */
+export function getFileIconMapping(): FileIconMapping {
+  if (cachedMapping) return cachedMapping;
+  const manifest = JSON.parse(
+    readFileSync(join(iconsDir(), "..", "dist", "material-icons.json"), "utf8"),
+  ) as ThemeManifest;
+  const pick = (name: string): string => iconOrFallback(name, manifest.file);
+  cachedMapping = {
+    fileExtensions: Object.fromEntries(
+      Object.entries(manifest.fileExtensions).map(([extension, icon]) => [extension, pick(icon)]),
+    ),
+    fileNames: Object.fromEntries(
+      Object.entries(manifest.fileNames).map(([name, icon]) => [name, pick(icon)]),
+    ),
+    file: manifest.file,
+    folder: iconOrFallback(manifest.folder, manifest.file),
+    folderExpanded: iconOrFallback(manifest.folderExpanded, manifest.file),
+  };
+  return cachedMapping;
+}
+
+function iconOrFallback(name: string, fallback: string): string {
+  return availableIconNames().has(name.toLowerCase()) && existsSync(join(iconsDir(), `${name}.svg`)) ? name : fallback;
 }

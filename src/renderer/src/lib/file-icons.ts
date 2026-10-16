@@ -13,10 +13,19 @@ let resolved: Map<string, string> | null = null;
 
 export function loadFileIcons(): Promise<FileIconMapping> {
   if (!pending) {
-    pending = window.pinext.workspace.fileIcons().then((mapping) => {
-      cache = mapping;
-      return mapping;
-    });
+    pending = window.pinext.workspace
+      .fileIcons()
+      .then((mapping) => {
+        cache = mapping;
+        return mapping;
+      })
+      .catch((error: unknown) => {
+        // A failed load must not be cached as the answer. This held a rejected promise for
+        // the life of the page, so one call that failed while the connection was still
+        // coming up meant no icons anywhere for the rest of the session.
+        pending = null;
+        throw error;
+      });
   }
   return pending;
 }
@@ -44,9 +53,13 @@ function sortedExtensions(mapping: FileIconMapping): Array<[string, string]> {
 }
 
 /** Resolve a file or folder name to a Material Icon Theme icon name. */
-export function resolveFileIcon(mapping: FileIconMapping, name: string, kind: "file" | "folder" = "file"): string {
+export function resolveFileIcon(mapping: FileIconMapping | null | undefined, name: string, kind: "file" | "folder" = "file"): string {
+  // A table that arrived without its lookups is treated as no table. It once arrived as
+  // `{ files: {}, folders: {} }` — a stub one host answered with — and reading
+  // `undefined.fileNames["auth.ts"]` for that threw out of a render and blanked the app.
+  if (!mapping?.fileNames || !mapping.fileExtensions) return "file";
   const lower = name.toLowerCase();
-  if (kind === "folder") return mapping.folder;
+  if (kind === "folder") return mapping.folder ?? "folder";
   if (!resolved) resolved = new Map();
   const hit = resolved.get(lower);
   if (hit) return hit;
@@ -60,7 +73,7 @@ export function resolveFileIcon(mapping: FileIconMapping, name: string, kind: "f
       }
     }
   }
-  const value = icon ?? mapping.file;
+  const value = icon ?? mapping.file ?? "file";
   resolved.set(lower, value);
   return value;
 }
