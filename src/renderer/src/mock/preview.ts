@@ -3,6 +3,7 @@ import { decodeRemoteProjectKey, remoteProjectKey } from "@shared/project-bindin
 import type { ChatMessage, ConversationOpenResult, DirEntry, EngineSessionState, EngineStatus, ImportSourceId, WorkspaceSnapshot } from "@shared/types";
 import type { AppInfo, GitStatus, RemoteServerState } from "@shared/ipc";
 import type { OfficialState } from "@shared/official";
+import { DESKTOP_INSET, installDesktopScene } from "@/lib/desktop-scene";
 import type { MemoryState } from "@shared/memory";
 import {
   COMMANDS,
@@ -1022,52 +1023,8 @@ if (website) {
  * Keep this strictly inside the dedicated website fixture and inside the 88px title
  * row clearance used by the real macOS shell.
  */
-/**
- * The desktop scene (`?desktop=1`). The window is `#root` itself, inset from the viewport:
- * its corner radius is the side panes' (16px inner + their 8px inset), so the panes sit
- * concentric in it, and its `backdrop-filter` is the material — the wallpaper blurred and
- * tinted toward the appearance, as macOS draws under a vibrant window. That filter also
- * makes `#root` the containing block for the app's `fixed` layers (the settings overlay),
- * so they stay inside the window rather than covering the wallpaper.
- */
-// The marketing site draws the same wallpaper and a skeleton window at this inset while
-// the frame loads (`.preview-window` / `.preview-skeleton` in its `app/globals.css`), so
-// the swap to the real page does not move anything — keep the inset and the gradient in
-// step. The site lives in tyuan511/pinext-services; only this fixture page is ours.
-const DESKTOP_INSET = { x: 20, y: 16 };
 if (desktop) {
-  document.documentElement.dataset.desktop = "";
-  const style = document.createElement("style");
-  style.textContent = `
-    html[data-desktop] {
-      background:
-        radial-gradient(42% 58% at 8% 12%, #ff7a45 0%, rgb(255 122 69 / 0) 70%),
-        radial-gradient(38% 52% at 30% 92%, #ff3d8b 0%, rgb(255 61 139 / 0) 70%),
-        radial-gradient(46% 60% at 92% 8%, #7c5cff 0%, rgb(124 92 255 / 0) 70%),
-        radial-gradient(44% 56% at 78% 96%, #00c2d1 0%, rgb(0 194 209 / 0) 70%),
-        radial-gradient(30% 40% at 58% 46%, #ffd166 0%, rgb(255 209 102 / 0) 70%),
-        linear-gradient(135deg, #2b1b6b 0%, #0d2a4a 55%, #102c3a 100%);
-    }
-    html[data-desktop] body { background: transparent; }
-    html[data-desktop] #root {
-      position: fixed;
-      inset: ${DESKTOP_INSET.y}px ${DESKTOP_INSET.x}px;
-      height: auto;
-      border-radius: 24px;
-      overflow: hidden;
-      background: var(--desktop-material);
-      -webkit-backdrop-filter: blur(56px) saturate(1.9);
-      backdrop-filter: blur(56px) saturate(1.9);
-      box-shadow:
-        0 0 0 0.5px rgb(0 0 0 / 0.45),
-        inset 0 0 0 0.5px rgb(255 255 255 / 0.22),
-        0 36px 90px -24px rgb(0 0 0 / 0.6),
-        0 14px 34px -12px rgb(0 0 0 / 0.4);
-    }
-    html[data-desktop].dark { --desktop-material: rgb(30 30 36 / 0.34); }
-    html[data-desktop]:not(.dark) { --desktop-material: rgb(248 248 250 / 0.42); }
-  `;
-  document.head.append(style);
+  installDesktopScene();
 }
 
 if (website && platform === "darwin") {

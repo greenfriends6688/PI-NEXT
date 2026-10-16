@@ -386,7 +386,13 @@
     "loadFailed": "Could not load subagents",
     "saveFailed": "Could not save subagent",
     "removeFailed": "Could not delete subagent",
-    "enabled": "Enabled"
+    "enabled": "Enabled",
+    "view": "View",
+    "detailTitle": "Built-in sub-agent",
+    "detailDesc": "This role ships with the app. Its model and reasoning effort can be changed and it can be turned off; its prompt cannot be edited or deleted here.",
+    "source": "Source",
+    "sourceBuiltin": "Built-in role, ships with the app",
+    "builtinPromptNote": "To change a built-in role's prompt, copy it into a custom role first."
   },
   "shortcuts": {
     "search": "Search shortcuts",

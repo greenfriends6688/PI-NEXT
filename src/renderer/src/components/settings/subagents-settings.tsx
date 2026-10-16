@@ -88,6 +88,8 @@ export function SubagentsSettings({ models }: { models: PinextModel[] }): JSX.El
   const [saving, setSaving] = useState(false);
   const [editor, setEditor] = useState<FormState | null>(null);
   const [removeId, setRemoveId] = useState<string | null>(null);
+  /** The role whose details are on screen. Read-only; see the dialog below. */
+  const [detail, setDetail] = useState<SubagentConfig | null>(null);
 
   const refresh = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -220,7 +222,21 @@ export function SubagentsSettings({ models }: { models: PinextModel[] }): JSX.El
         </ItemMedia>
         <ItemContent className="min-w-0 gap-1.5">
           <div className="flex min-w-0 items-center gap-2">
-            <ItemTitle className="min-w-0 truncate text-base">{agent.name}</ItemTitle>
+            {/* A built-in role has no editor to open, so the name itself is what shows
+                what the role is — its prompt, its tools, where it came from. A custom
+                role's name stays plain text: the ⋯/edit button beside it is the way in. */}
+            {isBuiltin ? (
+              <button
+                type="button"
+                onClick={() => setDetail(agent)}
+                title={t("subagents.view")}
+                className="min-w-0 truncate rounded-sm text-left text-base font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                {agent.name}
+              </button>
+            ) : (
+              <ItemTitle className="min-w-0 truncate text-base">{agent.name}</ItemTitle>
+            )}
             <Badge variant={isBuiltin ? "secondary" : "outline"} className="shrink-0 rounded-full px-2 py-0.5 text-xs">
               {isBuiltin ? t("subagents.builtin") : t("subagents.custom")}
             </Badge>
@@ -394,6 +410,59 @@ export function SubagentsSettings({ models }: { models: PinextModel[] }): JSX.El
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditor(null)} disabled={saving}>{t("subagents.cancel")}</Button>
             <Button onClick={() => void saveCustom()} disabled={saving}>{t("subagents.save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={detail !== null} onOpenChange={(open) => { if (!open) setDetail(null); }}>
+        <DialogContent className="max-h-[85vh] min-h-0 overflow-hidden sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{detail?.name}</DialogTitle>
+            <DialogDescription>{detail ? t("subagents.detailDesc") : ""}</DialogDescription>
+          </DialogHeader>
+          {detail ? (
+            <div className="-mx-1 grid min-h-0 gap-4 overflow-y-auto px-1">
+              <div className="grid gap-1">
+                <span className="text-xs text-muted-foreground">{t("subagents.source")}</span>
+                <span className="text-sm">{t("subagents.sourceBuiltin")}</span>
+              </div>
+              {detail.description ? (
+                <div className="grid gap-1">
+                  <span className="text-xs text-muted-foreground">{t("subagents.description")}</span>
+                  <span className="text-sm">{detail.description}</span>
+                </div>
+              ) : null}
+              <div className="grid gap-1.5">
+                <span className="text-xs text-muted-foreground">{t("subagents.tools")}</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {detail.tools.length === 0 ? (
+                    <span className="text-sm">{t("subagents.toolOptions.other")}</span>
+                  ) : (
+                    detail.tools.map((tool) => (
+                      <span key={tool} className="rounded-md bg-muted/70 px-1.5 py-0.5 text-xs text-muted-foreground">
+                        {AGENT_TOOLS.includes(tool as AgentTool) ? t(`subagents.toolOptions.${tool}.label`) : t("subagents.toolOptions.other")}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-1">
+                <span className="text-xs text-muted-foreground">{t("subagents.modelAndThinking")}</span>
+                <span className="text-sm">
+                  {detail.model ?? t("subagents.inheritModel")} · {thinkingLabel(detail.thinkingLevel)}
+                </span>
+              </div>
+              <div className="grid gap-1.5">
+                <span className="text-xs text-muted-foreground">{t("subagents.prompt")}</span>
+                {/* Read-only on purpose: this is the text shipped with the app, and an
+                    editable box would suggest saving it here does something. */}
+                <pre className="max-h-72 overflow-auto rounded-lg border border-border bg-muted/40 p-3 text-xs leading-5 whitespace-pre-wrap">{detail.systemPrompt}</pre>
+                <p className="text-xs text-muted-foreground">{t("subagents.builtinPromptNote")}</p>
+              </div>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetail(null)}>{t("subagents.cancel")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

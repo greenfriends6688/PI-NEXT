@@ -245,6 +245,7 @@ import { DagStore } from "../engine/dag-store";
 import { ScheduledTaskManager } from "./scheduled-task-manager";
 import type { ScheduledTask, ScheduledTaskDraft, ScheduledTaskPatch, ScheduledTaskRun, ScheduledTaskSnapshot } from "@shared/schedules";
 import { runDagTool } from "../dag-tools";
+import { patchTraceHtml } from "../engine/export-html-patch";
 import { builtinExtensionFile, builtinExtensionPaths, builtinSkillPaths, ExtensionManager } from "./extension-manager";
 import { branchExists, createGitWorktree, gitBranch, gitCommonRoot, gitToplevel, listGitWorktrees, removeGitWorktree } from "./git-worktree";
 import { bindBrowserConversation } from "./conversation-binding";
@@ -3227,7 +3228,27 @@ export class PiProcessManager {
   async exportHtmlDocument(conversationId?: string): Promise<string> {
     const { id, session } = await this.#sessionFor(conversationId);
     const file = join(getPinextPaths().tracesDir, `${traceFileName(id)}.html`);
-    return session.exportToHtml(file);
+    try {
+      await session.exportToHtml(file);
+    } catch (error) {
+      // The SDK refuses when the transcript file does not exist yet — a chat whose first
+      // reply has not been persisted. That is "nothing has happened yet", and its own
+      // wording is an English sentence about a file the person has never heard of, which
+      // the trace pane would print verbatim in the middle of a Chinese interface.
+      if (session.messages.length === 0) {
+        throw new Error(uiText("这个对话还没有可以看的历史", "This conversation has no history yet"));
+      }
+      throw error;
+    }
+    // pi's page walks the session tree with three recursive functions, which overflow the
+    // stack on the long single-branch conversations this app collects. See the module.
+    const patched = patchTraceHtml(readFileSync(file, "utf8"));
+    if (patched.missed.length > 0) {
+      console.warn(`[trace] recursive tree walk not patched (${patched.missed.join(", ")}); long chats may overflow`);
+    } else {
+      writeFileSync(file, patched.html, "utf8");
+    }
+    return file;
   }
   /**
    * 把当前会话导出成 Markdown —— HTML 那条产出的是一个页面，这一条是能贴进文档的文本。

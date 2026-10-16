@@ -240,4 +240,12 @@ export async function installWebBridge(): Promise<void> {
     settingsInitial: {},
     platform: APP_PLATFORM,
   });
+
+  // 玻璃效果 is offered where there is a blur to draw under, and a browser tab has no system
+  // blur — so the browser client paints one instead (`lib/desktop-scene.ts`, installed by
+  // `web-main.tsx` before the app module runs) and says so here. Without the flag the
+  // setting would be hidden and every theme would keep its solid palette, which is the
+  // "独立 Web 版没有玻璃效果" this answers. It must be set **before** `lib/platform.ts` is
+  // imported: `HAS_VIBRANCY` is read once, at module scope.
+  (window.pinext.app as { simulatedVibrancy?: boolean }).simulatedVibrancy = true;
 }

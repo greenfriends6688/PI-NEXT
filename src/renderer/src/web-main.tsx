@@ -1,4 +1,5 @@
 import { installWebBridge } from "./web-bridge";
+import { installDesktopScene } from "./lib/desktop-scene";
 
 /**
  * The browser entry.
@@ -12,7 +13,13 @@ import { installWebBridge } from "./web-bridge";
  * That ordering is the whole reason this file exists instead of a branch inside `main.tsx`.
  */
 void installWebBridge()
-  .then(() => import("./main"))
+  .then(() => {
+    // A browser tab has no system blur to draw a glass window over, so this paints one
+    // before React mounts — the same scene the preview harness and the marketing site use.
+    // Before `./main`: `lib/platform.ts` reads whether there is vibrancy at module scope.
+    installDesktopScene();
+    return import("./main");
+  })
   .catch((error: unknown) => {
     const root = document.getElementById("root");
     if (root) {

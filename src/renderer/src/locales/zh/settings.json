@@ -386,7 +386,13 @@
     "loadFailed": "无法加载子 Agent",
     "saveFailed": "无法保存子 Agent",
     "removeFailed": "无法删除子 Agent",
-    "enabled": "启用"
+    "enabled": "启用",
+    "view": "查看",
+    "detailTitle": "内置子 Agent 详情",
+    "detailDesc": "这是随应用发布的内置角色。模型与推理强度可以改，也可以停用；提示词不能在这里编辑或删除。",
+    "source": "来源",
+    "sourceBuiltin": "内置角色，随应用发布",
+    "builtinPromptNote": "想改内置角色的提示词，就先复制一份成自定义角色。"
   },
   "shortcuts": {
     "search": "搜索快捷键",
