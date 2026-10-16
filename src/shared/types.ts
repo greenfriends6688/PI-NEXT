@@ -716,6 +716,14 @@ export type ProviderModel = {
    */
   costTiers?: CostTier[];
   /**
+   * Switched off in the model list: kept, tuned, still priced — and not offered.
+   *
+   * Apart from a *deleted* model, which loses everything the user set on it and has to be
+   * re-fetched from the provider to come back. Hiding is what 「先不用它」 means, and it is the
+   * one thing a model list needs that add/remove cannot say.
+   */
+  hidden?: boolean;
+  /**
    * Set when the user tuned a model (name, protocol, context, output) in the edit
    * dialog. A later 同步模型 keeps those fields instead of restoring the fetched
    * values, so a re-fetch cannot silently undo the edit.

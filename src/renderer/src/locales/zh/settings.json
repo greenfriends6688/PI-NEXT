@@ -675,7 +675,11 @@
     "usageWindowWeekly": "本周",
     "usageWindowMonthly": "本月",
     "usageWindowDaily": "今日",
-    "usageRemaining": "剩余"
+    "usageRemaining": "剩余",
+    "modelHidden": "已隐藏",
+    "modelHide": "不再在模型列表里提供",
+    "modelShow": "重新提供",
+    "modelLastVisible": "至少要留一个模型；不用它可以直接删除"
   },
   "modelPicker": {
     "native": "内置",

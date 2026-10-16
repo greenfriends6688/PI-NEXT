@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { chmod, readFile, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { INPUT_MODALITIES, PROVIDER_APIS, THINKING_EFFORT_LEVELS, type CostTier, type PinextModel, type ModelCost, type ModelPrice, type NativeProviderConfig, type ProviderApi, type ProviderConfig, type ProviderModel, type ThinkingLevel } from "@shared/types";
+import { isOfferedModel } from "./model-offer.ts";
 import { catalogPrice, enrichModel, loadModelsDev, type ModelsDevIndex } from "./models-dev";
 import { findNativeProvider, listNativeProviders, mergeNativeModels, selectedNativeModels } from "./native-providers";
 import { piProviderModelsEntry } from "./pi-global-sync.ts";
@@ -401,7 +402,7 @@ function chatProvider(provider: StoredProvider): StoredProvider {
   if (provider.kind === "native") return provider;
   return {
     ...provider,
-    models: provider.models.filter((model) => (model.api ?? provider.api) !== "systemone"),
+    models: provider.models.filter((model) => isOfferedModel(model, provider.api)),
   };
 }
 

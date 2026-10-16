@@ -677,7 +677,11 @@
     "usageWindowWeekly": "Weekly",
     "usageWindowMonthly": "Monthly",
     "usageWindowDaily": "Daily",
-    "usageRemaining": "left"
+    "usageRemaining": "left",
+    "modelHidden": "Hidden",
+    "modelHide": "Stop offering it in the model list",
+    "modelShow": "Offer it again",
+    "modelLastVisible": "Keep at least one model — delete this one instead if you do not want it"
   },
   "modelPicker": {
     "native": "Built-in",

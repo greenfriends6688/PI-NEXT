@@ -74,6 +74,7 @@ function ProviderModelRow({
   model,
   onEdit,
   onRemove,
+  onToggle,
   reorderLabel,
   handleProps,
   overlay = false,
@@ -81,12 +82,15 @@ function ProviderModelRow({
   model: ProviderModel;
   onEdit: () => void;
   onRemove: () => void;
+  /** Switch the model off without losing how it is configured. */
+  onToggle: () => void;
   reorderLabel: string;
   handleProps?: ButtonHTMLAttributes<HTMLButtonElement>;
   overlay?: boolean;
 }): JSX.Element {
+  const hidden = model.hidden === true;
   return (
-    <div className={cn("flex items-center gap-2 px-2 py-2", overlay && "rounded-lg border border-border bg-card px-3 shadow-lg")}>
+    <div className={cn("flex items-center gap-2 px-2 py-2", hidden && "opacity-55", overlay && "rounded-lg border border-border bg-card px-3 shadow-lg")}>
       <button
         type="button"
         {...handleProps}
@@ -108,8 +112,20 @@ function ProviderModelRow({
       <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
         {contextLabel(model.contextWindow)}
       </span>
+      {hidden ? (
+        <Badge variant="outline" className="shrink-0 font-normal">{i18n.t("settings:providers.modelHidden") as string}</Badge>
+      ) : null}
       {overlay ? null : (
         <>
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={onToggle}
+            aria-label={i18n.t(hidden ? "settings:providers.modelShow" : "settings:providers.modelHide") as string}
+            title={i18n.t(hidden ? "settings:providers.modelShow" : "settings:providers.modelHide") as string}
+          >
+            <HugeiconsIcon strokeWidth={2} icon={hidden ? ViewIcon : ViewOffSlashIcon} />
+          </Button>
           <Button size="icon-xs" variant="ghost" onClick={onEdit} aria-label={i18n.t("settings:providers.modelDetail") as string}>
             <HugeiconsIcon strokeWidth={2} icon={PencilEdit02Icon} />
           </Button>
@@ -126,12 +142,14 @@ function SortableProviderModelRow({
   disabled,
   onEdit,
   onRemove,
+  onToggle,
   reorderLabel,
 }: {
   model: ProviderModel;
   disabled: boolean;
   onEdit: () => void;
   onRemove: () => void;
+  onToggle: () => void;
   reorderLabel: string;
 }): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -155,6 +173,7 @@ function SortableProviderModelRow({
         model={model}
         onEdit={onEdit}
         onRemove={onRemove}
+        onToggle={onToggle}
         reorderLabel={reorderLabel}
         handleProps={{ ...attributes, ...listeners }}
       />
@@ -253,6 +272,24 @@ export function ProviderDetail({
 
   async function removeModel(id: string): Promise<void> {
     await save({ models: modelList.filter((item) => item.id !== id) });
+  }
+
+  /**
+   * Show or hide one model.
+   *
+   * Refuses to hide the last visible one: a provider with no offered models contributes
+   * nothing anywhere (that is the whole «not connected» signal), so the switch would look
+   * like it disconnected the provider. Deleting it instead is a deliberate act.
+   */
+  async function toggleModel(id: string): Promise<void> {
+    const target = modelList.find((item) => item.id === id);
+    if (!target) return;
+    const hidden = target.hidden === true;
+    if (!hidden && modelList.filter((item) => item.hidden !== true).length <= 1) {
+      toast.error(i18n.t("settings:providers.modelLastVisible") as string);
+      return;
+    }
+    await save({ models: modelList.map((item) => (item.id === id ? { ...item, hidden: !hidden } : item)) });
   }
 
   async function reorderModels(next: ProviderModel[]): Promise<void> {
@@ -486,6 +523,7 @@ export function ProviderDetail({
                     disabled={saving}
                     onEdit={() => onEditModel(model)}
                     onRemove={() => void removeModel(model.id)}
+                    onToggle={() => void toggleModel(model.id)}
                     reorderLabel={t("providers.reorderModel", { name: providerModelLabel(model) })}
                   />
                 ))}
@@ -503,6 +541,7 @@ export function ProviderDetail({
                   model={activeModel}
                   onEdit={() => undefined}
                   onRemove={() => undefined}
+                  onToggle={() => undefined}
                   reorderLabel={t("providers.reorderModel", { name: providerModelLabel(activeModel) })}
                   overlay
                 />
