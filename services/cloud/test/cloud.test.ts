@@ -6,7 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { WebSocket } from "ws";
 import { readFileSync } from "node:fs";
-import { createCloud } from "../src/index.ts";
+import { createCloud } from "../src/node/server.ts";
 import { hashToken } from "../src/store.ts";
 import { pkceChallenge, validRedirect } from "../src/login.ts";
 import type { CloudConfig } from "../src/config.ts";
@@ -42,7 +42,7 @@ function configFor(dir: string, overrides: Partial<CloudConfig> = {}): CloudConf
 async function withCloud<T>(overrides: Partial<CloudConfig>, run: (ctx: CloudContext) => Promise<T>): Promise<T> {
   const dir = mkdtempSync(join(tmpdir(), "pinext-cloud-"));
   const config = configFor(dir, overrides);
-  const cloud = createCloud(config);
+  const cloud = await createCloud(config);
   const address = await cloud.listen();
   const origin = `http://127.0.0.1:${address.port}`;
   try {
@@ -53,7 +53,7 @@ async function withCloud<T>(overrides: Partial<CloudConfig>, run: (ctx: CloudCon
   }
 }
 
-type CloudContext = { origin: string; store: ReturnType<typeof createCloud>["store"]; dataFile: string };
+type CloudContext = { origin: string; store: Awaited<ReturnType<typeof createCloud>>["store"]; dataFile: string };
 
 /** Sign in as `login` and come back with a device token, exactly as the browser flow would. */
 async function signIn(origin: string, login: string): Promise<string> {
@@ -64,14 +64,14 @@ async function signIn(origin: string, login: string): Promise<string> {
   authorize.searchParams.set("client_id", "pinext-desktop");
   authorize.searchParams.set("redirect_uri", redirectUri);
   authorize.searchParams.set("state", state);
-  authorize.searchParams.set("code_challenge", pkceChallenge(verifier));
+  authorize.searchParams.set("code_challenge", await pkceChallenge(verifier));
   authorize.searchParams.set("code_challenge_method", "S256");
 
   const form = new URLSearchParams({
     client_id: "pinext-desktop",
     redirect_uri: redirectUri,
     state,
-    code_challenge: pkceChallenge(verifier),
+    code_challenge: await pkceChallenge(verifier),
     code_challenge_method: "S256",
     decision: "allow",
     dev_login: "1",
@@ -166,7 +166,7 @@ test("授权码换令牌：PKCE 校验、一次性、redirect_uri 必须完全�
       client_id: "pinext-desktop",
       redirect_uri: redirectUri,
       state: "s",
-      code_challenge: pkceChallenge(verifier),
+      code_challenge: await pkceChallenge(verifier),
       code_challenge_method: "S256",
       decision: "allow",
       dev_login: "1",
@@ -196,7 +196,7 @@ test("redirect_uri 不匹配时拒绝换令牌", async () => {
       client_id: "pinext-desktop",
       redirect_uri: "http://127.0.0.1:55900/callback",
       state: "s",
-      code_challenge: pkceChallenge(verifier),
+      code_challenge: await pkceChallenge(verifier),
       code_challenge_method: "S256",
       decision: "allow",
       dev_login: "1",
@@ -230,7 +230,7 @@ test("令牌只存哈希，坏令牌一律 401", async () => {
     // credential, which is the whole reason the hash is what gets written.
     const stored = readFileSync(dataFile, "utf8");
     assert.ok(!stored.includes(token), "令牌明文不应出现在数据文件里");
-    assert.ok(stored.includes(hashToken(token)), "存的是它的哈希");
+    assert.ok(stored.includes(await hashToken(token)), "存的是它的哈希");
   });
 });
 
@@ -406,7 +406,7 @@ test("设备从控制台移除时，它的信令 socket 以 4005 关闭并带 de
       client_id: "pinext-desktop",
       redirect_uri: "http://127.0.0.1:55900/callback",
       state: "s",
-      code_challenge: pkceChallenge(verifier),
+      code_challenge: await pkceChallenge(verifier),
       code_challenge_method: "S256",
       decision: "allow",
       dev_login: "1",

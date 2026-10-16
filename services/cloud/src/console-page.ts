@@ -1,6 +1,5 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
 import type { CloudStore, Account } from "./store.ts";
-import { escapeHtml, page, readForm, redirect, sendHtml, sendJson } from "./http.ts";
+import { escapeHtml, errorResponse, htmlResponse, page, readForm, redirectResponse } from "./http.ts";
 import type { Devices } from "./devices.ts";
 
 /**
@@ -14,25 +13,25 @@ import type { Devices } from "./devices.ts";
 export class ConsolePage {
   #store: CloudStore;
   #devices: Devices;
-  #session: (request: IncomingMessage) => Account | null;
+  #session: (request: Request) => Promise<Account | null>;
 
-  constructor(deps: { store: CloudStore; devices: Devices; session: (request: IncomingMessage) => Account | null }) {
+  constructor(deps: { store: CloudStore; devices: Devices; session: (request: Request) => Promise<Account | null> }) {
     this.#store = deps.store;
     this.#devices = deps.devices;
     this.#session = deps.session;
   }
 
-  async handle(request: IncomingMessage, response: ServerResponse, url: URL, origin: string): Promise<boolean> {
-    if (url.pathname === "/console" && request.method === "GET") return this.#list(request, response, origin);
-    if (url.pathname === "/console/delete" && request.method === "POST") return this.#delete(request, response, origin);
-    return false;
+  async handle(request: Request, origin: string): Promise<Response | null> {
+    const url = new URL(request.url);
+    if (url.pathname === "/console" && request.method === "GET") return this.#list(request, origin);
+    if (url.pathname === "/console/delete" && request.method === "POST") return this.#delete(request);
+    return null;
   }
 
-  #list(request: IncomingMessage, response: ServerResponse, origin: string): boolean {
-    const account = this.#session(request);
+  async #list(request: Request, origin: string): Promise<Response> {
+    const account = await this.#session(request);
     if (!account) {
-      sendHtml(
-        response,
+      return htmlResponse(
         200,
         page(
           "管理设备",
@@ -42,7 +41,6 @@ export class ConsolePage {
           { origin },
         ),
       );
-      return true;
     }
 
     const devices = this.#store.devicesOf(account.id);
@@ -61,8 +59,7 @@ export class ConsolePage {
       )
       .join("");
 
-    sendHtml(
-      response,
+    return htmlResponse(
       200,
       page(
         "管理设备",
@@ -73,23 +70,19 @@ export class ConsolePage {
         { origin },
       ),
     );
-    return true;
   }
 
-  async #delete(request: IncomingMessage, response: ServerResponse, origin: string): Promise<boolean> {
-    const account = this.#session(request);
+  async #delete(request: Request): Promise<Response> {
+    const account = await this.#session(request);
     if (!account) {
-      sendJson(response, 401, { error: { code: "unauthorized" } });
-      return true;
+      return errorResponse(401, "unauthorized");
     }
     const form = await readForm(request).catch(() => ({}) as Record<string, string>);
     const deviceId = (form.device_id ?? "").trim();
     if (!deviceId) {
-      sendJson(response, 400, { error: { code: "invalid_request" } });
-      return true;
+      return errorResponse(400, "invalid_request");
     }
-    this.#devices.remove(account.id, deviceId);
-    redirect(response, "/console");
-    return true;
+    await this.#devices.remove(account.id, deviceId);
+    return redirectResponse("/console");
   }
 }

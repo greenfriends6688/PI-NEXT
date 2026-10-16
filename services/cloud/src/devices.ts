@@ -1,8 +1,7 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
 import type { CloudConfig } from "./config.ts";
 import type { CloudStore } from "./store.ts";
-import { bearer, toWireUser } from "./login.ts";
-import { readJson, sendError, sendJson } from "./http.ts";
+import { toWireUser } from "./login.ts";
+import { bearer, errorResponse, jsonResponse, readJson } from "./http.ts";
 
 /**
  * Device registration — how a phone learns which `device_id` to call.
@@ -32,17 +31,18 @@ export class Devices {
     this.#deps = deps;
   }
 
-  async handle(request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> {
-    if (url.pathname === "/api/devices/me" && request.method === "PUT") return this.#register(request, response);
-    if (url.pathname === "/api/devices" && request.method === "GET") return this.#list(request, response);
-    return false;
+  async handle(request: Request): Promise<Response | null> {
+    const url = new URL(request.url);
+    if (url.pathname === "/api/devices/me" && request.method === "PUT") return this.#register(request);
+    if (url.pathname === "/api/devices" && request.method === "GET") return this.#list(request);
+    return null;
   }
 
   /** Remove a device on the account's behalf (the 控制台). */
-  remove(accountId: string, deviceId: string): boolean {
+  async remove(accountId: string, deviceId: string): Promise<boolean> {
     const device = this.#deps.store.device(deviceId);
     if (!device || device.accountId !== accountId) return false;
-    this.#deps.store.removeDevice(deviceId);
+    await this.#deps.store.removeDevice(deviceId);
     // The socket is closed with a code the desktop reads as "you were removed, stop": without
     // it the machine would keep a socket the account no longer knows about, and the phone would
     // reach a device that is not in its list.
@@ -50,19 +50,17 @@ export class Devices {
     return true;
   }
 
-  async #register(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
-    const account = this.#account(request);
+  async #register(request: Request): Promise<Response> {
+    const account = await this.#account(request);
     if (!account) {
-      sendError(response, 401, "unauthorized");
-      return true;
+      return errorResponse(401, "unauthorized");
     }
     const body = await readJson(request).catch(() => ({}) as Record<string, unknown>);
     const installId = typeof body.install_id === "string" ? body.install_id : "";
     const name = typeof body.name === "string" ? body.name.slice(0, 80).trim() : "";
     const platform = typeof body.platform === "string" ? body.platform.slice(0, 32) : "";
     if (!INSTALL_ID.test(installId) || !name) {
-      sendError(response, 400, "invalid_request");
-      return true;
+      return errorResponse(400, "invalid_request");
     }
 
     // The cap is checked before the upsert, so a rename of an already-registered device is
@@ -71,22 +69,19 @@ export class Devices {
     if (!known && this.#deps.store.deviceCount(account.id) >= this.#deps.config.maxDevicesPerAccount) {
       // 409 rather than 400: the client shows "delete a device in the console" and does not
       // retry, so this must not look like a transient failure.
-      sendError(response, 409, "too_many_devices");
-      return true;
+      return errorResponse(409, "too_many_devices");
     }
 
-    const device = this.#deps.store.upsertDevice({ accountId: account.id, installId, name, platform });
-    sendJson(response, 200, { device: { id: device.id, name: device.name } });
-    return true;
+    const device = await this.#deps.store.upsertDevice({ accountId: account.id, installId, name, platform });
+    return jsonResponse(200, { device: { id: device.id, name: device.name } });
   }
 
-  #list(request: IncomingMessage, response: ServerResponse): boolean {
-    const account = this.#account(request);
+  async #list(request: Request): Promise<Response> {
+    const account = await this.#account(request);
     if (!account) {
-      sendError(response, 401, "unauthorized");
-      return true;
+      return errorResponse(401, "unauthorized");
     }
-    sendJson(response, 200, {
+    return jsonResponse(200, {
       user: toWireUser(account),
       devices: this.#deps.store.devicesOf(account.id).map((device) => ({
         id: device.id,
@@ -95,12 +90,11 @@ export class Devices {
         online: this.#deps.isOnline(device.id),
       })),
     });
-    return true;
   }
 
-  #account(request: IncomingMessage) {
+  async #account(request: Request) {
     const token = bearer(request);
-    const verified = token ? this.#deps.store.verifyToken(token, this.#deps.config.tokenTtlMs) : null;
+    const verified = token ? await this.#deps.store.verifyToken(token, this.#deps.config.tokenTtlMs) : null;
     return verified && !verified.account.disabled ? verified.account : null;
   }
 }

@@ -31,7 +31,7 @@
 
 ```bash
 cd services/cloud
-DEV_LOGIN=1 PUBLIC_ORIGIN=http://127.0.0.1:9088 node src/index.ts
+DEV_LOGIN=1 PUBLIC_ORIGIN=http://127.0.0.1:9088 node src/node/index.ts
 ```
 
 然后把客户端指过来：
@@ -46,7 +46,7 @@ PINEXT_CLOUD_URL=http://127.0.0.1:9088 pnpm dev
 ## 测试
 
 ```bash
-node --test test/cloud.test.ts      # 服务端自己：13 项
+node --test test/cloud.test.ts      # 服务端自己：14 项
 ```
 
 覆盖的是那些「看起来在正常工作」的坏法：code 能不能用两次、`signal` 会不会转发给不该收到的人、
@@ -140,7 +140,7 @@ After=network.target
 
 [Service]
 WorkingDirectory=/opt/pinext-cloud
-ExecStart=/usr/bin/node src/index.ts
+ExecStart=/usr/bin/node src/node/index.ts
 EnvironmentFile=/etc/pinext-cloud.env
 Restart=always
 User=pinext
@@ -151,7 +151,7 @@ WantedBy=multi-user.target
 
 ## 已经验证过什么
 
-- `node --test test/cloud.test.ts` — 13 项：PKCE 校验、code 一次性、redirect_uri 精确匹配、
+- `node --test test/cloud.test.ts` — 14 项：PKCE 校验、code 一次性、redirect_uri 精确匹配、
   令牌只存哈希、设备幂等与上限、信令双向转发、跨账号隔离、设备顶替 4001、控制台删除 4005。
 - 仓库根 `test/cloud-login.test.ts` — 真实 `AccountService` 走完整登录（浏览器授权 → 回环回调 →
   换令牌 → `/api/me` → 登出吊销），以及真实设备登记与改名。

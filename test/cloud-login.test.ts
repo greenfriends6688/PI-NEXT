@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createCloud } from "../services/cloud/src/index.ts";
+import { createCloud } from "../services/cloud/src/node/server.ts";
 import { AccountService } from "../src/main/engine/account.ts";
 import type { AccountState } from "../src/shared/account.ts";
 import type { CloudConfig } from "../services/cloud/src/config.ts";
@@ -70,7 +70,7 @@ async function browse(authorize: URL, login: string): Promise<void> {
 
 test("桌面端连真实云服务：完整登录流程走通", async () => {
   const dir = mkdtempSync(join(tmpdir(), "pinext-cloud-e2e-"));
-  const cloud = createCloud(configFor(dir));
+  const cloud = await createCloud(configFor(dir));
   const address = await cloud.listen();
   const origin = `http://127.0.0.1:${address.port}`;
 
@@ -137,7 +137,7 @@ test("桌面端连真实云服务：完整登录流程走通", async () => {
 
 test("桌面端把设备登记进真实云服务，手机能看到它在线与否", async () => {
   const dir = mkdtempSync(join(tmpdir(), "pinext-cloud-dev-"));
-  const cloud = createCloud(configFor(dir));
+  const cloud = await createCloud(configFor(dir));
   const address = await cloud.listen();
   const origin = `http://127.0.0.1:${address.port}`;
 

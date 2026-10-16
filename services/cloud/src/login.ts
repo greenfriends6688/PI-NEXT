@@ -1,9 +1,7 @@
-import { randomBytes, createHash } from "node:crypto";
-import type { IncomingMessage, ServerResponse } from "node:http";
 import type { CloudConfig } from "./config.ts";
 import type { Account, CloudStore } from "./store.ts";
 import { readSession, signSession } from "./store.ts";
-import { escapeHtml, page, readForm, readJson, redirect, sendError, sendHtml, sendJson, setCookie, cookiesOf } from "./http.ts";
+import { bearer, cookiesOf, escapeHtml, htmlResponse, page, readForm, readJson, redirectResponse, errorResponse, jsonResponse, setCookie } from "./http.ts";
 import { exchangeGithubCode, fetchGithubProfile, githubAuthorizeUrl } from "./github.ts";
 
 /**
@@ -27,7 +25,8 @@ import { exchangeGithubCode, fetchGithubProfile, githubAuthorizeUrl } from "./gi
 
 const CLIENT_IDS = new Set(["pinext-desktop", "pinext-mobile"]);
 const MOBILE_REDIRECT = "pinext://oauth/callback";
-const SESSION_COOKIE = "pinext_cloud_session";
+/** The browser sign-in cookie. Shared with the host that builds the console's session reader. */
+export const SESSION_COOKIE = "pinext_cloud_session";
 
 type PendingCode = {
   accountId: string;
@@ -57,28 +56,29 @@ export class Login {
     this.#deps = deps;
   }
 
-  /** Answer this request, or return false so another route can. */
-  async handle(request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> {
-    const { pathname } = url;
-    if (pathname === "/authorize") return this.#authorize(request, response, url);
-    if (pathname === "/authorize/decision") return this.#decision(request, response);
-    if (pathname === "/auth/github/login") return this.#githubStart(response, url);
-    if (pathname === "/auth/github/callback") return this.#githubCallback(response, url);
-    if (pathname === "/api/oauth/token") return this.#token(request, response);
-    if (pathname === "/api/me") return this.#me(request, response);
-    if (pathname === "/api/auth/logout") return this.#logout(request, response);
-    return false;
+  /** Answer this request, or return null so another route can. */
+  async handle(request: Request): Promise<Response | null> {
+    const { pathname } = new URL(request.url);
+    if (pathname === "/authorize") return this.#authorize(request);
+    if (pathname === "/authorize/decision") return this.#decision(request);
+    if (pathname === "/auth/github/login") return this.#githubStart(request);
+    if (pathname === "/auth/github/callback") return this.#githubCallback(request);
+    if (pathname === "/api/oauth/token") return this.#token(request);
+    if (pathname === "/api/me") return this.#me(request);
+    if (pathname === "/api/auth/logout") return this.#logout(request);
+    return null;
   }
 
   /** The session cookie's account, when the browser is signed in. */
-  #session(request: IncomingMessage): Account | null {
-    const accountId = readSession(this.#deps.store.secret(), cookiesOf(request)[SESSION_COOKIE], this.#deps.config.sessionTtlMs);
+  async #session(request: Request): Promise<Account | null> {
+    const accountId = await readSession(this.#deps.store.secret(), cookiesOf(request)[SESSION_COOKIE], this.#deps.config.sessionTtlMs);
     if (!accountId) return null;
     const account = this.#deps.store.account(accountId);
     return account && !account.disabled ? account : null;
   }
 
-  #authorize(request: IncomingMessage, response: ServerResponse, url: URL): boolean {
+  async #authorize(request: Request): Promise<Response> {
+    const url = new URL(request.url);
     const params = {
       client_id: url.searchParams.get("client_id") ?? "",
       redirect_uri: url.searchParams.get("redirect_uri") ?? "",
@@ -91,11 +91,10 @@ export class Login {
 
     const problem = this.#validate(params);
     if (problem) {
-      sendHtml(response, 400, page("无法登录", `<h1>无法登录</h1><p>${escapeHtml(problem)}</p>`, { origin: this.#deps.config.publicOrigin }));
-      return true;
+      return htmlResponse(400, page("无法登录", `<h1>无法登录</h1><p>${escapeHtml(problem)}</p>`, { origin: this.#deps.config.publicOrigin }));
     }
 
-    const session = this.#session(request);
+    const session = await this.#session(request);
     const origin = this.#deps.config.publicOrigin;
     const hidden = Object.entries(params)
       .map(([key, value]) => `<input type="hidden" name="${escapeHtml(key)}" value="${escapeHtml(value)}">`)
@@ -118,8 +117,7 @@ export class Login {
              <div class="row"><button class="primary" type="submit">继续</button></div>
            </form>`
         : "";
-      sendHtml(
-        response,
+      return htmlResponse(
         200,
         page(
           "登录 PI NEXT",
@@ -131,12 +129,10 @@ export class Login {
           { origin },
         ),
       );
-      return true;
     }
 
     const device = params.device_name || "未命名设备";
-    sendHtml(
-      response,
+    return htmlResponse(
       200,
       page(
         "授权登录",
@@ -158,10 +154,9 @@ export class Login {
         { origin },
       ),
     );
-    return true;
   }
 
-  async #decision(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
+  async #decision(request: Request): Promise<Response> {
     const form = await readForm(request).catch(() => ({}) as Record<string, string>);
     const params = {
       client_id: form.client_id ?? "",
@@ -174,8 +169,7 @@ export class Login {
     };
     const problem = this.#validate(params);
     if (problem) {
-      sendHtml(response, 400, page("无法登录", `<h1>无法登录</h1><p>${escapeHtml(problem)}</p>`, { origin: this.#deps.config.publicOrigin }));
-      return true;
+      return htmlResponse(400, page("无法登录", `<h1>无法登录</h1><p>${escapeHtml(problem)}</p>`, { origin: this.#deps.config.publicOrigin }));
     }
 
     // Denial goes back the same way an approval does, with `error` instead of `code`: the
@@ -184,22 +178,22 @@ export class Login {
       const denied = new URL(params.redirect_uri);
       denied.searchParams.set("error", "access_denied");
       denied.searchParams.set("state", params.state);
-      redirect(response, denied.toString());
-      return true;
+      return redirectResponse(denied.toString());
     }
 
-    let account = this.#session(request);
+    let account = await this.#session(request);
     if (!account && form.dev_login === "1" && this.#deps.config.devLogin) {
       const login = (form.dev_account ?? "").trim() || "dev";
-      account = this.#deps.store.upsertAccount({ login, name: login });
-      this.#setSession(response, account.id);
+      account = await this.#deps.store.upsertAccount({ login, name: login });
     }
     if (!account) {
-      sendHtml(response, 403, page("需要登录", `<h1>需要登录</h1><p>请先登录再授权。</p>`, { origin: this.#deps.config.publicOrigin }));
-      return true;
+      return htmlResponse(403, page("需要登录", `<h1>需要登录</h1><p>请先登录再授权。</p>`, { origin: this.#deps.config.publicOrigin }));
     }
 
-    const code = randomBytes(32).toString("base64url");
+    const headers = new Headers();
+    await this.#setSession(headers, account.id);
+
+    const code = randomBase64Url(32);
     this.#codes.set(code, {
       accountId: account.id,
       clientId: params.client_id,
@@ -212,49 +206,45 @@ export class Login {
     const target = new URL(params.redirect_uri);
     target.searchParams.set("code", code);
     target.searchParams.set("state", params.state);
-    redirect(response, target.toString());
-    return true;
+    return redirectResponse(target.toString(), headers);
   }
 
-  #githubStart(response: ServerResponse, url: URL): boolean {
+  #githubStart(request: Request): Response {
+    const url = new URL(request.url);
     const github = this.#deps.config.github;
     const origin = this.#deps.config.publicOrigin;
     if (!github) {
-      sendHtml(response, 404, page("未配置 GitHub 登录", `<h1>未配置 GitHub 登录</h1><p>设置 GITHUB_CLIENT_ID 与 GITHUB_CLIENT_SECRET 后可用。</p>`, { origin }));
-      return true;
+      return htmlResponse(404, page("未配置 GitHub 登录", `<h1>未配置 GitHub 登录</h1><p>设置 GITHUB_CLIENT_ID 与 GITHUB_CLIENT_SECRET 后可用。</p>`, { origin }));
     }
     const raw = url.searchParams.get("return") ?? "/authorize";
     // Only a path inside this service: an absolute URL here would make this an open redirect
     // that any site could point at to bounce a visitor somewhere else after a sign-in.
     const returnTo = raw.startsWith("/") && !raw.startsWith("//") ? raw : "/authorize";
-    const state = randomBytes(16).toString("base64url");
+    const state = randomBase64Url(16);
     this.#github.set(state, { returnTo, expiresAt: Date.now() + 10 * 60 * 1000 });
 
-    redirect(
-      response,
+    return redirectResponse(
       githubAuthorizeUrl({
         clientId: github.clientId,
         redirectUri: `${this.#deps.config.publicOrigin}/auth/github/callback`,
         state,
       }),
     );
-    return true;
   }
 
-  async #githubCallback(response: ServerResponse, url: URL): Promise<boolean> {
+  async #githubCallback(request: Request): Promise<Response> {
+    const url = new URL(request.url);
     const origin = this.#deps.config.publicOrigin;
     const state = url.searchParams.get("state") ?? "";
     const pending = this.#github.get(state);
     this.#github.delete(state);
     const github = this.#deps.config.github;
     if (!pending || !github || pending.expiresAt < Date.now()) {
-      sendHtml(response, 400, page("登录已过期", `<h1>登录已过期</h1><p>请回到 PI NEXT 重新发起登录。</p>`, { origin }));
-      return true;
+      return htmlResponse(400, page("登录已过期", `<h1>登录已过期</h1><p>请回到 PI NEXT 重新发起登录。</p>`, { origin }));
     }
     const code = url.searchParams.get("code") ?? "";
     if (!code) {
-      sendHtml(response, 400, page("登录已取消", `<h1>登录已取消</h1><p>可以回到 PI NEXT 重试。</p>`, { origin }));
-      return true;
+      return htmlResponse(400, page("登录已取消", `<h1>登录已取消</h1><p>可以回到 PI NEXT 重试。</p>`, { origin }));
     }
 
     const doFetch = this.#deps.fetch ?? fetch;
@@ -268,17 +258,16 @@ export class Login {
     const profile = token ? await fetchGithubProfile(token, doFetch).catch(() => null) : null;
     if (!profile) {
       this.#deps.log?.("github: could not read the profile");
-      sendHtml(response, 502, page("登录失败", `<h1>登录失败</h1><p>GitHub 没有返回可用的账号信息。</p>`, { origin }));
-      return true;
+      return htmlResponse(502, page("登录失败", `<h1>登录失败</h1><p>GitHub 没有返回可用的账号信息。</p>`, { origin }));
     }
 
-    const account = this.#deps.store.upsertAccount(profile);
-    this.#setSession(response, account.id);
-    redirect(response, pending.returnTo);
-    return true;
+    const account = await this.#deps.store.upsertAccount(profile);
+    const headers = new Headers();
+    await this.#setSession(headers, account.id);
+    return redirectResponse(pending.returnTo, headers);
   }
 
-  async #token(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
+  async #token(request: Request): Promise<Response> {
     const body = await readJson(request).catch(() => ({}) as Record<string, unknown>);
     const code = typeof body.code === "string" ? body.code : "";
     const verifier = typeof body.code_verifier === "string" ? body.code_verifier : "";
@@ -298,60 +287,52 @@ export class Login {
       pending.clientId !== clientId ||
       pending.redirectUri !== redirectUri ||
       !verifier ||
-      pkceChallenge(verifier) !== pending.challenge
+      (await pkceChallenge(verifier)) !== pending.challenge
     ) {
-      sendError(response, 400, "invalid_grant");
-      return true;
+      return errorResponse(400, "invalid_grant");
     }
 
     const account = this.#deps.store.account(pending.accountId);
     if (!account) {
-      sendError(response, 400, "invalid_grant");
-      return true;
+      return errorResponse(400, "invalid_grant");
     }
     if (account.disabled) {
-      sendError(response, 403, "account_disabled");
-      return true;
+      return errorResponse(403, "account_disabled");
     }
 
-    const issued = this.#deps.store.issueToken(account.id);
-    sendJson(response, 200, {
+    const issued = await this.#deps.store.issueToken(account.id);
+    return jsonResponse(200, {
       access_token: issued.token,
       token_type: "Bearer",
       expires_in: Math.floor(this.#deps.config.tokenTtlMs / 1000),
       user: toWireUser(account),
     });
-    return true;
   }
 
-  #me(request: IncomingMessage, response: ServerResponse): boolean {
+  async #me(request: Request): Promise<Response> {
     const token = bearer(request);
-    const verified = token ? this.#deps.store.verifyToken(token, this.#deps.config.tokenTtlMs) : null;
+    const verified = token ? await this.#deps.store.verifyToken(token, this.#deps.config.tokenTtlMs) : null;
     if (!verified) {
-      sendError(response, 401, "unauthorized");
-      return true;
+      return errorResponse(401, "unauthorized");
     }
     if (verified.account.disabled) {
-      sendError(response, 403, "account_disabled");
-      return true;
+      return errorResponse(403, "account_disabled");
     }
     // Sliding window: reading the account is what keeps it alive, which is why the client
     // calls this on every start rather than on a timer.
-    sendJson(response, 200, { user: toWireUser(verified.account) });
-    return true;
+    return jsonResponse(200, { user: toWireUser(verified.account) });
   }
 
-  #logout(request: IncomingMessage, response: ServerResponse): boolean {
+  async #logout(request: Request): Promise<Response> {
     const token = bearer(request);
-    if (token) this.#deps.store.revokeToken(token);
+    if (token) await this.#deps.store.revokeToken(token);
     // Answering 2xx for a token that was already gone is deliberate: the client has cleared its
     // copy either way, and a failure here would only invite it to keep trying.
-    sendJson(response, 200, { ok: true });
-    return true;
+    return jsonResponse(200, { ok: true });
   }
 
-  #setSession(response: ServerResponse, accountId: string): void {
-    setCookie(response, SESSION_COOKIE, signSession(this.#deps.store.secret(), accountId, Date.now()), {
+  async #setSession(headers: Headers, accountId: string): Promise<void> {
+    setCookie(headers, SESSION_COOKIE, await signSession(this.#deps.store.secret(), accountId, Date.now()), {
       maxAgeSeconds: Math.floor(this.#deps.config.sessionTtlMs / 1000),
       secure: this.#deps.config.publicOrigin.startsWith("https://"),
     });
@@ -402,14 +383,11 @@ export function validRedirect(clientId: string, redirectUri: string): boolean {
 }
 
 /** `BASE64URL(SHA256(verifier))` — the same value the client sent as its challenge. */
-export function pkceChallenge(verifier: string): string {
-  return createHash("sha256").update(verifier).digest("base64url");
-}
-
-export function bearer(request: IncomingMessage): string | null {
-  const header = request.headers.authorization;
-  const match = /^Bearer\s+(\S+)$/i.exec(typeof header === "string" ? header : "");
-  return match?.[1] ?? null;
+export async function pkceChallenge(verifier: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+  let binary = "";
+  for (const byte of new Uint8Array(digest)) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 /**
@@ -432,4 +410,12 @@ export function toWireUser(account: Account): {
     email: account.email,
     role: account.role === "admin" ? "admin" : "user",
   };
+}
+
+function randomBase64Url(length: number): string {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }

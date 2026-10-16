@@ -1,53 +1,55 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
-
 /**
  * Request and response plumbing, kept free of any knowledge of what this service does.
  *
- * Every response here ends the request. A handler that returns without answering leaves a
- * socket open until the client gives up, which on a login page reads as "the service is down".
+ * Everything here speaks the Web platform's `Request` / `Response` / `Headers`, so a handler
+ * written against it runs unchanged on a Node server and on a worker. The one response that is
+ * easy to get wrong is the cookie: `Set-Cookie` is a list header, so it is appended rather than
+ * set, and the host is what turns the list back into repeated header lines.
+ *
+ * Every helper here returns a complete `Response`; a handler that returns null is the one that
+ * is saying "this route is not mine".
  */
 
-export function sendJson(response: ServerResponse, status: number, body: unknown): void {
-  const text = JSON.stringify(body);
-  response.writeHead(status, {
-    "content-type": "application/json; charset=utf-8",
-    "content-length": String(Buffer.byteLength(text)),
-    "cache-control": "no-store",
-  });
-  response.end(text);
+const encoder = new TextEncoder();
+
+export function byteLength(text: string): number {
+  return encoder.encode(text).byteLength;
+}
+
+export function jsonResponse(status: number, body: unknown, headers: Headers = new Headers()): Response {
+  headers.set("content-type", "application/json; charset=utf-8");
+  headers.set("cache-control", "no-store");
+  return new Response(JSON.stringify(body), { status, headers });
 }
 
 /** The failure envelope the client parses: `{ error: { code } }`. */
-export function sendError(response: ServerResponse, status: number, code: string): void {
-  sendJson(response, status, { error: { code } });
+export function errorResponse(status: number, code: string): Response {
+  return jsonResponse(status, { error: { code } });
 }
 
-export function sendHtml(response: ServerResponse, status: number, html: string): void {
-  const text = `<!doctype html>${html}`;
-  response.writeHead(status, {
-    "content-type": "text/html; charset=utf-8",
-    "content-length": String(Buffer.byteLength(text)),
-    "cache-control": "no-store",
-    "x-content-type-options": "nosniff",
-    // A page that carries a sign-in decision is never framed by somebody else's site.
-    "x-frame-options": "DENY",
-    "referrer-policy": "same-origin",
-  });
-  response.end(text);
+export function htmlResponse(status: number, html: string, headers: Headers = new Headers()): Response {
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-store");
+  headers.set("x-content-type-options", "nosniff");
+  // A page that carries a sign-in decision is never framed by somebody else's site.
+  headers.set("x-frame-options", "DENY");
+  headers.set("referrer-policy", "same-origin");
+  return new Response(`<!doctype html>${html}`, { status, headers });
 }
 
-export function redirect(response: ServerResponse, location: string): void {
-  response.writeHead(302, { location, "cache-control": "no-store" });
-  response.end();
+export function redirectResponse(location: string, headers: Headers = new Headers()): Response {
+  headers.set("location", location);
+  headers.set("cache-control", "no-store");
+  return new Response(null, { status: 302, headers });
 }
 
 /**
  * Read a JSON body with a hard ceiling.
  *
- * The ceiling is what keeps a large POST from being a memory exhaustion: `content-length` is a
- * claim, so the limit is enforced on what actually arrives.
+ * The ceiling is what keeps a large POST from being a memory exhaustion; a host that already
+ * buffered the body still cannot make the parse happen on more than this many bytes.
  */
-export async function readJson(request: IncomingMessage, limit = 64 * 1024): Promise<Record<string, unknown>> {
+export async function readJson(request: Request, limit = 64 * 1024): Promise<Record<string, unknown>> {
   const text = await readBody(request, limit);
   if (!text) return {};
   try {
@@ -58,28 +60,24 @@ export async function readJson(request: IncomingMessage, limit = 64 * 1024): Pro
   }
 }
 
-export async function readForm(request: IncomingMessage, limit = 64 * 1024): Promise<Record<string, string>> {
+export async function readForm(request: Request, limit = 64 * 1024): Promise<Record<string, string>> {
   const text = await readBody(request, limit);
   const out: Record<string, string> = {};
   for (const [key, value] of new URLSearchParams(text)) out[key] = value;
   return out;
 }
 
-export async function readBody(request: IncomingMessage, limit: number): Promise<string> {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of request) {
-    const buffer = chunk as Buffer;
-    size += buffer.byteLength;
-    if (size > limit) throw new Error("body too large");
-    chunks.push(buffer);
-  }
-  return Buffer.concat(chunks).toString("utf8");
+export async function readBody(request: Request, limit: number): Promise<string> {
+  const declared = Number(request.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > limit) throw new Error("body too large");
+  const text = await request.text();
+  if (byteLength(text) > limit) throw new Error("body too large");
+  return text;
 }
 
-export function cookiesOf(request: IncomingMessage): Record<string, string> {
-  const header = request.headers.cookie;
-  if (typeof header !== "string") return {};
+export function cookiesOf(request: Request): Record<string, string> {
+  const header = request.headers.get("cookie");
+  if (!header) return {};
   const out: Record<string, string> = {};
   for (const part of header.split(";")) {
     const at = part.indexOf("=");
@@ -90,7 +88,7 @@ export function cookiesOf(request: IncomingMessage): Record<string, string> {
 }
 
 export function setCookie(
-  response: ServerResponse,
+  headers: Headers,
   name: string,
   value: string,
   options: { maxAgeSeconds?: number; secure: boolean; clear?: boolean },
@@ -105,9 +103,16 @@ export function setCookie(
     // which looks exactly like a broken sign-in.
     options.secure ? "Secure" : "",
   ].filter(Boolean);
-  const existing = response.getHeader("set-cookie");
-  const list = Array.isArray(existing) ? existing : typeof existing === "string" ? [existing] : [];
-  response.setHeader("set-cookie", [...list, parts.join("; ")]);
+  headers.append("set-cookie", parts.join("; "));
+}
+
+export function bearerOf(header: string | null | undefined): string | null {
+  const match = /^Bearer\s+(\S+)$/i.exec(typeof header === "string" ? header : "");
+  return match?.[1] ?? null;
+}
+
+export function bearer(request: Request): string | null {
+  return bearerOf(request.headers.get("authorization"));
 }
 
 /** Escape for interpolation into HTML text or an attribute. */

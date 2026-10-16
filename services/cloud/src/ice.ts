@@ -1,7 +1,5 @@
-import { createHmac } from "node:crypto";
-import type { IncomingMessage, ServerResponse } from "node:http";
 import type { CloudConfig } from "./config.ts";
-import { sendJson } from "./http.ts";
+import { jsonResponse } from "./http.ts";
 
 /**
  * What ICE servers a client should gather with.
@@ -23,8 +21,9 @@ export class Ice {
     this.#config = config;
   }
 
-  handle(request: IncomingMessage, response: ServerResponse, url: URL, accountId: string | null): boolean {
-    if (url.pathname !== "/api/rtc/ice") return false;
+  async handle(request: Request, accountId: string | null): Promise<Response | null> {
+    const url = new URL(request.url);
+    if (url.pathname !== "/api/rtc/ice") return null;
     const servers: Array<Record<string, unknown>> = [];
 
     if (this.#config.stunUrls.length > 0) servers.push({ urls: this.#config.stunUrls });
@@ -38,18 +37,25 @@ export class Ice {
         username,
         // coturn's `use-auth-secret`: base64(HMAC-SHA1(shared secret, username)). The alphabet
         // includes `+ / =`, which is why this travels as a JSON field and never in a URL.
-        credential: createHmac("sha1", turn.secret).update(username).digest("base64"),
+        credential: await hmacSha1Base64(turn.secret, username),
       });
       // Handed back so a client can refresh before the credential dies: a relayed call that
       // outlives its credential is dropped mid-conversation.
-      sendJson(response, 200, { ice_servers: servers, expires_at: new Date(expiresAt * 1000).toISOString() });
-      return true;
+      return jsonResponse(200, { ice_servers: servers, expires_at: new Date(expiresAt * 1000).toISOString() });
     }
 
     // No TURN configured: STUN only. Direct and hole-punched paths still work, which covers the
     // same network and most home broadband; the cases it does not cover are the reason the
     // contract calls TURN optional rather than required.
-    sendJson(response, 200, { ice_servers: servers });
-    return true;
+    return jsonResponse(200, { ice_servers: servers });
   }
+}
+
+async function hmacSha1Base64(secret: string, message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(message));
+  let binary = "";
+  for (const byte of new Uint8Array(signature)) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }

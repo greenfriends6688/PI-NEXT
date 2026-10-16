@@ -4,10 +4,10 @@
   "private": true,
   "description": "PI NEXT 的云端服务：账号登录、设备登记、WebRTC 信令中转",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "src/node/index.ts",
   "scripts": {
-    "start": "node src/index.ts",
-    "dev": "DEV_LOGIN=1 PUBLIC_ORIGIN=http://127.0.0.1:9088 node src/index.ts",
+    "start": "node src/node/index.ts",
+    "dev": "DEV_LOGIN=1 PUBLIC_ORIGIN=http://127.0.0.1:9088 node src/node/index.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

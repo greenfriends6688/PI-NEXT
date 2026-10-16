@@ -1,12 +1,13 @@
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
-
 /**
  * Everything the service reads from its environment, in one place.
  *
  * Read once at startup and frozen: a service that re-read the environment while it ran would
  * answer two requests differently, and the pieces that matter (the token lifetime, the ICE
  * list) are exactly the ones a phone caches.
+ *
+ * The file itself touches nothing outside the Web platform: it is handed the environment as a
+ * plain string map and the one host path it cannot derive (where the document lives), so the
+ * same reading of `PORT` / `PUBLIC_ORIGIN` / … serves a Node process and, later, a Worker.
  */
 export type CloudConfig = {
   port: number;
@@ -19,7 +20,12 @@ export type CloudConfig = {
    * on the OAuth app — a mismatch is a redirect_uri error before any of our code runs.
    */
   publicOrigin: string;
-  /** Where accounts, token hashes and devices are kept. Created on first run. */
+  /**
+   * Where accounts, token hashes and devices are kept.
+   *
+   * A host path, opaque here — the core never opens it, the host turns it into a `CloudStorage`.
+   * A worker with no file system simply leaves it unset in practice.
+   */
   dataFile: string;
   /** How long a device token stays valid, extended on every use (the contract's 90 days). */
   tokenTtlMs: number;
@@ -59,51 +65,60 @@ export type CloudConfig = {
   relayLimit: number;
 };
 
-function env(name: string): string | undefined {
-  const value = process.env[name]?.trim();
+/** The environment as a plain string map, so this module needs nothing from Node. */
+export type CloudEnv = Record<string, string | undefined>;
+
+function env(source: CloudEnv, name: string): string | undefined {
+  const value = source[name]?.trim();
   return value ? value : undefined;
 }
 
-function numberEnv(name: string, fallback: number): number {
-  const raw = env(name);
+function numberEnv(source: CloudEnv, name: string, fallback: number): number {
+  const raw = env(source, name);
   const value = raw === undefined ? Number.NaN : Number(raw);
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
-function listEnv(name: string): string[] {
-  return (env(name) ?? "")
+function listEnv(source: CloudEnv, name: string): string[] {
+  return (env(source, name) ?? "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
 }
 
-export function loadConfig(): CloudConfig {
-  const port = numberEnv("PORT", 9088);
-  const host = env("HOST") ?? "127.0.0.1";
-  const publicOrigin = (env("PUBLIC_ORIGIN") ?? `http://${host === "0.0.0.0" ? "127.0.0.1" : host}:${port}`).replace(/\/+$/, "");
+/**
+ * Read the config.
+ *
+ * `options.dataFile` is the host's fallback for `DATA_FILE`; the host is also what resolves the
+ * resulting path, because resolution is a file-system idea the core does not have.
+ */
+export function loadConfig(source: CloudEnv, options: { dataFile: string }): CloudConfig {
+  const port = numberEnv(source, "PORT", 9088);
+  const host = env(source, "HOST") ?? "127.0.0.1";
+  const publicOrigin = (env(source, "PUBLIC_ORIGIN") ?? `http://${host === "0.0.0.0" ? "127.0.0.1" : host}:${port}`).replace(/\/+$/, "");
 
-  const clientId = env("GITHUB_CLIENT_ID");
-  const clientSecret = env("GITHUB_CLIENT_SECRET");
-  const turnSecret = env("TURN_SECRET");
-  const turnUrls = listEnv("TURN_URLS");
+  const clientId = env(source, "GITHUB_CLIENT_ID");
+  const clientSecret = env(source, "GITHUB_CLIENT_SECRET");
+  const turnSecret = env(source, "TURN_SECRET");
+  const turnUrls = listEnv(source, "TURN_URLS");
 
   return {
     port,
     host,
     publicOrigin,
-    dataFile: resolve(env("DATA_FILE") ?? join(homedir(), ".pinext-cloud", "cloud.json")),
-    tokenTtlMs: numberEnv("TOKEN_TTL_DAYS", 90) * 24 * 60 * 60 * 1000,
-    codeTtlMs: numberEnv("CODE_TTL_SECONDS", 300) * 1000,
+    dataFile: env(source, "DATA_FILE") ?? options.dataFile,
+    tokenTtlMs: numberEnv(source, "TOKEN_TTL_DAYS", 90) * 24 * 60 * 60 * 1000,
+    codeTtlMs: numberEnv(source, "CODE_TTL_SECONDS", 300) * 1000,
     sessionTtlMs: 30 * 24 * 60 * 60 * 1000,
     github: clientId && clientSecret ? { clientId, clientSecret } : null,
-    devLogin: env("DEV_LOGIN") === "1",
-    maxDevicesPerAccount: numberEnv("MAX_DEVICES", 10),
-    stunUrls: listEnv("STUN_URLS").length > 0 ? listEnv("STUN_URLS") : ["stun:stun.l.google.com:19302"],
+    devLogin: env(source, "DEV_LOGIN") === "1",
+    maxDevicesPerAccount: numberEnv(source, "MAX_DEVICES", 10),
+    stunUrls: listEnv(source, "STUN_URLS").length > 0 ? listEnv(source, "STUN_URLS") : ["stun:stun.l.google.com:19302"],
     turn:
       turnSecret && turnUrls.length > 0
-        ? { secret: turnSecret, urls: turnUrls, ttlSeconds: numberEnv("TURN_TTL_SECONDS", 300) }
+        ? { secret: turnSecret, urls: turnUrls, ttlSeconds: numberEnv(source, "TURN_TTL_SECONDS", 300) }
         : null,
-    relayLimit: numberEnv("RELAY_LIMIT", 4),
+    relayLimit: numberEnv(source, "RELAY_LIMIT", 4),
   };
 }
 

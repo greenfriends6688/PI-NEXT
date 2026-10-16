@@ -32,7 +32,7 @@
 
 ```bash
 cd services/cloud
-DEV_LOGIN=1 PUBLIC_ORIGIN=http://127.0.0.1:9088 node src/index.ts
+DEV_LOGIN=1 PUBLIC_ORIGIN=http://127.0.0.1:9088 node src/node/index.ts
 PINEXT_CLOUD_URL=http://127.0.0.1:9088 pnpm dev      # 另一个终端，指客户端过来
 ```
 
