@@ -283,7 +283,19 @@
     "commitDone": "Committed: {{subject}}",
     "commitPushDone": "Committed and pushed: {{subject}}",
     "discardDone": "Discarded changes to {{path}}",
-    "unbindWorktreeDone": "Back in the project directory"
+    "unbindWorktreeDone": "Back in the project directory",
+    "worktrees": "Isolated workspaces",
+    "newWorktree": "New",
+    "newWorktreeBound": "Unbind the current workspace first",
+    "newWorktreeDone": "Isolated workspace created",
+    "newWorktreeFailed": "Could not create the workspace",
+    "worktreesNone": "No workspaces yet",
+    "bindWorktreeDone": "Switched to that workspace",
+    "bindWorktreeFailed": "Could not switch workspace",
+    "removeWorktree": "Delete",
+    "removeWorktreeConfirm": "Delete for good?",
+    "removeWorktreeDone": "Workspace deleted",
+    "removeWorktreeFailed": "Could not delete the workspace"
   },
   "gitDialog": {
     "title": "Workspace changes",

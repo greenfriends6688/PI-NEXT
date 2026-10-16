@@ -283,7 +283,19 @@
     "commitDone": "已提交：{{subject}}",
     "commitPushDone": "已提交并推送：{{subject}}",
     "discardDone": "已丢弃 {{path}} 的改动",
-    "unbindWorktreeDone": "已回到项目目录"
+    "unbindWorktreeDone": "已回到项目目录",
+    "worktrees": "隔离工作区",
+    "newWorktree": "新建",
+    "newWorktreeBound": "先解除当前工作区再新建",
+    "newWorktreeDone": "已创建隔离工作区",
+    "newWorktreeFailed": "创建工作区失败",
+    "worktreesNone": "还没有工作区",
+    "bindWorktreeDone": "已切换到该工作区",
+    "bindWorktreeFailed": "切换工作区失败",
+    "removeWorktree": "删除",
+    "removeWorktreeConfirm": "确认删除？",
+    "removeWorktreeDone": "已删除工作区",
+    "removeWorktreeFailed": "删除工作区失败"
   },
   "gitDialog": {
     "title": "工作区变更",

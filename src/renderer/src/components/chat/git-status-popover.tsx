@@ -1,4 +1,4 @@
-import { useState, type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -21,11 +21,21 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { IconButton } from "@/components/icon-button";
+import { cn } from "@/lib/utils";
 import { useGitStatus } from "@/lib/use-git-status";
 import { useSidePaneStore } from "@/stores/side-pane";
-import type { GitStatus } from "@shared/ipc";
+import type { GitStatus, GitWorktree } from "@shared/ipc";
 
-type BusyAction = "generate" | "commit" | "commit-push" | "pull" | "push" | "unbind";
+type BusyAction =
+  | "generate"
+  | "commit"
+  | "commit-push"
+  | "pull"
+  | "push"
+  | "unbind"
+  | "worktree-create"
+  | "worktree-bind"
+  | "worktree-remove";
 
 /**
  * Persistent, lightweight repository status for the conversation header.
@@ -52,6 +62,9 @@ export function GitStatusPopover({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<BusyAction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [worktrees, setWorktrees] = useState<GitWorktree[] | null>(null);
+  /** The worktree 删除 is armed for, cleared by a second click elsewhere or a timeout. */
+  const [armedRemoval, setArmedRemoval] = useState<string | null>(null);
   const status = useGitStatus(cwd, `${String(refreshKey)}:${epoch}`);
 
   if (!status?.isRepository || !status.branch) return null;
@@ -98,6 +111,83 @@ export function GitStatusPopover({
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : fallback);
       return null;
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // A fresh list every time the popover opens: worktrees move under us — the agent creates
+  // them, a branch gets checked out elsewhere, the user removes one in a terminal — so a
+  // cached list would offer a path that is no longer a worktree.
+  useEffect(() => {
+    if (!open || !conversationId) return;
+    let cancelled = false;
+    setWorktrees(null);
+    void window.pinext.conversations
+      .listWorktrees(conversationId)
+      .then((list) => {
+        if (!cancelled) setWorktrees(list);
+      })
+      .catch(() => {
+        if (!cancelled) setWorktrees([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, conversationId, worktree?.path, epoch, refreshKey]);
+
+  async function createWorktree(): Promise<void> {
+    if (busy || !conversationId) return;
+    setBusy("worktree-create");
+    setError(null);
+    try {
+      // No name asked for: the engine derives the branch and the directory from the
+      // conversation's own title, which is the name the reader already has for this work.
+      await window.pinext.conversations.createWorktree(conversationId);
+      setOpen(false);
+      toast.success(t("git.newWorktreeDone"));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("git.newWorktreeFailed"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function bindWorktreeAt(path: string): Promise<void> {
+    if (busy || !conversationId) return;
+    setBusy("worktree-bind");
+    setError(null);
+    try {
+      await window.pinext.conversations.bindWorktree(conversationId, path);
+      setOpen(false);
+      toast.success(t("git.bindWorktreeDone"));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("git.bindWorktreeFailed"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function removeWorktreeAt(path: string): Promise<void> {
+    if (busy || !conversationId) return;
+    // Two clicks on purpose: `git worktree remove --force` does not ask, and a checkout with
+    // uncommitted work in it is exactly what someone would be about to lose. Nothing here
+    // can tell whether it is dirty, so the second click is the confirmation.
+    if (armedRemoval !== path) {
+      setArmedRemoval(path);
+      window.setTimeout(() => setArmedRemoval((current) => (current === path ? null : current)), 5000);
+      return;
+    }
+    setArmedRemoval(null);
+    setBusy("worktree-remove");
+    setError(null);
+    try {
+      // Unbind first (the bound one cannot be removed under a live session), then delete.
+      await window.pinext.conversations.unbindWorktree(conversationId, { remove: true });
+      setWorktrees((list) => (list ?? []).filter((item) => item.path !== path));
+      toast.success(t("git.removeWorktreeDone"));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("git.removeWorktreeFailed"));
     } finally {
       setBusy(null);
     }
@@ -256,6 +346,62 @@ export function GitStatusPopover({
           ) : null}
         </div>
 
+        {conversationId && worktrees !== null ? (
+          <div className="mt-1 border-t border-border/60 px-2 pt-2">
+            <div className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">{t("git.worktrees")}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="h-6 shrink-0 px-1.5 text-xs font-normal"
+                disabled={Boolean(busy) || Boolean(worktree)}
+                title={worktree ? t("git.newWorktreeBound") : undefined}
+                onClick={() => void createWorktree()}
+              >
+                {busy === "worktree-create" ? <Spinner className="size-3" /> : null}
+                {t("git.newWorktree")}
+              </Button>
+            </div>
+            {worktrees.length === 0 ? (
+              <p className="py-1 text-xs text-muted-foreground">{t("git.worktreesNone")}</p>
+            ) : (
+              <div className="max-h-40 overflow-y-auto py-0.5">
+                {worktrees.map((item) => (
+                  <div key={item.path} className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={Boolean(busy) || item.current}
+                      title={item.path}
+                      className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted/50 disabled:hover:bg-transparent"
+                      onClick={() => void bindWorktreeAt(item.path)}
+                    >
+                      {item.current ? (
+                        <HugeiconsIcon strokeWidth={2} icon={Tick02Icon} className="size-3 shrink-0 text-success" />
+                      ) : (
+                        <HugeiconsIcon strokeWidth={2} icon={GitBranchIcon} className="size-3 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className={cn("min-w-0 truncate", item.current && "font-medium")}>
+                        {item.branch ?? worktreeName(item.path)}
+                      </span>
+                    </button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      className={cn("h-6 shrink-0 px-1.5 text-xs font-normal", armedRemoval === item.path && "text-destructive")}
+                      disabled={Boolean(busy)}
+                      onClick={() => void removeWorktreeAt(item.path)}
+                    >
+                      {armedRemoval === item.path ? t("git.removeWorktreeConfirm") : t("git.removeWorktree")}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+
         <div className="mt-1 flex items-center gap-2 px-2 pb-2">
           <div className="relative min-w-0 flex-1">
             <Input
@@ -319,4 +465,9 @@ export function GitStatusPopover({
       </PopoverContent>
     </Popover>
   );
+}
+
+/** The last path segment, for a worktree whose branch cannot be read (a detached head). */
+function worktreeName(path: string): string {
+  return path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || path;
 }
