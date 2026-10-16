@@ -43,6 +43,14 @@ export type SubagentHostRequest = {
   agentSource?: "user" | "project";
   task: string;
   systemPrompt: string;
+  /**
+   * Hand the parent conversation over as background, as pi-web's `inherit_context` does.
+   *
+   * Off unless the role asks for it. A delegated run normally shares nothing with its
+   * parent, which is what makes the brief in the tool call the whole task; a role that
+   * wants the parent's history says so in its own file.
+   */
+  inheritContext?: boolean;
   tools?: string[];
   model?: string;
   fallbackModel?: string;
@@ -85,6 +93,9 @@ export type SubagentHostResponse = {
 
 type ReasoningBlocks = { blocks: ThinkingTiming[] };
 
+/** How much of a parent conversation may be handed to a child, in characters. pi-web's number. */
+const PARENT_CONTEXT_LIMIT = 50_000;
+
 export type SubagentRunHost = {
   runtime: ModelRuntime | null;
   models: ModelRegistry | null;
@@ -108,6 +119,14 @@ export type SubagentRunHost = {
    * still has the message waiting rather than losing it.
    */
   wakeSession(sessionId: string, text: string): Promise<void>;
+  /**
+   * The parent conversation's messages, serialized, for a role that asked to inherit them.
+   *
+   * Answered by the manager because the session map is its own; this file only knows how to
+   * run a child. `undefined` when the conversation is not loaded, which reads downstream as
+   * "nothing to inherit" rather than a failure.
+   */
+  parentContext?(conversationId: string): Promise<string | undefined>;
   folderPrompt?(cwd: string): Promise<string | undefined>;
   timeReasoning(
     key: string,
@@ -201,6 +220,26 @@ export class SubagentTurnRunner {
    * A throwaway `DefaultResourceLoader` loads no Pinext extension (no recursion,
    * no goal) except `folder-consent`, which only primes macOS folder access.
    */
+  /**
+   * The parent conversation as background for a role that asked for it.
+   *
+   * pi-web's wording, kept word for word because the first sentence is the whole point: a
+   * child handed a transcript will otherwise read it as its own task and answer the parent's
+   * last question instead of the one it was given. **Use it only as background** is not
+   * decoration; it is what makes the inherited history safe to hand over.
+   *
+   * Bounded like pi-web's, at the same 50,000 characters: a long parent would otherwise be
+   * the child's entire context window before its brief is read.
+   */
+  async #parentContext(conversationId: string): Promise<string | undefined> {
+    const serialized = await this.#host.parentContext?.(conversationId);
+    if (!serialized) return undefined;
+    const bounded = serialized.length <= PARENT_CONTEXT_LIMIT
+      ? serialized
+      : `${serialized.slice(0, PARENT_CONTEXT_LIMIT)}\n[Parent context truncated]`;
+    return `The following is the active conversation context from the parent session. Use it only as background for the delegated task:\n${bounded}`;
+  }
+
   async #runSubagent(conversationId: string, request: SubagentHostRequest): Promise<SubagentHostResponse> {
     const { subagentId } = request;
     const lifecycle = (status: string, error?: string): void => {
@@ -235,6 +274,7 @@ export class SubagentTurnRunner {
         currentAiLanguageDirective(),
         currentCustomSystemPrompt(),
         folderPrompt,
+        request.inheritContext ? await this.#parentContext(conversationId) : undefined,
       ].filter(
         (value): value is string => Boolean(value),
       );

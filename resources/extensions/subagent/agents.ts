@@ -17,6 +17,15 @@ export interface AgentConfig {
 	model?: string;
 	thinkingLevel: ThinkingLevel;
 	systemPrompt: string;
+	/**
+	 * Whether the parent conversation's messages are handed to this role as background.
+	 *
+	 * pi-web's `inherit_context`. Off unless asked for: a delegated run shares nothing with
+	 * its parent by default, which is what makes the brief in the tool call the whole task.
+	 * A role that turns it on gets the parent's messages appended to its system prompt under
+	 * a sentence saying what they are for — see `parentContextText`.
+	 */
+	inheritContext: boolean;
 	source: "user" | "project";
 	filePath: string;
 }
@@ -40,6 +49,7 @@ type AgentFrontmatter = {
 	tools?: unknown;
 	model?: unknown;
 	thinkingLevel?: unknown;
+	inherit_context?: unknown;
 };
 
 const THINKING_LEVELS = new Set<ThinkingLevel>(["minimal", "low", "medium", "high", "xhigh", "max"]);
@@ -109,6 +119,9 @@ function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig
 			tools: parseToolList(frontmatter.tools),
 			model: typeof frontmatter.model === "string" ? frontmatter.model : undefined,
 			thinkingLevel: parseAgentThinkingLevel(frontmatter.thinkingLevel),
+			// Spelled the way pi-web's profiles spell it (`inherit_context`), so a role file
+			// written for either runtime means the same thing.
+			inheritContext: frontmatter.inherit_context === true,
 			systemPrompt: body,
 			source,
 			filePath,

@@ -5582,6 +5582,14 @@ export class PiProcessManager {
         if (!parent?.project) return undefined;
         return this.#projectFoldersPrompt({ ...parent, cwd });
       },
+      // A role's own `inherit_context` decides whether this is ever called. Answered from the
+      // live session when there is one, and from the transcript on disk otherwise, so a chat
+      // that was never opened in this window still hands over what it holds.
+      parentContext: async (id) => {
+        const managed = this.#sessions.get(id);
+        const messages = managed ? this.#messages(managed.session, id) : (await this.getSnapshot(id)).messages;
+        return messages.length > 0 ? JSON.stringify(messages) : undefined;
+      },
     }).run(conversationId, request);
   }
 

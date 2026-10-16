@@ -46,6 +46,8 @@ type HostSubagentRequest = {
 	agentSource?: "user" | "project";
 	task: string;
 	systemPrompt: string;
+	/** The role's own `inherit_context`; Main decides what to do with it. */
+	inheritContext?: boolean;
 	tools?: string[];
 	/** The agent's pinned model, if its frontmatter set one. */
 	model?: string;
@@ -387,6 +389,7 @@ async function runSingleAgent(
 			agentSource: agent.source,
 			task,
 			systemPrompt: agent.systemPrompt,
+			inheritContext: agent.inheritContext,
 			tools: agent.tools,
 			model: agent.model,
 			fallbackModel: dispatchDefaults.model,
