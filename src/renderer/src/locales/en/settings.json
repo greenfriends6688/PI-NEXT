@@ -31,7 +31,7 @@
     "keyClear": "Clear",
     "keySaved": "Saved (never shown)",
     "keyMissing": "Not set",
-    "jevPrivacy": "With Jev, the task goal, page content, control names and values, and the step history go to Jev (TypeSafe); the current provider sees the context needed to generate typed text. Passwords, files and hidden inputs are never read.",
+    "jevPrivacy": "The goal, page content, controls and values go to Jev (TypeSafe); typing also uses the current provider. Passwords and hidden fields are not read.",
     "batchDecide": "Batch decisions",
     "batchDecideHint": "The main agent can hand bulk labelling, rating and yes/no judgement to the decision model. Item content is sent to Jev."
   },

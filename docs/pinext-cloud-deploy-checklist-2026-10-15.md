@@ -3,13 +3,47 @@
 日期：2026-10-15
 适用契约：`docs/pinext-cloud-contract-2026-10-13.md`（下称「契约」）
 读者：要实现并部署 Pinext 云服务端的人
-目标：把 `app.pinext.dev` 从 NXDOMAIN 变成真域名，让「账号登录」与「官方连接」真的可用
+目标：把 `app.aiandchat.cloud` 从 NXDOMAIN 变成真域名，让「账号登录」与「官方连接」真的可用
 
-现状证据：`nslookup app.pinext.dev` 返回 **NXDOMAIN**（本机实测）。客户端默认 origin 是 `https://app.pinext.dev`（`src/shared/account.ts:43`），所以登录必然失败于网络层。
+现状证据：本清单最初写于域名还是占位符的时候，现在两件事都已改变：
+
+- **域名已生效**：`app.aiandchat.cloud. 600 IN A 121.196.230.156`（2026-10-15 实测）。
+- **服务端已经写好了**，就在 `services/cloud/`。本清单从「要写什么」变成了「怎么部署」。
 
 ---
 
-## 0. 结论速览
+## 0. 服务端已实现（2026-10-15 补充）
+
+代码在 `services/cloud/`，一个 Node 进程，只依赖 `ws`。八个端点加一个控制台，全部实现：
+
+| 端点 | 状态 |
+| --- | --- |
+| `GET /authorize` + `POST /authorize/decision` | ✅（含 GitHub 登录与开发登录） |
+| `POST /api/oauth/token` | ✅ PKCE 校验、code 一次性、`redirect_uri` 精确匹配 |
+| `GET /api/me` | ✅ 滑动续期；停用账号回 403 `account_disabled` |
+| `POST /api/auth/logout` | ✅ 始终 2xx |
+| `PUT /api/devices/me` | ✅ 按 `install_id` 幂等；超限 409 |
+| `GET /api/devices` | ✅ 含 `online`（= 信令 socket 活着） |
+| `GET /api/rtc/ice` | ✅ STUN；配了 coturn 时下发 TURN 临时凭据 |
+| `WS /api/rtc/signal` | ✅ 介绍两端、转发、25s 心跳、4001/4005、跨账号隔离 |
+| `GET /console` | ✅ 额外：管理账号下的电脑（桌面账号菜单那个链接） |
+
+**跳过 §2/§3 直接跑**：
+
+```bash
+cd services/cloud
+DEV_LOGIN=1 PUBLIC_ORIGIN=http://127.0.0.1:9088 node src/index.ts
+PINEXT_CLOUD_URL=http://127.0.0.1:9088 pnpm dev      # 另一个终端，指客户端过来
+```
+
+不需要域名、备案或服务器就能把登录与官方连接跑通。部署见 `services/cloud/README.md`。
+
+**本清单 §1 对客户端行为的描述仍然有效**（那是契约，不是实现）；§2 的 curl 现可直接对着本地实例跑，
+§3 关于 Vercel 只支持前 3 个端点的结论仍然成立。
+
+---
+
+## 1. 结论速览
 
 | 目标 | 需要哪些端点 | 说明 |
 |---|---|---|
@@ -49,7 +83,7 @@
 
 ## 2. 逐端点 curl 验收
 
-约定：`ORIGIN=https://app.pinext.dev`，`TOKEN=fvs_…`（登录后得到）。契约第 25 行：全部 JSON、客户端超时 15s、`redirect: "error"`。
+约定：`ORIGIN=https://app.aiandchat.cloud`，`TOKEN=fvs_…`（登录后得到）。契约第 25 行：全部 JSON、客户端超时 15s、`redirect: "error"`。
 
 ### 2.1 `GET /authorize`（不能纯 curl 跑完）
 
@@ -151,7 +185,7 @@ WebSocket，需 `Authorization` 头鉴权升级（契约第 93 行）。用仓�
 
 ```bash
 # 存为 /tmp/check-signal.mjs，然后：node /tmp/check-signal.mjs
-#   ORIGIN=wss://app.pinext.dev  TOKEN=fvs_…  DEVICE_ID=<uuid>  node /tmp/check-signal.mjs
+#   ORIGIN=wss://app.aiandchat.cloud  TOKEN=fvs_…  DEVICE_ID=<uuid>  node /tmp/check-signal.mjs
 import WebSocket from "ws";
 const { ORIGIN, TOKEN, DEVICE_ID } = process.env;
 const ws = new WebSocket(`${ORIGIN}/api/rtc/signal`, { headers: { Authorization: `Bearer ${TOKEN}` } });
@@ -222,17 +256,18 @@ setTimeout(() => ws.close(), 5000);
 
 ## 4. 域名与 DNS
 
-> **实际用的域名是 `aiandchat.cloud`（阿里云 DNS），不是 `app.pinext.dev`。**
-> 客户端默认值已改，具体怎么加记录、备案这个坑、nginx 反代配置，
-> 见 `docs/domain-aiandchat-setup.md`。下面这一节保留为「契约要求什么」的通用说明。
+> **实际用的域名是 `aiandchat.cloud` 下的 `app`，客户端默认值已改过来。**
+> 具体怎么加记录、备案这个坑、nginx 反代配置，见 `docs/domain-aiandchat-setup.md`。
+> 下面这一节保留为「契约要求什么」的通用说明。
 
 ### 4.1 让占位域名变真
 
-1. 在 `pinext.dev` 的 DNS 服务商添加解析：`app` 记录指向部署平台。
-   - Vercel：加 CNAME `app → cname.vercel-dns.com`（或平台给出的值），再在 Vercel 项目里绑定 `app.pinext.dev`。
+1. 在 `aiandchat.cloud` 的 DNS（阿里云）添加解析：`app` 记录指向部署平台。
+   - **已完成**：`app.aiandchat.cloud. 600 IN A 121.196.230.156`（2026-10-15 实测，权威 NS `dns19/dns20.hichina.com` 已生效）。
+   - Vercel：加 CNAME `app → cname.vercel-dns.com`（或平台给出的值），再在 Vercel 项目里绑定 `app.aiandchat.cloud`。
    - VPS：加 A（IPv4）/ AAAA（IPv6）记录指向服务器 IP。
 2. 证书由平台自动签发（Vercel 自动 Let's Encrypt；VPS 用 Caddy/nginx + certbot）。**必须是有效 https**：客户端对 `/authorize` 与所有 API 都用默认 TLS 校验。
-3. 验证：`nslookup app.pinext.dev` 有结果（当前是 NXDOMAIN），`curl -I https://app.pinext.dev/authorize` 能建 TLS。
+3. 验证：`nslookup app.aiandchat.cloud` 有结果（已生效），`curl -I https://app.aiandchat.cloud/authorize` 能建 TLS。
 4. 若要用手机连 `wss://`，同一域名即可，无需另开。
 
 ### 4.2 不想用这个域名时怎么改
@@ -243,7 +278,7 @@ setTimeout(() => ws.close(), 5000);
 |---|---|---|
 | 桌面 | 环境变量 `PINEXT_CLOUD_URL`（必须是 http(s) origin，取 `url.origin`） | `src/main/account.ts:17,21` |
 | 手机 | 构建时 `--dart-define=PINEXT_CLOUD_URL=https://your.host` | `apps/mobile_flutter/lib/account/account.dart:18-21` |
-| 默认值（两者） | `https://app.pinext.dev` | `src/shared/account.ts:43`；`account.dart:21` |
+| 默认值（两者） | `https://app.aiandchat.cloud` | `src/shared/account.ts:48`；`account.dart:21` |
 
 桌面端读取逻辑：非 http(s) 的值被忽略并回退默认（`src/main/account.ts:20-26`）。
 
@@ -260,8 +295,8 @@ setTimeout(() => ws.close(), 5000);
 1. 打开 https://github.com/settings/developers → New OAuth App。
 2. 字段：
    - **Application name**：`Pinext`（任意）。
-   - **Homepage URL**：`https://app.pinext.dev`。
-   - **Authorization callback URL**：`https://app.pinext.dev/api/auth/github/callback`（这是**你的站点**的回调，不是客户端的）。客户端回调是 `http://127.0.0.1:<随机端口>/callback`（桌面）与 `pinext://oauth/callback`（手机），它们是**你的** `/authorize` 重定向的目标，不填进 GitHub。
+   - **Homepage URL**：`https://app.aiandchat.cloud`。
+   - **Authorization callback URL**：`https://app.aiandchat.cloud/api/auth/github/callback`（这是**你的站点**的回调，不是客户端的）。客户端回调是 `http://127.0.0.1:<随机端口>/callback`（桌面）与 `pinext://oauth/callback`（手机），它们是**你的** `/authorize` 重定向的目标，不填进 GitHub。
 3. 拿到 `Client ID` 与 `Client Secret`，放进服务端环境变量。**Secret 只存服务端，不进客户端**。
 4. 服务端流程：`/authorize` 里跳 GitHub 授权 → GitHub 回你的 callback → 你换 GitHub access token、取用户 → 生成一次性 `code` → 302 回客户端 `redirect_uri?code=…&state=…`（契约第 76 行）。
 5. 若不做 GitHub、用别的 IdP 也行——契约只规定 `/authorize` 的行为与 `user` 字段名，不规定上游是 GitHub（契约第 213 行「GitHub OAuth 或你自己喜欢的 IdP」）。
@@ -325,7 +360,7 @@ setTimeout(() => ws.close(), 5000);
 | 4 | §1 第 34 行含 `relay_exhausted` | 桌面与手机都**不读**该字段 | `src/main/rtc/ice.ts:25-51`；`rtc_connection.dart:317-335` |
 | 5 | §1 第 33 行 `GET /api/devices` 列为通用端点 | **桌面从不调用**，只有手机调；桌面用 `PUT /api/devices/me` 的返回 | `official.ts:510`；`official_devices.dart:60` |
 | 6 | §1 第 42 行 `user.role` 字段 | 桌面读（非 `admin` 当 `user`）；**手机完全忽略 `role`** | `engine/account.ts:349`；`account.dart:38-50` |
-| 7 | §8 第 232–234 行的行号 | 已漂移：`DEFAULT_ACCOUNT_ORIGIN` 实际在 `src/shared/account.ts:43`（非 :29）；`PINEXT_CLOUD_URL` 实际读于 `src/main/account.ts:17`（非 :16）；手机默认值在 `account.dart:21`（非 :19） | 本清单各表已用实际行号 |
+| 7 | §8 第 232–234 行的行号 | 已漂移：`DEFAULT_ACCOUNT_ORIGIN` 实际在 `src/shared/account.ts:48`（非 :29）；`PINEXT_CLOUD_URL` 实际读于 `src/main/account.ts:17`（非 :16）；手机默认值在 `account.dart:21`（非 :19） | 本清单各表已用实际行号 |
 | 8 | §8 第 235–237 行写「改名后 →」 | 改名**已完成**，仓库里已是 `pinext-desktop` / `pinext-mobile` / `pinext://oauth/callback` | `engine/account.ts:25`；`account.dart:23-24`；`AndroidManifest.xml:48` |
 
 **未验证项**（无法从本仓库确认，需部署后实测）：
@@ -338,8 +373,8 @@ setTimeout(() => ws.close(), 5000);
 
 ## 9. 验收清单（逐条勾）
 
-- [ ] `nslookup app.pinext.dev` 不再是 NXDOMAIN
-- [ ] `https://app.pinext.dev/authorize?...` 返回 200 HTML（参数见 §2.1）
+- [ ] `nslookup app.aiandchat.cloud` 不再是 NXDOMAIN
+- [ ] `https://app.aiandchat.cloud/authorize?...` 返回 200 HTML（参数见 §2.1）
 - [ ] 浏览器完整登录后 302 回 `redirect_uri?code=…&state=…`
 - [ ] `POST /api/oauth/token` 换到 `access_token` + `user`
 - [ ] `GET /api/me` 带令牌 200；坏令牌 401

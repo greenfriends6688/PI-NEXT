@@ -31,7 +31,7 @@
     "keyClear": "清除",
     "keySaved": "已保存（不会显示原文）",
     "keyMissing": "未配置",
-    "jevPrivacy": "使用 Jev 时，任务目标、页面内容、控件名称与当前值、操作历史会发送给 Jev（TypeSafe）；生成输入内容时相关上下文会发送给当前模型供应商。密码、文件和隐藏输入字段不会读取。",
+    "jevPrivacy": "任务目标、页面内容、控件与取值会发送给 Jev（TypeSafe）；生成输入内容时当前供应商也会参与。密码与隐藏字段不会读取。",
     "batchDecide": "批量决策",
     "batchDecideHint": "主 Agent 可以把大量同类条目的分类、打分、是非判断交给决策模型（batch_decide）。条目内容会发送给 Jev。"
   },
