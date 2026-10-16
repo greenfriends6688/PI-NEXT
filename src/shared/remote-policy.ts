@@ -226,6 +226,8 @@ const ALLOWED = new Set<string>([
   Ipc.engineReplaceSteering,
   Ipc.engineRestoreCheckpoint,
   Ipc.engineSaveMcpServers,
+  // Same class as SaveSkill/RemoveSkill beside it: writing a skill Pinext manages.
+  Ipc.engineSetSkillEnabled,
   Ipc.engineSetAutoCompact,
   // The headless Agent additionally requires the per-SSH token established during
   // bootstrap; listing this here only lets the App Protocol carry that trusted call.

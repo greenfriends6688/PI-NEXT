@@ -832,7 +832,11 @@
     "instructions": "指令",
     "instructionsPlaceholder": "完整步骤、命令和注意事项。相对路径相对于技能目录。",
     "cancel": "取消",
-    "add": "添加"
+    "add": "添加",
+    "offForModel": "模型看不到",
+    "disableForModel": "不在模型提示里出现（仍然可以手动使用）",
+    "enableForModel": "重新让模型看到",
+    "toggleFailed": "切换失败，请重试"
   },
   "extensions": {
     "kindExtension": "扩展",

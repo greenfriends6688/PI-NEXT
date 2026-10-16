@@ -4,6 +4,16 @@ import { join, resolve, sep } from "node:path";
 import { DefaultResourceLoader, loadSkillsFromDir } from "@earendil-works/pi-coding-agent";
 import type { SkillDraft, SkillInfo } from "@shared/types";
 import { builtinSkillPaths } from "./extension-manager";
+import { hasUnclosedFrontmatter, readsDisabledForModel, withDisabledForModel } from "../../shared/skill-frontmatter.ts";
+
+/** A skill file the loader listed but that has since gone: read as "not switched off". */
+function readFileSyncSafely(file: string): string {
+  try {
+    return readFileSync(file, "utf8");
+  } catch {
+    return "";
+  }
+}
 
 const NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -35,6 +45,9 @@ export class SkillManager {
       description: skill.description,
       filePath: skill.filePath,
       baseDir: skill.baseDir,
+      // Read from the file rather than from the loaded skill: the loader's own object does
+      // not carry this key, and the file is what the switch edits.
+      disabledForModel: readsDisabledForModel(readFileSyncSafely(skill.filePath)),
       // Built-ins are passed through the SDK's additionalSkillPaths API, which
       // marks them as temporary CLI resources. That describes the loader
       // lifetime, not where the skill comes from in Pinext's UI.
@@ -42,6 +55,24 @@ export class SkillManager {
       source: skill.sourceInfo.source,
       removable: isManagedSkill(this.#skillsDir, skill.baseDir),
     }));
+  }
+
+  /**
+   * Switch the skill off for the model, or back on.
+   *
+   * The whole file is rewritten with one line changed and nothing else
+   * (`shared/skill-frontmatter.ts`), because a skill is the author's markdown: a re-serialised
+   * frontmatter would drop their comments and re-wrap their description. Anything but a skill
+   * Pinext manages is refused, the same line `save` and `remove` draw.
+   */
+  async setDisabledForModel(cwd: string, name: string, disabled: boolean): Promise<SkillInfo[]> {
+    const skill = await this.#require(cwd, name);
+    if (!skill.removable) throw new Error("只能修改 Pinext 中添加的技能");
+    const content = readFileSync(skill.filePath, "utf8");
+    if (hasUnclosedFrontmatter(content)) throw new Error("这个技能的 frontmatter 没有闭合，无法安全修改");
+    const next = withDisabledForModel(content, disabled);
+    if (next !== content) await writeFile(skill.filePath, next, "utf8");
+    return this.list(cwd);
   }
 
   async create(cwd: string, draft: SkillDraft): Promise<SkillInfo[]> {

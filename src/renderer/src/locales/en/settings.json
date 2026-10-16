@@ -834,7 +834,11 @@
     "instructions": "Instructions",
     "instructionsPlaceholder": "Full steps, commands and caveats. Relative paths are relative to the skill directory.",
     "cancel": "Cancel",
-    "add": "Add"
+    "add": "Add",
+    "offForModel": "Hidden from the model",
+    "disableForModel": "Keep it out of the model's prompt (still usable by hand)",
+    "enableForModel": "Offer it to the model again",
+    "toggleFailed": "Could not switch it"
   },
   "extensions": {
     "kindExtension": "Extension",

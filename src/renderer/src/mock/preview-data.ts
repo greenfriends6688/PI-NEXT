@@ -554,6 +554,7 @@ export const SKILLS: SkillInfo[] = [
     scope: "user",
     source: "pinext",
     removable: true,
+      disabledForModel: false,
   },
   {
     name: "excalidraw",
@@ -563,6 +564,7 @@ export const SKILLS: SkillInfo[] = [
     scope: "user",
     source: "pinext",
     removable: true,
+      disabledForModel: false,
   },
   {
     name: "changelog",
@@ -572,6 +574,7 @@ export const SKILLS: SkillInfo[] = [
     scope: "project",
     source: "project",
     removable: false,
+      disabledForModel: false,
   },
 ];
 

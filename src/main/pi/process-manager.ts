@@ -2468,6 +2468,14 @@ export class PiProcessManager {
   async createSkill(draft: SkillDraft): Promise<SkillInfo[]> { const skills = await this.#skills.create(this.#cwd, draft); await this.#reloadSkills(); return skills; }
   async importSkill(sourceDir: string): Promise<SkillInfo[]> { const skills = await this.#skills.importFrom(this.#cwd, sourceDir); await this.#reloadSkills(); return skills; }
   async removeSkill(name: string): Promise<SkillInfo[]> { const skills = await this.#skills.remove(this.#cwd, name); await this.#reloadSkills(); return skills; }
+  async setSkillEnabled(name: string, enabled: boolean): Promise<SkillInfo[]> {
+    const skills = await this.#skills.setDisabledForModel(this.#cwd, name, !enabled);
+    // The skill's text is a resource the session reads per turn, and whether the model is
+    // offered it at all is decided when the session's prompt is built — so the same reload
+    // the other skill writes do is what makes the switch take effect now.
+    await this.#reloadSkills();
+    return skills;
+  }
 
   /**
    * Other agents on this machine that Pinext can pull sessions from (设置 → 导入).

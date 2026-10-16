@@ -11,6 +11,8 @@ import {
   MoreHorizontalIcon,
   RefreshIcon,
   Search01Icon,
+  ViewIcon,
+  ViewOffSlashIcon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -147,6 +149,24 @@ export function SkillsSettings(): JSX.Element {
     }
   }
 
+  /**
+   * Switch a skill off for the model, or back on.
+   *
+   * Not a local flag and not a settings key: it is a line in the skill's own frontmatter, so
+   * the same switch works for the skill in any other pi client, and turning it back on leaves
+   * the file exactly as its author wrote it (`shared/skill-frontmatter.ts`).
+   */
+  async function toggle(skill: SkillInfo): Promise<void> {
+    setSaving(true);
+    try {
+      setSkills(await window.pinext.engine.setSkillEnabled(skill.name, skill.disabledForModel));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("skills.toggleFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function remove(name: string): Promise<void> {
     setSaving(true);
     try {
@@ -214,6 +234,7 @@ export function SkillsSettings(): JSX.Element {
               skill={skill}
               onOpen={() => void openDetail(skill)}
               onRemove={() => void remove(skill.name)}
+              onToggle={() => void toggle(skill)}
             />
           ))}
         </div>
@@ -252,7 +273,18 @@ export function SkillsSettings(): JSX.Element {
   );
 }
 
-function SkillCard({ skill, onOpen, onRemove }: { skill: SkillInfo; onOpen: () => void; onRemove: () => void }): JSX.Element {
+function SkillCard({
+  skill,
+  onOpen,
+  onRemove,
+  onToggle,
+}: {
+  skill: SkillInfo;
+  onOpen: () => void;
+  onRemove: () => void;
+  /** Switch it off for the model, or back on. Kept either way. */
+  onToggle: () => void;
+}): JSX.Element {
   const { t } = useTranslation("settings");
   const scopeLabel =
     skill.scope === "project"
@@ -274,11 +306,27 @@ function SkillCard({ skill, onOpen, onRemove }: { skill: SkillInfo; onOpen: () =
         <div className="flex min-w-0 items-center gap-2">
           <ItemTitle title={skill.name} className="min-w-0 truncate text-base">{skill.name}</ItemTitle>
           <Badge variant="secondary" className="shrink-0">{scopeLabel}</Badge>
+          {/* Off for the model is a state a reader has to be able to see at a glance: the
+              row looks unchanged otherwise, and 「模型看不到它」 is the whole effect. */}
+          {skill.disabledForModel ? <Badge variant="outline" className="shrink-0">{t("skills.offForModel")}</Badge> : null}
         </div>
         <ItemDescription className="line-clamp-1">{skill.description}</ItemDescription>
       </ItemContent>
-      {skill.removable ? (
-        <ItemActions className="ml-auto shrink-0 self-center">
+      <ItemActions className="ml-auto shrink-0 self-center">
+        {skill.removable ? (
+          <IconButton
+            label={t(skill.disabledForModel ? "skills.enableForModel" : "skills.disableForModel")}
+            size="icon-xs"
+            variant="ghost"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle();
+            }}
+          >
+            <HugeiconsIcon strokeWidth={2} icon={skill.disabledForModel ? ViewOffSlashIcon : ViewIcon} />
+          </IconButton>
+        ) : null}
+        {skill.removable ? (
           <IconButton label={t("skills.delete")} size="icon-xs" variant="ghost" onClick={(event) => {
             // The row itself opens the detail; deleting is a deliberate hit on its own button.
             event.stopPropagation();
@@ -286,8 +334,8 @@ function SkillCard({ skill, onOpen, onRemove }: { skill: SkillInfo; onOpen: () =
           }}>
             <HugeiconsIcon strokeWidth={2} icon={Delete02Icon} />
           </IconButton>
-        </ItemActions>
-      ) : null}
+        ) : null}
+      </ItemActions>
     </Item>
   );
 }

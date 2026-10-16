@@ -503,6 +503,11 @@ export type SkillInfo = {
   source: string;
   /** True when the skill lives under Pinext's isolated agentDir/skills. */
   removable: boolean;
+  /**
+   * `disable-model-invocation: true` in the skill's own frontmatter: kept, invocable by a
+   * person, and not put in front of the model. The one switch that says 「别每轮都读它」.
+   */
+  disabledForModel: boolean;
 };
 
 export type SkillDraft = {

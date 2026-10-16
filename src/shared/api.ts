@@ -220,6 +220,12 @@ export function createPinextApi(t: ApiTransport) {
       listSkills: (): Promise<SkillInfo[]> => t.invoke(Ipc.engineListSkills),
       createSkill: (draft: SkillDraft): Promise<SkillInfo[]> => t.invoke(Ipc.engineCreateSkill, draft),
       importSkill: (): Promise<SkillInfo[] | null> => t.invoke(Ipc.engineImportSkill),
+      /**
+       * Switch a skill off for the model, or back on. Unlike `removeSkill` this keeps the
+       * file: it is the difference between 「别每轮都读它」 and deleting somebody's work.
+       */
+      setSkillEnabled: (name: string, enabled: boolean): Promise<SkillInfo[]> =>
+        t.invoke(Ipc.engineSetSkillEnabled, { name, enabled }),
       removeSkill: (name: string): Promise<SkillInfo[]> => t.invoke(Ipc.engineRemoveSkill, { name }),
       getSubagents: (conversationId?: string): Promise<SubagentInfo[]> =>
         t.invoke(Ipc.engineGetSubagents, { conversationId }),

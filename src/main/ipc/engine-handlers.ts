@@ -187,6 +187,8 @@ export function registerEngineIpc(engine: PiProcessManager, host: EngineIpcHost 
     return engine.importSkill(directory);
   });
   handle(Ipc.engineRemoveSkill, async (payload: { name: string }) => engine.removeSkill(payload.name));
+  handle(Ipc.engineSetSkillEnabled, async (payload: { name: string; enabled: boolean }) =>
+    engine.setSkillEnabled(payload.name, payload.enabled));
 
   handle(Ipc.engineGetSubagents, async (payload?: { conversationId?: string }) => {
     return engine.getSubagents(payload?.conversationId);
