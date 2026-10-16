@@ -395,7 +395,7 @@ const dagApi = {
 };
 
 function accountMock(): typeof window.pinext.account {
-  const origin = "https://app.pinext.dev";
+  const origin = "https://app.aiandchat.cloud";
   const user = { id: "u1", login: "octocat", avatarUrl: null, email: "octocat@example.com", role: "user" as const };
   const listeners = new Set<(state: import("@shared/account").AccountState) => void>();
   const scene = params.get("account") ?? "in";

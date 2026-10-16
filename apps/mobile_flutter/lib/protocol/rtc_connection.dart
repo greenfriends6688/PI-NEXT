@@ -218,7 +218,7 @@ class RtcDialer {
     http.Client? client,
   }) : _http = client ?? http.Client();
 
-  /// The site, e.g. `https://app.pinext.dev`.
+  /// The site, e.g. `https://app.aiandchat.cloud`.
   final String origin;
 
   /// The account's device token. Sent to [origin] and nowhere else.

@@ -22,7 +22,7 @@ class MemoryStorage implements AccountStorage {
   Future<void> clear() async => kept = null;
 }
 
-const String origin = 'https://app.pinext.dev';
+const String origin = 'https://app.aiandchat.cloud';
 
 http.Response json(Object body, [int status = 200]) =>
     http.Response(jsonEncode(body), status, headers: <String, String>{'content-type': 'application/json'});

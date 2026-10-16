@@ -613,7 +613,8 @@ export function createPinextApi(t: ApiTransport) {
       onState: (listener: (state: WindowChromeState) => void): (() => void) => t.subscribe(Ipc.windowState, listener),
     },
     /**
-     * The Pinext account (app.pinext.dev). `login` returns as soon as the browser is
+     * The Pinext account (the site `DEFAULT_ACCOUNT_ORIGIN` names). `login` returns as
+     * soon as the browser is
      * open; the outcome arrives through `onState`, because a person completes it elsewhere.
      */
     account: {

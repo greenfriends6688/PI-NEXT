@@ -596,7 +596,7 @@ export const PROVIDERS: ProviderConfig[] = [
     id: "pinext",
     kind: "custom",
     name: "Pinext",
-    baseUrl: "https://pinext.dev/v1",
+    baseUrl: "https://api.aiandchat.cloud/v1",
     api: "openai-responses",
     apiKeyEnv: "PINEXT_API_KEY",
     hasKey: true,

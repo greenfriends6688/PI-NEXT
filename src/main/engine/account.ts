@@ -8,7 +8,7 @@ import { uiText } from "./ui-text.ts";
 
 /**
  * Sign-in to the Pinext account: the browser authorization-code flow for native apps
- * (RFC 8252) with PKCE (RFC 7636), against `app.pinext.dev`.
+ * (RFC 8252) with PKCE (RFC 7636), against the site `DEFAULT_ACCOUNT_ORIGIN` names.
  *
  *   1. A listener opens on `127.0.0.1:<free port>/callback` and the system browser is
  *      sent to the site's `/authorize` page with a PKCE challenge and a random `state`.
@@ -32,7 +32,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 export type AccountDeps = {
   /** Where the token and the signed-in user are kept (0600). */
   file: string;
-  /** The site, e.g. `https://app.pinext.dev`, no trailing slash. */
+  /** The site, e.g. `https://app.aiandchat.cloud`, no trailing slash. */
   origin: string;
   /** Open `url` in the system browser. */
   openUrl: (url: string) => Promise<void> | void;

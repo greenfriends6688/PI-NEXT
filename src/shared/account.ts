@@ -34,10 +34,15 @@ export type AccountState = {
 /**
  * Where the desktop signs in.
  *
- * `PINEXT_CLOUD_URL` overrides it (development against a local server). The default names
- * the host this project's own service is meant to live on; change it to wherever you
- * actually deploy `docs/pinext-cloud-contract-2026-10-13.md`. A build whose origin points
- * at a service that does not exist yet fails sign-in with a network error and nothing else
+ * `PINEXT_CLOUD_URL` overrides it (development against a local server). The default is the
+ * host this build's own service is deployed on — `app.aiandchat.cloud`, whose DNS lives at
+ * 阿里云 (`dns19/dns20.hichina.com`). The service is what
+ * `docs/pinext-cloud-contract-2026-10-13.md` describes; a build whose origin points at a
+ * host that is not serving it yet fails sign-in with a network error and nothing else
  * breaks.
+ *
+ * Changing this signs every install out: the stored token records the origin that issued it
+ * and is never sent anywhere else (`account.json`), which is the point — a token minted by
+ * one site must not travel to another.
  */
-export const DEFAULT_ACCOUNT_ORIGIN = "https://app.pinext.dev";
+export const DEFAULT_ACCOUNT_ORIGIN = "https://app.aiandchat.cloud";

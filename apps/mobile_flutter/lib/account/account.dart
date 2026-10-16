@@ -17,7 +17,9 @@ import '../i18n/core.dart';
 /// `--dart-define=PINEXT_CLOUD_URL=http://192.168.x.x:9088`.
 const String defaultAccountOrigin = String.fromEnvironment(
   'PINEXT_CLOUD_URL',
-  defaultValue: 'https://app.pinext.dev',
+  // 与桌面端同一个站点（`src/shared/account.ts` 的 DEFAULT_ACCOUNT_ORIGIN）：两端登录
+  // 同一账号才能互相发现，站点不同就只是两台各连各的。
+  defaultValue: 'https://app.aiandchat.cloud',
 );
 
 const String _clientId = 'pinext-mobile';
@@ -145,7 +147,7 @@ class LoginFailure implements Exception {
   String toString() => message;
 }
 
-/// The Pinext account this phone is signed in to (app.pinext.dev): the browser
+/// The Pinext account this phone is signed in to (`defaultAccountOrigin`): the browser
 /// authorization-code flow for native apps (RFC 8252) with PKCE (RFC 7636).
 ///
 /// The phone opens the site's `/authorize` page in a system browser session with a PKCE

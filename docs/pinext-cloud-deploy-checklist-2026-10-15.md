@@ -222,7 +222,11 @@ setTimeout(() => ws.close(), 5000);
 
 ## 4. 域名与 DNS
 
-### 4.1 让 `app.pinext.dev` 变真
+> **实际用的域名是 `aiandchat.cloud`（阿里云 DNS），不是 `app.pinext.dev`。**
+> 客户端默认值已改，具体怎么加记录、备案这个坑、nginx 反代配置，
+> 见 `docs/domain-aiandchat-setup.md`。下面这一节保留为「契约要求什么」的通用说明。
+
+### 4.1 让占位域名变真
 
 1. 在 `pinext.dev` 的 DNS 服务商添加解析：`app` 记录指向部署平台。
    - Vercel：加 CNAME `app → cname.vercel-dns.com`（或平台给出的值），再在 Vercel 项目里绑定 `app.pinext.dev`。
