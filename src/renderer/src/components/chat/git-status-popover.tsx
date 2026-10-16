@@ -67,6 +67,30 @@ export function GitStatusPopover({
   const [armedRemoval, setArmedRemoval] = useState<string | null>(null);
   const status = useGitStatus(cwd, `${String(refreshKey)}:${epoch}`);
 
+  // **Every hook above the early return.** This one used to sit below it, which is a hook
+  // count that changes between renders: the first render has no status yet and returns
+  // null, the next one has one and reaches the effect — React sees more hooks than last
+  // time and replaces the window with error #310. Nothing below here may call a hook.
+  // A fresh list every time the popover opens: worktrees move under us — the agent creates
+  // them, a branch gets checked out elsewhere, the user removes one in a terminal — so a
+  // cached list would offer a path that is no longer a worktree.
+  useEffect(() => {
+    if (!open || !conversationId) return;
+    let cancelled = false;
+    setWorktrees(null);
+    void window.pinext.conversations
+      .listWorktrees(conversationId)
+      .then((list) => {
+        if (!cancelled) setWorktrees(list);
+      })
+      .catch(() => {
+        if (!cancelled) setWorktrees([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, conversationId, worktree?.path, epoch, refreshKey]);
+
   if (!status?.isRepository || !status.branch) return null;
   const repository = status;
 
@@ -115,26 +139,6 @@ export function GitStatusPopover({
       setBusy(null);
     }
   }
-
-  // A fresh list every time the popover opens: worktrees move under us — the agent creates
-  // them, a branch gets checked out elsewhere, the user removes one in a terminal — so a
-  // cached list would offer a path that is no longer a worktree.
-  useEffect(() => {
-    if (!open || !conversationId) return;
-    let cancelled = false;
-    setWorktrees(null);
-    void window.pinext.conversations
-      .listWorktrees(conversationId)
-      .then((list) => {
-        if (!cancelled) setWorktrees(list);
-      })
-      .catch(() => {
-        if (!cancelled) setWorktrees([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, conversationId, worktree?.path, epoch, refreshKey]);
 
   async function createWorktree(): Promise<void> {
     if (busy || !conversationId) return;
