@@ -1,0 +1,46 @@
+# PI NEXT 云服务 —— Cloudflare Workers 部署
+#
+# 同一份核心（`src/`）在 Node 上跑（`src/node/index.ts`，本地开发与测试用它）和在这里跑。
+# 契约见仓库里的 `docs/pinext-cloud-contract-2026-10-13.md`：路径写死在客户端，不可配。
+#
+# 部署：
+#   cd services/cloud
+#   npx wrangler secret put GITHUB_CLIENT_SECRET   # 加了 GitHub 登录才需要
+#   npx wrangler secret put TURN_SECRET            # 配了 TURN 才需要
+#   npx wrangler deploy
+#
+# 本地开发（完全离线，Miniflare）：
+#   cp .dev.vars.example .dev.vars && npx wrangler dev
+
+name = "pinext-cloud"
+main = "worker/index.ts"
+compatibility_date = "2025-04-01"
+
+# 每个账号一个信令对象、全局一个状态对象。见 worker/index.ts 顶部的说明：
+# 文档必须只有一个写者，而一通正在进行的呼叫不能等一次登录跑完。
+[[durable_objects.bindings]]
+name = "STORE"
+class_name = "StoreObject"
+
+[[durable_objects.bindings]]
+name = "SIGNAL"
+class_name = "SignalObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["StoreObject", "SignalObject"]
+
+[vars]
+# 客户端实际访问的 origin。GitHub OAuth 的 callback 与手机/桌面记录的设备地址都从这里来，
+# 所以它必须和部署后的真实域名一致（协议 + 主机，不带路径，不带结尾斜杠）。
+PUBLIC_ORIGIN = "https://app.aiandchat.cloud"
+# 没有 GitHub 就没法用浏览器登录，所以 DEV_LOGIN 保持未设置（只有本地 .dev.vars 才开）。
+# MAX_DEVICES = "10"
+# TOKEN_TTL_DAYS = "90"
+# STUN_URLS = "stun:stun.l.google.com:19302"
+# TURN_URLS = "turn:turn.example.com:3478?transport=udp,turns:turn.example.com:443?transport=tcp"
+# TURN_TTL_SECONDS = "300"
+# RELAY_LIMIT = "4"
+
+[observability]
+enabled = true

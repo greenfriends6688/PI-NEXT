@@ -149,6 +149,59 @@ User=pinext
 WantedBy=multi-user.target
 ```
 
+## 部署到 Cloudflare Workers
+
+同一份核心（`src/`）跑在两个宿主上：Node（`src/node/index.ts`，本地开发与测试）和 Cloudflare
+（`worker/`，线上）。`worker/` 里只有**宿主**——两个 Durable Object 加一个 `fetch`，业务逻辑
+一行都没有重复。
+
+```bash
+cd services/cloud
+npx wrangler login                              # 一次
+npx wrangler secret put GITHUB_CLIENT_SECRET    # 用 GitHub 登录才需要
+npx wrangler secret put TURN_SECRET             # 配了 TURN 才需要
+npx wrangler deploy
+```
+
+**用哪个域名**：`wrangler.toml` 里的 `PUBLIC_ORIGIN` 必须和真实域名一致——GitHub 的 callback
+和客户端记住的设备地址都从这里来。改 `app.aiandchat.cloud` 的 DNS 时指向 Workers，不要再指
+那台杭州机器。
+
+### 两个对象，各管一件事
+
+| 对象 | 数量 | 装什么 |
+| --- | --- | --- |
+| `StoreObject` | 全局一个 | 账号、令牌哈希、设备；**路由也在这里跑** |
+| `SignalObject` | 每账号一个 | 这个账号的信令 socket，一通呼叫的两端都在同一个对象里 |
+
+分两个不是为扩容：文档必须只有一个写者，所以碰它的请求都得排在彼此后面；而**一通正在进行的
+呼叫不能等一次登录跑完**。一个对象兼做两件事，第二件就会被第一件挡住。
+
+信令 socket **不做休眠**（`server.accept()`，不是 `ctx.acceptWebSocket`）：中继的呼叫表在内存里，
+休眠回来的对象是空的，一通进行中的呼叫会把下一批候选地址答成 `unknown_call`——这正是最难复现
+的那种故障。代价是有人连着的时候对象保持常驻。
+
+### 本机跑不起来 `wrangler dev`（macOS 12）
+
+`workerd` 要求 **macOS 13.5+**。这台开发机是 12.6，所以 `wrangler dev` 会在启动时报
+`Unsupported macOS version`。**`wrangler deploy` 不受影响**（那是上传，不需要本地运行时）。
+
+所以 Worker 宿主的验证靠 `test/worker.test.ts`：用假的 Durable Object state 与 namespace
+（`Map` 实现 storage，按名字保持单实例）把真实的 Worker `fetch`、两个真实对象、真实路由跑
+一遍。跑在 `node --test` 上，在任何机器和 CI 上一样。**唯一覆盖不到的是 WebSocket 升级本身**
+——`new Response(null, { status: 101, webSocket })` 是 workerd 的扩展，Node 的 `Response`
+直接拒绝 101。信令的转发逻辑由 `test/cloud.test.ts` 覆盖，那条跑在 Node 宿主上，用的是同一个
+`CloudRelay`。
+
+### Cloudflare 装不下 TURN
+
+coturn 需要真实的 UDP 端口，Workers 上没有。所以部署到 Cloudflare 之后：
+
+- **直连可用**：同一网络、大部分家庭宽带，双方各自打一个洞就行。
+- **两端都是对称 NAT 时连不上**（手机数据流量、运营商级 NAT 很常见）。这时候需要中继，得另外
+  找地方跑 coturn（一台最小的小主机就够），或者用托管 TURN 服务。`TURN_URLS` / `TURN_SECRET`
+  填上之后 `/api/rtc/ice` 就会照常下发临时凭据——服务端这边不需要改。
+
 ## 已经验证过什么
 
 - `node --test test/cloud.test.ts` — 14 项：PKCE 校验、code 一次性、redirect_uri 精确匹配、

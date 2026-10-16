@@ -239,6 +239,18 @@ export class CloudStore {
     return found;
   }
 
+  /**
+   * Wait for the writes queued so far to land.
+   *
+   * Every mutation queues its save and returns; a host whose storage is a file can let that
+   * run on its own. A host whose storage is somewhere the process can be evicted from cannot:
+   * a Worker's Durable Object is torn down between requests, so answering before the write
+   * landed means the answer was a promise the object did not keep.
+   */
+  async flush(): Promise<void> {
+    await this.#queue;
+  }
+
   #pruneTokens(): void {
     // An hour is short enough that the document cannot grow without bound and long enough that a
     // client mid-retry keeps the token it has.

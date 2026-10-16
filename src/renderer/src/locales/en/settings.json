@@ -662,7 +662,7 @@
     "quotaPlanEnterprise": "ChatGPT Enterprise",
     "quotaPlanEducation": "ChatGPT Education",
     "quotaPlanEdu": "ChatGPT Edu",
-    "usageWindowRolling": "Rolling",
+    "usageWindowRolling": "Recent",
     "usageWindowWeekly": "Weekly",
     "usageWindowMonthly": "Monthly",
     "usageWindowDaily": "Daily",

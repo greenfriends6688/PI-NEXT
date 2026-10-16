@@ -35,7 +35,7 @@
     "dist:mac": "pnpm build && pnpm stage:app && electron-builder --mac --arm64 --x64 --publish never && node scripts/notarize-dmg.mjs",
     "dist:win": "pnpm build && pnpm stage:app && electron-builder --win --publish never",
     "dist:linux": "pnpm build && pnpm stage:app && electron-builder --linux --publish never",
-    "typecheck": "node scripts/check-pnpm-variants.mjs && node scripts/check-injected-scripts.mjs && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p services/cloud/tsconfig.json",
+    "typecheck": "node scripts/check-pnpm-variants.mjs && node scripts/check-injected-scripts.mjs && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p services/cloud/tsconfig.json && tsc --noEmit -p services/cloud/worker/tsconfig.json",
     "shadcn": "shadcn",
     "flutter:analyze": "cd apps/mobile_flutter && PATH=\"$HOME/development/flutter/bin:$PATH\" flutter analyze",
     "flutter:test": "cd apps/mobile_flutter && PATH=\"$HOME/development/flutter/bin:$PATH\" flutter test",

@@ -1,4 +1,3 @@
-import type { Device } from "./store.ts";
 
 /**
  * The signaling relay as a pure state machine — no socket, no timer, no I/O.
@@ -60,9 +59,18 @@ type Call = {
   device: string;
 };
 
+/**
+ * As much of a device as the relay ever asks about.
+ *
+ * Narrowed to these two on purpose: the rest of a `Device` is a name, a platform and a
+ * timestamp, and a Cloudflare host that holds a snapshot of the device table rather than the
+ * store itself should not have to produce fields nobody reads.
+ */
+export type RelayDevice = { id: string; accountId: string };
+
 export type CloudRelayDeps = {
   /** Device registration lives in the store; the relay only asks whether an id belongs to an account. */
-  deviceOf: (deviceId: string) => Device | null;
+  deviceOf: (deviceId: string) => RelayDevice | null;
   log?: (message: string) => void;
 };
 

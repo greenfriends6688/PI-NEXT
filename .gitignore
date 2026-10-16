@@ -56,3 +56,8 @@ resources/cua-driver/
 *.shot.mjs
 # gen-icons 的 ≤32px 光学补偿母版（中间产物，icon.icns 由它生成，可重建）
 /build/icon-small.png
+
+# Cloudflare Worker 的本地机密（含 DEV_LOGIN=1）
+.dev.vars
+# wrangler 的本地状态
+.wrangler/

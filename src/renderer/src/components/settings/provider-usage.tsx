@@ -75,6 +75,10 @@ function UsageValue({ result }: { result: Extract<ProviderUsageResult, { status:
   // The window labels come from the provider as English (`Rolling` / `Weekly` /
   // `Monthly`); the pane is the only place a person reads them, so they are
   // translated here rather than shipped localised from the engine.
+  //
+  // `Rolling` is not "滚动窗口". That was a word-for-word rendering of the provider's
+  // own field name, and it says nothing to the person reading it — a rolling window is
+  // just the recent past, which is what it now says.
   const windowLabel = (label: string): string => {
     const key = label.toLowerCase();
     if (key.includes("rolling")) return t("providers.usageWindowRolling");
@@ -83,7 +87,7 @@ function UsageValue({ result }: { result: Extract<ProviderUsageResult, { status:
     if (key.includes("day") || key.includes("today")) return t("providers.usageWindowDaily");
     return label;
   };
-  const parts = result.report.buckets.slice(0, 3).map((bucket) => {
+  const entries = result.report.buckets.slice(0, 3).map((bucket) => {
     const label = windowLabel(bucket.label);
     if (bucket.unit === "percent") {
       // **What is left**, not what was spent: the number a person wants when they
@@ -95,23 +99,36 @@ function UsageValue({ result }: { result: Extract<ProviderUsageResult, { status:
           : bucket.used !== undefined
             ? 100 - bucket.used
             : undefined);
-      if (remaining === undefined) return label;
-      return `${label} ${t("providers.usageRemaining")} ${Math.round(remaining)}%`;
+      return { label, value: remaining === undefined ? null : `${Math.round(remaining)}%` };
     }
     const amount = bucket.remaining ?? bucket.used ?? bucket.limit;
-    if (amount === undefined) return label;
-    const money = bucket.unit === "currency" ? `${bucket.currency ?? ""}${amount}` : String(amount);
-    return `${label} ${money}`;
+    if (amount === undefined) return { label, value: null };
+    return { label, value: bucket.unit === "currency" ? `${bucket.currency ?? ""}${amount}` : String(amount) };
   });
-  if (parts.length === 0) {
+  if (entries.length === 0) {
     const metric = result.report.metrics[0];
     if (!metric) return <span className="text-xs text-muted-foreground">{result.report.providerName}</span>;
-    parts.push(`${metric.label} ${metric.value}`);
+    entries.push({ label: metric.label, value: String(metric.value) });
   }
-  const title = parts.join(" · ");
+
+  // The window name is a qualifier and the number is the answer, so they are not the
+  // same weight: the label stays quiet and the figure is drawn in the reading colour.
+  // The old line was `max-w-52 truncate` over the whole sentence in `text-muted-foreground`
+  // and `text-xs`, which cut it to `滚动窗口 剩余 73%·本周 剩余 52%·本…` in grey small print —
+  // three ways at once to make the one number a person came for unreadable.
+  const title = entries.map((entry) => (entry.value ? `${entry.label} ${t("providers.usageRemaining")} ${entry.value}` : entry.label)).join(" · ");
   return (
-    <span className="max-w-52 truncate text-xs text-muted-foreground" title={title}>
-      {title}
+    <span className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-xs" title={title}>
+      {entries.map((entry, index) => (
+        <span key={`${entry.label}-${index}`} className="flex items-baseline gap-1 whitespace-nowrap">
+          <span className="text-muted-foreground">{entry.label}</span>
+          {entry.value ? (
+            <span className="font-medium text-foreground tabular-nums">
+              {t("providers.usageRemaining")} {entry.value}
+            </span>
+          ) : null}
+        </span>
+      ))}
     </span>
   );
 }

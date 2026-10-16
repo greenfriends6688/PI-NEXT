@@ -660,7 +660,7 @@
     "quotaPlanEnterprise": "ChatGPT Enterprise",
     "quotaPlanEducation": "ChatGPT Education",
     "quotaPlanEdu": "ChatGPT Edu",
-    "usageWindowRolling": "滚动窗口",
+    "usageWindowRolling": "近期",
     "usageWindowWeekly": "本周",
     "usageWindowMonthly": "本月",
     "usageWindowDaily": "今日",

@@ -1,0 +1,6 @@
+# 本地开发用（`cp .dev.vars.example .dev.vars`）。**不要提交 `.dev.vars`**。
+#
+# DEV_LOGIN=1 会在 /authorize 上放一个不需要 GitHub 的入口：本机开发不需要注册 OAuth 应用，
+# 也因此**绝不能开在生产上** —— 那等于谁都能登录成任何人。
+DEV_LOGIN=1
+PUBLIC_ORIGIN=http://127.0.0.1:8787

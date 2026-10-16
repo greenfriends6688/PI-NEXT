@@ -18,10 +18,18 @@ const INSTALL_ID = /^[\x21-\x7e]{8,64}$/;
 export type DeviceRoutesDeps = {
   config: CloudConfig;
   store: CloudStore;
-  /** Live signaling sockets decide this — there is no separate heartbeat endpoint. */
-  isOnline: (deviceId: string) => boolean;
+  /**
+   * Live signaling sockets decide this — there is no separate heartbeat endpoint.
+   *
+   * May answer a promise. The Node host keeps the sockets in this process and answers from
+   * memory; on Cloudflare they live in a per-account Durable Object, which has to be asked.
+   * A synchronous signature here would have made every async answer a truthy Promise and
+   * reported every device as online — wrong in the one direction that makes the phone dial a
+   * computer that is not there.
+   */
+  isOnline: (deviceId: string) => boolean | Promise<boolean>;
   /** Called when a device is removed, so its signaling socket can be closed with 4005. */
-  onDeviceRemoved?: (deviceId: string) => void;
+  onDeviceRemoved?: (deviceId: string) => void | Promise<void>;
 };
 
 export class Devices {
@@ -46,7 +54,9 @@ export class Devices {
     // The socket is closed with a code the desktop reads as "you were removed, stop": without
     // it the machine would keep a socket the account no longer knows about, and the phone would
     // reach a device that is not in its list.
-    this.#deps.onDeviceRemoved?.(deviceId);
+    // Awaited: on Cloudflare this is a call into the signaling object, and the answer must
+    // not claim the device is gone before the socket that holds it has been told.
+    await this.#deps.onDeviceRemoved?.(deviceId);
     return true;
   }
 
@@ -83,12 +93,14 @@ export class Devices {
     }
     return jsonResponse(200, {
       user: toWireUser(account),
-      devices: this.#deps.store.devicesOf(account.id).map((device) => ({
-        id: device.id,
-        name: device.name,
-        platform: device.platform,
-        online: this.#deps.isOnline(device.id),
-      })),
+      devices: await Promise.all(
+        this.#deps.store.devicesOf(account.id).map(async (device) => ({
+          id: device.id,
+          name: device.name,
+          platform: device.platform,
+          online: await this.#deps.isOnline(device.id),
+        })),
+      ),
     });
   }
 
