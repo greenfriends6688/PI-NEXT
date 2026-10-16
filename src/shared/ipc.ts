@@ -330,6 +330,10 @@ export const Ipc = {
   remoteState: "remote:state",
   /** Drop every phone connected through the account, leaving the connection itself up. */
   remoteOfficialDisconnect: "remote:official-disconnect",
+  /** 5G 控制: the Cloudflare quick tunnel that publishes the LAN listener to the internet. */
+  remoteTunnelState: "remote:tunnel-state",
+  remoteTunnelStart: "remote:tunnel-start",
+  remoteTunnelStop: "remote:tunnel-stop",
 } as const;
 
 export type AppModelsDevInfo = {
@@ -488,4 +492,30 @@ export type RemoteDeviceInfo = {
   label: string;
   createdAt: number;
   lastSeenAt: number | null;
+};
+
+/**
+ * 5G 控制 — the Cloudflare quick tunnel, as the settings pane shows it.
+ *
+ * `cloudflared tunnel --url http://127.0.0.1:<port>` runs detached from the app and
+ * writes a `https://…trycloudflare.com` address to its log; that address reaches the
+ * same remote-access server the LAN listener does, so a phone off the local network
+ * can open it. No account, signaling or relay is involved.
+ */
+export type TunnelState = {
+  /** The switch is on (and the app will bring the tunnel back after a restart). */
+  enabled: boolean;
+  /** `cloudflared` has produced an address and registered a connection at the edge. */
+  running: boolean;
+  url: string | null;
+  /** What the user opens on the phone; for Pinext that is the address itself. */
+  phoneAddress: string | null;
+  lastError: string | null;
+  pid: number | null;
+  /** Respawns since the switch was last turned on. */
+  restarts: number;
+  /** No usable `cloudflared` was found, so nothing can be started. */
+  cloudflaredMissing: boolean;
+  /** true = this launch attached to a tunnel a previous app run had already started. */
+  adopted: boolean;
 };

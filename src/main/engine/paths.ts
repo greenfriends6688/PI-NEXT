@@ -75,6 +75,13 @@ export type PinextPaths = {
    */
   remoteAccessFile: string;
   /**
+   * The 5G 控制 Cloudflare quick tunnel: whether it is on, and the pid + address of the
+   * detached `cloudflared` so a restarted app can adopt the same tunnel (`tunnel.ts`).
+   */
+  tunnelFile: string;
+  /** `cloudflared`'s own stdout/stderr, kept on disk because it runs detached from us. */
+  tunnelLogFile: string;
+  /**
    * The signed-in Pinext account: the device token and who it belongs to. 0600, and
    * never served by any method — the renderer is only told who is signed in.
    */
@@ -201,6 +208,8 @@ function buildPinextPaths(): PinextPaths {
     schedulesFile: join(runtimeRoot, "scheduled-tasks.json"),
     messageQueueFile: join(runtimeRoot, "message-queue.json"),
     remoteAccessFile: join(userData, "remote-access.json"),
+    tunnelFile: join(userData, "tunnel-link.json"),
+    tunnelLogFile: join(logs, "tunnel.log"),
     accountFile: join(userData, "account.json"),
     rtcDeviceFile: join(userData, "rtc-device.json"),
     sshHostsFile: join(userData, "ssh-hosts.json"),

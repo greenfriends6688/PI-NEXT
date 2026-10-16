@@ -13,6 +13,7 @@ import { builtWebRoot, lanAddresses, RemoteServer } from "./server/server";
 import { MdnsAdvertiser, mdnsInstanceName } from "./server/mdns";
 import { defaultDeviceName, deviceNameProblem, deviceNameSetting } from "@shared/device-name";
 import { uiText } from "./engine/ui-text";
+import { getTunnelState, maybeAutoStartTunnel, startTunnel, stopTunnel } from "./engine/tunnel";
 import { getAppServer } from "./app-server/runtime";
 import { setRemoteServing } from "./engine/keep-awake";
 import type { AccountService } from "./engine/account";
@@ -215,7 +216,12 @@ function announceFromServer(): void {
  * missing. A listener that cannot bind (the port is taken) is one: that throws.
  */
 async function bringUp(): Promise<RemoteServerState> {
-  if (isConfigured(getPinextPaths().remoteAccessFile)) await startListener(readPort());
+  if (isConfigured(getPinextPaths().remoteAccessFile)) {
+    await startListener(readPort());
+    // The tunnel publishes the listener, so it only comes up with it. If it was on and
+    // its detached process is still alive, this adopts the same address.
+    maybeAutoStartTunnel(readPort());
+  }
   official?.setEnabled(true);
   return announce();
 }
@@ -238,6 +244,10 @@ export function registerRemoteIpc(queueSettingsWrite: (task: () => Promise<void>
   account.subscribe(() => official?.accountChanged());
 
   handle(Ipc.remoteGetState, () => state());
+
+  handle(Ipc.remoteTunnelState, () => getTunnelState());
+  handle(Ipc.remoteTunnelStart, () => startTunnel(readPort()));
+  handle(Ipc.remoteTunnelStop, () => stopTunnel());
 
   handle(Ipc.remoteSetPassword, async (payload: { password: string }) => {
     const password = typeof payload?.password === "string" ? payload.password : "";
@@ -265,6 +275,9 @@ export function registerRemoteIpc(queueSettingsWrite: (task: () => Promise<void>
    */
   handle(Ipc.remoteClearPassword, async () => {
     await instance().stop();
+    // The password is what the listener needs, and the tunnel publishes the listener;
+    // a tunnel pointing at a stopped port is of no use to anyone.
+    stopTunnel();
     clearRemoteAccess(getPinextPaths().remoteAccessFile);
     return announce();
   });
@@ -305,6 +318,9 @@ export function registerRemoteIpc(queueSettingsWrite: (task: () => Promise<void>
   handle(Ipc.remoteStop, async () => {
     official?.setEnabled(false);
     await instance().stop();
+    // Turning remote access off takes the tunnel with it: there is no listener left for
+    // it to publish, and leaving a public address open would be the opposite of off.
+    stopTunnel();
     await queueSettingsWrite(async () => writeRemoteSettings({ remoteEnabled: false }));
     return announce();
   });

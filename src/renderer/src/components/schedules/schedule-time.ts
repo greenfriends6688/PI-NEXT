@@ -1,5 +1,6 @@
 import type { ScheduleRule, ScheduledTask, ScheduledTaskDraft } from "@shared/schedules";
 import { DEFAULT_MAX_DURATION_MIN, MAX_DURATION_LIMITS } from "@shared/schedules";
+import type { ThinkingLevel } from "@shared/types";
 import { parseCron } from "@shared/cron";
 
 /** Monday-first display order. Values stay Sunday=0 … Saturday=6, matching the schedule rule. */
@@ -25,6 +26,18 @@ export type ScheduleFormState = {
   expr: string;
   /** How long one run may last, in minutes. Sent for every kind. */
   maxDurationMinutes: number;
+  /**
+   * `""` follows the default (read-only); `"default"` is the full toolset.
+   *
+   * The empty string is the *safe* default rather than the full toolset, because the form's
+   * first state is the one a task is created in, and an unattended run is the case where the
+   * safe answer has to be the one nobody has to remember to pick.
+   */
+  toolPreset: "" | "default" | "read-only";
+  /** `""` follows whatever the app is on. `provider/id`. */
+  model: string;
+  /** `""` leaves the model's own default; otherwise a level from THINKING_EFFORT_LEVELS. */
+  thinkingLevel: "";
 };
 
 export type ScheduleFormError = "name" | "prompt" | "at" | "atPast" | "time" | "timeZone" | "days" | "expr" | "duration";
@@ -130,6 +143,9 @@ export function emptyScheduleForm(now = Date.now()): ScheduleFormState {
     // has not loaded.
     expr: "0 9 * * 1-5",
     maxDurationMinutes: DEFAULT_MAX_DURATION_MIN,
+    toolPreset: "",
+    model: "",
+    thinkingLevel: "",
   };
 }
 
@@ -147,6 +163,9 @@ export function formFromTask(task: ScheduledTask, now = Date.now()): ScheduleFor
     days: rule.kind === "weekly" ? [...rule.days] : base.days,
     expr: rule.kind === "cron" ? rule.expr : base.expr,
     maxDurationMinutes: task.maxDurationMin ?? DEFAULT_MAX_DURATION_MIN,
+    toolPreset: task.toolPreset ?? "",
+    model: task.model ? `${task.model.provider}/${task.model.id}` : "",
+    thinkingLevel: (task.thinkingLevel as ScheduleFormState["thinkingLevel"]) ?? "",
   };
 }
 
@@ -201,6 +220,24 @@ export function draftFromForm(form: ScheduleFormState, now = Date.now()): Schedu
     // Always sent, not only when it differs from the default: a stored task should say how
     // long it may run rather than inheriting whatever the app defaults to that week.
     maxDurationMin: form.maxDurationMinutes,
+    // Absent means read-only, which is what the empty choice says.
+    // Absent means read-only; the select's other choice is the full toolset.
+    ...(form.toolPreset === "default" ? { toolPreset: "default" as const } : {}),
+    ...preferencesFromForm(form),
+  };
+}
+
+/**
+ * The model and reasoning a task picks, split out because `ScheduledTaskDraft` carries them
+ * as a structured model but the form holds one `provider/id` string.
+ */
+export function preferencesFromForm(form: ScheduleFormState): { model?: { provider: string; id: string }; thinkingLevel?: ThinkingLevel } {
+  const separator = form.model.indexOf("/");
+  const provider = separator > 0 ? form.model.slice(0, separator) : "";
+  const id = separator > 0 ? form.model.slice(separator + 1) : "";
+  return {
+    ...(provider && id ? { model: { provider, id } } : {}),
+    ...(form.thinkingLevel ? { thinkingLevel: form.thinkingLevel } : {}),
   };
 }
 

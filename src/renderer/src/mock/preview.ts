@@ -1,7 +1,7 @@
 import type { DagNode, DagNodeStatus } from "@shared/dag";
 import { decodeRemoteProjectKey, remoteProjectKey } from "@shared/project-binding";
 import type { ChatMessage, ConversationOpenResult, DirEntry, EngineSessionState, EngineStatus, ImportSourceId, WorkspaceSnapshot } from "@shared/types";
-import type { AppInfo, GitStatus, RemoteServerState } from "@shared/ipc";
+import type { AppInfo, GitStatus, RemoteServerState, TunnelState } from "@shared/ipc";
 import type { OfficialState } from "@shared/official";
 import { DESKTOP_INSET, installDesktopScene } from "@/lib/desktop-scene";
 import type { MemoryState } from "@shared/memory";
@@ -875,6 +875,9 @@ const api = {
     revokeDevice: async () => [],
     officialDisconnect: async () => ({ ...REMOTE_STATE, official: { ...REMOTE_STATE.official, peers: [] } }),
     onState: () => () => undefined,
+    tunnelState: async () => TUNNEL_STATE,
+    tunnelStart: async () => (TUNNEL_STATE = TUNNEL_RUNNING),
+    tunnelStop: async () => (TUNNEL_STATE = TUNNEL_OFF),
   },
   // The browser-use bridge is main-process driven: in the preview nothing ever
   // requests a browser action, so `onRequest` just returns its unsubscribe.
@@ -985,6 +988,44 @@ REMOTE_STATES.nopassword = {
 const remoteFixture = params.get("remote");
 
 const REMOTE_STATE: RemoteServerState = REMOTE_STATES[remoteFixture ?? ""] ?? REMOTE_OFF;
+
+/**
+ * The 5G control fixture, chosen by `?tunnel=`. Only meaningful with `?remote=` on; the
+ * pane draws the section inside an enabled remote-access switch.
+ *
+ * - `?tunnel=running`: a live public address, adopted from a previous run, restarted twice.
+ * - `?tunnel=missing`: no `cloudflared` on this computer, so the install hint is shown.
+ */
+const TUNNEL_OFF: TunnelState = {
+  enabled: false,
+  running: false,
+  url: null,
+  phoneAddress: null,
+  lastError: null,
+  pid: null,
+  restarts: 0,
+  cloudflaredMissing: false,
+  adopted: false,
+};
+
+const TUNNEL_RUNNING: TunnelState = {
+  ...TUNNEL_OFF,
+  enabled: true,
+  running: true,
+  url: "https://calm-river-1234.trycloudflare.com",
+  phoneAddress: "https://calm-river-1234.trycloudflare.com",
+  pid: 4242,
+  adopted: true,
+  restarts: 2,
+};
+
+const TUNNEL_FIXTURES: Record<string, TunnelState> = {
+  off: TUNNEL_OFF,
+  running: TUNNEL_RUNNING,
+  missing: { ...TUNNEL_OFF, cloudflaredMissing: true, lastError: "cloudflared 未安装：终端执行 npm i -g cloudflared" },
+};
+
+let TUNNEL_STATE: TunnelState = TUNNEL_FIXTURES[params.get("tunnel") ?? ""] ?? TUNNEL_OFF;
 
 const REMOTE_DEVICES = REMOTE_STATE.configured
   ? [{ id: "device-1", label: "iPhone", createdAt: Date.now() - 86_400_000, lastSeenAt: Date.now() - 120_000 }]

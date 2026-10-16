@@ -85,6 +85,11 @@ export function createTransport(config: McpServerConfig, onStderr: (chunk: strin
   return new StreamableHttpTransport({ url: config.url ?? "", headers: config.headers });
 }
 
+/** The one place a server's tool name becomes the name the model sees. */
+export function mcpToolName(serverId: string, toolName: string): string {
+  return `mcp_${serverId}_${toolName}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+}
+
 export class McpManager {
   #file: string;
   #createTransport: McpTransportFactory;
@@ -144,11 +149,27 @@ export class McpManager {
     await Promise.all(this.#configs.filter((config) => config.enabled).map((config) => this.#connect(config)));
   }
 
+  /**
+   * The registered names of the MCP tools whose server declared them read-only.
+   *
+   * A hint, not an audit: it is what the server says about its own tool, and the only signal a
+   * read-only session has. Servers that say nothing get nothing.
+   */
+  readOnlyToolNames(): Set<string> {
+    const names = new Set<string>();
+    for (const connection of this.#connections.values()) {
+      for (const tool of connection.tools) {
+        if (tool.annotations?.readOnlyHint === true) names.add(mcpToolName(connection.config.id, tool.name));
+      }
+    }
+    return names;
+  }
+
   async tools(): Promise<ToolDefinition<any>[]> {
     const output: ToolDefinition<any>[] = [];
     for (const connection of this.#connections.values()) {
       for (const tool of connection.tools) {
-        const safeName = `mcp_${connection.config.id}_${tool.name}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+        const safeName = mcpToolName(connection.config.id, tool.name);
         // `direct` is the SDK's own default and needs no namespace. The other two are
         // tools the model does not see declared, so `codemode` lists them under their
         // server and `tool_search` ranks them by it.

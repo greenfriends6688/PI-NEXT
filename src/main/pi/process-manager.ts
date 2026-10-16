@@ -96,7 +96,7 @@ import { submitPrompt } from "../engine/prompt-submission";
 import type { SubmitPromptRequest } from "../../shared/prompt-submission";
 import { dropOldToolImages } from "../engine/context-images";
 import { externalizeToolEndEvent, savedToolImagePath, shrinkToolResultImages, toolImageFolder, type ImageResizer } from "../engine/tool-images";
-import { applyToolModes, toolModes } from "../engine/tool-modes";
+import { applyToolModes, applyToolPreset, toolModes, type ToolPreset } from "../engine/tool-modes";
 import { currentAiLanguageDirective, currentCustomSystemPrompt } from "../engine/ai-language";
 import { buildProjectFoldersPrompt, projectFolderPaths } from "../../shared/project-folders.ts";
 import { describeProjectFolders, resolveProjectRepos } from "../engine/project-repos";
@@ -860,6 +860,16 @@ export class PiProcessManager {
     }
   }
 
+  /**
+   * The toolset preset a conversation's session is built with, when it is not the default.
+   *
+   * In memory on purpose: it is a property of *this* run, not of the chat. A scheduled task's
+   * conversation outlives its run — the reader opens it afterwards and continues it — and a
+   * chat that stayed read-only for ever because one unattended run created it would be a
+   * setting nobody could find. Same for the model and the thinking level below.
+   */
+  #toolPresets = new Map<string, ToolPreset>();
+
   async #runScheduledTask(task: ScheduledTask, signal: AbortSignal, onConversation: (id: string) => void): Promise<void> {
     let conversationId: string | undefined;
     const abort = (): void => { if (conversationId) void this.abort(conversationId).catch(() => undefined); };
@@ -873,6 +883,11 @@ export class PiProcessManager {
       conversationId = opened.conversation.id;
       onConversation(conversationId);
       this.renameConversation(conversationId, `${uiText("定时任务", "Scheduled task")} · ${task.name}`);
+      // Before the first prompt, so the session is built with them: an unattended run has
+      // nobody to approve a write, and a task that says which model to use should not be
+      // answered by whichever one the machine happens to be on.
+      this.#toolPresets.set(conversationId, task.toolPreset ?? "read-only");
+      await this.#applyScheduledPreferences(conversationId, task);
       if (signal.aborted) { abort(); throw new Error("任务已停止"); }
       await this.promptConversation(conversationId, task.prompt, undefined, signal);
       const managed = this.#sessions.get(conversationId);
@@ -886,8 +901,33 @@ export class PiProcessManager {
       }
     } finally {
       signal.removeEventListener("abort", abort);
+      // The run is over; the chat it happened in is an ordinary chat again. Reloading the
+      // session is what puts the default toolset back, and it is cheap at this point —
+      // nothing is streaming into it.
+      if (conversationId) {
+        this.#toolPresets.delete(conversationId);
+        // The session is idle here, so the reload lands now and the toolset is the default
+        // again before the reader can open the transcript.
+        this.#pendingMcpReloads.add(conversationId);
+        await this.#scheduleMcpReload();
+      }
     }
   }
+
+  /** The model and reasoning a task asked for, applied to the session it is about to run in. */
+  async #applyScheduledPreferences(conversationId: string, task: ScheduledTask): Promise<void> {
+    if (task.model) {
+      try {
+        await this.setModel(task.model.provider, task.model.id, conversationId);
+      } catch (error) {
+        // A model that has since been removed is not a reason to skip the run: the task's
+        // own session resolves the default, and the outcome says which model answered.
+        console.warn("[schedules] task model unavailable:", error);
+      }
+    }
+    if (task.thinkingLevel) await this.setThinkingLevel(task.thinkingLevel, conversationId);
+  }
+
   /**
    * A scheduled run ended: tell the chat that asked for the task, so the agent there reads
    * the outcome and answers the user instead of the result sitting in a chat nobody opened.
@@ -4153,7 +4193,9 @@ export class PiProcessManager {
         hidden: true,
         factory: (pi) => {
           pi.on("session_start", () => {
-            pi.setActiveTools(applyToolModes(pi.getActiveTools(), toolModes(readAppSettings(this.#paths), this.#mcp.list())));
+            const modes = toolModes(readAppSettings(this.#paths), this.#mcp.list());
+            const tuned = applyToolModes(pi.getActiveTools(), modes);
+            pi.setActiveTools(applyToolPreset(tuned, this.#toolPresets.get(conversation.id) ?? "default", this.#mcp.readOnlyToolNames()));
           });
         },
       }, {

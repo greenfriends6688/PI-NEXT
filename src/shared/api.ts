@@ -718,6 +718,10 @@ export function createPinextApi(t: ApiTransport) {
       onState: (listener: (state: import("@shared/ipc").RemoteServerState) => void): (() => void) => t.subscribe(Ipc.remoteState, listener),
       /** Drop every phone connected through the account, leaving the connection itself up. */
       officialDisconnect: (): Promise<import("@shared/ipc").RemoteServerState> => t.invoke(Ipc.remoteOfficialDisconnect),
+      /** 5G 控制: the Cloudflare quick tunnel that publishes the LAN listener to the internet. */
+      tunnelState: (): Promise<import("@shared/ipc").TunnelState> => t.invoke(Ipc.remoteTunnelState),
+      tunnelStart: (): Promise<import("@shared/ipc").TunnelState> => t.invoke(Ipc.remoteTunnelStart),
+      tunnelStop: (): Promise<import("@shared/ipc").TunnelState> => t.invoke(Ipc.remoteTunnelStop),
     },
     stats: {
       usage: (range: UsageRange): Promise<UsageStats> => t.invoke(Ipc.statsUsage, { range }),

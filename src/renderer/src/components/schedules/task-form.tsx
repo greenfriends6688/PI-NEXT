@@ -21,7 +21,8 @@ import {
 import { cn } from "@/lib/utils";
 import { CRON_PRESETS } from "@shared/cron";
 import { MAX_DURATION_LIMITS } from "@shared/schedules";
-import type { Project } from "@shared/types";
+import { THINKING_EFFORT_LEVELS, THINKING_LABELS } from "@shared/types";
+import type { PinextModel, Project } from "@shared/types";
 
 const SCRATCH = "__scratch__";
 
@@ -32,6 +33,7 @@ const MINUTES = Array.from({ length: 12 }, (_, index) => String(index * 5).padSt
 export function TaskForm({
   form,
   projects,
+  models,
   error,
   saving,
   onChange,
@@ -40,6 +42,8 @@ export function TaskForm({
 }: {
   form: ScheduleFormState;
   projects: Project[];
+  /** The models this install can run; an unpicked task follows the app's own default. */
+  models: PinextModel[];
   error: ScheduleFormError | null;
   saving: boolean;
   onChange: (patch: Partial<ScheduleFormState>) => void;
@@ -49,6 +53,18 @@ export function TaskForm({
   const { t } = useTranslation("schedules");
   const zones = useMemo(() => timeZoneOptions(form.timeZone), [form.timeZone]);
   const [hour, minute] = normalizeHm(form.time).split(":");
+  const presetItems = {
+    "": t("preset.readOnly"),
+    default: t("preset.full"),
+  };
+  const modelItems = {
+    "": t("modelFollow"),
+    ...Object.fromEntries(models.map((model) => [`${model.provider}/${model.id}`, `${model.providerName} · ${model.name}`])),
+  };
+  const effortItems = {
+    "": t("thinkingFollow"),
+    ...Object.fromEntries(THINKING_EFFORT_LEVELS.map((level) => [level, THINKING_LABELS[level]])),
+  };
   const projectOptions = useMemo(
     () =>
       projectChoices(projects, form.project, {
@@ -64,7 +80,7 @@ export function TaskForm({
     weekly: t("kind.weekly"),
     cron: t("kind.cron"),
   };
-  const presetItems = CRON_PRESETS.map((preset) => ({
+  const cronPresets = CRON_PRESETS.map((preset) => ({
     expr: preset.expr,
     label: `${i18n.language === "en" ? preset.en : preset.zh} · ${preset.expr}`,
   }));
@@ -168,7 +184,7 @@ export function TaskForm({
           </Field>
           {/* 预设只是糖：填进去的是表达式本身，用户可以接着改。 */}
           <div className="flex flex-wrap gap-1.5">
-            {presetItems.map((preset) => (
+            {cronPresets.map((preset) => (
               <Button
                 key={preset.expr}
                 type="button"
@@ -338,6 +354,70 @@ export function TaskForm({
           ) : null}
         </>
       )}
+      <div className="grid gap-4 @min-[28rem]/tasks:grid-cols-2">
+        <Field label={t("preset.label")} hint={t("preset.hint")}>
+          <Select
+            items={presetItems}
+            value={form.toolPreset}
+            disabled={saving}
+            onValueChange={(next) => {
+              if (next === "" || next === "default") onChange({ toolPreset: next });
+            }}
+          >
+            <SelectTrigger className="w-full" aria-label={t("preset.label")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">{t("preset.readOnly")}</SelectItem>
+              <SelectItem value="default">{t("preset.full")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={t("model")} hint={t("modelHint")}>
+          <Select
+            items={modelItems}
+            value={form.model}
+            disabled={saving}
+            onValueChange={(next) => {
+              if (typeof next === "string") onChange({ model: next });
+            }}
+          >
+            <SelectTrigger className="w-full" aria-label={t("model")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">{t("modelFollow")}</SelectItem>
+              {models.map((model) => (
+                <SelectItem key={`${model.provider}/${model.id}`} value={`${model.provider}/${model.id}`}>
+                  {`${model.providerName} · ${model.name}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <Field label={t("thinking")} hint={t("thinkingHint")}>
+        <Select
+          items={effortItems}
+          value={form.thinkingLevel}
+          disabled={saving}
+          onValueChange={(next) => {
+            if (typeof next === "string") onChange({ thinkingLevel: next as ScheduleFormState["thinkingLevel"] });
+          }}
+        >
+          <SelectTrigger size="sm" className="w-40" aria-label={t("thinking")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">{t("thinkingFollow")}</SelectItem>
+            {THINKING_EFFORT_LEVELS.map((level) => (
+              <SelectItem key={level} value={level}>
+                {THINKING_LABELS[level]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
       <Field
         label={t("maxDuration")}
         htmlFor="schedule-duration"

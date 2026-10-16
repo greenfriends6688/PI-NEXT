@@ -103,6 +103,11 @@ const DENIED = new Map<string, string>([
   [Ipc.remoteListDevices, "远程访问的设置只能在本机更改"],
   [Ipc.remoteRevokeDevice, "远程访问的设置只能在本机更改"],
   [Ipc.remoteOfficialDisconnect, "远程访问的设置只能在本机更改"],
+  // The tunnel publishes the whole server to the public internet; starting or stopping it
+  // is changing the security boundary itself, so it is the desktop's alone.
+  [Ipc.remoteTunnelState, "远程访问的设置只能在本机更改"],
+  [Ipc.remoteTunnelStart, "远程访问的设置只能在本机更改"],
+  [Ipc.remoteTunnelStop, "远程访问的设置只能在本机更改"],
 
   // (c) A request to any URL the caller names, carrying any credential the caller
   // names, issued from this machine and from this network. That is a probe into

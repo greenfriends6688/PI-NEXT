@@ -974,7 +974,20 @@
     "openAddress": "在浏览器打开",
     "copyAddress": "复制地址",
     "showQr": "显示二维码",
-    "qrHint": "打开 PI NEXT 手机 App 扫码即可连接。"
+    "qrHint": "打开 PI NEXT 手机 App 扫码即可连接。",
+    "tunnel": {
+      "title": "5G 控制（Cloudflare 隧道）",
+      "enable": "开启 5G 控制",
+      "enableDesc": "生成一个公网地址，手机用流量也能打开这台电脑；不需要账号或服务器。",
+      "missingDesc": "本机没有找到 cloudflared，安装后即可开启。",
+      "running": "运行中",
+      "adopted": "已接管",
+      "restarts": "重启 {{n}} 次",
+      "starting": "正在启动隧道，等待公网地址…",
+      "hint": "把这个地址发给手机，打开后输入局域网密码即可连接。",
+      "disable": "关闭",
+      "disableDesc": "停止隧道并关闭自动重连，公网地址立即失效。"
+    }
   },
   "remoteHosts": {
     "intro": "通过 SSH 连接另一台机器上运行的 PI NEXT Agent，入口在新建项目。主机列表来自 ~/.ssh/config。",

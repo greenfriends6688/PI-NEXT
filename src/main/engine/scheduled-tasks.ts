@@ -19,6 +19,7 @@ import {
   MAX_DURATION_LIMITS,
   runTrigger,
 } from "../../shared/schedules.ts";
+import { THINKING_EFFORT_LEVELS } from "../../shared/types.ts";
 import { nextCronInstant, parseCron, type CronWall } from "../../shared/cron.ts";
 
 type ScheduleFile = { version: 1; revision: number; tasks: ScheduledTask[]; runs: ScheduledTaskRun[] };
@@ -136,6 +137,9 @@ export function validateScheduleDraft(draft: ScheduledTaskDraft, now = Date.now(
   if (draft.maxDurationMin !== undefined && (!Number.isInteger(draft.maxDurationMin) || draft.maxDurationMin < MAX_DURATION_LIMITS.min || draft.maxDurationMin > MAX_DURATION_LIMITS.max)) {
     throw new Error(`单次运行时长需要在 ${MAX_DURATION_LIMITS.min}–${MAX_DURATION_LIMITS.max} 分钟之间`);
   }
+  if (draft.toolPreset !== undefined && draft.toolPreset !== "default" && draft.toolPreset !== "read-only") throw new Error("工具权限无效");
+  if (draft.model !== undefined && (typeof draft.model.provider !== "string" || !draft.model.provider.trim() || typeof draft.model.id !== "string" || !draft.model.id.trim())) throw new Error("模型无效");
+  if (draft.thinkingLevel !== undefined && !(THINKING_EFFORT_LEVELS as readonly string[]).includes(draft.thinkingLevel)) throw new Error("思考强度无效");
   const rule = draft.schedule;
   if (!rule || !["once", "daily", "weekly", "cron"].includes(rule.kind)) throw new Error("任务时间规则无效");
   if (rule.kind === "cron") {
@@ -196,8 +200,20 @@ function validStoredTask(value: unknown, now: number): ScheduledTask | undefined
   const consecutiveFailures = Number.isInteger(raw.consecutiveFailures) && (raw.consecutiveFailures as number) > 0
     ? (raw.consecutiveFailures as number)
     : undefined;
+  const toolPreset = raw.toolPreset === "default" || raw.toolPreset === "read-only" ? raw.toolPreset : undefined;
+  const model = raw.model && typeof raw.model === "object"
+    && typeof (raw.model as Record<string, unknown>).provider === "string"
+    && typeof (raw.model as Record<string, unknown>).id === "string"
+    ? { provider: String((raw.model as Record<string, unknown>).provider), id: String((raw.model as Record<string, unknown>).id) }
+    : undefined;
+  const thinkingLevel = typeof raw.thinkingLevel === "string" && (THINKING_EFFORT_LEVELS as readonly string[]).includes(raw.thinkingLevel)
+    ? (raw.thinkingLevel as ScheduledTask["thinkingLevel"])
+    : undefined;
   const task: ScheduledTask = {
     id: raw.id, name: raw.name.trim(), prompt: raw.prompt.trim(), schedule, enabled: raw.enabled,
+    ...(toolPreset ? { toolPreset } : {}),
+    ...(model ? { model } : {}),
+    ...(thinkingLevel ? { thinkingLevel } : {}),
     createdAt, updatedAt, ...(project ? { project } : {}), ...(notify ? { notifyConversationId: notify } : {}),
     ...(maxDurationMin !== undefined ? { maxDurationMin } : {}),
     ...(consecutiveFailures !== undefined ? { consecutiveFailures } : {}),

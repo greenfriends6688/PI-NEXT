@@ -976,7 +976,20 @@
     "openAddress": "Open in browser",
     "copyAddress": "Copy address",
     "showQr": "Show QR code",
-    "qrHint": "Open the PI NEXT mobile app and scan to connect."
+    "qrHint": "Open the PI NEXT mobile app and scan to connect.",
+    "tunnel": {
+      "title": "5G control (Cloudflare tunnel)",
+      "enable": "Turn on 5G control",
+      "enableDesc": "Creates a public address a phone on mobile data can open; no account or server is needed.",
+      "missingDesc": "cloudflared was not found on this computer; install it to turn this on.",
+      "running": "Running",
+      "adopted": "Adopted",
+      "restarts": "Restarted {{n}} times",
+      "starting": "Starting the tunnel, waiting for the public address…",
+      "hint": "Open this address on the phone and enter the LAN password.",
+      "disable": "Turn off",
+      "disableDesc": "Stops the tunnel and its auto-reconnect; the public address stops working."
+    }
   },
   "remoteHosts": {
     "intro": "Connect to a PI NEXT Agent on another machine over SSH, from the Add project dialog. Hosts come from ~/.ssh/config.",

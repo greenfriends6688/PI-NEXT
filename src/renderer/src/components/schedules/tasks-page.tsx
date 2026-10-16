@@ -226,6 +226,13 @@ export function TasksPage({
           prompt: draft.prompt,
           schedule: draft.schedule,
           project: draft.project ?? "",
+          // `undefined` in a patch means "leave as it is", so every one of these is sent
+          // explicitly — clearing a model or going back to the full toolset has to be
+          // expressible, and the safe default has to be sayable on purpose.
+          maxDurationMin: draft.maxDurationMin,
+          toolPreset: draft.toolPreset === "default" ? "default" : "read-only",
+          model: draft.model ?? undefined,
+          thinkingLevel: draft.thinkingLevel ?? undefined,
         };
         const saved = await api.update(editingId, patch);
         adopt(saved);

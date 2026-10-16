@@ -316,6 +316,11 @@ export const AGENT_UNSUPPORTED: readonly string[] = [
   Ipc.webServerStart,
   Ipc.webServerStop,
   Ipc.webServerPort,
+  // The tunnel manages a desktop `cloudflared`; a headless Agent has none to run, and
+  // the tunnel's security boundary belongs to the machine the user is sitting at.
+  Ipc.remoteTunnelState,
+  Ipc.remoteTunnelStart,
+  Ipc.remoteTunnelStop,
 ];
 
 /**

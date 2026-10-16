@@ -69,6 +69,37 @@ export function applyToolModes(active: readonly string[], modes: ToolModes): str
   return next;
 }
 
+/**
+ * How much of the toolset a session may use.
+ *
+ * `read-only` exists for the runs nobody is watching — a scheduled task's overnight pass — and
+ * for reading somebody else's repository without touching it. It is a preset rather than a
+ * per-tool allowlist because the question a person asks is 「这一轮能不能改东西」, and the
+ * answer has to be the same one every time it is asked.
+ */
+export type ToolPreset = "default" | "read-only";
+
+/**
+ * What a read-only session keeps: the four readers, and nothing else.
+ *
+ * Named exactly as the SDK names them, so this list does not have to be kept in step with a
+ * mapping table anywhere.
+ */
+export const READ_ONLY_TOOLS = ["read", "grep", "find", "ls"] as const;
+
+/**
+ * `active` narrowed to the preset.
+ *
+ * It filters rather than adds: a tool another extension already took away stays away, and the
+ * readers are not put back into a set somebody deliberately narrowed. The MCP tools a server
+ * itself declared read-only (`annotations.readOnlyHint`) survive, because refusing them would
+ * make 「只读」 mean 「不能读」 for exactly the servers that bothered to say.
+ */
+export function applyToolPreset(active: readonly string[], preset: ToolPreset, readOnlyMcp: ReadonlySet<string>): string[] {
+  if (preset !== "read-only") return [...active];
+  return active.filter((name) => (READ_ONLY_TOOLS as readonly string[]).includes(name) || readOnlyMcp.has(name));
+}
+
 /** Whether a settings write changed anything that decides `toolModes`. Absent reads as on. */
 export function toolModeSettingsChanged(previous: Record<string, unknown>, next: Record<string, unknown>): boolean {
   return TOOL_MODE_KEYS.some((key) => (previous[key] !== false) !== (next[key] !== false));

@@ -10,6 +10,7 @@ import { deviceNameProblem } from "@shared/device-name";
 import { SettingsGroup, SettingsRow } from "./settings-group";
 import { RemoteOfficial } from "./remote-official";
 import { RemoteLan } from "./remote-lan";
+import { RemoteTunnel } from "./remote-tunnel";
 
 /**
  * 远程访问: let phones signed in to the same Pinext account find and use this computer.
@@ -164,6 +165,7 @@ export function RemoteSettings(): JSX.Element {
           />
 
           {state.enabled ? <RemoteLan state={state} busy={busy} run={run} onState={setState} /> : null}
+          {state.enabled ? <RemoteTunnel /> : null}
         </>
       )}
     </div>

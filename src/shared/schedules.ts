@@ -1,3 +1,5 @@
+import type { ThinkingLevel } from "./types.ts";
+
 /** A durable instruction for a future Agent run. Times are UTC milliseconds unless noted. */
 export type ScheduleRule =
   | { kind: "once"; at: string }
@@ -14,6 +16,15 @@ export type ScheduledTaskDraft = {
   /** The chat that asked for this task. Each run's outcome is reported back into it. */
   notifyConversationId?: string;
   schedule: ScheduleRule;
+  /**
+   * How much of the toolset this run may use. Absent means `read-only`: an unattended run has
+   * nobody to approve a write, so the safe answer is the one a task gets by default.
+   */
+  toolPreset?: "default" | "read-only";
+  /** The model to answer with, when the task should not follow whatever the app is on. */
+  model?: { provider: string; id: string };
+  /** The reasoning effort for this task's runs. Absent leaves the model's own default. */
+  thinkingLevel?: ThinkingLevel;
   /**
    * How long one run may last before it is stopped, in minutes.
    *
@@ -89,7 +100,7 @@ export type ScheduledTaskRun = {
   disabledAfterFailures?: number;
 };
 
-export type ScheduledTaskPatch = Partial<Pick<ScheduledTaskDraft, "name" | "prompt" | "schedule" | "maxDurationMin">> & {
+export type ScheduledTaskPatch = Partial<Pick<ScheduledTaskDraft, "name" | "prompt" | "schedule" | "maxDurationMin" | "toolPreset" | "model" | "thinkingLevel">> & {
   /** Explicitly clear a bound project with an empty string (undefined means leave unchanged). */
   project?: string;
   /** An empty string stops reporting back. */

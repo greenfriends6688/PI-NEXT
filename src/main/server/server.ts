@@ -301,12 +301,10 @@ export class RemoteServer {
     // error, so every request ends in a response and every bad upgrade in a destroyed
     // socket.
     const server = createServer((request, response) => {
-      try {
-        this.#handleHttp(request, response);
-      } catch (error) {
+      void this.#handleHttp(request, response).catch((error) => {
         this.#deps.log.error("remote request failed", error);
         this.#fail(response);
-      }
+      });
     });
     const wss = new WebSocketServer({
       noServer: true,
@@ -393,7 +391,7 @@ export class RemoteServer {
 
   // ---------------------------------------------------------------- HTTP
 
-  #handleHttp(request: IncomingMessage, response: ServerResponse): void {
+  async #handleHttp(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = requestUrl(request);
     if (!url) {
       this.#json(response, 400, { error: "请求格式无效" });
