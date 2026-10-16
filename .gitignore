@@ -61,3 +61,6 @@ resources/cua-driver/
 .dev.vars
 # wrangler 的本地状态
 .wrangler/
+
+# 这个目录是独立包（不在 pnpm workspace 里）但仓库用 pnpm
+services/cloud/package-lock.json
