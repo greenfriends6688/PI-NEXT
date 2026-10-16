@@ -1,4 +1,6 @@
 import type { ScheduleRule, ScheduledTask, ScheduledTaskDraft } from "@shared/schedules";
+import { DEFAULT_MAX_DURATION_MIN, MAX_DURATION_LIMITS } from "@shared/schedules";
+import { parseCron } from "@shared/cron";
 
 /** Monday-first display order. Values stay Sunday=0 … Saturday=6, matching the schedule rule. */
 export const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
@@ -19,9 +21,13 @@ export type ScheduleFormState = {
   time: string;
   timeZone: string;
   days: number[];
+  /** A five-field cron expression, when `kind` is `cron`. */
+  expr: string;
+  /** How long one run may last, in minutes. Sent for every kind. */
+  maxDurationMinutes: number;
 };
 
-export type ScheduleFormError = "name" | "prompt" | "at" | "atPast" | "time" | "timeZone" | "days";
+export type ScheduleFormError = "name" | "prompt" | "at" | "atPast" | "time" | "timeZone" | "days" | "expr" | "duration";
 
 export function localTimeZone(): string {
   try {
@@ -120,6 +126,10 @@ export function emptyScheduleForm(now = Date.now()): ScheduleFormState {
     time: "09:00",
     timeZone: localTimeZone(),
     days: [1, 2, 3, 4, 5],
+    // A field with a value in it reads as「把这里改一下」; an empty one reads as a form that
+    // has not loaded.
+    expr: "0 9 * * 1-5",
+    maxDurationMinutes: DEFAULT_MAX_DURATION_MIN,
   };
 }
 
@@ -132,9 +142,11 @@ export function formFromTask(task: ScheduledTask, now = Date.now()): ScheduleFor
     project: task.project ?? "",
     kind: rule.kind,
     at: rule.kind === "once" ? isoToDatetimeLocal(rule.at) : base.at,
-    time: rule.kind === "once" ? base.time : rule.time,
+    time: rule.kind === "daily" || rule.kind === "weekly" ? rule.time : base.time,
     timeZone: rule.kind === "once" ? base.timeZone : rule.timeZone || base.timeZone,
     days: rule.kind === "weekly" ? [...rule.days] : base.days,
+    expr: rule.kind === "cron" ? rule.expr : base.expr,
+    maxDurationMinutes: task.maxDurationMin ?? DEFAULT_MAX_DURATION_MIN,
   };
 }
 
@@ -148,8 +160,13 @@ export function validateScheduleForm(form: ScheduleFormState, now = Date.now()):
     if (Date.parse(at) <= now) return "atPast";
     return null;
   }
-  if (!isHm(normalizeHm(form.time))) return "time";
+  if (!Number.isInteger(form.maxDurationMinutes) || form.maxDurationMinutes < MAX_DURATION_LIMITS.min || form.maxDurationMinutes > MAX_DURATION_LIMITS.max) return "duration";
   if (!form.timeZone.trim()) return "timeZone";
+  // The expression is checked for syntax here; whether it can ever fire (the 30th of
+  // February) is the store's answer, because that needs the zone's calendar, and it comes
+  // back as a save error rather than a field the renderer re-implements.
+  if (form.kind === "cron") return parseCron(form.expr) ? null : "expr";
+  if (!isHm(normalizeHm(form.time))) return "time";
   if (form.kind === "weekly" && form.days.length === 0) return "days";
   return null;
 }
@@ -160,8 +177,9 @@ export function ruleFromForm(form: ScheduleFormState, now = Date.now()): Schedul
     const at = datetimeLocalToIso(form.at);
     return at ? { kind: "once", at } : undefined;
   }
-  const time = normalizeHm(form.time);
   const timeZone = form.timeZone.trim();
+  if (form.kind === "cron") return { kind: "cron", expr: form.expr.trim(), timeZone };
+  const time = normalizeHm(form.time);
   if (form.kind === "daily") return { kind: "daily", time, timeZone };
   const days = [...new Set(form.days.filter((day) => day >= 0 && day <= 6))].sort((a, b) => a - b);
   return { kind: "weekly", time, timeZone, days };
@@ -180,6 +198,9 @@ export function draftFromForm(form: ScheduleFormState, now = Date.now()): Schedu
     prompt: form.prompt.trim(),
     ...(project ? { project } : {}),
     schedule,
+    // Always sent, not only when it differs from the default: a stored task should say how
+    // long it may run rather than inheriting whatever the app defaults to that week.
+    maxDurationMin: form.maxDurationMinutes,
   };
 }
 

@@ -3,12 +3,23 @@ import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import type {
   ScheduleRule,
   ScheduledRunStatus,
+  ScheduledRunTrigger,
   ScheduledTask,
   ScheduledTaskDraft,
   ScheduledTaskPatch,
   ScheduledTaskRun,
   ScheduledTaskSnapshot,
 } from "@shared/schedules";
+// Relative, like every value this module needs from `shared/`: `test/scheduled-tasks.test.ts`
+// loads this file directly and `node --test` resolves neither the `@shared/*` alias nor a
+// bare specifier. Type-only imports above may keep the alias — they are erased before Node
+// ever sees them.
+import {
+  MAX_CONSECUTIVE_FAILURES,
+  MAX_DURATION_LIMITS,
+  runTrigger,
+} from "../../shared/schedules.ts";
+import { nextCronInstant, parseCron, type CronWall } from "../../shared/cron.ts";
 
 type ScheduleFile = { version: 1; revision: number; tasks: ScheduledTask[]; runs: ScheduledTaskRun[] };
 const MAX_RUNS = 500;
@@ -64,12 +75,47 @@ function wallInstant(timeZone: string, year: number, month: number, day: number,
   throw new Error("无法计算指定时区的下次执行时间");
 }
 
+/** The zone-aware view of one instant that a cron expression is matched against. */
+function cronWall(timeZone: string, instant: number): CronWall {
+  const wall = zoned(timeZone, instant);
+  return {
+    year: wall.year,
+    month: wall.month,
+    day: wall.day,
+    hour: wall.hour,
+    minute: wall.minute,
+    weekday: new Date(Date.UTC(wall.year, wall.month - 1, wall.day)).getUTCDay(),
+  };
+}
+
+/** The instant a local wall-clock minute names, via the same rule the daily tasks use. */
+function cronInstantAtWall(timeZone: string, year: number, month: number, day: number, hour: number, minute: number): number {
+  const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  return wallInstant(timeZone, year, month, day, time);
+}
+
 /** First occurrence strictly after `now`. The absolute time, not an interval timer,
  * is the source of truth after suspend, a clock change, or a process restart. */
 export function nextScheduleAt(rule: ScheduleRule, now = Date.now()): number | undefined {
   if (rule.kind === "once") {
     const at = Date.parse(rule.at);
     return Number.isFinite(at) && at > now ? at : undefined;
+  }
+  if (rule.kind === "cron") {
+    const fields = parseCron(rule.expr);
+    if (!fields) return undefined;
+    try {
+      return nextCronInstant(
+        fields,
+        now,
+        (instant) => cronWall(rule.timeZone, instant),
+        (year, month, day, hour, minute) => cronInstantAtWall(rule.timeZone, year, month, day, hour, minute),
+      );
+    } catch {
+      // A zone the platform cannot place (or a wall time that does not exist) leaves the
+      // task without a next occurrence rather than throwing out of the store's read path.
+      return undefined;
+    }
   }
   const days = rule.kind === "daily" ? DAY_SET : new Set(rule.days);
   const local = zoned(rule.timeZone, now);
@@ -87,8 +133,18 @@ export function validateScheduleDraft(draft: ScheduledTaskDraft, now = Date.now(
   if (typeof draft.prompt !== "string" || !draft.prompt.trim() || draft.prompt.length > 20_000) throw new Error("任务指令需要在 1–20000 字之间");
   if (draft.project !== undefined && (typeof draft.project !== "string" || !draft.project.trim())) throw new Error("项目路径无效");
   if (draft.notifyConversationId !== undefined && (typeof draft.notifyConversationId !== "string" || !draft.notifyConversationId.trim())) throw new Error("通知的会话无效");
+  if (draft.maxDurationMin !== undefined && (!Number.isInteger(draft.maxDurationMin) || draft.maxDurationMin < MAX_DURATION_LIMITS.min || draft.maxDurationMin > MAX_DURATION_LIMITS.max)) {
+    throw new Error(`单次运行时长需要在 ${MAX_DURATION_LIMITS.min}–${MAX_DURATION_LIMITS.max} 分钟之间`);
+  }
   const rule = draft.schedule;
-  if (!rule || !["once", "daily", "weekly"].includes(rule.kind)) throw new Error("任务时间规则无效");
+  if (!rule || !["once", "daily", "weekly", "cron"].includes(rule.kind)) throw new Error("任务时间规则无效");
+  if (rule.kind === "cron") {
+    if (typeof rule.timeZone !== "string") throw new Error("定时任务需要时区");
+    try { zoned(rule.timeZone, now); } catch { throw new Error("时区无效，请使用 IANA 时区名称"); }
+    if (typeof rule.expr !== "string" || !parseCron(rule.expr)) throw new Error("cron 表达式无效，需要五个字段（分 时 日 月 周）");
+    if (nextScheduleAt(rule, now) === undefined) throw new Error("这个 cron 表达式在未来五年内没有可执行的时间");
+    return;
+  }
   if (rule.kind === "once") {
     if (typeof rule.at !== "string" || !ABSOLUTE.test(rule.at) || !Number.isFinite(Date.parse(rule.at))) throw new Error("一次性任务需要带时区的时间");
     if (Date.parse(rule.at) <= now) throw new Error("一次性任务必须安排在未来");
@@ -112,6 +168,11 @@ function validRule(value: unknown, now: number): ScheduleRule | undefined {
     if (typeof rule.at !== "string" || !ABSOLUTE.test(rule.at) || !Number.isFinite(Date.parse(rule.at))) return undefined;
     return { kind: "once", at: rule.at };
   }
+  if (rule.kind === "cron") {
+    if (typeof rule.expr !== "string" || typeof rule.timeZone !== "string" || !parseCron(rule.expr)) return undefined;
+    try { zoned(rule.timeZone, now); } catch { return undefined; }
+    return { kind: "cron", expr: rule.expr.trim(), timeZone: rule.timeZone };
+  }
   if ((rule.kind !== "daily" && rule.kind !== "weekly") || typeof rule.time !== "string" || !TIME.test(rule.time) || typeof rule.timeZone !== "string") return undefined;
   try { zoned(rule.timeZone, now); } catch { return undefined; }
   if (rule.kind === "daily") return { kind: "daily", time: rule.time, timeZone: rule.timeZone };
@@ -129,9 +190,18 @@ function validStoredTask(value: unknown, now: number): ScheduledTask | undefined
   const updatedAt = typeof raw.updatedAt === "number" && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
   const project = typeof raw.project === "string" && raw.project.trim() ? raw.project : undefined;
   const notify = typeof raw.notifyConversationId === "string" && raw.notifyConversationId.trim() ? raw.notifyConversationId : undefined;
+  const maxDurationMin = Number.isInteger(raw.maxDurationMin) && (raw.maxDurationMin as number) >= MAX_DURATION_LIMITS.min && (raw.maxDurationMin as number) <= MAX_DURATION_LIMITS.max
+    ? (raw.maxDurationMin as number)
+    : undefined;
+  const consecutiveFailures = Number.isInteger(raw.consecutiveFailures) && (raw.consecutiveFailures as number) > 0
+    ? (raw.consecutiveFailures as number)
+    : undefined;
   const task: ScheduledTask = {
     id: raw.id, name: raw.name.trim(), prompt: raw.prompt.trim(), schedule, enabled: raw.enabled,
     createdAt, updatedAt, ...(project ? { project } : {}), ...(notify ? { notifyConversationId: notify } : {}),
+    ...(maxDurationMin !== undefined ? { maxDurationMin } : {}),
+    ...(consecutiveFailures !== undefined ? { consecutiveFailures } : {}),
+    ...(consecutiveFailures !== undefined && consecutiveFailures >= MAX_CONSECUTIVE_FAILURES ? { disabledReason: "failures" as const } : {}),
     ...(typeof raw.lastRunAt === "number" && Number.isFinite(raw.lastRunAt) ? { lastRunAt: raw.lastRunAt } : {}),
     ...(isStatus(raw.lastStatus) ? { lastStatus: raw.lastStatus } : {}),
   };
@@ -154,7 +224,9 @@ function validStoredRun(value: unknown): value is ScheduledTaskRun {
     && (run.endedAt === undefined || (typeof run.endedAt === "number" && Number.isFinite(run.endedAt)))
     && (run.conversationId === undefined || typeof run.conversationId === "string")
     && (run.error === undefined || typeof run.error === "string")
-    && (run.manual === undefined || typeof run.manual === "boolean");
+    && (run.manual === undefined || typeof run.manual === "boolean")
+    && (run.trigger === undefined || run.trigger === "schedule" || run.trigger === "catch-up" || run.trigger === "manual")
+    && (run.disabledAfterFailures === undefined || (typeof run.disabledAfterFailures === "number" && Number.isFinite(run.disabledAfterFailures)));
 }
 
 /** Every mutation is committed with an atomic rename *before* it is published. A
@@ -217,6 +289,12 @@ export class ScheduledTaskStore {
       validateScheduleDraft(next, now);
     }
     if (patch.schedule || patch.enabled !== undefined) next.nextRunAt = next.enabled ? nextScheduleAt(next.schedule, now) : undefined;
+    // Switching a task back on is a fresh start: the five failures that paused it are not a
+    // reason for the next four runs to count towards pausing it again.
+    if (patch.enabled === true) {
+      delete next.consecutiveFailures;
+      delete next.disabledReason;
+    }
     this.#change(() => { this.#tasks.set(id, next); });
     return structuredClone(next);
   }
@@ -240,10 +318,12 @@ export class ScheduledTaskStore {
     if (!task) throw new Error("定时任务不存在");
     if (!manual && (!task.enabled || task.nextRunAt !== scheduledAt)) throw new Error("任务的执行时间已变更");
     const now = Date.now();
+    const trigger = runTrigger(scheduledAt, now, manual);
     const run: ScheduledTaskRun = {
       id: randomUUID(), taskId, scheduledAt,
       status, startedAt: status === "running" ? now : undefined,
       endedAt: status === "missed" ? now : undefined,
+      trigger,
       ...(manual ? { manual: true } : {}),
     };
     this.#change(() => {
@@ -277,7 +357,26 @@ export class ScheduledTaskStore {
       run.endedAt = now;
       if (error) run.error = error;
       const task = this.#tasks.get(run.taskId);
-      if (task) { task.lastStatus = status; task.updatedAt = now; }
+      if (!task) return;
+      task.lastStatus = status;
+      task.updatedAt = now;
+      if (status !== "failed") {
+        // A completed run, a Stop and a quit-time interrupt all say the same thing about the
+        // task itself: it still works, so the count of runs that did not is over.
+        delete task.consecutiveFailures;
+        delete task.disabledReason;
+        return;
+      }
+      const failures = (task.consecutiveFailures ?? 0) + 1;
+      task.consecutiveFailures = failures;
+      if (failures < MAX_CONSECUTIVE_FAILURES) return;
+      // A schedule that has failed every time is not a schedule, it is a notification nobody
+      // reads. It stops here, says why on its own row, and waits to be switched back on —
+      // and switching it on is what clears the count.
+      task.enabled = false;
+      task.disabledReason = "failures";
+      task.nextRunAt = undefined;
+      run.disabledAfterFailures = failures;
     });
     return { ...run };
   }

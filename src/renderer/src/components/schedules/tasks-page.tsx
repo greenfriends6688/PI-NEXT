@@ -568,6 +568,7 @@ function TaskDetail({
               <li key={run.id} className="flex flex-col gap-1.5 rounded-xl border border-border px-3 py-2.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={run.status} />
+                  {run.trigger === "catch-up" ? <Badge variant="outline">{t("status.catchUp")}</Badge> : null}
                   {run.manual ? <Badge variant="outline">{t("manual")}</Badge> : null}
                   <span className="min-w-0 flex-1 text-xs text-muted-foreground">{t("scheduledAt", { time: formatWhen(run.scheduledAt) })}</span>
                 </div>
@@ -628,9 +629,17 @@ function Fact({ label, value }: { label: string; value: string }): JSX.Element {
 }
 
 function TaskBadge({ task, running }: { task: ScheduledTask; running: boolean }): JSX.Element {
+  const { t } = useTranslation("schedules");
   if (running) return <StatusBadge status="running" />;
   if (!task.enabled) {
     if (task.schedule.kind === "once" && task.lastStatus && task.lastStatus !== "running") return <StatusBadge status={task.lastStatus} />;
+    // Paused by the task itself reads differently from paused by the user: one needs a look,
+    // the other is exactly what they asked for.
+    if (task.disabledReason === "failures") {
+      return (
+        <Badge variant="destructive">{t("disabled.failures", { count: task.consecutiveFailures ?? 0 })}</Badge>
+      );
+    }
     return <StatusBadge status="paused" />;
   }
   // A recurring task stays scheduled after a finished run; the last outcome lives in history.
@@ -645,6 +654,7 @@ function StatusBadge({ status }: { status: ScheduledRunStatus | "paused" | "sche
 
 function scheduleSummary(rule: ScheduleRule, t: (key: string, options?: Record<string, unknown>) => string): string {
   if (rule.kind === "once") return t("summary.once", { time: formatIso(rule.at) });
+  if (rule.kind === "cron") return t("summary.cron", { expr: rule.expr, zone: rule.timeZone });
   if (rule.kind === "daily") return t("summary.daily", { time: rule.time, zone: rule.timeZone });
   const days = WEEKDAY_ORDER.filter((day) => rule.days.includes(day)).map((day) => t(`days.${day}`)).join(t("summary.daySep"));
   return t("summary.weekly", { days, time: rule.time, zone: rule.timeZone });

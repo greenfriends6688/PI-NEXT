@@ -39,7 +39,8 @@
     "label": "Repeat",
     "once": "Once",
     "daily": "Daily",
-    "weekly": "Weekly"
+    "weekly": "Weekly",
+    "cron": "cron expression"
   },
   "at": "Run at",
   "atHint": "Pick a time on this computer. It is saved as an absolute instant.",
@@ -62,7 +63,9 @@
     "atPast": "A one-time task has to be in the future",
     "time": "Time must be HH:mm",
     "timeZone": "Enter a time zone",
-    "days": "Pick at least one day"
+    "days": "Pick at least one day",
+    "expr": "That cron expression is not valid — five fields, please (minute hour day month weekday)",
+    "duration": "A run length has to be between 1 and 1440 minutes"
   },
   "status": {
     "running": "Running",
@@ -72,13 +75,15 @@
     "interrupted": "Interrupted",
     "missed": "Missed",
     "paused": "Paused",
-    "scheduled": "Scheduled"
+    "scheduled": "Scheduled",
+    "catchUp": "Catch-up"
   },
   "summary": {
     "once": "Once at {{time}}",
     "daily": "Daily at {{time}} ({{zone}})",
     "weekly": "Weekly on {{days}} at {{time}} ({{zone}})",
-    "daySep": ", "
+    "daySep": ", ",
+    "cron": "cron {{expr}} · {{zone}}"
   },
   "next": "Next run",
   "last": "Last run",
@@ -99,5 +104,12 @@
   "back": "Back to list",
   "selectHint": "Select a task to see its details, or create one.",
   "hour": "Hour",
-  "minute": "Minute"
+  "minute": "Minute",
+  "expr": "cron expression",
+  "exprHint": "Five fields: minute hour day month weekday. e.g. 0 9 * * 1-5 is weekdays at 9:00.",
+  "maxDuration": "Max run length (minutes)",
+  "maxDurationHint": "A longer run is stopped, so the next occurrence has somewhere to run. {{min}}–{{max}} minutes.",
+  "disabled": {
+    "failures": "Paused itself after {{count}} failures in a row"
+  }
 }

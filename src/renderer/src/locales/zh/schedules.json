@@ -39,7 +39,8 @@
     "label": "重复",
     "once": "一次",
     "daily": "每天",
-    "weekly": "每周"
+    "weekly": "每周",
+    "cron": "cron 表达式"
   },
   "at": "运行时间",
   "atHint": "按这台电脑的本地时间选择，保存为绝对时间。",
@@ -62,7 +63,9 @@
     "atPast": "一次性任务需要安排在未来",
     "time": "时间需要是 HH:mm",
     "timeZone": "请填写时区",
-    "days": "每周任务至少选择一天"
+    "days": "每周任务至少选择一天",
+    "expr": "cron 表达式无效，需要五个字段（分 时 日 月 周）",
+    "duration": "单次运行时长需要在 1–1440 分钟之间"
   },
   "status": {
     "running": "运行中",
@@ -72,13 +75,15 @@
     "interrupted": "已中断",
     "missed": "已错过",
     "paused": "已暂停",
-    "scheduled": "已排期"
+    "scheduled": "已排期",
+    "catchUp": "补跑"
   },
   "summary": {
     "once": "{{time}} 运行一次",
     "daily": "每天 {{time}}（{{zone}}）",
     "weekly": "每周 {{days}} {{time}}（{{zone}}）",
-    "daySep": "、"
+    "daySep": "、",
+    "cron": "cron {{expr}} · {{zone}}"
   },
   "next": "下次运行",
   "last": "上次运行",
@@ -99,5 +104,12 @@
   "back": "返回列表",
   "selectHint": "选择一个任务查看详情，或新建一个。",
   "hour": "时",
-  "minute": "分"
+  "minute": "分",
+  "expr": "cron 表达式",
+  "exprHint": "五个字段：分 时 日 月 周。例如 0 9 * * 1-5 是工作日 9:00。",
+  "maxDuration": "单次运行时长（分钟）",
+  "maxDurationHint": "超过这个时间会自动停止，留出位置给下一次。{{min}}–{{max}} 分钟。",
+  "disabled": {
+    "failures": "连续 {{count}} 次失败，已自动暂停"
+  }
 }

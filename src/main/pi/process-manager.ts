@@ -905,7 +905,13 @@ export class PiProcessManager {
       missed: uiText("已错过", "missed"),
       running: uiText("运行中", "running"),
     } satisfies Record<ScheduledTaskRun["status"], string>)[run.status];
-    const notice = uiText(`定时任务「${task.name}」${label}`, `Scheduled task "${task.name}" ${label}`);
+    // Two things the label alone cannot say: an occurrence that came back from a sleep ran
+    // late, and a task that just switched itself off is not going to run again.
+    const late = run.trigger === "catch-up" ? uiText("（补跑）", " (catch-up)") : "";
+    const paused = run.disabledAfterFailures !== undefined
+      ? uiText(`（连续 ${run.disabledAfterFailures} 次失败，已自动暂停）`, ` (paused itself after ${run.disabledAfterFailures} failures in a row)`)
+      : "";
+    const notice = uiText(`定时任务「${task.name}」${label}${late}${paused}`, `Scheduled task "${task.name}" ${label}${late}${paused}`);
     const managed = run.conversationId ? this.#sessions.get(run.conversationId) : undefined;
     const lastReply = managed
       ? [...managed.session.messages].reverse().find((message): message is AssistantMessage => message.role === "assistant")

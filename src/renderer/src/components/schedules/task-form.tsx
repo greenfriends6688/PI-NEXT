@@ -19,6 +19,8 @@ import {
   type ScheduleKind,
 } from "@/components/schedules/schedule-time";
 import { cn } from "@/lib/utils";
+import { CRON_PRESETS } from "@shared/cron";
+import { MAX_DURATION_LIMITS } from "@shared/schedules";
 import type { Project } from "@shared/types";
 
 const SCRATCH = "__scratch__";
@@ -60,7 +62,12 @@ export function TaskForm({
     once: t("kind.once"),
     daily: t("kind.daily"),
     weekly: t("kind.weekly"),
+    cron: t("kind.cron"),
   };
+  const presetItems = CRON_PRESETS.map((preset) => ({
+    expr: preset.expr,
+    label: `${i18n.language === "en" ? preset.en : preset.zh} · ${preset.expr}`,
+  }));
   const projectItems = Object.fromEntries(projectOptions.map((item) => [item.value, item.label]));
   const zoneItems = Object.fromEntries(zones.map((zone) => [zone, zone]));
   const minAt = isoToDatetimeLocal(new Date().toISOString());
@@ -122,7 +129,9 @@ export function TaskForm({
           value={form.kind}
           disabled={saving}
           onValueChange={(next) => {
-            if (next === "once" || next === "daily" || next === "weekly") onChange({ kind: next satisfies ScheduleKind });
+            if (next === "once" || next === "daily" || next === "weekly" || next === "cron") {
+              onChange({ kind: next satisfies ScheduleKind });
+            }
           }}
         >
           <SelectTrigger className="w-full" aria-label={t("kind.label")}>
@@ -132,9 +141,48 @@ export function TaskForm({
             <SelectItem value="once">{t("kind.once")}</SelectItem>
             <SelectItem value="daily">{t("kind.daily")}</SelectItem>
             <SelectItem value="weekly">{t("kind.weekly")}</SelectItem>
+            <SelectItem value="cron">{t("kind.cron")}</SelectItem>
           </SelectContent>
         </Select>
       </Field>
+      {form.kind === "cron" ? (
+        <>
+          <Field
+            label={t("expr")}
+            htmlFor="schedule-expr"
+            hint={t("exprHint")}
+            error={error === "expr" ? t("errors.expr") : undefined}
+          >
+            <Input
+              id="schedule-expr"
+              value={form.expr}
+              disabled={saving}
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              className="font-mono"
+              placeholder="0 9 * * 1-5"
+              aria-invalid={error === "expr" || undefined}
+              onChange={(event) => onChange({ expr: event.target.value })}
+            />
+          </Field>
+          {/* 预设只是糖：填进去的是表达式本身，用户可以接着改。 */}
+          <div className="flex flex-wrap gap-1.5">
+            {presetItems.map((preset) => (
+              <Button
+                key={preset.expr}
+                type="button"
+                size="xs"
+                variant={form.expr.trim() === preset.expr ? "secondary" : "outline"}
+                disabled={saving}
+                onClick={() => onChange({ expr: preset.expr })}
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </div>
+        </>
+      ) : null}
       {form.kind === "once" ? (
         <Field
           label={t("at")}
@@ -152,6 +200,37 @@ export function TaskForm({
             aria-invalid={error === "at" || error === "atPast" || undefined}
             onChange={(event) => onChange({ at: event.target.value })}
           />
+        </Field>
+      ) : form.kind === "cron" ? (
+        <Field label={t("timeZone")} error={error === "timeZone" ? t("errors.timeZone") : undefined}>
+          {zones.length > 1 ? (
+            <Select
+              items={zoneItems}
+              value={form.timeZone}
+              disabled={saving}
+              onValueChange={(next) => {
+                if (typeof next === "string") onChange({ timeZone: next });
+              }}
+            >
+              <SelectTrigger className="w-full" aria-label={t("timeZone")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {zones.map((zone) => (
+                  <SelectItem key={zone} value={zone}>
+                    {timeZoneLabel(zone, i18n.language, zoneOffsetMinutes(zone))}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              value={form.timeZone}
+              disabled={saving}
+              aria-label={t("timeZone")}
+              onChange={(event) => onChange({ timeZone: event.target.value })}
+            />
+          )}
         </Field>
       ) : (
         <>
@@ -259,6 +338,26 @@ export function TaskForm({
           ) : null}
         </>
       )}
+      <Field
+        label={t("maxDuration")}
+        htmlFor="schedule-duration"
+        hint={t("maxDurationHint", { min: MAX_DURATION_LIMITS.min, max: MAX_DURATION_LIMITS.max })}
+        error={error === "duration" ? t("errors.duration") : undefined}
+      >
+        <Input
+          id="schedule-duration"
+          type="number"
+          inputMode="numeric"
+          min={MAX_DURATION_LIMITS.min}
+          max={MAX_DURATION_LIMITS.max}
+          step={1}
+          disabled={saving}
+          className="w-28"
+          aria-invalid={error === "duration" || undefined}
+          value={form.maxDurationMinutes}
+          onChange={(event) => onChange({ maxDurationMinutes: Number(event.target.value) })}
+        />
+      </Field>
       <div className="flex flex-wrap gap-2 pt-1">
         <Button type="submit" disabled={saving}>
           {t("save")}
