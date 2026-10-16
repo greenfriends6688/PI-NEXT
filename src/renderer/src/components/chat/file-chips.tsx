@@ -105,10 +105,11 @@ function FileRow({
  *
  * Two ways in, and they are different questions:
  *
- * - **文件** opens the 文件 pane — the paths below are the answer, and the pane is where
- *   they can be browsed and read.
  * - **审查** opens the turn's own diff (not the working tree's): what changed this turn,
  *   which is what reviewing a reply is about.
+ * - Clicking a path opens that file in the right pane. The list is the other answer, and
+ *   it is already on screen — a button beside it that opened the *project's* file tree was
+ *   answering a question nobody had asked about the turn.
  *
  * Clicking a path does the first — the list names files, so a click on one should show
  * that file. It used to open the diff, which meant the card had no way to read a file.
@@ -118,7 +119,6 @@ export function TurnFileChips({ files, className }: { files: ChangedFile[]; clas
   const [open, setOpen] = useState(true);
   const cwd = useWorkspacePath();
   const openTurnChanges = useSidePaneStore((state) => state.openTurnChanges);
-  const openFiles = useSidePaneStore((state) => state.openFiles);
   if (files.length === 0) return null;
   const added = files.reduce((sum, file) => sum + file.added, 0);
   const removed = files.reduce((sum, file) => sum + file.removed, 0);
@@ -154,26 +154,9 @@ export function TurnFileChips({ files, className }: { files: ChangedFile[]; clas
           </span>
         </CollapsibleTrigger>
         <div className="flex shrink-0 items-center gap-1.5">
-          {/*
-            Both buttons act on the right pane, because the card is a summary of it.
-
-            「文件」 used to be `setOpen(true)` alone — on a card that starts open, so the
-            button did nothing whatsoever. It now expands the list *and* opens the 文件
-            pane, which is where those paths can actually be browsed; 「审查」 opens the
-            turn's own diff. A path in the list still opens that one file.
-          */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="rounded-full"
-            onClick={() => {
-              setOpen(true);
-              openFiles();
-            }}
-          >
-            {t("files.files")}
-          </Button>
+          {/* Only 审查. A 「文件」 button sat here and opened the project's file tree, which is
+              not what a card counting *this turn's* changed files is about — the paths below
+              are already the list, and each one opens its own file. */}
           <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={review}>
             {t("files.review")}
           </Button>

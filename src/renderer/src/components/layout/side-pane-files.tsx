@@ -650,6 +650,10 @@ type FileDisplayMode = "source" | "preview" | "diff";
  * (`FileViewer.tsx:1601`), and the reason a file with no changes does not offer a button
  * that would open an empty pane. `preview` is for the kinds that render (Markdown, HTML,
  * media); a plain source file has nothing to render.
+ *
+ * The order here is the **button order**, and it is deliberately source-first and fixed:
+ * the row of modes should not shuffle as files are opened. Which one a file *opens* in is
+ * decided below, and it is not this list's first entry.
  */
 function displayModesFor(preview: FilePreview, hasDiff: boolean): FileDisplayMode[] {
   const rendered =
@@ -724,9 +728,15 @@ function FilePreviewPane({
   }, [cwd, preview.path]);
 
   const modes = displayModesFor(preview, Boolean(diff));
-  // The reader's pick, or the one this file is best shown in. A rendered kind opens
-  // rendered (that is what the file *is*); everything else opens as source.
-  const effective: FileDisplayMode = mode && modes.includes(mode) ? mode : modes[0];
+  // The reader's pick, or the one this file is best shown in: a kind that renders opens
+  // rendered (that is what the file *is*), everything else opens as source.
+  //
+  // Not `modes[0]` — that is the *button* order and it is source-first, so taking it as the
+  // default made every Markdown file, every rendered HTML page and every image open as a
+  // wall of text. The comment above this line had said the right thing all along; the code
+  // underneath it said the other thing.
+  const fallback: FileDisplayMode = modes.includes("preview") ? "preview" : modes[0];
+  const effective: FileDisplayMode = mode && modes.includes(mode) ? mode : fallback;
   const showDiff = effective === "diff";
   const showSource = effective === "source" && editable;
 
