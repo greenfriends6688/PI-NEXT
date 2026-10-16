@@ -219,6 +219,12 @@ export function McpSettings(): JSX.Element {
   const parsedJson = draft && draft.view === "json" && draft.json.trim() ? parseMcpJson(draft.json) : null;
   const jsonMessages = parsedJson
     ? [
+        // A paste that was a command is reported as what it became: the reader pasted a line
+        // out of a README and should not have to guess whether it was understood.
+        ...(parsedJson.fromCommand && parsedJson.servers.length > 0 ? [t("mcp.jsonFromCommand")] : []),
+        // …and a credential written out in full is flagged before it is stored, because a
+        // pasted command is where a token usually rides and a paste came from somewhere.
+        ...(parsedJson.literalSecret ? [t("mcp.jsonLiteralSecret")] : []),
         ...parsedJson.errors.map((error) => describeJsonError(t, error)),
         ...(draft?.id && parsedJson.servers.length > 1 ? [t("mcp.jsonMulti")] : []),
       ]

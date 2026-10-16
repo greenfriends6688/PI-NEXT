@@ -757,7 +757,7 @@
     "enabled": "启用",
     "saveConnect": "保存并连接",
     "viewForm": "表单",
-    "jsonHint": "粘贴 MCP 服务器文档里的配置；同名服务器会被替换。",
+    "jsonHint": "粘贴标准 mcpServers JSON，或直接粘贴安装命令（claude mcp add / codex mcp add / code mcp-add）",
     "jsonInvalid": "JSON 格式不正确：{{message}}",
     "jsonShape": "没有找到服务器，请使用 { \"mcpServers\": { \"名称\": { … } } } 格式",
     "jsonMissing": "“{{name}}”需要 command（本地进程）或 url（HTTP）",
@@ -787,7 +787,9 @@
     "testFailed": "连接失败",
     "testTimedOut": "连接超时",
     "testReadOnly": "只读",
-    "testMore": "还有 {{count}} 个…"
+    "testMore": "还有 {{count}} 个…",
+    "jsonFromCommand": "已按安装命令读出一个服务器，确认无误后保存",
+    "jsonLiteralSecret": "命令里带着明文密钥：它会存进本机的 MCP 配置。建议改用环境变量引用。"
   },
   "skills": {
     "detailDesc": "直接编辑这个技能自己的 markdown；保存后下一次对话即可生效。",

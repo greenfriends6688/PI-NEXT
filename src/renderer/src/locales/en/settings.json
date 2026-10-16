@@ -759,7 +759,7 @@
     "enabled": "Enabled",
     "saveConnect": "Save and connect",
     "viewForm": "Form",
-    "jsonHint": "Paste the config from an MCP server's docs. A server with the same name is replaced.",
+    "jsonHint": "Paste standard mcpServers JSON, or the install command itself (claude mcp add / codex mcp add / code mcp-add)",
     "jsonInvalid": "Invalid JSON: {{message}}",
     "jsonShape": "No servers found. Use { \"mcpServers\": { \"name\": { … } } }",
     "jsonMissing": "\"{{name}}\" needs a command (local process) or a url (HTTP)",
@@ -789,7 +789,9 @@
     "testFailed": "Could not connect",
     "testTimedOut": "Connection timed out",
     "testReadOnly": "read-only",
-    "testMore": "{{count}} more…"
+    "testMore": "{{count}} more…",
+    "jsonFromCommand": "Read one server out of that install command — check it before saving",
+    "jsonLiteralSecret": "That command carries a credential in the clear; it will be stored in this machine's MCP config. A variable reference is safer."
   },
   "skills": {
     "detailDesc": "Edit this skill's own markdown; it takes effect on the next turn.",

@@ -1,3 +1,5 @@
+import { looksLikeMcpCommand, parseMcpCommand } from "./mcp-command.ts";
+
 /**
  * The text form of an MCP server's environment and request headers, as the settings form
  * edits them: one entry per line, `KEY=value` for the environment and `Name: value` for
@@ -65,7 +67,8 @@ export function formatMap(values: Record<string, string> | undefined, format: Ma
  *                     "docs": { "url": "https://…/mcp", "headers": { … } } } }
  *
  * The settings form edits it as text, and Main reads a file written in it, so both go
- * through the one reading below rather than each deciding what an entry means.
+ * through the one reading below rather than each deciding what an entry means. A paste that
+ * is a command (`claude mcp add …`) is read as one — see `shared/mcp-command.ts`.
  * ---------------------------------------------------------------------------------------- */
 
 /** What was wrong with some part of a pasted config. The pane words each one for the user. */
@@ -90,6 +93,13 @@ export type McpJsonResult = {
   /** Valid entries, each with its name as its id (a caller that stores them assigns real ids). */
   servers: McpServerConfig[];
   errors: McpJsonError[];
+  /**
+   * Set when the paste was a *command* rather than JSON and was read as one — the pane says
+   * so, because the reader pasted a line from a README and deserves to know what it became.
+   */
+  fromCommand?: boolean;
+  /** A credential written out in full inside a pasted command. */
+  literalSecret?: boolean;
 };
 
 /** `Record<string, string>` from a JSON object, taking numbers and booleans as their text. */
@@ -184,6 +194,19 @@ function serverMap(parsed: unknown): Record<string, unknown> | undefined {
 export function parseMcpJson(text: string): McpJsonResult {
   const source = text.replace(/^﻿/, "").trim();
   if (!source) return { servers: [], errors: [{ code: "shape" }] };
+  // A README gives you a command, not JSON. Reading both here — rather than in the pane —
+  // keeps one entry point that decides what a paste means, so the dialog's validation and
+  // its preview cannot disagree about which of the two it is looking at.
+  if (looksLikeMcpCommand(source)) {
+    const command = parseMcpCommand(source);
+    if (command.entry) {
+      const result = serverFromEntry(command.entry.name, command.entry.config);
+      return "error" in result
+        ? { servers: [], errors: [result.error], fromCommand: true }
+        : { servers: [result.server], errors: [], fromCommand: true, ...(command.literalSecret ? { literalSecret: true } : {}) };
+    }
+    if (command.reason) return { servers: [], errors: [{ code: "json", message: command.reason }] };
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(source.startsWith("{") || source.startsWith("[") ? source : `{${source}}`);
