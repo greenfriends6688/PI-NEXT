@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import { VERSION as piVersion } from "@earendil-works/pi-coding-agent";
 import { Ipc } from "@shared/ipc";
@@ -16,6 +17,12 @@ import { searchProjectFiles } from "../main/engine/project-files";
 import { readWorkspaceDir, writeWorkspaceTextFile } from "../main/engine/workspace-fs";
 import { existingFiles } from "../main/engine/path-exists";
 import { conversationCwd, readFileForPayload } from "../main/engine/file-chunk";
+import { readGitCommitFiles, readGitLog } from "../main/engine/git-graph";
+import { checkLinkedDirectoryApproval, allowOutsideLink } from "../main/engine/linked-directory";
+import { readCommitStatusFiles, collectCommitMessageMaterial } from "../main/workspace-git";
+import { assertProxySettings, proxySettingsOf } from "../shared/proxy";
+import { uiText } from "../main/engine/ui-text";
+import type { FileMutation } from "../shared/file-mutation";
 import { TerminalSessions } from "../main/engine/terminal-sessions";
 import { applyLanguages } from "../main/engine/ai-language";
 import { rekeyProjectSettings } from "../shared/project-folders.ts";
@@ -144,6 +151,12 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   // The sub-agent task graph runs inside this engine; the desktop reads and steers it through these.
   registerDagIpc(engine);
   registerScheduleIpc(engine);
+  // Every change reaches every client through `memory.onChange` (wired in `index.ts`), so
+  // none of these broadcasts for itself.
+  handle(Ipc.memoryGetState, () => engine.memory.state());
+  handle(Ipc.memorySetConfig, (payload: unknown) => engine.memory.setConfig(payload));
+  handle(Ipc.memoryRun, () => engine.memory.run());
+  handle(Ipc.memoryClear, () => engine.memory.clear());
   handle(Ipc.conversationsList, () => engine.listWorkspace());
   handle(Ipc.conversationsCreate, (payload?: { project?: string; activate?: boolean; reuseEmpty?: boolean }) => engine.createConversation(payload?.project, {
     activate: payload?.activate !== false,
@@ -156,6 +169,11 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   handle(Ipc.conversationsSetProject, (payload: { id: string; project: string | null }) => engine.setConversationProject(payload.id, payload.project));
   handle(Ipc.conversationsSearch, (payload: { query?: string }) => engine.searchConversations(payload?.query ?? ""));
   handle(Ipc.conversationsCreateSide, (payload: { project?: string; parentId?: string; title?: string }) => engine.createSideConversation(payload?.project, payload?.parentId, payload?.title));
+  handle(Ipc.conversationsRestorePrompt, (payload: { id: string; expectedTitle: string; expectedPreview?: string; title: string; preview?: string }) => engine.restorePromptPreview(payload));
+  handle(Ipc.conversationsCreateWorktree, (payload: { id: string; path?: string; branch?: string; label?: string }) => engine.createConversationWorktree(payload.id, payload));
+  handle(Ipc.conversationsBindWorktree, (payload: { id: string; path: string }) => engine.bindConversationWorktree(payload.id, payload.path));
+  handle(Ipc.conversationsUnbindWorktree, (payload: { id: string; remove?: boolean }) => engine.unbindConversationWorktree(payload.id, payload));
+  handle(Ipc.conversationsListWorktrees, (payload: { id: string }) => engine.listConversationWorktrees(payload.id));
   handle(Ipc.projectsAddRemote, (payload: { cwd?: string }) => {
     const value = typeof payload?.cwd === "string" ? payload.cwd.trim() : "";
     if (!value) throw new Error("远程项目目录不能为空");
@@ -183,17 +201,56 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   handle(Ipc.workspaceFilesExist, (payload: { paths?: unknown; cwd?: unknown }) =>
     existingFiles(payload?.paths, payload?.cwd),
   );
-  handle(Ipc.workspaceReadDir, (payload: { path: string }) => readWorkspaceDir(payload.path));
+  handle(Ipc.workspaceReadDir, async (payload: { path: string }) => {
+    try {
+      return await readWorkspaceDir(payload.path, engine.workspaceRoots());
+    } catch (error) {
+      // 「目录链接指向项目外」不是「空目录」：把目标带回渲染层，让它能提「允许浏览」。
+      if (error instanceof Error && error.message.startsWith("OUTSIDE_LINK:")) throw error;
+      return [];
+    }
+  });
   handle(Ipc.workspaceSearchFiles, (payload: { cwd?: unknown; query?: unknown }) =>
     searchProjectFiles(payload?.cwd, payload?.query),
   );
   handle(Ipc.workspaceWriteFile, (payload: { path?: unknown; text?: unknown }) => {
     writeWorkspaceTextFile(payload?.path, payload?.text);
   });
+  handle(Ipc.workspaceListFiles, (payload: { root: string }) => engine.listWorkspaceFiles(payload.root));
+  handle(Ipc.workspaceMutate, async (payload: FileMutation) => {
+    await engine.mutateWorkspaceFile(payload);
+  });
+  handle(Ipc.workspaceAllowLink, (payload: { path?: unknown; target?: unknown }) => {
+    const check = checkLinkedDirectoryApproval(
+      typeof payload?.path === "string" ? payload.path : "",
+      typeof payload?.target === "string" ? payload.target : "",
+      engine.workspaceRoots(),
+    );
+    if (!check.ok) return { ok: false, error: check.error };
+    allowOutsideLink(check.target);
+    return { ok: true };
+  });
   handle(Ipc.workspaceReadFile, (payload: { path?: unknown; conversationId?: unknown; offset?: unknown; length?: unknown }) =>
     readFileForPayload(payload, () => conversationCwd(engine.listWorkspace(), payload?.conversationId)),
   );
   handle(Ipc.workspaceGitStatus, (payload: { cwd: string }) => readGitStatus(payload.cwd));
+  handle(Ipc.workspaceGitLog, (payload: { cwd?: unknown; limit?: unknown }) =>
+    readGitLog(typeof payload?.cwd === "string" ? payload.cwd : "", typeof payload?.limit === "number" ? payload.limit : undefined),
+  );
+  handle(Ipc.workspaceGitCommitFiles, (payload: { cwd?: unknown; hash?: unknown }) =>
+    readGitCommitFiles(
+      typeof payload?.cwd === "string" ? payload.cwd : "",
+      typeof payload?.hash === "string" ? payload.hash : "",
+    ),
+  );
+  handle(Ipc.workspaceGitGenerateCommitMessage, async (payload: { cwd?: unknown; conversationId?: unknown }): Promise<string> => {
+    const dir = cwd(typeof payload?.cwd === "string" ? payload.cwd : "");
+    if (!dir) throw new Error(uiText("项目路径无效", "Invalid project path"));
+    const statusFiles = await readCommitStatusFiles(dir);
+    if (statusFiles.length === 0) throw new Error(uiText("没有要提交的改动", "No changes to commit"));
+    const files = await collectCommitMessageMaterial(dir, statusFiles);
+    return engine.generateCommitMessage(files, typeof payload?.conversationId === "string" ? payload.conversationId : undefined);
+  });
   handle(Ipc.workspaceGitBranches, (payload: { cwd: string }) => gitBranches(payload.cwd));
   handle(Ipc.workspaceGitCheckout, (payload: { cwd: string; branch: string }) => gitCheckout(payload.cwd, payload.branch));
   handle(Ipc.workspaceGitCreateBranch, (payload: { cwd: string; branch: string }) => gitCreateBranch(payload.cwd, payload.branch));
@@ -222,7 +279,23 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
     clearAppSettings(paths);
     if (toolModeSettingsChanged(previous, {})) void engine.refreshToolModes().catch(() => undefined);
   });
+  // The headless Agent has no Chromium session to reconfigure, but the proxy fields still
+  // belong in `settings.json` where the desktop reads them, and validation must not be
+  // skipped just because this process will not act on them until its next start.
+  handle(Ipc.settingsProxySet, (payload: Record<string, unknown>) => {
+    assertProxySettings(payload);
+    writeAppSettings(paths, { ...readAppSettings(paths), ...proxySettingsOf(payload) });
+  });
   handle(Ipc.appGetInfo, () => ({ version: process.env.PINEXT_VERSION ?? "agent", engineVersion: piVersion, userData: paths.userData, runtimeRoot: paths.runtimeRoot, platform: process.platform }));
+  // The Agent has no `logger.ts` (it imports Electron), so a renderer line is appended
+  // here in the same shape the desktop writes — one file, both entries.
+  handle(Ipc.appLog, (payload: unknown) => {
+    const entry = payload && typeof payload === "object" ? payload as { level?: unknown; message?: unknown } : {};
+    if (typeof entry.message !== "string" || !entry.message) return;
+    const level = typeof entry.level === "string" && ["debug", "info", "warn", "error"].includes(entry.level) ? entry.level : "info";
+    const line = `${new Date().toISOString()} [${level}] ${entry.message.slice(0, 16_384).replace(/\r?\n/g, "\\n")}\n`;
+    try { appendFileSync(join(paths.logs, "renderer.log"), line); } catch { /* a log line must never fail the call */ }
+  });
   handle(Ipc.workspaceFileIcons, () => ({ files: {}, folders: {} }));
   handle(Ipc.statsUsage, (_payload?: { range?: UsageRange }) => ({ range: "30d", from: "", to: "", totals: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, tokens: 0, cost: 0, requests: 0, toolCalls: 0, activeDays: 0 }, days: [], models: [], sessions: 0, longestSessionMinutes: 0, currentStreak: 0, longestStreak: 0 }));
 
@@ -235,10 +308,147 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   handle(Ipc.providersAddNative, (payload: { id: string; apiKey: string; models: ProviderModel[] }) => engine.addNativeProvider(payload.id, payload.apiKey, payload.models));
   handle(Ipc.providersLogout, (payload: { id: string }) => engine.logoutProvider(payload.id));
   handle(Ipc.providersQuota, (payload: { id: "openai" | "openai-codex"; force?: boolean }) => engine.getOpenAIAccountQuota(payload.id, payload.force === true));
+  handle(Ipc.providersFetch, (payload: { baseUrl: string; apiKey: string; api?: import("@shared/types").ProviderApi }) => engine.fetchModels(payload.baseUrl, payload.apiKey, payload.api));
+  handle(Ipc.providersProbeGateway, (payload: { baseUrl: string }) => engine.probeGateway(payload.baseUrl));
+  handle(Ipc.providersGatewayBalance, (payload: { id: string; force?: boolean }) => engine.getGatewayBalance(payload.id, payload.force === true));
+  handle(Ipc.providersGatewayCredentials, async (payload: { id: string; accessToken: string; userId: string }) => {
+    await engine.setGatewayCredentials(payload.id, { accessToken: payload.accessToken, userId: payload.userId });
+  });
+  handle(Ipc.providersIdentifyGateway, (payload: { id: string }) => engine.identifyGateway(payload.id));
+  handle(Ipc.providersCcSwitchScan, () => engine.scanCcSwitch());
+  handle(Ipc.providersCcSwitchImport, (payload: { ids: string[] }) => engine.importCcSwitch(payload.ids));
+  // Subscription (OAuth) logins. `login` resolves when the flow ends, so the renderer
+  // holds one open dialog per provider while its events stream in on
+  // `providers:oauth-event` — the prompts it has to answer among them.
+  handle(Ipc.providersOAuthLogin, (payload: { id: string }) => engine.loginProvider(payload.id));
+  handle(Ipc.providersOAuthAnswer, (payload: { id: string; promptId: string; value: string }) => {
+    engine.answerOAuthPrompt(payload.id, payload.promptId, payload.value ?? "");
+  });
+  handle(Ipc.providersOAuthCancel, (payload: { id: string }) => {
+    engine.cancelOAuthLogin(payload.id);
+  });
   handle(Ipc.modelsDevUpdate, () => import("../main/engine/models-dev-update").then(({ updateModelsDevSnapshot }) => updateModelsDevSnapshot()));
+
+  // A browser has no desktop to act on: no window to move, no native dialog to answer,
+  // no embedded browser to drive, no separate web server to toggle. Registering these
+  // with the reason beats leaving them out, because a missing channel answers
+  // `unknown method: <channel>` — an error that names neither the feature nor why it is
+  // absent, and reads as a broken client rather than as a desktop-only one.
+  for (const channel of AGENT_UNSUPPORTED) {
+    handle(channel, () => {
+      throw new Error(uiText(
+        "该功能需要桌面应用，浏览器里没有",
+        "This feature requires the desktop app and is not available in the browser",
+      ));
+    });
+  }
 
   bindAgentPush(engine, terminals);
 }
+
+/**
+ * Methods the Agent answers with a refusal rather than a result.
+ *
+ * They are registered (see the loop at the end of `registerAgentIpc`) so the browser
+ * gets one readable sentence instead of `unknown method`, and they are listed here so
+ * `test/agent-call-table.test.ts` can hold the whole call table to account.
+ */
+export const AGENT_UNSUPPORTED: readonly string[] = [
+  // Window chrome: a browser tab has no OS window. The web client only draws a title bar
+  // where `HAS_CUSTOM_TITLE_BAR` is true (Windows / Linux), and there these controls would
+  // otherwise be buttons that do nothing; the remote policy also denies them outright.
+  Ipc.windowNew,
+  Ipc.windowMinimize,
+  Ipc.windowToggleMaximize,
+  Ipc.windowClose,
+  Ipc.windowIsMaximized,
+  // Native dialogs open on the machine running the Agent, where nobody is looking.
+  Ipc.workspacePick,
+  Ipc.projectsAdd,
+  // Act on the desktop that is running the Agent, not on the browser's.
+  Ipc.workspaceReveal,
+  Ipc.workspaceOpenTerminal,
+  Ipc.appExportLogs,
+  // The embedded browser and its bridge live in a desktop `<webview>`.
+  Ipc.browserListProfiles,
+  Ipc.browserImportProfile,
+  Ipc.browserClearData,
+  Ipc.browserListEngines,
+  Ipc.browserResponse,
+  // The Agent is the web server; there is no second one to start or stop.
+  Ipc.webServerGet,
+  Ipc.webServerStart,
+  Ipc.webServerStop,
+  Ipc.webServerPort,
+];
+
+/**
+ * Call-table methods that only the desktop entry serves.
+ *
+ * The Agent deliberately registers none of these: they are the desktop's own account,
+ * SSH, remote-access and update controls, its local decision model, the import/export
+ * tools that open files on the desktop, and the channels whose runtime the headless
+ * Agent does not host. Listed rather than ignored so a method the desktop adds cannot
+ * silently go missing from every other client — the bug this whole file exists to end.
+ */
+export const DESKTOP_ONLY: readonly string[] = [
+  Ipc.accountGet,
+  Ipc.accountLogin,
+  Ipc.accountCancelLogin,
+  Ipc.accountLogout,
+  Ipc.botChannelRegisterBegin,
+  Ipc.botChannelRegisterCancel,
+  Ipc.botChannelRegisterPoll,
+  Ipc.decisionGetConfig,
+  Ipc.decisionKeyState,
+  Ipc.decisionSaveConfig,
+  Ipc.decisionSetKey,
+  Ipc.decisionTest,
+  Ipc.engineDiscoverMcp,
+  Ipc.engineExportHtml,
+  Ipc.engineExportHtmlDocument,
+  Ipc.engineExportMarkdown,
+  Ipc.engineGetMessagesSince,
+  Ipc.engineImportCandidates,
+  Ipc.engineImportSessions,
+  Ipc.engineImportSkill,
+  Ipc.engineImportSources,
+  Ipc.engineListMarketPackages,
+  Ipc.engineSetAgentEnabled,
+  Ipc.engineSyncPiConfig,
+  Ipc.engineTestMcp,
+  Ipc.imGet,
+  Ipc.imSet,
+  Ipc.imTest,
+  Ipc.imagegenModels,
+  Ipc.remoteClearPassword,
+  Ipc.remoteGetState,
+  Ipc.remoteListDevices,
+  Ipc.remoteOfficialDisconnect,
+  Ipc.remoteRevokeDevice,
+  Ipc.remoteSetDeviceName,
+  Ipc.remoteSetPassword,
+  Ipc.remoteStart,
+  Ipc.remoteStop,
+  Ipc.sshConnect,
+  Ipc.sshDisconnect,
+  Ipc.sshHostKeyScan,
+  Ipc.sshHostKeyTrust,
+  Ipc.sshHostRemove,
+  Ipc.sshHostSave,
+  Ipc.sshHosts,
+  Ipc.sshPickIdentityFile,
+  Ipc.sshSetPhoneAccess,
+  Ipc.sshStartAgent,
+  Ipc.sshState,
+  Ipc.sshStates,
+  Ipc.sshStopAgent,
+  Ipc.sshTest,
+  Ipc.updateCheck,
+  Ipc.updateDownload,
+  Ipc.updateGetState,
+  Ipc.updateInstall,
+];
 
 export function agentChannels(): readonly string[] {
   return handlerChannels();
