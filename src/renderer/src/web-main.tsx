@@ -15,9 +15,12 @@ import { installDesktopScene } from "./lib/desktop-scene";
 void installWebBridge()
   .then(() => {
     // A browser tab has no system blur to draw a glass window over, so this paints one
-    // before React mounts — the same scene the preview harness and the marketing site use.
-    // Before `./main`: `lib/platform.ts` reads whether there is vibrancy at module scope.
-    installDesktopScene();
+    // before React mounts — the same wallpaper and material the preview harness and the
+    // marketing site use, but full-bleed: the harness draws a floating macOS window
+    // because that is what its screenshots are of, and a browser tab inset from its own
+    // edges would just be a smaller app. Before `./main`: `lib/platform.ts` reads whether
+    // there is vibrancy at module scope.
+    installDesktopScene({ float: false });
     return import("./main");
   })
   .catch((error: unknown) => {

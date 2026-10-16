@@ -733,18 +733,27 @@ export function createPinextApi(t: ApiTransport) {
       },
     },
     /**
-     * Disk path for a file picked in this window, or "" when this client has none
-     * (a remote browser, or a blob that was never a file on disk).
+     * Disk path for a file picked in this window, or "" when it has none.
+     *
+     * **Absent from the object, not a function that answers empty, when the transport
+     * has no such thing.** `lib/media-base.ts` reads this member to tell a browser from
+     * an Electron window (`isWebClient`), and a member that always exists made every
+     * client look like Electron — so the browser client built `pinext-media://` URLs, a
+     * scheme it has no handler for. Every image, every inline HTML preview and the whole
+     * 调用轨迹 page came up blank for that one reason.
      */
-    pathForFile: (file: unknown): string => {
-      if (!t.pathForFile) return "";
-      try {
-        const path = t.pathForFile(file);
-        return typeof path === "string" ? path : "";
-      } catch {
-        return "";
-      }
-    },
+    ...(t.pathForFile
+      ? {
+          pathForFile: (file: unknown): string => {
+            try {
+              const path = t.pathForFile!(file);
+              return typeof path === "string" ? path : "";
+            } catch {
+              return "";
+            }
+          },
+        }
+      : {}),
   };
 
   return api;

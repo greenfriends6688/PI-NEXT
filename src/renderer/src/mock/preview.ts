@@ -1024,7 +1024,7 @@ if (website) {
  * row clearance used by the real macOS shell.
  */
 if (desktop) {
-  installDesktopScene();
+  installDesktopScene({ float: true });
 }
 
 if (website && platform === "darwin") {

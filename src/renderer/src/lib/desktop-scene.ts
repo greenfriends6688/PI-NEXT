@@ -18,11 +18,24 @@
  * 24px window radius is 8 + 16 and the two read as concentric.
  */
 
-/** Where `#root` sits inside the viewport. The rounding below is built from it. */
+/** Where `#root` sits inside the viewport in the floating form. Built into the rounding below. */
 export const DESKTOP_INSET = { x: 20, y: 16 } as const;
 
-/** The window's corner radius: the panes' 16px plus the 8px inset they sit at. */
+/** The floating window's corner radius: the panes' 16px plus the 8px inset they sit at. */
 export const DESKTOP_RADIUS = 24;
+
+export type DesktopSceneOptions = {
+  /**
+   * Draw the app as a floating window inset from the edges, over the wallpaper.
+   *
+   * The preview harness and the marketing site want that — it is what makes the shot read
+   * as a macOS window. The browser client does not: it *is* the whole page, and an inset
+   * there just makes the app smaller than the tab it is in, for nothing. Both forms get
+   * the same wallpaper and the same material, so the glass is the same; only the frame
+   * around it differs.
+   */
+  float?: boolean;
+};
 
 let installed = false;
 
@@ -30,10 +43,23 @@ let installed = false;
  * Paint the scene. Idempotent, and safe to call before React mounts: it only touches
  * `<html>` and appends one `<style>`, both of which exist in the raw document.
  */
-export function installDesktopScene(): void {
+export function installDesktopScene(options: DesktopSceneOptions = {}): void {
   if (installed || typeof document === "undefined") return;
   installed = true;
   document.documentElement.dataset.desktop = "";
+
+  // Full bleed is `inset: 0` with no rounding; floating subtracts the inset from the
+  // viewport and rounds the result. The wallpaper and the material are shared, so the two
+  // cannot drift into different-looking glass.
+  const frame = options.float
+    ? `inset: ${DESKTOP_INSET.y}px ${DESKTOP_INSET.x}px;
+      border-radius: ${DESKTOP_RADIUS}px;
+      box-shadow:
+        0 0 0 0.5px rgb(0 0 0 / 0.45),
+        inset 0 0 0 0.5px rgb(255 255 255 / 0.22),
+        0 36px 90px -24px rgb(0 0 0 / 0.6),
+        0 14px 34px -12px rgb(0 0 0 / 0.4);`
+    : `inset: 0;`;
 
   const style = document.createElement("style");
   style.dataset.desktopScene = "";
@@ -50,18 +76,12 @@ export function installDesktopScene(): void {
     html[data-desktop] body { background: transparent; }
     html[data-desktop] #root {
       position: fixed;
-      inset: ${DESKTOP_INSET.y}px ${DESKTOP_INSET.x}px;
+      ${frame}
       height: auto;
-      border-radius: ${DESKTOP_RADIUS}px;
       overflow: hidden;
       background: var(--desktop-material);
       -webkit-backdrop-filter: blur(56px) saturate(1.9);
       backdrop-filter: blur(56px) saturate(1.9);
-      box-shadow:
-        0 0 0 0.5px rgb(0 0 0 / 0.45),
-        inset 0 0 0 0.5px rgb(255 255 255 / 0.22),
-        0 36px 90px -24px rgb(0 0 0 / 0.6),
-        0 14px 34px -12px rgb(0 0 0 / 0.4);
     }
     html[data-desktop].dark { --desktop-material: rgb(30 30 36 / 0.34); }
     html[data-desktop]:not(.dark) { --desktop-material: rgb(248 248 250 / 0.42); }

@@ -918,13 +918,10 @@ export class RemoteServer {
     // token to present — and it does not need one, because this is the app's own page
     // on the app's own machine.
     //
-    // Both conditions are required and neither is a formality. `isOwnOrigin` requires an
-    // `Origin` header that matches this host: a browser sends it and cannot forge it, so
-    // a page the user happens to be visiting cannot ask — and neither can `curl`, or a
-    // server-side fetch, which send none at all. `isLoopbackAddress` keeps a phone on
-    // the LAN out even if it copied the page. The desktop window never takes this path;
-    // it loads `pinext-media://` instead.
-    if (isLoopbackAddress(request.socket.remoteAddress) && hasOwnOrigin(request)) return true;
+    // `isOwnPageRequest` is what keeps a page the user is merely *visiting* out, and
+    // `isLoopbackAddress` keeps a phone on the LAN out even if it copied the page.
+    // The desktop window never takes this path; it loads `pinext-media://` instead.
+    if (isLoopbackAddress(request.socket.remoteAddress) && isOwnPageRequest(request)) return true;
     const header = request.headers.authorization;
     const match = /^Bearer\s+(\S+)$/i.exec(typeof header === "string" ? header : "");
     const token = match?.[1] ?? "";
@@ -1162,6 +1159,26 @@ function isOwnOrigin(request: IncomingMessage): boolean {
  */
 function hasOwnOrigin(request: IncomingMessage): boolean {
   return typeof request.headers.origin === "string" && isOwnOrigin(request);
+}
+
+/**
+ * Whether this request is the app's own page, judged by `Sec-Fetch-Site` first.
+ *
+ * `Origin` cannot answer this question on its own, and requiring it broke the very
+ * requests this endpoint serves: a browser sends `Origin` for a cross-origin request or a
+ * non-GET, and **not** for the same-origin `GET` behind an `<img src>` or an `<iframe>` —
+ * which is every image in a reply and the whole 调用轨迹 page. Requiring it answered 401 to
+ * the app's own page, so the frame came up blank.
+ *
+ * `Sec-Fetch-Site` is the header written for exactly this: the browser sets it on every
+ * request, and a page cannot forge it. `same-origin` is our own document. `none` is a
+ * user-typed navigation (somebody pasting the address), which is not the app's page. A
+ * missing header means a non-browser client — `curl`, a server-side fetch — which is what
+ * `hasOwnOrigin` was protecting against, so that case still has to prove itself.
+ */
+function isOwnPageRequest(request: IncomingMessage): boolean {
+  if (request.headers["sec-fetch-site"] === "same-origin") return true;
+  return hasOwnOrigin(request);
 }
 
 /**

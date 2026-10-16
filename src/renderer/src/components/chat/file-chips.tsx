@@ -105,8 +105,8 @@ function FileRow({
  *
  * Two ways in, and they are different questions:
  *
- * - **文件** opens the file itself — the paths are the answer, and a path opens its
- *   content in the right pane.
+ * - **文件** opens the 文件 pane — the paths below are the answer, and the pane is where
+ *   they can be browsed and read.
  * - **审查** opens the turn's own diff (not the working tree's): what changed this turn,
  *   which is what reviewing a reply is about.
  *
@@ -118,6 +118,7 @@ export function TurnFileChips({ files, className }: { files: ChangedFile[]; clas
   const [open, setOpen] = useState(true);
   const cwd = useWorkspacePath();
   const openTurnChanges = useSidePaneStore((state) => state.openTurnChanges);
+  const openFiles = useSidePaneStore((state) => state.openFiles);
   if (files.length === 0) return null;
   const added = files.reduce((sum, file) => sum + file.added, 0);
   const removed = files.reduce((sum, file) => sum + file.removed, 0);
@@ -153,7 +154,24 @@ export function TurnFileChips({ files, className }: { files: ChangedFile[]; clas
           </span>
         </CollapsibleTrigger>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Button type="button" variant="ghost" size="sm" className="rounded-full" onClick={() => setOpen(true)}>
+          {/*
+            Both buttons act on the right pane, because the card is a summary of it.
+
+            「文件」 used to be `setOpen(true)` alone — on a card that starts open, so the
+            button did nothing whatsoever. It now expands the list *and* opens the 文件
+            pane, which is where those paths can actually be browsed; 「审查」 opens the
+            turn's own diff. A path in the list still opens that one file.
+          */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="rounded-full"
+            onClick={() => {
+              setOpen(true);
+              openFiles();
+            }}
+          >
             {t("files.files")}
           </Button>
           <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={review}>

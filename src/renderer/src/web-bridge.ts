@@ -168,17 +168,26 @@ async function promptForToken(): Promise<string | null> {
  * the page asking nicely. Anything else (a phone, a password-protected remote setup)
  * gets no token there and falls through to the form.
  *
- * A stored token is reused across reloads: it is a device token the server issued, and
- * asking again on every reload would mint a new device each time.
+ * A token the **user** supplied is reused across reloads: it is a device token the server
+ * issued and will still accept tomorrow, and asking again would be a password prompt on
+ * every visit.
+ *
+ * The loopback token is the opposite and is therefore **never** kept. `webLoopbackToken()`
+ * mints a fresh one per run and writes it down nowhere, so a stored copy is dead the moment
+ * the agent restarts — and a page holding one cannot recover by reloading, because the
+ * stored value is tried first. It has to be asked for again, every load, which is one
+ * request to the same process that served this page.
  */
 async function ensureToken(): Promise<string> {
-  const stored = localStorage.getItem(TOKEN_KEY);
-  if (stored) return stored;
   const handed = await fetchLoopbackToken();
   if (handed) {
-    localStorage.setItem(TOKEN_KEY, handed);
+    // Drop any older loopback token rather than leaving it to be tried after the next
+    // restart. A device token from the form never reaches this branch.
+    localStorage.removeItem(TOKEN_KEY);
     return handed;
   }
+  const stored = localStorage.getItem(TOKEN_KEY);
+  if (stored) return stored;
   const token = await promptForToken();
   if (!token) throw new Error("没有可用的令牌");
   localStorage.setItem(TOKEN_KEY, token);
