@@ -3,6 +3,7 @@ import { protocol } from "electron";
 import { decodeScopedId } from "@shared/server-scope";
 import { INLINE_HTML_CSP, mediaPathFromUrl } from "@shared/media-preview";
 import { openMediaBody } from "./media-file";
+import { inlineDocumentResponse } from "./inline-document-http";
 import { fetchRemoteMedia, type RemoteMediaEndpoint } from "./remote-media";
 
 export type MediaProtocolDeps = {
@@ -18,6 +19,10 @@ export type MediaProtocolDeps = {
  */
 export function registerMediaProtocol(deps: MediaProtocolDeps): void {
   protocol.handle("pinext-media", async (request) => {
+    // A document a reply wrote in a fence: no file, no registry — the text is in the URL.
+    // Checked before the file path, since `doc` is a host of its own and never a path.
+    const inline = inlineDocumentFromUrl(request.url);
+    if (inline !== null) return inlineDocumentResponse(inline);
     const requested = mediaPathFromUrl(request.url);
     if (!requested) return new Response(null, { status: 400 });
     const remote = decodeScopedId(requested);
@@ -55,4 +60,18 @@ function withPageCsp(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set("content-security-policy", INLINE_HTML_CSP);
   return new Response(response.body, { status: response.status, headers });
+}
+
+/**
+ * The payload of a `pinext-media://doc/<payload>` request, or null for any other URL.
+ */
+export function inlineDocumentFromUrl(requestUrl: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(requestUrl);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "pinext-media:" || url.hostname !== "doc") return null;
+  return url.pathname.replace(/^\//, "") || null;
 }

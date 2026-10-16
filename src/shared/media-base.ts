@@ -39,6 +39,15 @@ export function mediaUrl(filePath: string): string {
   return url.toString();
 }
 
+/**
+ * The URL one inline document is served at — a page a reply wrote in a fence, with no file
+ * behind it (`shared/inline-document.ts` carries the text).
+ */
+export function mediaDocumentUrl(payload: string): string {
+  if (!isWebClient()) return `pinext-media://doc/${payload}`;
+  return new URL(`/api/media/doc/${payload}`, window.location.origin).toString();
+}
+
 /** The URL for one file-icon SVG, by icon name (without the extension). */
 export function fileIconUrl(icon: string): string {
   if (!isWebClient()) return `pinext-icon://icons/${icon}.svg`;

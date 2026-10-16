@@ -139,6 +139,9 @@ export function PreviewBody({
   if (preview.kind === "video") {
     return <VideoPreview key={preview.path} preview={preview} />;
   }
+  if (preview.kind === "audio") {
+    return <AudioPreview key={preview.path} preview={preview} />;
+  }
   if (preview.kind === "image") {
     return <ImagePreview key={preview.path} preview={preview} />;
   }
@@ -230,8 +233,7 @@ function MediaFallback(): JSX.Element {
   return <p className="px-3 py-3 text-sm text-muted-foreground">{t("preview.mediaFailed")}</p>;
 }
 
-function ImagePreview({ preview }: { preview: Extract<FilePreview, { kind: "image" }> }): JSX.Element {
-  const [failed, setFailed] = useState(false);
+function ImagePreview({ preview }: { preview: Extract<FilePreview, { kind: "image" }> }): JSX.Element {  const [failed, setFailed] = useState(false);
   if (failed) return <MediaFallback />;
   return (
     <img
@@ -255,6 +257,22 @@ function VideoPreview({ preview }: { preview: Extract<FilePreview, { kind: "vide
       className="h-full w-full bg-black object-contain"
       onError={() => setFailed(true)}
     />
+  );
+}
+
+/**
+ * One audio file, played by the browser from a URL the host streams.
+ *
+ * Not a video element with no picture: a native player is what carries a seek bar, a
+ * duration and the OS media keys, and the file never enters the preview payload.
+ */
+function AudioPreview({ preview }: { preview: Extract<FilePreview, { kind: "audio" }> }): JSX.Element {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <MediaFallback />;
+  return (
+    <div className="px-3 py-3">
+      <audio controls preload="metadata" src={mediaPreviewUrl(preview.path)} className="w-full" onError={() => setFailed(true)} />
+    </div>
   );
 }
 

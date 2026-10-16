@@ -33,6 +33,18 @@ const MEDIA_MIME: Record<string, string> = {
   ".bmp": "image/bmp",
   ".ico": "image/x-icon",
   ".pdf": "application/pdf",
+  // Audio is served like a video: a native tag plays it from a URL and the bytes never
+  // become a base64 frame. A recording the agent produced (a TTS clip, a downloaded
+  // note) had no preview at all before this.
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".oga": "audio/ogg",
+  ".opus": "audio/ogg",
+  ".m4a": "audio/mp4",
+  ".aac": "audio/aac",
+  ".flac": "audio/flac",
+  ".weba": "audio/webm",
   ".mp4": "video/mp4",
   ".m4v": "video/mp4",
   ".webm": "video/webm",
@@ -46,7 +58,7 @@ const MEDIA_MIME: Record<string, string> = {
   ".3g2": "video/3gpp2",
 };
 
-export type MediaPreviewKind = "image" | "video" | "pdf";
+export type MediaPreviewKind = "image" | "video" | "audio" | "pdf";
 
 export function mediaMime(filePath: string): string | undefined {
   return MEDIA_MIME[extname(filePath).toLowerCase()];
@@ -57,6 +69,7 @@ export function mediaPreviewKind(filePath: string): MediaPreviewKind | null {
   if (!mime) return null;
   if (mime === "application/pdf") return "pdf";
   if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("audio/")) return "audio";
   return "image";
 }
 

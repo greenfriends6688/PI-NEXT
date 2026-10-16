@@ -515,6 +515,7 @@ export type FilePreview =
   | { kind: "image"; path: string; name: string; mimeType: string; size: number }
   | { kind: "pdf"; path: string; name: string; mimeType: string; size: number }
   | { kind: "video"; path: string; name: string; mimeType: string; size: number }
+  | { kind: "audio"; path: string; name: string; mimeType: string; size: number }
   | { kind: "markdown"; path: string; name: string; text: string }
   | { kind: "html"; path: string; name: string; text: string }
   | { kind: "csv"; path: string; name: string; rows: string[][] }

@@ -24,6 +24,7 @@ import {
 import { AppServer } from "../app-server/app-server.ts";
 import type { ClientSession } from "../app-server/client-session.ts";
 import { iconFileFor } from "../engine/file-icons-base.ts";
+import { inlineDocument } from "../engine/inline-document-http.ts";
 import { pipeMediaHttp } from "../engine/media-http.ts";
 
 /**
@@ -477,6 +478,24 @@ export class RemoteServer {
         return;
       }
       createReadStream(file).pipe(response);
+      return;
+    }
+    if (url.pathname.startsWith("/api/media/doc/") && (request.method === "GET" || request.method === "HEAD")) {
+      // The same inline document the desktop window frames from `pinext-media://doc/<payload>`:
+      // a page a reply wrote in a fence, carried in the URL because it has no file behind
+      // it. A browser has no private scheme, so the bytes come back over HTTP.
+      if (!this.#authorizeMedia(request)) {
+        this.#json(response, 401, { error: "unauthorized" });
+        return;
+      }
+      const payload = decodeURIComponent(url.pathname.slice("/api/media/doc/".length));
+      const inline = inlineDocument(payload);
+      // A refusal carries no body and no content-type: `no-store` alone says it was not a
+      // document, and the status says which refusal it was.
+      const body = inline.html.length > 0 ? Buffer.from(inline.html, "utf8") : null;
+      const length = body ? { "content-length": String(body.byteLength) } : {};
+      response.writeHead(inline.status, { ...inline.headers, ...length });
+      response.end(body ?? undefined);
       return;
     }
     if (url.pathname === "/api/media" && (request.method === "GET" || request.method === "HEAD")) {

@@ -10,10 +10,13 @@ import { rehypeHeadingIds } from "@/lib/rehype-heading-ids";
 import { isPathLike, remarkPathLinks } from "@/lib/remark-path-links";
 import { useValidatedMarkdownPaths } from "@/lib/markdown-path-validation";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Copy01Icon, SourceCodeIcon, Tick02Icon, ViewIcon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
+import { MermaidBlock } from "@/components/chat/mermaid-block";
 import { PathLink } from "@/components/path-menu";
 import { useHighlightedCode } from "@/lib/highlight";
+import { fenceDocument } from "@/lib/markdown-fence";
+import { inlineDocumentUrl } from "@shared/inline-document";
 import { splitMarkdownBlocks } from "@/lib/markdown-blocks";
 import { useSessionStore } from "@/stores/session";
 import { resolvePath } from "@/lib/workspace-path";
@@ -71,11 +74,16 @@ const CodeBlock = memo(function CodeBlock({ language, code }: { language?: strin
   // differing in the tail, which would leak the expanded state from one block to another.
   const identity = `${language ?? ""}:${code.length}:${code.slice(0, 128)}:${code.slice(-128)}`;
   const previousIdentity = useRef(identity);
+  // A mermaid fence is drawn rather than read, so it opens as the diagram with the source a
+  // click away — the opposite default to a page fence, which must never start itself.
+  const diagram = language !== undefined && language.toLowerCase() === "mermaid";
+  const [view, setView] = useState<"code" | "view">(diagram ? "view" : "code");
   useEffect(() => {
     if (previousIdentity.current === identity) return;
     previousIdentity.current = identity;
     setExpanded(false);
-  }, [identity]);
+    setView(diagram ? "view" : "code");
+  }, [identity, diagram]);
   const diff = language !== undefined && DIFF_LANGUAGES.has(language.toLowerCase());
   const truncated = code.length > MAX_CODE_PREVIEW_CHARS;
   const displayCode = truncated && !expanded
@@ -85,6 +93,21 @@ const CodeBlock = memo(function CodeBlock({ language, code }: { language?: strin
   // block until the reader explicitly asks to see it all. This bounds both the
   // initial DOM and the work done by a streaming code fence.
   const html = useHighlightedCode(diff ? "" : displayCode, diff ? undefined : language);
+  // A fence that is a whole page can be looked at instead of read. The button is the only
+  // thing that starts it: a transcript reopening must never run a script somebody wrote into
+  // a reply, and the same rule the file pane follows applies here.
+  const page = fenceDocument(language, code);
+  // The highlighted body, built once: a diagram's fallback and the 源码 view are the same
+  // node, and only one of them is ever mounted.
+  const codeBody = (
+    <div className="code-shiki overflow-x-auto text-sm leading-5">
+      {html ? (
+        <div dangerouslySetInnerHTML={{ __html: html }} />
+      ) : (
+        <pre className="font-mono">{displayCode}</pre>
+      )}
+    </div>
+  );
 
   async function copy(): Promise<void> {
     try {
@@ -100,21 +123,33 @@ const CodeBlock = memo(function CodeBlock({ language, code }: { language?: strin
     <div className="my-2 overflow-hidden rounded-lg border border-border bg-muted/40">
       <div className="flex items-center justify-between border-b border-border px-2 py-1">
         <span className="text-xs font-medium text-muted-foreground">{language || "code"}</span>
-        <Button size="xs" variant="ghost" onClick={() => void copy()}>
-          {copied ? <HugeiconsIcon strokeWidth={2} icon={Tick02Icon} /> : <HugeiconsIcon strokeWidth={2} icon={Copy01Icon} />}
-          {copied ? t("message.copied") : t("message.copy")}
-        </Button>
+        <div className="flex items-center gap-1">
+          {diagram || page ? (
+            <Button size="xs" variant="ghost" onClick={() => setView((value) => (value === "view" ? "code" : "view"))}>
+              <HugeiconsIcon strokeWidth={2} icon={view === "view" ? SourceCodeIcon : ViewIcon} />
+              {t(view === "view" ? "message.fenceSource" : "message.fencePreview")}
+            </Button>
+          ) : null}
+          <Button size="xs" variant="ghost" onClick={() => void copy()}>
+            {copied ? <HugeiconsIcon strokeWidth={2} icon={Tick02Icon} /> : <HugeiconsIcon strokeWidth={2} icon={Copy01Icon} />}
+            {copied ? t("message.copied") : t("message.copy")}
+          </Button>
+        </div>
       </div>
-      {diff ? (
+      {diagram && view === "view" ? (
+        <MermaidBlock code={code} source={codeBody} />
+      ) : view === "view" && page ? (
+        <iframe
+          title={language ?? "preview"}
+          sandbox="allow-scripts"
+          referrerPolicy="no-referrer"
+          className="h-72 w-full border-0 bg-white"
+          src={inlineDocumentUrl(page.document)}
+        />
+      ) : diff ? (
         <DiffView text={displayCode} className="mt-0 rounded-none border-0 bg-transparent" />
       ) : (
-        <div className="code-shiki overflow-x-auto text-sm leading-5">
-          {html ? (
-            <div dangerouslySetInnerHTML={{ __html: html }} />
-          ) : (
-            <pre className="font-mono">{displayCode}</pre>
-          )}
-        </div>
+        codeBody
       )}
       {truncated ? (
         <div className="border-t border-border px-2 py-1">
