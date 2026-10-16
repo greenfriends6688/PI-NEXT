@@ -115,6 +115,14 @@ src/shared/     IPC、App Protocol 与共享类型
 resources/      内置扩展、技能和模型资源
 ```
 
+## 致谢
+
+- **[pi coding agent](https://github.com/agegr/pi-web)** —— 本项目的核心引擎。PI NEXT 将其嵌入桌面进程，
+  在其会话、工具调用与扩展体系之上构建了整套界面与远程能力。
+- **[FastVibe](https://github.com/greenfriends6688/PI-NEXT)**（MIT）—— 当前桌面外壳与应用骨架来自
+  FastVibe 0.19.5+，PI NEXT 在其上完成了引擎对接、品牌重塑与大量功能扩展。其许可证见
+  [`LICENSE-FASTVIBE-MIT`](LICENSE-FASTVIBE-MIT)。
+
 ## 许可
 
 [MIT](LICENSE) © 2026 PI NEXT

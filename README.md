@@ -115,6 +115,15 @@ src/shared/     IPC, App Protocol, and shared types
 resources/      bundled extensions, skills, and model resources
 ```
 
+## Acknowledgements
+
+- **[pi coding agent](https://github.com/agegr/pi-web)** — the core engine. PI NEXT embeds it in a
+  desktop process and builds its interface and remote capabilities on top of the sessions, tool
+  calls and extensions it provides.
+- **[FastVibe](https://github.com/greenfriends6688/PI-NEXT)** (MIT) — the current desktop shell and
+  application skeleton come from FastVibe 0.19.5+; PI NEXT connects its engine, rebrands it and
+  extends it substantially. Its licence is [`LICENSE-FASTVIBE-MIT`](LICENSE-FASTVIBE-MIT).
+
 ## License
 
 [MIT](LICENSE) © 2026 PI NEXT
