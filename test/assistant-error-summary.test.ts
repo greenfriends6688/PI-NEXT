@@ -54,7 +54,7 @@ test("structured abort outcomes are recognised without matching error text", () 
   assert.equal(isAbortOutcome({ stopReason: "error", errorMessage: "This operation was aborted" }), false);
 });
 
-test("a reply FastVibe stopped for repeating itself is told apart from the user's own stop", async () => {
+test("a reply the shell stopped for repeating itself is told apart from the user's own stop", async () => {
   const { mapEngineMessages } = await import("../src/main/engine/map-messages.ts");
   const { REPETITION_STOP_MESSAGE, isRepetitionStop } = await import("../src/shared/abort.ts");
   const reply = (errorMessage: string) => ({

@@ -243,7 +243,7 @@ export type ChatMessage = {
    */
   stop?: "length" | "aborted";
   /**
-   * Why an `aborted` reply was stopped, when FastVibe did it. Absent for the user's own
+   * Why an `aborted` reply was stopped by the shell itself. Absent for the user's own
    * 停止. A separate field rather than a third `stop` value: older clients read
    * `stop === "aborted"` as "can be continued".
    */

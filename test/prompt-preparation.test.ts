@@ -64,7 +64,7 @@ test("Stop during a real SDK memory hook releases preparation and prevents the p
 });
 
 test("a resumed turn uses _startRun without writing another user prompt", async (t) => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-continue-run-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-continue-run-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   let requests = 0;
   const settled: string[] = [];

@@ -25,7 +25,7 @@ test("ranking prefers the file name, then a path, and stays case-insensitive", (
 });
 
 test("a non-git project lists real files and skips hidden trees and symlinks", async () => {
-  const root = await mkdtemp(join(tmpdir(), "fastvibe-files-"));
+  const root = await mkdtemp(join(tmpdir(), "pinext-files-"));
   await mkdir(join(root, "src"), { recursive: true });
   await mkdir(join(root, "node_modules", "pkg"), { recursive: true });
   await writeFile(join(root, "src", "main.ts"), "export {};");
@@ -39,7 +39,7 @@ test("a non-git project lists real files and skips hidden trees and symlinks", a
 });
 
 test("a git work tree lists tracked and untracked files, not ignored ones", async () => {
-  const root = await mkdtemp(join(tmpdir(), "fastvibe-git-files-"));
+  const root = await mkdtemp(join(tmpdir(), "pinext-git-files-"));
   await mkdir(join(root, "src"), { recursive: true });
   await mkdir(join(root, "node_modules"), { recursive: true });
   await writeFile(join(root, ".gitignore"), "node_modules\n");

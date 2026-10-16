@@ -5,17 +5,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-43.7.10-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![pi coding agent](https://img.shields.io/badge/pi%20coding%20agent-1.1.0-6E56CF)](https://github.com/badlogic/pi-mono)
-[![Latest release](https://img.shields.io/github/v/release/YOUR_GITHUB_OWNER/pinext?display_name=tag&sort=semver)](https://github.com/YOUR_GITHUB_OWNER/pinext/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/greenfriends6688/PI-NEXT?display_name=tag&sort=semver)](https://github.com/greenfriends6688/PI-NEXT/releases/latest)
 
 > A desktop AI agent workspace built on **pi coding agent**.
 
 PI NEXT embeds pi coding agent in an Electron desktop app, bringing conversations, tool calls, extensions, and project workspaces into one interface.
 
-![PI NEXT](docs/images/workspace-en.webp)
-
 ## Download
 
-Download the latest installer from [GitHub Releases](https://github.com/YOUR_GITHUB_OWNER/pinext/releases/latest):
+Download the latest installer from [GitHub Releases](https://github.com/greenfriends6688/PI-NEXT/releases/latest):
 
 - macOS: `.dmg` or `.zip`
 - Windows: `.exe`
@@ -49,7 +47,7 @@ When it is off every scenario takes its default path: the main model calls `brow
 
 ## Long-term memory
 
-Settings → Memory is one switch, off by default. When it is on, a conversation that has been quiet for six hours is distilled by the model into a note and a recap, using Codex's own prompts; a background agent then consolidates them into a handbook (`MEMORY.md`) and a compact summary (`memory_summary.md`). Each turn the agent is shown the summary and reads the handbook and recaps on demand. Everything is Markdown on this computer, can be opened from the settings page, and is cleared with one button; turning the switch off stops reading, writing and injecting. Secrets are redacted before anything is stored. See `docs/memory.md`.
+Settings → Memory is one switch, off by default. When it is on, a conversation that has been quiet for six hours is distilled by the model into a note and a recap, using Codex's own prompts; a background agent then consolidates them into a handbook (`MEMORY.md`) and a compact summary (`memory_summary.md`). Each turn the agent is shown the summary and reads the handbook and recaps on demand. Everything is Markdown on this computer, can be opened from the settings page, and is cleared with one button; turning the switch off stops reading, writing and injecting. Secrets are redacted before anything is stored.
 
 ## Relationship with pi
 

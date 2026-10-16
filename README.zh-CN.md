@@ -5,17 +5,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-43.7.10-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![pi coding agent](https://img.shields.io/badge/pi%20coding%20agent-1.1.0-6E56CF)](https://github.com/badlogic/pi-mono)
-[![最新版本](https://img.shields.io/github/v/release/YOUR_GITHUB_OWNER/pinext?display_name=tag&sort=semver)](https://github.com/YOUR_GITHUB_OWNER/pinext/releases/latest)
+[![最新版本](https://img.shields.io/github/v/release/greenfriends6688/PI-NEXT?display_name=tag&sort=semver)](https://github.com/greenfriends6688/PI-NEXT/releases/latest)
 
 > 基于 **pi coding agent** 的桌面智能体工作台。
 
 PI NEXT 将 pi coding agent 嵌入 Electron 主进程，把会话、工具调用、扩展和项目工作区整合到一个桌面界面中。
 
-![PI NEXT 界面](docs/images/workspace-zh.webp)
-
 ## 下载
 
-前往 [GitHub Releases](https://github.com/YOUR_GITHUB_OWNER/pinext/releases/latest) 下载对应平台的安装包：
+前往 [GitHub Releases](https://github.com/greenfriends6688/PI-NEXT/releases/latest) 下载对应平台的安装包：
 
 - macOS：`.dmg` 或 `.zip`
 - Windows：`.exe`
@@ -49,7 +47,7 @@ PI NEXT 将 pi coding agent 嵌入 Electron 主进程，把会话、工具调用
 
 ## 长期记忆
 
-设置 → 长期记忆 只有一个开关，默认关闭。开启后，对话安静六小时后会由模型整理成一份笔记和一份回顾（提示词取自 Codex）；后台智能体再把它们汇总成手册（`MEMORY.md`）和一页摘要（`memory_summary.md`）。每轮对话开始时，智能体会看到这页摘要，需要细节时再去读手册和各对话的摘要。全部是本机上的 Markdown 文件，可以在设置页里打开文件夹，也可以一键清除；关掉开关就不再读取、写入和注入。写入之前会先抹掉其中的密钥。详见 `docs/memory.md`。
+设置 → 长期记忆 只有一个开关，默认关闭。开启后，对话安静六小时后会由模型整理成一份笔记和一份回顾（提示词取自 Codex）；后台智能体再把它们汇总成手册（`MEMORY.md`）和一页摘要（`memory_summary.md`）。每轮对话开始时，智能体会看到这页摘要，需要细节时再去读手册和各对话的摘要。全部是本机上的 Markdown 文件，可以在设置页里打开文件夹，也可以一键清除；关掉开关就不再读取、写入和注入。写入之前会先抹掉其中的密钥。
 
 ## 与 pi 的关系
 

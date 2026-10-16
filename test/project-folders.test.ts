@@ -38,7 +38,7 @@ test("extra folders drop the primary path and duplicates", () => {
 });
 
 test("setting a primary folder rekeys conversations and follows an untouched name", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-folders-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-folders-"));
   const catalog = new ConversationCatalog(join(dir, "conversations.json"), join(dir, "scratch"));
   const created = catalog.createProject(["/repo-a", "/repo-b"]);
   assert.equal(created?.cwd, "/repo-a");
@@ -53,7 +53,7 @@ test("setting a primary folder rekeys conversations and follows an untouched nam
 });
 
 test("a renamed project keeps its name when the primary folder changes", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fastvibe-folders-"));
+  const dir = mkdtempSync(join(tmpdir(), "pinext-folders-"));
   const catalog = new ConversationCatalog(join(dir, "conversations.json"), join(dir, "scratch"));
   catalog.createProject(["/repo-a", "/repo-b"], "My app");
   const moved = catalog.setProjectPrimary("/repo-a", "/repo-b");

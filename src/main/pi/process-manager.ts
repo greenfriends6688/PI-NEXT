@@ -4225,7 +4225,7 @@ export class PiProcessManager {
       }, {
         // Lists the project's other folders on every turn. Read live, so adding a
         // folder reaches the next message without rebuilding the session.
-        name: "fastvibe-project-folders",
+        name: "pinext-project-folders",
         hidden: true,
         factory: (pi) => {
           pi.on("before_agent_start", async (event) => {
