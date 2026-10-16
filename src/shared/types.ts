@@ -491,7 +491,22 @@ export type McpServerConfig = {
 
 export type McpExposure = "direct" | "deferred" | "codemode";
 
-export type McpServerStatus = McpServerConfig & { connected: boolean; tools: string[]; error?: string };
+export type McpServerStatus = McpServerConfig & {
+  connected: boolean;
+  tools: string[];
+  error?: string;
+  /**
+   * This install holds an OAuth grant for this server (`runtime/engine/agent/mcp-oauth.json`).
+   *
+   * Reported rather than inferred from `connected`: a signed-in server can still be down, and a
+   * server with no grant that needs none is connected too. The pane shows the badge or the
+   * 登录 button from this one flag.
+   */
+  signedIn?: boolean;
+};
+
+/** How a sign-in to a remote MCP server ended. A cancelled login is `ok: false` with a reason. */
+export type McpSignInResult = { ok: true; url: string } | { ok: false; reason: string };
 
 export type SkillInfo = {
   name: string;

@@ -127,6 +127,11 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     openPath: async (path) => {
       await shell.openPath(path);
     },
+    // An MCP sign-in opens its authorization URL in the user's own browser: the flow waits on
+    // a loopback listener here, so a browser that never comes up would leave it waiting.
+    openExternal: async (url) => {
+      await shell.openExternal(url);
+    },
   });
   // The SSH gateway invokes this on the headless Agent. Keep the method in the desktop
   // table for protocol coverage, but never accept it as a local write.

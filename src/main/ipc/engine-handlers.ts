@@ -23,6 +23,13 @@ export type EngineIpcHost = {
   pickDirectory?: (payload: { title: string }) => Promise<string | null>;
   /** Open an artifact with the system's default program. No such thing in a browser. */
   openPath?: (path: string) => Promise<void>;
+  /**
+   * Hand a URL to the system browser.
+   *
+   * Absent on a host with no browser (the headless Agent), where an MCP sign-in then answers
+   * 「这台机器上没有可以打开浏览器的地方」 instead of failing somewhere inside the flow.
+   */
+  openExternal?: (url: string) => Promise<void>;
 };
 
 /** One sentence for a method that exists on every client but can only *act* on a desktop. */
@@ -157,6 +164,10 @@ export function registerEngineIpc(engine: PiProcessManager, host: EngineIpcHost 
   handle(Ipc.engineTestMcp, async (payload: { id: string }) => engine.testMcpServer(payload.id));
   handle(Ipc.engineDiscoverMcp, async () => engine.discoverMcpServers());
   handle(Ipc.engineMcpMarket, async (payload?: import("@shared/mcp-market").McpMarketQuery) => engine.mcpMarket(payload ?? {}));
+  // The browser opens on the machine that runs the engine, which is why this is a denied call
+  // for a remote client (shared/remote-policy.ts): a phone cannot see a desktop's browser.
+  handle(Ipc.engineMcpSignIn, async (payload: { id: string }) => engine.signInMcpServer(payload.id, host.openExternal ?? null));
+  handle(Ipc.engineMcpSignOut, async (payload: { id: string }) => engine.signOutMcpServer(payload.id));
   handle(Ipc.engineListMcpServers, async () => engine.listMcpServers());
   handle(Ipc.engineSaveMcpServers, async (payload: { configs: import("@shared/types").McpServerConfig[] }) => engine.saveMcpServers(payload.configs));
   handle(Ipc.providersUsage, async (payload: { id: string }) => engine.getProviderUsage(payload.id));

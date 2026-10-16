@@ -31,6 +31,8 @@ export const Ipc = {
   engineMcpMarket: "engine:mcp-market",
   /** 真的连一次这个 server，报出工具清单或失败原因。 */
   engineTestMcp: "engine:test-mcp",
+  engineMcpSignIn: "engine:mcp-sign-in",
+  engineMcpSignOut: "engine:mcp-sign-out",
   engineSaveMcpServers: "engine:save-mcp-servers",
   engineListSkills: "engine:list-skills",
   /** 读 / 写一个技能自身的 markdown（只允许 Pinext 自己管理的那些）。 */

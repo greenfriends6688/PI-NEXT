@@ -5,6 +5,7 @@ import {
   StdioTransport,
   StreamableHttpTransport,
   toLlmContent,
+  type AuthProvider,
   type McpTransport,
   type Tool as McpTool,
 } from "@earendil-works/pi-mcp";
@@ -36,6 +37,15 @@ function withTimeout<T>(work: Promise<T>, label: string): Promise<T> {
     work.then(resolve, reject).finally(() => clearTimeout(timer));
   });
 }
+
+/**
+ * How a grant is found for an HTTP server, if this install has one.
+ *
+ * A function rather than a path because the manager is constructed in several places (the
+ * desktop engine, the headless Agent, tests) and only the ones that can open a browser have
+ * a grant store to point at. Absent means "no OAuth here" — a 401 then reads as 需要登录.
+ */
+export type McpAuthProviderFactory = (config: McpServerConfig) => AuthProvider | undefined;
 
 /**
  * The variables a stdio server inherits before its own `env` is laid on top. The
@@ -70,7 +80,11 @@ type Connection = {
 /** Builds the wire to one server. `onStderr` receives a stdio child's error output. */
 export type McpTransportFactory = (config: McpServerConfig, onStderr: (chunk: string) => void) => McpTransport;
 
-export function createTransport(config: McpServerConfig, onStderr: (chunk: string) => void): McpTransport {
+export function createTransport(
+  config: McpServerConfig,
+  onStderr: (chunk: string) => void,
+  authProvider?: AuthProvider,
+): McpTransport {
   if (config.transport === "stdio") {
     return new StdioTransport({
       command: config.command ?? "",
@@ -82,7 +96,13 @@ export function createTransport(config: McpServerConfig, onStderr: (chunk: strin
       onStderr,
     });
   }
-  return new StreamableHttpTransport({ url: config.url ?? "", headers: config.headers });
+  return new StreamableHttpTransport({
+    url: config.url ?? "",
+    headers: config.headers,
+    // A stored grant refreshes itself on the next 401 (`adaptOAuthProvider`); without one the
+    // transport simply answers 401 and the pane says 需要登录.
+    ...(authProvider ? { authProvider } : {}),
+  });
 }
 
 /** The one place a server's tool name becomes the name the model sees. */
@@ -93,13 +113,14 @@ export function mcpToolName(serverId: string, toolName: string): string {
 export class McpManager {
   #file: string;
   #createTransport: McpTransportFactory;
+  #authProvider: McpAuthProviderFactory | null = null;
   #configs: McpServerConfig[] = [];
   #connections = new Map<string, Connection>();
   #errors = new Map<string, string>();
 
   constructor(file: string, options: { createTransport?: McpTransportFactory } = {}) {
     this.#file = file;
-    this.#createTransport = options.createTransport ?? createTransport;
+    this.#createTransport = options.createTransport ?? ((config, onStderr) => createTransport(config, onStderr, this.#authProvider?.(config)));
   }
 
   async load(): Promise<void> {
@@ -140,7 +161,15 @@ export class McpManager {
       connected: this.#connections.has(config.id),
       tools: this.#connections.get(config.id)?.tools.map((tool) => tool.name) ?? [],
       error: this.#errors.get(config.id),
+      // Asked of the host's grant store, which is the only thing that knows: the transport's
+      // auth provider is opaque from here.
+      ...(this.#authProvider?.(config) ? { signedIn: true } : {}),
     }));
+  }
+
+  /** Point every HTTP connection at the grant store. Set by the host that can sign in. */
+  setAuthProvider(factory: McpAuthProviderFactory | null): void {
+    this.#authProvider = factory;
   }
 
   async connectAll(): Promise<void> {

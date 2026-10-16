@@ -805,7 +805,12 @@
     "marketReplace": "替换",
     "marketAdded": "已添加 {{name}}",
     "marketFailed": "无法加载市场",
-    "marketSourceFailed": "{{source}} 读取失败：{{message}}"
+    "marketSourceFailed": "{{source}} 读取失败：{{message}}",
+    "signedIn": "已登录",
+    "signIn": "登录",
+    "signOut": "登出",
+    "signInFailed": "登录失败",
+    "signOutFailed": "登出失败"
   },
   "skills": {
     "detailDesc": "直接编辑这个技能自己的 markdown；保存后下一次对话即可生效。",

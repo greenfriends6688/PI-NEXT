@@ -807,7 +807,12 @@
     "marketReplace": "Replace",
     "marketAdded": "Added {{name}}",
     "marketFailed": "Could not load the market",
-    "marketSourceFailed": "{{source}} could not be read: {{message}}"
+    "marketSourceFailed": "{{source}} could not be read: {{message}}",
+    "signedIn": "Signed in",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "signInFailed": "Sign-in failed",
+    "signOutFailed": "Sign-out failed"
   },
   "skills": {
     "detailDesc": "Edit this skill's own markdown; it takes effect on the next turn.",

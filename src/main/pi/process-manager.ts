@@ -24,52 +24,7 @@ import {
   type ToolDefinition,
   resizeImage,
 } from "@earendil-works/pi-coding-agent";
-import type {
-  ChatMessage,
-  CompactReason,
-  Conversation,
-  ConversationDeleteResult,
-  ConversationOpenResult,
-  ConversationReadyEvent,
-  ConversationSearchHit,
-  ConversationSnapshot,
-  ConversationQueueState,
-  ChatAttachment,
-  PromptImage,
-  QueueBehavior,
-  QueuedPromptPreview,
-  ExtensionInfo,
-  ExtensionPackage,
-  PinextModel,
-  EngineModel,
-  EngineSessionState,
-  EngineStatus,
-  ProjectAddResult,
-  ProjectRepo,
-  ProviderConfig,
-  ProviderModel,
-  SessionStats,
-  SkillDraft,
-  SkillInfo,
-  SlashCommand,
-  SubagentInfo,
-  SubagentRunResult,
-  ThinkingTiming,
-  TranscriptTail,
-  WorkspaceSnapshot,
-  ModelPrice,
-  NativeProviderConfig,
-  OAuthEvent,
-  OAuthEventPayload,
-  OAuthLoginResult,
-  OAuthPrompt,
-  OpenAIAccountQuota,
-  PermissionQuestion,
-  ImportCandidate,
-  ImportRunResult,
-  ImportSourceId,
-  ImportSourceStatus,
-} from "@shared/types";
+import type { ChatAttachment, ChatMessage, CompactReason, Conversation, ConversationDeleteResult, ConversationOpenResult, ConversationQueueState, ConversationReadyEvent, ConversationSearchHit, ConversationSnapshot, EngineModel, EngineSessionState, EngineStatus, ExtensionInfo, ExtensionPackage, ImportCandidate, ImportRunResult, ImportSourceId, ImportSourceStatus, McpSignInResult, ModelPrice, NativeProviderConfig, OAuthEvent, OAuthEventPayload, OAuthLoginResult, OAuthPrompt, OpenAIAccountQuota, PermissionQuestion, PinextModel, ProjectAddResult, ProjectRepo, PromptImage, ProviderConfig, ProviderModel, QueueBehavior, QueuedPromptPreview, SessionStats, SkillDraft, SkillInfo, SlashCommand, SubagentInfo, SubagentRunResult, ThinkingTiming, TranscriptTail, WorkspaceSnapshot } from "@shared/types";
 import { parseCompactCommand, parseHandoffCommand } from "@shared/slash";
 import { buildCommitMessagePlan, type CommitFileMaterial } from "../engine/commit-message";
 import { summarizeToolCalls } from "@shared/tool-summary";
@@ -147,6 +102,7 @@ import { listWorkspaceFiles, mutateWorkspaceFile } from "../engine/workspace-mut
 import { discoverMcpServers } from "../pinext/mcp/discovery.ts";
 import { fetchMcpMarket, readMcpMarketSources } from "./mcp-market.ts";
 import { OFFICIAL_MCP_SOURCE, type McpMarketPage, type McpMarketQuery } from "@shared/mcp-market";
+import { mcpAuthProvider, signInToMcpServer, signOutOfMcpServer } from "./mcp-oauth.ts";
 import type { McpDiscoveredServer, McpTestResult } from "../../shared/mcp-discovery.ts";
 import {
   beginRegistration,
@@ -704,6 +660,10 @@ export class PiProcessManager {
     this.#usage = usageLedgerFor(this.#paths.usageLedgerFile);
     this.#messageQueue = new MessageQueueStore(this.#paths.messageQueueFile);
     this.#mcp = new McpManager(this.#paths.mcpFile);
+    // A stored grant refreshes itself inside the transport; this is only where it is found.
+    this.#mcp.setAuthProvider((config) =>
+      config.transport === "http" && config.url ? mcpAuthProvider(this.#paths.mcpOAuthFile, config.url) : undefined,
+    );
     this.#skills = new SkillManager(this.#paths.agentDir, this.#paths.skillsDir);
     this.#extensions = new ExtensionManager(this.#paths.agentDir, this.#paths.scratchDir);
     this.#subagentManager = new SubagentManager(this.#paths);
@@ -2198,6 +2158,48 @@ export class PiProcessManager {
   }
 
   async listMcpServers(): Promise<McpServerStatus[]> { await this.#mcp.load(); return this.#mcp.list(); }
+
+  /**
+   * Sign in to one HTTP MCP server (`mcp-sign-in`).
+   *
+   * `openExternal` is injected by the host: the desktop passes `shell.openExternal`, and a host
+   * without a browser (the headless Agent) passes nothing and gets a sentence rather than a
+   * crash. The result is reported as data — `{ ok: false, reason }` — because a cancelled login
+   * is an ordinary outcome and an exception would surface as a failed IPC call.
+   */
+  async signInMcpServer(id: string, openExternal: ((url: string) => Promise<void>) | null): Promise<McpSignInResult> {
+    await this.#mcp.load();
+    const server = this.#mcp.list().find((item) => item.id === id);
+    if (!server) throw new Error(uiText("找不到这个 MCP 服务", "That MCP server does not exist"));
+    if (server.transport !== "http" || !server.url) {
+      throw new Error(uiText("只有远程（HTTP）的 MCP 服务需要登录", "Only a remote (HTTP) MCP server signs in"));
+    }
+    if (!openExternal) return { ok: false, reason: uiText("这台机器上没有可以打开浏览器的地方", "This host has nothing to open a browser with") };
+    const result = await signInToMcpServer({
+      serverUrl: server.url,
+      file: this.#paths.mcpOAuthFile,
+      openExternal,
+    });
+    // A fresh grant changes what the transport should send, so the connections are rebuilt —
+    // the same path an MCP settings save takes.
+    if (result.ok) {
+      await this.#mcp.connectAll();
+      for (const conversationId of this.#sessions.keys()) this.#pendingMcpReloads.add(conversationId);
+      void this.#scheduleMcpReload();
+    }
+    return result;
+  }
+
+  /** Forget the grant for one server (`mcp-sign-out`). The next connection is unauthenticated. */
+  async signOutMcpServer(id: string): Promise<McpServerStatus[]> {
+    await this.#mcp.load();
+    const server = this.#mcp.list().find((item) => item.id === id);
+    if (server?.url) signOutOfMcpServer(this.#paths.mcpOAuthFile, server.url);
+    await this.#mcp.connectAll();
+    for (const conversationId of this.#sessions.keys()) this.#pendingMcpReloads.add(conversationId);
+    void this.#scheduleMcpReload();
+    return this.#mcp.list();
+  }
   async #scheduleMcpReload(): Promise<void> {
     if (this.#mcpReloadPromise) return this.#mcpReloadPromise;
     this.#mcpReloadPromise = (async () => {

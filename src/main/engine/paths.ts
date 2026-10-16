@@ -28,6 +28,8 @@ export type PinextPaths = {
   providersFile: string;
   gatewayCredentialsFile: string;
   mcpFile: string;
+  /** MCP OAuth grants. A credential, so 0600 and never served — not `mcp.json`, which is. */
+  mcpOAuthFile: string;
   /** Which decision model browser use runs on (off / Jev); see `src/main/engine/decision/`. */
   decisionFile: string;
   /** Append-only record of decision-layer calls: hashes and summaries, never page text. */
@@ -192,6 +194,7 @@ function buildPinextPaths(): PinextPaths {
     /** Panel credentials for custom relays (new-api); never served, never in providers.json. */
     gatewayCredentialsFile: join(userData, "gateway-credentials.json"),
     mcpFile: join(userData, "mcp.json"),
+    mcpOAuthFile: join(userData, "runtime", "engine", "agent", "mcp-oauth.json"),
     decisionFile: join(userData, "decision.json"),
     decisionTraceFile: join(runtimeRoot, "decision-trace.jsonl"),
     settingsFile: join(userData, "settings.json"),

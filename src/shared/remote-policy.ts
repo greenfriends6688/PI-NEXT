@@ -64,6 +64,9 @@ const DENIED = new Map<string, string>([
   [Ipc.browserListEngines, "\u6d4f\u89c8\u5668\u5de5\u5177\u4f9d\u8d56\u684c\u9762\u7aef\u7684\u5185\u5d4c\u6d4f\u89c8\u5668"],
   // A subscription login opens the system browser on the server's machine and waits on
   // a loopback callback there. Nothing about it can complete from another device.
+  // An MCP sign-in is the same shape as a subscription login: a browser on this machine, and
+  // a loopback listener here to catch the redirect. A remote device cannot see either.
+  [Ipc.engineMcpSignIn, "\u767b\u5f55 MCP \u670d\u52a1\u9700\u8981\u5728\u672c\u673a\u6d4f\u89c8\u5668\u4e2d\u5b8c\u6210"],
   [Ipc.providersOAuthLogin, "\u8ba2\u9605\u767b\u5f55\u9700\u8981\u5728\u672c\u673a\u6d4f\u89c8\u5668\u4e2d\u5b8c\u6210"],
   [Ipc.providersOAuthAnswer, "\u8ba2\u9605\u767b\u5f55\u9700\u8981\u5728\u672c\u673a\u6d4f\u89c8\u5668\u4e2d\u5b8c\u6210"],
   [Ipc.providersOAuthCancel, "\u8ba2\u9605\u767b\u5f55\u9700\u8981\u5728\u672c\u673a\u6d4f\u89c8\u5668\u4e2d\u5b8c\u6210"],
@@ -210,6 +213,8 @@ const ALLOWED = new Set<string>([
   Ipc.engineDiscoverMcp,
   // Same class as the discovery beside it: reading a public list, writing nothing.
   Ipc.engineMcpMarket,
+  // Reading a grant is nothing; dropping one is the remote user's own business.
+  Ipc.engineMcpSignOut,
   Ipc.engineTestMcp,
   Ipc.engineListSkills,
   Ipc.engineNewSession,

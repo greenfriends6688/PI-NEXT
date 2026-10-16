@@ -70,6 +70,7 @@ import type { ChatChannelConfig } from "@shared/chat-channel";
 import type { FileMutation } from "@shared/file-mutation";
 import type { McpDiscoveredServer, McpTestResult } from "@shared/mcp-discovery";
 import type { McpMarketPage, McpMarketQuery } from "@shared/mcp-market";
+import type { McpSignInResult } from "@shared/types";
 import type { WebServerState } from "@shared/web-server";
 import type { RemoteHostProfile, RemoteHostConnectionState, RemoteHostTestResult, SshHostKeyScan } from "@shared/remote-host";
 import type {
@@ -206,6 +207,13 @@ export function createPinextApi(t: ApiTransport) {
       discoverMcp: (): Promise<McpDiscoveredServer[]> => t.invoke(Ipc.engineDiscoverMcp),
       /** Browse the MCP market. Read-only: adding an entry goes through `saveMcpServers`. */
       mcpMarket: (query?: McpMarketQuery): Promise<McpMarketPage> => t.invoke(Ipc.engineMcpMarket, query ?? {}),
+      /**
+       * Sign in to a remote MCP server. The browser opens on the machine running the engine,
+       * so a remote client is refused (`remote-policy.ts`) and `ok: false` is an ordinary
+       * answer — a cancelled login is not an exception.
+       */
+      mcpSignIn: (id: string): Promise<McpSignInResult> => t.invoke(Ipc.engineMcpSignIn, { id }),
+      mcpSignOut: (id: string): Promise<McpServerStatus[]> => t.invoke(Ipc.engineMcpSignOut, { id }),
       /**
        * Connect one server right now and report what happened.
        *

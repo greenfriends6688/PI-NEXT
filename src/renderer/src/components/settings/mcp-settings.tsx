@@ -475,6 +475,7 @@ export function McpSettings(): JSX.Element {
               }
               onEdit={() => setDraft(draftFromServer(server))}
               onRemove={() => void save(servers.filter((item) => item.id !== server.id))}
+              onSignedIn={() => void refresh()}
             />
           ))}
         </div>
@@ -510,16 +511,20 @@ function ServerRow({
   onToggle,
   onEdit,
   onRemove,
+  onSignedIn,
 }: {
   server: McpServerStatus;
   onToggle: (enabled: boolean) => void;
   onEdit: () => void;
   onRemove: () => void;
+  /** A sign-in finished: the caller re-reads the list, which is where `signedIn` lives. */
+  onSignedIn: () => void;
 }): JSX.Element {
   const { t } = useTranslation("settings");
   /** 「测试连接」的结果；null = 还没测。 */
   const [probe, setProbe] = useState<McpTestResult | null>(null);
   const [probing, setProbing] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
   const status = server.connected ? (
     <Badge variant="secondary" className="shrink-0">
       <HugeiconsIcon strokeWidth={2} icon={CheckmarkCircle02Icon} className="size-3" />
@@ -549,6 +554,38 @@ function ServerRow({
     </Badge>
   );
 
+  /**
+   * Sign in to a remote server, or drop the grant.
+   *
+   * Only HTTP servers can ask for a login — a stdio server runs on this machine and has no
+   * browser to send anywhere. A refusal is reported as data rather than thrown (a remote client
+   * is refused here, and a cancelled login is ordinary), so it is shown in place.
+   */
+  async function signIn(): Promise<void> {
+    setSigningIn(true);
+    try {
+      const result = await window.pinext.engine.mcpSignIn(server.id);
+      if (result.ok) onSignedIn();
+      else toast.error(result.reason || t("mcp.signInFailed"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("mcp.signInFailed"));
+    } finally {
+      setSigningIn(false);
+    }
+  }
+
+  async function signOut(): Promise<void> {
+    setSigningIn(true);
+    try {
+      await window.pinext.engine.mcpSignOut(server.id);
+      onSignedIn();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("mcp.signOutFailed"));
+    } finally {
+      setSigningIn(false);
+    }
+  }
+
   return (
     <Item
       variant="outline"
@@ -567,6 +604,7 @@ function ServerRow({
             {server.name}
           </ItemTitle>
           {status}
+          {server.transport === "http" && server.signedIn ? <Badge variant="outline" className="shrink-0">{t("mcp.signedIn")}</Badge> : null}
         </div>
         <ItemDescription className="line-clamp-1" title={server.error ?? undefined}>
           {server.error ??
@@ -603,6 +641,17 @@ function ServerRow({
       ) : null}
 
       <ItemActions className="ml-auto shrink-0 self-center">
+        {server.transport === "http" ? (
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={signingIn}
+            onClick={() => void (server.signedIn ? signOut() : signIn())}
+          >
+            {signingIn ? <HugeiconsIcon strokeWidth={2} icon={Loading03Icon} className="size-3.5 animate-spin" /> : null}
+            {server.signedIn ? t("mcp.signOut") : t("mcp.signIn")}
+          </Button>
+        ) : null}
         <IconButton
           size="icon-xs"
           variant="ghost"
