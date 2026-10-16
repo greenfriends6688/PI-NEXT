@@ -29,6 +29,11 @@ function loadProviders(fetch: typeof globalThis.fetch) {
   const deps: Record<string, unknown> = {
     "@shared/types": types, "@shared/decision": decision, "@shared/model-order": order,
     "./provider-url": urls, "./model-api": modelApi, "./decision/store": decisionStore,
+    // The one part of `providers.ts` that moved into a module of its own (so it can be
+    // tested on its own): a model is offered unless it is a decision-protocol model or the
+    // user switched it off. Replaced here rather than imported, like every other dependency
+    // in this table — the point of the fake loader is that nothing real is reached.
+    "./model-offer.ts": { isOfferedModel: (model: { api?: string; hidden?: boolean }, api?: string) => (model.api ?? api) !== "systemone" && model.hidden !== true },
     "./models-dev": { catalogPrice: () => undefined, loadModelsDev: () => ({}), enrichModel: (_index: unknown, id: string) => model(id) },
     "./native-providers": { findNativeProvider: () => undefined },
     "./pi-global-sync.ts": {},
