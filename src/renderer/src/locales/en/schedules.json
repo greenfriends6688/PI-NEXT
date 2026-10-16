@@ -111,5 +111,17 @@
   "maxDurationHint": "A longer run is stopped, so the next occurrence has somewhere to run. {{min}}–{{max}} minutes.",
   "disabled": {
     "failures": "Paused itself after {{count}} failures in a row"
-  }
+  },
+  "preset": {
+    "label": "Tool access",
+    "hint": "An unattended run is read-only unless you say otherwise",
+    "readOnly": "Read-only (default)",
+    "full": "Full access"
+  },
+  "model": "Model",
+  "modelHint": "Leave it to follow the default model",
+  "modelFollow": "Follow the default",
+  "thinking": "Reasoning",
+  "thinkingHint": "Leave it to use the model's own default",
+  "thinkingFollow": "Model default"
 }

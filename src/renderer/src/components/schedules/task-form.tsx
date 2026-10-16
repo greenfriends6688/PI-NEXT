@@ -21,7 +21,8 @@ import {
 import { cn } from "@/lib/utils";
 import { CRON_PRESETS } from "@shared/cron";
 import { MAX_DURATION_LIMITS } from "@shared/schedules";
-import { THINKING_EFFORT_LEVELS, THINKING_LABELS } from "@shared/types";
+import { THINKING_EFFORT_LEVELS } from "@shared/types";
+import { thinkingLabel } from "@/lib/thinking-levels";
 import type { PinextModel, Project } from "@shared/types";
 
 const SCRATCH = "__scratch__";
@@ -63,7 +64,7 @@ export function TaskForm({
   };
   const effortItems = {
     "": t("thinkingFollow"),
-    ...Object.fromEntries(THINKING_EFFORT_LEVELS.map((level) => [level, THINKING_LABELS[level]])),
+    ...Object.fromEntries(THINKING_EFFORT_LEVELS.map((level) => [level, thinkingLabel(level)])),
   };
   const projectOptions = useMemo(
     () =>
@@ -412,7 +413,7 @@ export function TaskForm({
             <SelectItem value="">{t("thinkingFollow")}</SelectItem>
             {THINKING_EFFORT_LEVELS.map((level) => (
               <SelectItem key={level} value={level}>
-                {THINKING_LABELS[level]}
+                {thinkingLabel(level)}
               </SelectItem>
             ))}
           </SelectContent>

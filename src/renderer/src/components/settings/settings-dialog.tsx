@@ -471,6 +471,7 @@ export function SettingsDialog({
           {section === "tasks" ? (
             <TasksPage
               projects={projects}
+              models={models}
               sidebarCollapsed={false}
               onExpandSidebar={() => undefined}
               onOpenConversation={onOpenConversation ?? (() => undefined)}

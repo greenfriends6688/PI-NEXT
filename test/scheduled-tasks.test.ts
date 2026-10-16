@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { ScheduledTaskStore, nextScheduleAt, validateScheduleDraft } from "../src/main/engine/scheduled-tasks.ts";
 import { runTrigger } from "../src/shared/schedules.ts";
+import { applyToolPreset } from "../src/main/engine/tool-modes.ts";
 import { ScheduledTaskManager } from "../src/main/pi/scheduled-task-manager.ts";
 
 function temporary(t: { after(fn: () => void): void }): string {
@@ -221,4 +222,36 @@ test("a duration the form cannot mean is refused rather than stored", () => {
     );
   }
   assert.doesNotThrow(() => validateScheduleDraft({ name: "x", prompt: "work", schedule: daily, maxDurationMin: 1 }));
+});
+
+test("a task can name its toolset, model and reasoning, and a bad one is refused", (t) => {
+  const store = new ScheduledTaskStore(temporary(t));
+  const task = store.create({
+    name: "Nightly",
+    prompt: "work",
+    schedule: daily,
+    toolPreset: "read-only",
+    model: { provider: "anthropic", id: "claude-sonnet-4-6" },
+    thinkingLevel: "high",
+    maxDurationMin: 45,
+  });
+  const stored = store.get(task.id)!;
+  assert.equal(stored.toolPreset, "read-only");
+  assert.deepEqual(stored.model, { provider: "anthropic", id: "claude-sonnet-4-6" });
+  assert.equal(stored.thinkingLevel, "high");
+  assert.equal(stored.maxDurationMin, 45);
+
+  assert.throws(() => validateScheduleDraft({ name: "x", prompt: "w", schedule: daily, toolPreset: "everything" as never }), /工具权限/);
+  assert.throws(() => validateScheduleDraft({ name: "x", prompt: "w", schedule: daily, model: { provider: "", id: "m" } }), /模型/);
+  assert.throws(() => validateScheduleDraft({ name: "x", prompt: "w", schedule: daily, thinkingLevel: "off" as never }), /思考强度/);
+});
+
+test("a read-only preset keeps the four readers and only the MCP tools that say they are safe", () => {
+  const active = ["read", "grep", "find", "ls", "edit", "write", "bash", "mcp_gh_create_issue", "mcp_docs_search"];
+  const safe = new Set(["mcp_docs_search"]);
+  assert.deepEqual(applyToolPreset(active, "read-only", safe), ["read", "grep", "find", "ls", "mcp_docs_search"]);
+  assert.deepEqual(applyToolPreset(active, "default", safe), active, "the default preset changes nothing");
+  // A set somebody else narrowed stays narrowed: the readers are not put back.
+  assert.deepEqual(applyToolPreset(["read", "edit"], "read-only", new Set()), ["read"]);
+  assert.deepEqual(applyToolPreset(["read", "grep"], "read-only", new Set()), ["read", "grep"]);
 });

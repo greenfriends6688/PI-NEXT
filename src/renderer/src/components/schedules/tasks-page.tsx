@@ -46,7 +46,7 @@ import { activeLanguage, i18n } from "@/lib/i18n";
 import { localeTag } from "@/lib/language";
 import { cn } from "@/lib/utils";
 import type { ScheduleRule, ScheduledRunStatus, ScheduledTask, ScheduledTaskPatch, ScheduledTaskRun, ScheduledTaskSnapshot } from "@shared/schedules";
-import type { Project } from "@shared/types";
+import type { PinextModel, Project } from "@shared/types";
 
 type Panel =
   | { kind: "list" }
@@ -60,11 +60,14 @@ type Panel =
  */
 export function TasksPage({
   projects,
+  models,
   sidebarCollapsed,
   onExpandSidebar,
   onOpenConversation,
 }: {
   projects: Project[];
+  /** What a task may pick as its model; empty means every task follows the app default. */
+  models: PinextModel[];
   sidebarCollapsed: boolean;
   onExpandSidebar: () => void;
   /** The shell's own open-chat path, so a run's conversation is a normal navigation. */
@@ -372,6 +375,7 @@ export function TasksPage({
               <TaskForm
                 form={form}
                 projects={projects}
+                models={models}
                 error={formError}
                 saving={Boolean(busy)}
                 onChange={(patch) => {

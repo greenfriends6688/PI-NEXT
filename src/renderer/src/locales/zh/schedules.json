@@ -111,5 +111,17 @@
   "maxDurationHint": "超过这个时间会自动停止，留出位置给下一次。{{min}}–{{max}} 分钟。",
   "disabled": {
     "failures": "连续 {{count}} 次失败，已自动暂停"
-  }
+  },
+  "preset": {
+    "label": "工具权限",
+    "hint": "无人看着的自动运行默认只读，只有真的需要改动才放开",
+    "readOnly": "只读（默认）",
+    "full": "完全访问"
+  },
+  "model": "模型",
+  "modelHint": "不选就跟随默认模型",
+  "modelFollow": "跟随默认模型",
+  "thinking": "思考强度",
+  "thinkingHint": "不选就用模型自己的默认",
+  "thinkingFollow": "跟随模型默认"
 }
