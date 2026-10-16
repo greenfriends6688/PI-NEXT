@@ -279,5 +279,9 @@
     "cancelled": "{{count}} cancelled",
     "updated": "Sub-task update",
     "blocked": "{{count}} blocked"
+  },
+  "artifact": {
+    "open": "Open in side panel",
+    "inPanel": "This {{type}} artifact opens in the side panel"
   }
 }

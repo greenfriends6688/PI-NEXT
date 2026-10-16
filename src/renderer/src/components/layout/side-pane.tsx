@@ -14,6 +14,7 @@ import {
   GitBranchIcon,
   GitCompareIcon,
   HistoryIcon,
+  PuzzleIcon,
   MessageSquareIcon,
   MessageSquarePlusIcon,
   PanelLeftOpenIcon,
@@ -50,6 +51,7 @@ import { SidePaneChanges } from "./side-pane-changes";
 import { SidePaneFiles } from "./side-pane-files";
 import { SidePaneGit } from "./side-pane-git";
 import { GitGraphTab } from "./git-graph-tab";
+import { SidePaneArtifact } from "./side-pane-artifact";
 import { TraceFrame } from "./trace-frame";
 import { SidePaneDagNode } from "./side-pane-dag-node";
 import { SidePaneSubagent } from "./side-pane-subagent";
@@ -172,6 +174,7 @@ function tabIcon(type: SidePaneTab["type"]) {
   if (type === "browser") return ChromeIcon;
   if (type === "selection-side-chat") return MessageSquareIcon;
   if (type === "files") return Folder01Icon;
+  if (type === "artifact") return PuzzleIcon;
   return File01Icon;
 }
 
@@ -581,7 +584,7 @@ export const SidePane = memo(function SidePane({
             <SidePaneChat tab={active} project={project} parentId={parentId} />
           ) : null}
           {visibleTabs.map((tab) =>
-            tab.type === "terminal" || tab.type === "browser" || tab.type === "files" || tab.type === "subagent" || tab.type === "dag-node" ? (
+            tab.type === "terminal" || tab.type === "browser" || tab.type === "files" || tab.type === "subagent" || tab.type === "dag-node" || tab.type === "artifact" ? (
               <div key={tab.id} hidden={tab.id !== activeTabId} className="flex min-h-0 flex-1 flex-col">
                 {tab.type === "terminal" ? (
                   <Suspense fallback={<div className="min-h-0 flex-1" />}>
@@ -593,6 +596,8 @@ export const SidePane = memo(function SidePane({
                   <SidePaneFiles tab={tab} cwd={cwd} roots={folders} remote={isRemoteProject(workspace)} onError={onError} />
                 ) : tab.type === "dag-node" ? (
                   <SidePaneDagNode tab={tab} />
+                ) : tab.type === "artifact" ? (
+                  <SidePaneArtifact tabId={tab.id} />
                 ) : (
                   <SidePaneSubagent tab={tab} />
                 )}

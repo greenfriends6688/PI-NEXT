@@ -14,7 +14,8 @@
       "aborted": "Stopped"
     },
     "trace": "Trace",
-    "git-graph": "Git graph"
+    "git-graph": "Git graph",
+    "artifact": "Artifact"
   },
   "pane": {
     "collapse": "Collapse side pane",
@@ -382,5 +383,13 @@
     "fullscreen": "Fullscreen",
     "exitFullscreen": "Exit fullscreen",
     "loading": "Building the full history…"
+  },
+  "artifact": {
+    "missing": "This artifact is not in the current transcript (a retry or a fork may have rewritten it)",
+    "previous": "Previous version",
+    "next": "Next version",
+    "copy": "Copy body",
+    "copied": "Copied",
+    "version": "v{{version}} / {{total}}"
   }
 }

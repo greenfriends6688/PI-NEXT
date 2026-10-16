@@ -19,6 +19,7 @@ export type SidePaneTabType =
   | "files"
   | "subagent"
   | "dag-node"
+  | "artifact"
   | "changes";
 
 /** Everything needed to mint/re-title a subagent run's tab. */
@@ -68,6 +69,10 @@ export type SidePaneTab = {
    * keystrokes land in that box rather than the chat they just selected from.
    */
   focusComposer?: boolean;
+  /** The artifact this tab shows (`type: "artifact"`): its identifier within `conversationId`. */
+  artifactId?: string;
+  /** The version the reader picked, 1-based. Absent follows the newest one. */
+  artifactVersion?: number;
   /** The subagent run this tab shows (`type: "subagent"`). */
   subagentId?: string;
   /** The conversation whose tool call spawned that run; scopes the tab. */
@@ -242,6 +247,14 @@ type SidePaneStore = {
   closeOthers: (id: string) => void;
   closeAll: () => void;
   openGit: () => void;
+  /**
+   * Show one artifact from a chat, at the newest version unless a version is given.
+   *
+   * Its own tab per identifier (`artifact:<conversationId>:<identifier>`), the same rule a
+   * delegated run follows: a chat's artifacts are that chat's, and the pane only lists the
+   * tabs belonging to the conversation on screen.
+   */
+  openArtifact: (conversationId: string, identifier: string, title: string, version?: number) => void;
   /** fork:git-graph —— 右栏 Git 图谱 tab。 */
   openGitGraph: (cwd?: string) => void;
   /** fork:trace-frame —— 右栏「调用轨迹」tab（pi 导出页的 iframe）。 */
@@ -704,6 +717,20 @@ export const useSidePaneStore = create<SidePaneStore>((set, get) => {
         { ...scope, tabs: upsert(scope.tabs, tab), activeTabId: tab.id },
         { collapsed: false },
       );
+    }),
+  openArtifact: (conversationId, identifier, title, version) =>
+    set((state) => {
+      const scope = scopeOf(state);
+      const id = `artifact:${conversationId}:${identifier}`;
+      const existing = scope.tabs.find((item) => item.id === id);
+      const tab: SidePaneTab = {
+        ...(existing ?? { id, type: "artifact" as const, openedAt: Date.now() }),
+        title,
+        conversationId,
+        artifactId: identifier,
+        ...(version === undefined ? {} : { artifactVersion: version }),
+      };
+      return writeScope(state, scopeKeyOf(state), { ...scope, tabs: upsert(scope.tabs, tab), activeTabId: tab.id }, { collapsed: false });
     }),
   openGitGraph: (cwd) =>
     set((state) => {

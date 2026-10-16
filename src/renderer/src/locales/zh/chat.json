@@ -279,5 +279,9 @@
     "cancelled": "{{count}} 取消",
     "updated": "子任务有新结果",
     "blocked": "{{count}} 阻塞"
+  },
+  "artifact": {
+    "open": "在侧栏打开",
+    "inPanel": "{{type}} 内容在侧栏打开后查看"
   }
 }

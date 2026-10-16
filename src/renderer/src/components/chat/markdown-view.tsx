@@ -16,6 +16,8 @@ import { MermaidBlock } from "@/components/chat/mermaid-block";
 import { PathLink } from "@/components/path-menu";
 import { useHighlightedCode } from "@/lib/highlight";
 import { fenceDocument } from "@/lib/markdown-fence";
+import { ARTIFACT_FENCE, encodeArtifactsForMarkdown, type ArtifactBlock } from "@shared/artifacts";
+import { ArtifactCard } from "@/components/chat/artifact-card";
 import { inlineDocumentUrl } from "@shared/inline-document";
 import { splitMarkdownBlocks } from "@/lib/markdown-blocks";
 import { useSessionStore } from "@/stores/session";
@@ -85,6 +87,10 @@ const CodeBlock = memo(function CodeBlock({ language, code }: { language?: strin
     setView(diagram ? "view" : "code");
   }, [identity, diagram]);
   const diff = language !== undefined && DIFF_LANGUAGES.has(language.toLowerCase());
+  // A `pinext-artifact` fence is not code at all: it is an artifact the reply named, encoded
+  // by `encodeArtifactsForMarkdown` so the markdown pipeline hands it over as one block. The
+  // header line carries the metadata and everything after it is the body.
+  const artifact = language === ARTIFACT_FENCE ? artifactFromFence(code) : null;
   const truncated = code.length > MAX_CODE_PREVIEW_CHARS;
   const displayCode = truncated && !expanded
     ? `${code.slice(0, MAX_CODE_PREVIEW_CHARS)}\n…`
@@ -92,7 +98,7 @@ const CodeBlock = memo(function CodeBlock({ language, code }: { language?: strin
   // Keep copying lossless, but do not parse or syntax-highlight a pathological
   // block until the reader explicitly asks to see it all. This bounds both the
   // initial DOM and the work done by a streaming code fence.
-  const html = useHighlightedCode(diff ? "" : displayCode, diff ? undefined : language);
+  const html = useHighlightedCode(diff || artifact ? "" : displayCode, diff || artifact ? undefined : language);
   // A fence that is a whole page can be looked at instead of read. The button is the only
   // thing that starts it: a transcript reopening must never run a script somebody wrote into
   // a reply, and the same rule the file pane follows applies here.
@@ -118,6 +124,11 @@ const CodeBlock = memo(function CodeBlock({ language, code }: { language?: strin
       // ignore
     }
   }
+
+  // **After every hook.** An artifact replaces the whole block, so this return has to sit
+  // below the ones above it — a return between them is a hook count that changes with the
+  // content, which React answers with error #310.
+  if (artifact) return <ArtifactCard artifact={artifact} />;
 
   return (
     <div className="my-2 overflow-hidden rounded-lg border border-border bg-muted/40">
@@ -161,6 +172,26 @@ const CodeBlock = memo(function CodeBlock({ language, code }: { language?: strin
     </div>
   );
 });
+
+/** The artifact a `pinext-artifact` fence carries: a JSON header line, then the body. */
+function artifactFromFence(code: string): ArtifactBlock | null {
+  const newline = code.indexOf("\n");
+  const header = (newline === -1 ? code : code.slice(0, newline)).trim();
+  const body = newline === -1 ? "" : code.slice(newline + 1);
+  try {
+    const parsed = JSON.parse(header) as Partial<ArtifactBlock>;
+    if (typeof parsed.identifier !== "string" || typeof parsed.type !== "string") return null;
+    return {
+      identifier: parsed.identifier,
+      title: typeof parsed.title === "string" && parsed.title ? parsed.title : parsed.identifier,
+      type: parsed.type,
+      ...(typeof parsed.language === "string" ? { language: parsed.language } : {}),
+      body,
+    } as ArtifactBlock;
+  } catch {
+    return null;
+  }
+}
 
 function markdownPath(href: string): string | undefined {
   if (href.startsWith("fvpath:")) return decodeURIComponent(href.slice("fvpath:".length));
@@ -280,8 +311,15 @@ const MarkdownBlock = memo(function MarkdownBlock({ text, headingIds }: { text: 
  * keeps its content because blocks only grow at the end.
  */
 export const MarkdownView = memo(forwardRef<HTMLDivElement, { text: string; className?: string; headingIds?: boolean }>(function MarkdownView({ text, className, headingIds }, ref): JSX.Element {
-  // A reply that used memory ends with a citation block the pipeline reads; the reader does not.
-  const blocks = useMemo(() => splitMarkdownBlocks(stripMemoryCitation(text)), [text]);
+  // A reply that used memory ends with a citation block the pipeline reads; the reader does
+  // not. Artifacts are rewritten into one routable fence each (`\`\`\`pinext-artifact` + a JSON
+  // header), which is what turns a directive into a card without teaching the markdown
+  // pipeline about directives — and it goes through `splitMarkdownBlocks` as one block, so a
+  // diagram or a page is never cut in half by the block splitter.
+  const blocks = useMemo(
+    () => splitMarkdownBlocks(encodeArtifactsForMarkdown(stripMemoryCitation(text))),
+    [text],
+  );
   return (
     <div ref={ref} className={cn("chat-markdown-flow", className)}>
       {blocks.map((block, index) => (
