@@ -795,7 +795,19 @@
     "testReadOnly": "read-only",
     "testMore": "{{count}} more…",
     "jsonFromCommand": "Read one server out of that install command — check it before saving",
-    "jsonLiteralSecret": "That command carries a credential in the clear; it will be stored in this machine's MCP config. A variable reference is safer."
+    "jsonLiteralSecret": "That command carries a credential in the clear; it will be stored in this machine's MCP config. A variable reference is safer.",
+    "market": "Market",
+    "marketTitle": "MCP market",
+    "marketDesc": "From the official registry and any catalog you added. Installing writes this machine's MCP config — read the row first.",
+    "marketSearch": "Search by name or description",
+    "marketGo": "Search",
+    "marketMore": "Load more",
+    "marketEmpty": "No servers match",
+    "marketAdd": "Add",
+    "marketReplace": "Replace",
+    "marketAdded": "Added {{name}}",
+    "marketFailed": "Could not load the market",
+    "marketSourceFailed": "{{source}} could not be read: {{message}}"
   },
   "skills": {
     "detailDesc": "Edit this skill's own markdown; it takes effect on the next turn.",

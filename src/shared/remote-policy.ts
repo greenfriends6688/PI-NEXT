@@ -208,6 +208,8 @@ const ALLOWED = new Set<string>([
   Ipc.engineListMcpServers,
   // 只读发现：报出别的工具里写了什么，导入是另一步。
   Ipc.engineDiscoverMcp,
+  // Same class as the discovery beside it: reading a public list, writing nothing.
+  Ipc.engineMcpMarket,
   Ipc.engineTestMcp,
   Ipc.engineListSkills,
   Ipc.engineNewSession,

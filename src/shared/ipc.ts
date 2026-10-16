@@ -28,6 +28,7 @@ export const Ipc = {
   engineListMcpServers: "engine:list-mcp-servers",
   /** 从 Claude Code / Codex / Cursor / VS Code 等已配好的地方发现 MCP server。 */
   engineDiscoverMcp: "engine:discover-mcp",
+  engineMcpMarket: "engine:mcp-market",
   /** 真的连一次这个 server，报出工具清单或失败原因。 */
   engineTestMcp: "engine:test-mcp",
   engineSaveMcpServers: "engine:save-mcp-servers",

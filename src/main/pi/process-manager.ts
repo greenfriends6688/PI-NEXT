@@ -145,6 +145,8 @@ import { priceUsage } from "../engine/pricing";
 import { fetchOpenAIAccountQuota, openAICodexAccountId } from "../engine/openai-quota";
 import { listWorkspaceFiles, mutateWorkspaceFile } from "../engine/workspace-mutate.ts";
 import { discoverMcpServers } from "../pinext/mcp/discovery.ts";
+import { fetchMcpMarket, readMcpMarketSources } from "./mcp-market.ts";
+import { OFFICIAL_MCP_SOURCE, type McpMarketPage, type McpMarketQuery } from "@shared/mcp-market";
 import type { McpDiscoveredServer, McpTestResult } from "../../shared/mcp-discovery.ts";
 import {
   beginRegistration,
@@ -2177,6 +2179,18 @@ export class PiProcessManager {
   /** 别的 agent 已经配好的 MCP server（只读发现）。 */
   async testMcpServer(id: string): Promise<McpTestResult> {
     return this.#mcp.test(id);
+  }
+
+  /**
+   * The MCP market: the official registry beside any catalog the user added.
+   *
+   * Read-only in both directions — it never writes mcp.json. What comes back is a candidate,
+   * and adding one goes through `saveMcpServers`, which is the same validation a pasted
+   * config gets.
+   */
+  async mcpMarket(query: McpMarketQuery): Promise<McpMarketPage> {
+    const sources = readMcpMarketSources(readAppSettings(this.#paths));
+    return fetchMcpMarket({ ...query, sources: [OFFICIAL_MCP_SOURCE, ...sources] });
   }
 
   async discoverMcpServers(): Promise<McpDiscoveredServer[]> {

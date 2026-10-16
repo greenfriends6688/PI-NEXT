@@ -69,6 +69,7 @@ import type { ImSendOutcome, ImTarget, ImTargetView } from "@shared/im-bridge";
 import type { ChatChannelConfig } from "@shared/chat-channel";
 import type { FileMutation } from "@shared/file-mutation";
 import type { McpDiscoveredServer, McpTestResult } from "@shared/mcp-discovery";
+import type { McpMarketPage, McpMarketQuery } from "@shared/mcp-market";
 import type { WebServerState } from "@shared/web-server";
 import type { RemoteHostProfile, RemoteHostConnectionState, RemoteHostTestResult, SshHostKeyScan } from "@shared/remote-host";
 import type {
@@ -203,6 +204,8 @@ export function createPinextApi(t: ApiTransport) {
        * adopt it here.
        */
       discoverMcp: (): Promise<McpDiscoveredServer[]> => t.invoke(Ipc.engineDiscoverMcp),
+      /** Browse the MCP market. Read-only: adding an entry goes through `saveMcpServers`. */
+      mcpMarket: (query?: McpMarketQuery): Promise<McpMarketPage> => t.invoke(Ipc.engineMcpMarket, query ?? {}),
       /**
        * Connect one server right now and report what happened.
        *

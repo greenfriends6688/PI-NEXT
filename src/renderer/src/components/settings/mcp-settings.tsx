@@ -3,7 +3,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Add01Icon, AlertCircleIcon, CheckmarkCircle02Icon, Delete02Icon, Download01Icon, Edit02Icon, Loading03Icon, PlayIcon, Plug01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, AlertCircleIcon, CheckmarkCircle02Icon, Delete02Icon, Download01Icon, Edit02Icon, Loading03Icon, PlayIcon, Plug01Icon, Store01Icon } from "@hugeicons/core-free-icons";
 import { IconButton } from "@/components/icon-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { formatMap, mergeServers, parseMap, parseMcpJson, serializeMcpJson, type McpJsonError } from "@shared/mcp-config";
 import type { McpExposure, McpServerConfig, McpServerStatus } from "@shared/types";
 import type { McpDiscoveredServer, McpTestResult } from "@shared/mcp-discovery";
+import type { McpMarketEntry, McpMarketPage } from "@shared/mcp-market";
 
 /**
  * The server form's draft; also doubles as the dialog's open state. `id` is set while
@@ -147,6 +148,7 @@ export function McpSettings(): JSX.Element {
   const [saving, setSaving] = useState(false);
   /** 从别的工具发现到的 server；null = 没在挑。 */
   const [found, setFound] = useState<McpDiscoveredServer[] | null>(null);
+  const [market, setMarket] = useState<{ page: McpMarketPage | null; query: string; busy: boolean; errors: McpMarketPage["errors"] } | null>(null);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
 
   async function refresh(): Promise<void> {
@@ -193,6 +195,42 @@ export function McpSettings(): JSX.Element {
       setFound(null);
       toast.success(t("mcp.imported", { count: added.length }));
     }
+  }
+
+  /**
+   * The market: one page at a time, kept until the reader closes the dialog.
+   *
+   * Read-only in both directions — it writes nothing — so it can be opened and closed without
+   * touching mcp.json. Adding a row goes through the same `save` a pasted config uses, which
+   * is what validates it; a record from a public registry is not more trustworthy than a paste
+   * because it arrived over HTTPS.
+   */
+  async function openMarket(): Promise<void> {
+    setMarket({ page: null, query: "", busy: true, errors: [] });
+    await loadMarket("");
+  }
+
+  async function loadMarket(query: string, cursor?: string): Promise<void> {
+    setMarket((current) => (current ? { ...current, busy: true } : current));
+    try {
+      const page: McpMarketPage = await window.pinext.engine.mcpMarket({ query, ...(cursor ? { cursor } : {}) });
+      setMarket((current) => ({
+        page: cursor && current?.page ? { ...page, entries: [...current.page.entries, ...page.entries] } : page,
+        query,
+        busy: false,
+        errors: page.errors,
+      }));
+    } catch (err) {
+      setMarket((current) => (current ? { ...current, busy: false, errors: [{ source: "", message: err instanceof Error ? err.message : t("mcp.marketFailed") }] } : current));
+    }
+  }
+
+  async function installFromMarket(entry: McpMarketEntry): Promise<void> {
+    if (!entry.server) return;
+    const config = { ...entry.server, id: newServerId(entry.server.name) } as McpServerConfig;
+    const existing = servers.find((server) => server.name === config.name);
+    const next = existing ? servers.map((server) => (server.name === config.name ? config : server)) : [...servers, config];
+    if (await save(next)) toast.success(t("mcp.marketAdded", { name: entry.name }));
   }
 
   /** Never throws: callers act on the boolean so row edits cannot produce an
@@ -286,6 +324,10 @@ export function McpSettings(): JSX.Element {
           <HugeiconsIcon strokeWidth={2} icon={Download01Icon} />
           {t("mcp.importFrom")}
         </Button>
+        <Button size="sm" variant="outline" disabled={saving} onClick={() => void openMarket()}>
+          <HugeiconsIcon strokeWidth={2} icon={Store01Icon} />
+          {t("mcp.market")}
+        </Button>
         <Button
           size="sm"
           disabled={saving}
@@ -298,6 +340,71 @@ export function McpSettings(): JSX.Element {
         </Button>
         </div>
       </div>
+
+      {market ? (
+        <Dialog open onOpenChange={(open) => !open && setMarket(null)}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{t("mcp.marketTitle")}</DialogTitle>
+              <DialogDescription>{t("mcp.marketDesc")}</DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center gap-2">
+              <Input
+                autoFocus
+                value={market.query}
+                disabled={market.busy}
+                className="h-8"
+                placeholder={t("mcp.marketSearch")}
+                onChange={(event) => setMarket((current) => (current ? { ...current, query: event.target.value } : current))}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void loadMarket(market.query);
+                }}
+              />
+              <Button size="sm" variant="outline" disabled={market.busy} onClick={() => void loadMarket(market.query)}>
+                {market.busy ? <HugeiconsIcon strokeWidth={2} icon={Loading03Icon} className="size-3.5 animate-spin" /> : null}
+                {t("mcp.marketGo")}
+              </Button>
+            </div>
+            {market.errors.map((error) => (
+              <p key={`${error.source}:${error.message}`} className="text-xs text-destructive">
+                {error.source ? t("mcp.marketSourceFailed", { source: error.source, message: error.message }) : error.message}
+              </p>
+            ))}
+            <div className="max-h-96 space-y-1 overflow-y-auto">
+              {(market.page?.entries ?? []).map((entry) => (
+                <div key={entry.id} className="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted">
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate font-medium">{entry.name}</span>
+                      <Badge variant="outline" className="shrink-0">{entry.source}</Badge>
+                    </span>
+                    {entry.description ? <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">{entry.description}</span> : null}
+                    {entry.server === null && entry.reason ? <span className="text-xs text-muted-foreground">{entry.reason}</span> : null}
+                    {entry.server && entry.reason ? <span className="text-xs text-muted-foreground">{entry.reason}</span> : null}
+                  </span>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    className="mt-0.5 shrink-0"
+                    disabled={saving || entry.server === null}
+                    onClick={() => void installFromMarket(entry)}
+                  >
+                    {servers.some((server) => server.name === entry.name) ? t("mcp.marketReplace") : t("mcp.marketAdd")}
+                  </Button>
+                </div>
+              ))}
+              {!market.busy && (market.page?.entries ?? []).length === 0 ? (
+                <p className="px-2 py-6 text-center text-sm text-muted-foreground">{t("mcp.marketEmpty")}</p>
+              ) : null}
+            </div>
+            {market.page?.cursor ? (
+              <Button size="sm" variant="outline" disabled={market.busy} onClick={() => void loadMarket(market.query, market.page?.cursor)}>
+                {t("mcp.marketMore")}
+              </Button>
+            ) : null}
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
       {found ? (
         <Dialog open onOpenChange={(open) => !open && setFound(null)}>

@@ -793,7 +793,19 @@
     "testReadOnly": "只读",
     "testMore": "还有 {{count}} 个…",
     "jsonFromCommand": "已按安装命令读出一个服务器，确认无误后保存",
-    "jsonLiteralSecret": "命令里带着明文密钥：它会存进本机的 MCP 配置。建议改用环境变量引用。"
+    "jsonLiteralSecret": "命令里带着明文密钥：它会存进本机的 MCP 配置。建议改用环境变量引用。",
+    "market": "市场",
+    "marketTitle": "MCP 市场",
+    "marketDesc": "来自官方 registry 和你自己加的目录；安装就是写进本机的 MCP 配置，先看清再装。",
+    "marketSearch": "搜索服务名或说明",
+    "marketGo": "搜索",
+    "marketMore": "加载更多",
+    "marketEmpty": "没有匹配的服务",
+    "marketAdd": "安装",
+    "marketReplace": "替换",
+    "marketAdded": "已添加 {{name}}",
+    "marketFailed": "无法加载市场",
+    "marketSourceFailed": "{{source}} 读取失败：{{message}}"
   },
   "skills": {
     "detailDesc": "直接编辑这个技能自己的 markdown；保存后下一次对话即可生效。",
