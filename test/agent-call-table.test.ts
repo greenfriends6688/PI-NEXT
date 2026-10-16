@@ -58,9 +58,21 @@ function walk(dir: string, out: string[] = []): string[] {
 
 const agentSource = source("src/agent/handlers.ts");
 
+/**
+ * The Agent's shared engine table.
+ *
+ * The Agent calls `registerEngineIpc` rather than hand-copying a subset of it, so
+ * everything that function registers is served by the Agent too. Deriving the set from
+ * the call rather than from a second list is the point: the day the Agent stops calling
+ * it, the assertions below fail instead of the user's click.
+ */
+const registersEngineTable = /registerEngineIpc\s*\(/.test(agentSource);
+const engineChannels = handleChannels(source("src/main/ipc/engine-handlers.ts"));
+
 /** What the Agent actually registers with a real implementation. */
 const agentChannels = new Set([
   ...handleChannels(agentSource),
+  ...(registersEngineTable ? engineChannels : []),
   // `registerAgentIpc` delegates these two to their own modules.
   ...handleChannels(source("src/main/ipc/dag-handlers.ts")),
   ...handleChannels(source("src/main/ipc/schedule-handlers.ts")),
@@ -78,6 +90,24 @@ for (const channel of ["workspaceGitPull", "workspaceGitPush"]) desktopChannels.
 const api = apiChannels(source("src/shared/api.ts"));
 const unsupported = declaredChannels(agentSource, "AGENT_UNSUPPORTED");
 const desktopOnly = declaredChannels(agentSource, "DESKTOP_ONLY");
+
+test("the agent entry registers the shared engine table instead of hand-copying it", () => {
+  // The root cause of `engine:export-html-document` answering `unknown method` in the
+  // browser: the Agent kept its own subset of `registerEngineIpc`, so a method added to
+  // the shared table silently went missing from the web client. The Agent must call the
+  // same registration the desktop does — and every channel it registers must be present
+  // on both entries, because `agentChannels` only holds them *because* of that call.
+  assert.ok(
+    registersEngineTable,
+    "src/agent/handlers.ts 必须调用 registerEngineIpc，而不是手抄一份引擎方法",
+  );
+  const missing = engineChannels.filter((channel) => !agentChannels.has(channel)).sort();
+  assert.deepEqual(
+    missing,
+    [],
+    `registerEngineIpc 注册但 Agent 未注册的通道: ${missing.join(", ")}`,
+  );
+});
 
 test("every channel the renderer can call is served, refused, or explicitly desktop-only", () => {
   const covered = new Set([...agentChannels, ...unsupported, ...desktopOnly]);

@@ -1,16 +1,50 @@
-import { dialog, shell } from "electron";
 import { Ipc } from "@shared/ipc";
 import type { ImportSourceId } from "@shared/types";
 import { handle } from "./registry";
 import { uiText } from "../engine/ui-text";
-import { setWebServerPort, startWebServer, stopWebServer, webServerState } from "../engine/web-server.ts";
 import { fetchPackageCatalog } from "../pi/package-catalog";
 import { getPinextPaths } from "../engine/paths";
 import { syncPinextConfigToPi } from "../engine/sync-pi-config";
-import { PiProcessManager } from "../pi/process-manager";
+import type { PiProcessManager } from "../pi/process-manager";
 
-/** Register engine/session IPC without mixing it into the Electron bootstrap. */
-export function registerEngineIpc(engine: PiProcessManager): void {
+/**
+ * The few capabilities only a desktop host has.
+ *
+ * A native directory dialog and opening a path with the OS's default program are the
+ * only two things in the engine table that reach outside Node — everything else is the
+ * engine and its files. They arrive as an object rather than an
+ * `import { dialog, shell } from "electron"` so this module can be loaded by the
+ * headless Agent and the browser entry, which reuse the same registration below.
+ * When the host is absent the two methods refuse with a readable sentence instead of
+ * silently succeeding or crashing.
+ */
+export type EngineIpcHost = {
+  /** Native directory picker. Absent on a headless/browser host; that method then refuses. */
+  pickDirectory?: (payload: { title: string }) => Promise<string | null>;
+  /** Open an artifact with the system's default program. No such thing in a browser. */
+  openPath?: (path: string) => Promise<void>;
+};
+
+/** One sentence for a method that exists on every client but can only *act* on a desktop. */
+function desktopOnly(): Error {
+  return new Error(
+    uiText(
+      "该功能需要桌面应用，浏览器里没有",
+      "This feature requires the desktop app and is not available in the browser",
+    ),
+  );
+}
+
+/**
+ * Register engine/session IPC without mixing it into the Electron bootstrap.
+ *
+ * Electron-free on purpose: the headless Agent and the browser entry call this very
+ * function, so the same methods exist on every client, and a method added here cannot
+ * silently go missing from the browser (the bug where `engine:export-html-document`
+ * answered `unknown method`). The desktop passes its `dialog` / `shell`; the others pass
+ * nothing and get a refusal for the two methods that need them.
+ */
+export function registerEngineIpc(engine: PiProcessManager, host: EngineIpcHost = {}): void {
   handle(Ipc.engineSubmitPrompt, (payload: Parameters<typeof engine.submitPrompt>[0]) => engine.submitPrompt(payload));
   handle(Ipc.engineGetStatus, () => engine.status);
 
@@ -146,12 +180,11 @@ export function registerEngineIpc(engine: PiProcessManager): void {
   handle(Ipc.engineListSkills, async () => engine.listSkills());
   handle(Ipc.engineCreateSkill, async (payload: import("@shared/types").SkillDraft) => engine.createSkill(payload));
   handle(Ipc.engineImportSkill, async () => {
-    const result = await dialog.showOpenDialog({
-      title: uiText("导入技能", "Import skill"),
-      properties: ["openDirectory"],
-    });
-    if (result.canceled || !result.filePaths[0]) return null;
-    return engine.importSkill(result.filePaths[0]);
+    const pickDirectory = host.pickDirectory;
+    if (!pickDirectory) throw desktopOnly();
+    const directory = await pickDirectory({ title: uiText("导入技能", "Import skill") });
+    if (!directory) return null;
+    return engine.importSkill(directory);
   });
   handle(Ipc.engineRemoveSkill, async (payload: { name: string }) => engine.removeSkill(payload.name));
 
@@ -202,12 +235,6 @@ export function registerEngineIpc(engine: PiProcessManager): void {
 
   handle(Ipc.engineGetModels, async () => {
     return engine.getAvailableModels();
-  });
-
-  // The SSH gateway invokes this on the headless Agent. Keep the method in the
-  // desktop table for protocol coverage, but never accept it as a local write.
-  handle(Ipc.engineSyncConfig, async () => {
-    throw new Error("配置同步只能由 SSH Agent 接收");
   });
 
   handle(
@@ -268,7 +295,11 @@ export function registerEngineIpc(engine: PiProcessManager): void {
   handle(Ipc.engineExportMarkdown, async () => engine.exportMarkdown());
   handle(Ipc.engineExportHtml, async () => {
     const path = await engine.exportHtml();
-    if (path) await shell.openPath(path);
+    if (path) {
+      const openPath = host.openPath;
+      if (!openPath) throw desktopOnly();
+      await openPath(path);
+    }
     return path;
   });
   handle(Ipc.engineExportHtmlDocument, async (payload: { conversationId?: string } | undefined) =>

@@ -16,6 +16,7 @@ const ts = require("typescript") as typeof import("typescript");
  */
 
 const handlersPath = fileURLToPath(new URL("../src/agent/handlers.ts", import.meta.url));
+const engineHandlersPath = fileURLToPath(new URL("../src/main/ipc/engine-handlers.ts", import.meta.url));
 
 type EngineCall = { method: string; args: unknown[] };
 
@@ -166,11 +167,22 @@ function fakeEngine(): { engine: object; calls: EngineCall[] } {
   return { engine, calls };
 }
 
-const callbacks = extractHandleCallbacks(readFileSync(handlersPath, "utf8"), handlersPath);
+const callbacks = loadCallbacks();
+
+/**
+ * The Agent serves the shared engine table by calling `registerEngineIpc` rather than
+ * hand-copying it, so a route that moved into that shared table must still be found —
+ * and still forward `conversationId`. Agent-local handlers win where both exist.
+ */
+function loadCallbacks(): Map<string, string> {
+  const shared = extractHandleCallbacks(readFileSync(engineHandlersPath, "utf8"), engineHandlersPath);
+  const local = extractHandleCallbacks(readFileSync(handlersPath, "utf8"), handlersPath);
+  return new Map([...shared, ...local]);
+}
 
 function callbackFor(ipc: string): string {
   const text = callbacks.get(ipc);
-  assert.ok(text, `missing handle(Ipc.${ipc}, ...) in src/agent/handlers.ts`);
+  assert.ok(text, `missing handle(Ipc.${ipc}, ...) in the agent entry or the shared engine table`);
   return text;
 }
 

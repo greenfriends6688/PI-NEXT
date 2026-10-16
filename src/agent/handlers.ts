@@ -9,6 +9,7 @@ import type { AgentConfigSyncPayload } from "@shared/agent-config";
 import type { CallerContext } from "../main/ipc/registry";
 import { broadcast, subscribe } from "../main/ipc/broadcast";
 import { registerDagIpc } from "../main/ipc/dag-handlers";
+import { registerEngineIpc } from "../main/ipc/engine-handlers";
 import { registerScheduleIpc } from "../main/ipc/schedule-handlers";
 import { dispatch, handle, handlerChannels } from "../main/ipc/registry";
 import type { PiProcessManager } from "../main/pi/process-manager";
@@ -31,7 +32,7 @@ import { toolModeSettingsChanged } from "../main/engine/tool-modes";
 import { writeAgentConfig } from "../main/engine/runtime-config";
 import type { PinextPaths } from "../main/engine/paths";
 import type { GitBranch, GitDiffSource, GitStatus } from "@shared/ipc";
-import type { ImportSourceId, ProviderModel, UsageRange, McpServerConfig, SkillDraft, SubagentDraft } from "@shared/types";
+import type { ProviderModel, UsageRange } from "@shared/types";
 import type { AgentRuntime } from "./runtime";
 
 const execFileAsync = promisify(execFile);
@@ -48,62 +49,14 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   const paths = deps.runtime.paths;
   const terminals = deps.terminals;
 
-  handle(Ipc.engineGetStatus, () => engine.status);
-  handle(Ipc.engineSubmitPrompt, (payload: Parameters<typeof engine.submitPrompt>[0]) => engine.submitPrompt(payload));
-  handle(Ipc.engineStart, async (payload?: { cwd?: string }) => engine.start(payload?.cwd ?? engine.cwd));
-  handle(Ipc.engineStop, async () => { await engine.stop(); return engine.status; });
-  handle(Ipc.enginePrompt, async (payload: { message: string; streamingBehavior?: "steer" | "followUp"; images?: Array<{ type: "image"; data: string; mimeType: string }>; conversationId?: string }) => {
-    await engine.prompt(payload.message, { streamingBehavior: payload.streamingBehavior, images: payload.images, conversationId: payload.conversationId });
-  });
-  handle(Ipc.engineSteer, async (payload: { message: string; images?: Array<{ type: "image"; data: string; mimeType: string }>; conversationId?: string }) => engine.steer(payload.message, payload.images, payload.conversationId));
-  handle(Ipc.engineFollowUp, async (payload: { message: string; images?: Array<{ type: "image"; data: string; mimeType: string }>; conversationId?: string }) => engine.followUp(payload.message, payload.images, payload.conversationId));
-  handle(Ipc.engineAbort, async (payload?: { conversationId?: string }) => engine.abort(payload?.conversationId));
-  handle(Ipc.engineAbortSubagent, async (payload: { subagentId: string; conversationId?: string }) => engine.abortSubagent(payload.subagentId, payload.conversationId));
-  handle(Ipc.engineContinue, async (payload?: { conversationId?: string }) => engine.continueTurn(payload?.conversationId));
-  handle(Ipc.engineClearQueue, async (payload?: { conversationId?: string }) => engine.clearQueue(payload?.conversationId));
-  handle(Ipc.engineQueueAdd, async (payload: Parameters<typeof engine.enqueueMessage>[0]) => engine.enqueueMessage(payload));
-  handle(Ipc.engineQueueCancel, async (payload: { id: string; conversationId?: string }) => engine.cancelQueued(payload.id));
-  handle(Ipc.engineQueueRecall, async (payload: { id: string; conversationId?: string }) => engine.recallQueued(payload.id));
-  handle(Ipc.engineQueueSendNow, async (payload: { id: string; conversationId?: string }) => engine.sendQueuedNow(payload.id));
-  handle(Ipc.engineQueueReorder, async (payload: { conversationId: string; ids: string[] }) => engine.reorderQueued(payload.conversationId, payload.ids));
-  handle(Ipc.engineQueueResume, async (payload: { conversationId: string }) => engine.resumeQueue(payload.conversationId));
-  handle(Ipc.engineCompact, async (payload?: { customInstructions?: string; conversationId?: string }) => engine.compact(payload?.customInstructions, payload?.conversationId));
-  handle(Ipc.engineGetCommands, (payload?: { conversationId?: string }) => engine.getCommands(payload?.conversationId));
-  handle(Ipc.engineReplaceSteering, (payload: { items: Array<{ text: string; images?: Array<{ type: "image"; data: string; mimeType: string }> }>; conversationId?: string }) => engine.replaceSteering(payload.items, payload.conversationId));
-  handle(Ipc.engineGetExtensions, () => engine.getExtensions());
-  handle(Ipc.engineInstallExtensionPackage, (payload: { source: string }) => engine.installExtensionPackage(payload.source));
-  handle(Ipc.engineRemoveExtensionPackage, (payload: { source: string }) => engine.removeExtensionPackage(payload.source));
-  handle(Ipc.engineListExtensionPackages, () => engine.listExtensionPackages());
-  handle(Ipc.engineListMcpServers, () => engine.listMcpServers());
-  handle(Ipc.engineSaveMcpServers, (payload: { configs: McpServerConfig[] }) => engine.saveMcpServers(payload.configs));
-  handle(Ipc.engineReadSkill, (payload: { name: string }) => engine.readSkill(payload.name));
-  handle(Ipc.engineSaveSkill, (payload: { name: string; content: string }) => engine.saveSkill(payload.name, payload.content));
-  handle(Ipc.providersUsage, (payload: { id: string }) => engine.getProviderUsage(payload.id));
-  handle(Ipc.imagegenGet, () => engine.getImageGen());
-  handle(Ipc.imagegenSet, (payload: { active?: unknown; providers?: unknown }) => engine.setImageGen(payload ?? {}));
-  handle(Ipc.imagegenTest, (payload: { provider?: string } | undefined) => engine.testImageGen(payload?.provider));
-  handle(Ipc.websearchGet, () => engine.getWebSearch());
-  handle(Ipc.websearchSet, (payload: Record<string, unknown>) => engine.setWebSearch(payload ?? {}));
-  handle(Ipc.botChannelGet, () => engine.getBotChannels());
-  handle(Ipc.botChannelSet, (payload: { channels?: unknown }) => engine.setBotChannels(payload ?? {}));
-  handle(Ipc.botChannelStart, (payload: { id: string }) => engine.startBotChannel(payload.id));
-  handle(Ipc.botChannelStop, (payload: { id: string }) => engine.stopBotChannel(payload.id));
-  handle(Ipc.engineListSkills, () => engine.listSkills());
-  handle(Ipc.engineCreateSkill, (payload: SkillDraft) => engine.createSkill(payload));
-  handle(Ipc.engineRemoveSkill, (payload: { name: string }) => engine.removeSkill(payload.name));
-  handle(Ipc.engineGetSubagents, (payload?: { conversationId?: string }) => engine.getSubagents(payload?.conversationId));
-  handle(Ipc.engineListAgentConfigs, () => engine.getAgentConfigs());
-  handle(Ipc.engineSaveAgentConfig, (payload: SubagentDraft) => engine.saveAgentConfig(payload));
-  handle(Ipc.engineRemoveAgentConfig, (payload: { id: string }) => engine.removeAgentConfig(payload.id));
-  handle(Ipc.engineGetSubagentMessages, (payload: { subagentId: string; conversationId?: string }) => engine.getSubagentMessages(payload.subagentId, payload.conversationId));
-  handle(Ipc.engineGetCheckpoint, (payload: { conversationId: string }) => engine.getCheckpoint(payload.conversationId));
-  handle(Ipc.engineRestoreCheckpoint, (payload: { conversationId: string }) => engine.restoreCheckpoint(payload.conversationId));
-  handle(Ipc.enginePermissionRespond, (payload: { id: string; confirmed?: boolean; value?: string; cancelled?: boolean; answers?: Array<string | null>}) => engine.respondPermission(payload));
-  handle(Ipc.engineNewSession, () => engine.newSession());
-  handle(Ipc.engineGetState, (payload?: { conversationId?: string }) => engine.getState(payload?.conversationId));
-  handle(Ipc.engineGetRunning, () => engine.getRunningConversations());
-  handle(Ipc.engineGetPendingUi, () => engine.getPendingUi());
-  handle(Ipc.engineGetModels, () => engine.getAvailableModels());
+  // The shared engine table, registered once and reused — not hand-copied. The Agent used
+  // to keep its own subset, so a method added to the desktop's engine table
+  // (`engine:export-html-document`, the right pane's 调用轨迹) silently answered
+  // `unknown method` in the browser. Registering the same function is what keeps the two
+  // entries from drifting. No host: the native dialog and the OS-opened artifact are not
+  // things a browser or a headless host can do, and those two methods say so themselves.
+  registerEngineIpc(engine);
+
   handle(Ipc.engineSyncConfig, async (payload: AgentConfigSyncPayload) => {
     const expectedToken = process.env.PINEXT_AGENT_SYNC_TOKEN;
     if (!expectedToken || payload?.syncToken !== expectedToken) throw new Error("配置同步凭据无效");
@@ -124,28 +77,6 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
       void engine.refreshToolModes().catch(() => undefined);
     }
   });
-  handle(Ipc.engineSetModel, (payload: { provider: string; modelId: string; conversationId?: string }) => engine.setModel(payload.provider, payload.modelId, payload.conversationId));
-  handle(Ipc.engineSetThinking, (payload: { level: string; conversationId?: string }) => engine.setThinkingLevel(payload.level, payload.conversationId));
-  handle(Ipc.engineSetInterrupt, (payload: { mode: "immediate" | "wait"; conversationId?: string }) => engine.setInterruptMode(payload.mode, payload.conversationId));
-  handle(Ipc.engineSetAutoCompact, (payload: { enabled: boolean; conversationId?: string }) => engine.setAutoCompaction(payload.enabled, payload.conversationId));
-  handle(Ipc.engineBranch, (payload: { entryId: string; conversationId?: string }) => engine.branch(payload.entryId, payload.conversationId));
-  handle(Ipc.engineFork, (payload?: { entryId?: string; conversationId?: string }) => engine.fork(payload?.entryId, payload?.conversationId));
-  handle(Ipc.engineGetMessages, (payload?: { conversationId?: string }) => engine.loadMessages(payload?.conversationId));
-  handle(Ipc.engineGetSnapshot, (payload?: { conversationId?: string; fromEntryId?: string; historyLimit?: number; toolDetail?: unknown }) => {
-    const toolDetail = payload?.toolDetail === "summary" ? "summary" : undefined;
-    return toolDetail
-      ? engine.getSnapshot(payload?.conversationId, payload?.fromEntryId, payload?.historyLimit, toolDetail)
-      : engine.getSnapshot(payload?.conversationId, payload?.fromEntryId, payload?.historyLimit);
-  });
-  handle(Ipc.engineGetMessagesPage, (payload: import("../shared/transcript-page").TranscriptPageRequest) => {
-    const toolDetail = payload.toolDetail === "summary" ? "summary" : undefined;
-    return toolDetail
-      ? engine.getMessagesPage(payload.conversationId, payload.beforeEntryId, payload.turnLimit, toolDetail)
-      : engine.getMessagesPage(payload.conversationId, payload.beforeEntryId, payload.turnLimit);
-  });
-  handle(Ipc.engineGetStats, (payload?: { conversationId?: string }) => engine.getSessionStats(payload?.conversationId));
-  handle(Ipc.engineSetSteering, (payload: { mode: "all" | "one-at-a-time"; conversationId?: string }) => engine.setSteeringMode(payload.mode, payload.conversationId));
-  handle(Ipc.engineSetFollowUp, (payload: { mode: "all" | "one-at-a-time"; conversationId?: string }) => engine.setFollowUpMode(payload.mode, payload.conversationId));
   handle(Ipc.enginePromptConversation, (payload: { id: string; message: string; images?: Array<{ type: "image"; data: string; mimeType: string }> }) => engine.promptConversation(payload.id, payload.message, payload.images));
   handle(Ipc.engineGetConversationMessages, (payload: { id: string }) => engine.getConversationMessages(payload.id));
   // The sub-agent task graph runs inside this engine; the desktop reads and steers it through these.
@@ -167,7 +98,6 @@ export function registerAgentIpc(deps: AgentIpcDeps): void {
   handle(Ipc.conversationsDelete, (payload: { id: string }) => engine.deleteConversation(payload.id));
   handle(Ipc.conversationsRecordPrompt, (payload: { id: string; text: string }) => engine.recordPrompt(payload.id, payload.text));
   handle(Ipc.conversationsSetProject, (payload: { id: string; project: string | null }) => engine.setConversationProject(payload.id, payload.project));
-  handle(Ipc.conversationsSearch, (payload: { query?: string }) => engine.searchConversations(payload?.query ?? ""));
   handle(Ipc.conversationsCreateSide, (payload: { project?: string; parentId?: string; title?: string }) => engine.createSideConversation(payload?.project, payload?.parentId, payload?.title));
   handle(Ipc.conversationsRestorePrompt, (payload: { id: string; expectedTitle: string; expectedPreview?: string; title: string; preview?: string }) => engine.restorePromptPreview(payload));
   handle(Ipc.conversationsCreateWorktree, (payload: { id: string; path?: string; branch?: string; label?: string }) => engine.createConversationWorktree(payload.id, payload));
@@ -386,41 +316,23 @@ export const AGENT_UNSUPPORTED: readonly string[] = [
  * Call-table methods that only the desktop entry serves.
  *
  * The Agent deliberately registers none of these: they are the desktop's own account,
- * SSH, remote-access and update controls, its local decision model, the import/export
- * tools that open files on the desktop, and the channels whose runtime the headless
- * Agent does not host. Listed rather than ignored so a method the desktop adds cannot
- * silently go missing from every other client — the bug this whole file exists to end.
+ * SSH, remote-access and update controls, its local decision model, and the channels
+ * whose runtime the headless Agent does not host. Listed rather than ignored so a method
+ * the desktop adds cannot silently go missing from every other client — the bug this
+ * whole file exists to end. (The import/export tools are *not* here: the Agent serves
+ * them through the shared engine table, and the two that need a native dialog or the OS
+ * to open a file refuse with a readable sentence.)
  */
 export const DESKTOP_ONLY: readonly string[] = [
   Ipc.accountGet,
   Ipc.accountLogin,
   Ipc.accountCancelLogin,
   Ipc.accountLogout,
-  Ipc.botChannelRegisterBegin,
-  Ipc.botChannelRegisterCancel,
-  Ipc.botChannelRegisterPoll,
   Ipc.decisionGetConfig,
   Ipc.decisionKeyState,
   Ipc.decisionSaveConfig,
   Ipc.decisionSetKey,
   Ipc.decisionTest,
-  Ipc.engineDiscoverMcp,
-  Ipc.engineExportHtml,
-  Ipc.engineExportHtmlDocument,
-  Ipc.engineExportMarkdown,
-  Ipc.engineGetMessagesSince,
-  Ipc.engineImportCandidates,
-  Ipc.engineImportSessions,
-  Ipc.engineImportSkill,
-  Ipc.engineImportSources,
-  Ipc.engineListMarketPackages,
-  Ipc.engineSetAgentEnabled,
-  Ipc.engineSyncPiConfig,
-  Ipc.engineTestMcp,
-  Ipc.imGet,
-  Ipc.imSet,
-  Ipc.imTest,
-  Ipc.imagegenModels,
   Ipc.remoteClearPassword,
   Ipc.remoteGetState,
   Ipc.remoteListDevices,

@@ -119,7 +119,20 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     session.fromPartition("persist:pinext-browser").clearStorageData(),
   );
   handle(Ipc.browserListEngines, () => installedBrowsers());
-  registerEngineIpc(engine);
+  registerEngineIpc(engine, {
+    pickDirectory: async ({ title }) => {
+      const result = await dialog.showOpenDialog({ title, properties: ["openDirectory"] });
+      return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
+    },
+    openPath: async (path) => {
+      await shell.openPath(path);
+    },
+  });
+  // The SSH gateway invokes this on the headless Agent. Keep the method in the desktop
+  // table for protocol coverage, but never accept it as a local write.
+  handle(Ipc.engineSyncConfig, async () => {
+    throw new Error("配置同步只能由 SSH Agent 接收");
+  });
 
   handle(Ipc.providersList, async () => {
     return engine.listProviders();
