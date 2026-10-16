@@ -385,3 +385,19 @@ Batch 6  PX-11 插件 manifest S1+S2（先不换运行时）
 |---|---|
 | 2026-10-16 | 三方对比成文（`FACTS.md` / `01-feature-matrix.md` / 本文件）；`PX-01…PX-21` 定稿；本轮未改产品代码 |
 | 2026-10-16（二次修订） | 参考 A 对照升级到 0.12.1：新增 `PX-22` 模型收藏（用户提出，三家参考均无，属 Pinext 自设计）、`PX-23` `!command`（结论里点名过、此次补成条目）、`PX-24` 流式实时 t/s、`PX-25` MCP 项目级覆盖（低优先）；`PX-16` / `PX-20` 补上批次归属；新增 §6 低优先候选（Open With / 原生菜单 / 自定义 CSS / TerminalExtraKeys / 文件树展开记忆核实为已有）；仍未改产品代码 |
+| 2026-10-16（本轮第一批落地） | 合入 `PX-21`（`0fc9420a`）、`PX-18`（`5d569db2`）、`PX-01`（`d6c301c8`）、`PX-02`（`2b6c55a2`）、`PX-13`（`97eae5cd` + `539f4a76` 修 hook 顺序崩溃）、`PX-06`/`PX-03`（引擎半边随 `098f5ac2`、其余 `c91a699e`）、`PX-05`（`a579f6ad`）、`PX-09`（`d0a462d2`）、`PX-08` 逐技能开关（`0ac021de`）；另修 `6107a1d3`（`jev-provider-migration` 的假依赖表）。`PX-21` 一开启就抓到 6 个真实缺失的 i18n key |
+| 2026-10-16（本轮第二批落地） | `PX-07a` Artifacts（`d408a0b6`）、`PX-10` MCP 市场（`bdddc902`）、`PX-04` MCP OAuth 登录（`d22f6202`）。至此 `PX-01`–`PX-10`、`PX-13`、`PX-18`、`PX-21` 全部落地；**`PX-12`、`PX-07b`、`PX-08` 的市场半边评估后放弃**（理由见下） |
+
+**第二批的落地要点**（写在这里，因为代码注释之外还需要一份「为什么是这样」）：
+
+- **`PX-07a` Artifacts** — 指令是行扫描器而不是 `remark-directive`（后者会把正文里的 `:name` 也变成指令）；**未闭合的指令不算产物**（那是正在流式写的那一段，画半张页面比显示源码更糟），而围栏闭合但 `:::` 缺失算完成；`encodeArtifactsForMarkdown` 把每个指令改写成一块 ```pinext-artifact（JSON 头），于是 markdown 管线只当一个块交给 `CodeBlock`，图不会被块切分器切开；**版本就是转写里的出现次数**（`collectArtifacts`），模型修订就是重写整个块，所以历史不需要存储。
+- **`PX-10` MCP 市场** — 两种来源（官方 registry 分页 + 用户自加 Catalog JSON）共用一套读取器；**装不了的记录仍然列出并写明原因**（只有 OCI 包、需要 uv/uvx、`http://` 明文被拒），因为一行悄悄消失会被读成搜索坏了；`http://` 的远程被拒（凭据会明文过网），`https://` 的变成一个 HTTP 服务器。
+- **`PX-04` MCP OAuth** — pi-mcp 自己的流程；令牌落 `runtime/engine/agent/mcp-oauth.json`（0600，temp+rename），**按服务器 URL 存放**（改名不丢授权，两个名字同一 URL 共用一份），**绝不进 `mcp.json`**（那个文件要发给每个客户端并随每次保存重播）；`engine:mcp-sign-in` 在 `remote-policy.ts` 里**拒绝远程**（浏览器开在宿主机、回环回调也在宿主机），`sign-out` 允许；浏览器通过注入的 `openExternal` 打开，所以没有浏览器的宿主得到一句话而不是在流程里崩。
+
+**放弃的三项与理由**：
+
+| 项 | 为什么 |
+|---|---|
+| `PX-12` 非聊天模型页 | Pinext 的两个「非聊天模型」不是一份列表：生图是**独立端点**（自己的 base URL 与 key，例如中转站的 `/v1/images/generations`），决策模型是一个当分类器用的聊天模型。合并出的页面里两件事除了「模型」一词没有共同点，而两个设置页各自已经显示了自己的选择与连接状态。参考项目能合并，是因为它的 runtime 直接暴露一份 `nonchat-models` 列表 |
+| `PX-07b` React 预览运行时 | 本计划自己标的「可选」。代价是 vendored ~660 KiB 资源（React + Sucrase + Tailwind 浏览器版）加一条新的打包路径（`extraResources` + 沙箱帧内联注入）；换来的只是「组件能在应用里跑起来看」，而 `react` 产物现在**按源码渲染并注明**，读者可以复制出去。有人真的要求时再单独做 |
+| `PX-08` 的市场半边 | 要跑 `npx skills find/add`：打包后的 Electron 不能假定本机有 Node/npx（参考项目为此专门加了警告），而 CLI 输出带 ANSI 颜色且交互式，解析脆弱。**内置的 `find-skills` 技能已经在这条路上工作**——它由 agent 在 bash 里跑，那里用的就是用户自己的 shell 与 PATH。真正缺的不是再包一层 UI |
