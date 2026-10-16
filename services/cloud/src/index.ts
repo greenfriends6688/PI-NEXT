@@ -47,6 +47,13 @@ export function createCloud(config: CloudConfig, options: { fetch?: typeof fetch
   const consolePage = new ConsolePage({ store, devices, session });
 
   const server = createServer((request, response) => {
+    // One line per request. A service that introduces two devices has to be able to answer
+    // "did this phone even reach me", and a log of what arrived is the only way to tell the
+    // difference between a client that is misconfigured and one that never tried.
+    const started = Date.now();
+    response.on("finish", () => {
+      log(`${request.method ?? "?"} ${request.url ?? "?"} ${response.statusCode} ${Date.now() - started}ms`);
+    });
     void route(request, response).catch((error: unknown) => {
       log(`unhandled: ${String(error)}`);
       // A request that ends without a response leaves a socket open until the client gives up,
