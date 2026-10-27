@@ -1,0 +1,1310 @@
+/* ============================================================================
+   Pi Web · design/v3 —— 壳层接线
+   ----------------------------------------------------------------------------
+   画板的壳是「一块整窗」：.win 里左 .side、右 .detail，.detail 里 .chrome 浮在顶部帘上。
+   产品里 .app-shell 承担 .win，.app-sidebar 承担 .side，.app-main 承担 .detail。
+   这里只做「同一套 DOM 放进产品的流式布局」所需的几条覆盖，视觉全部来自 running.css。
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- 窗口 */
+
+.app-shell.win {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  width: 100%;
+  height: 100dvh;
+  /* 主人不要四角圆角矩形：整窗铺满视口，四角直角。 */
+  border-radius: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* 壁纸在最底下，窗口自己洗色。
+   渐变照抄画板 .desk（浅色 158deg 五层 + 两个光斑）；产品窗口全屏，
+   壁纸画在 ::before 自己身上，玻璃感 = veil + win-scrim 洗色透出壁纸。 */
+.app-shell.win::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  /* 画板 .win::before 是 blur(60px) saturate(180%) 打在 .desk 壁纸上；
+     这里壁纸直接画在本层，blur 省略，饱和度用 filter 等效。 */
+  filter: saturate(1.8);
+  background:
+    linear-gradient(var(--scheme-veil), var(--scheme-veil)),
+    linear-gradient(var(--win-scrim), var(--win-scrim)),
+    radial-gradient(860px 860px at 30% 42%, rgba(255, 255, 255, 0.55), transparent 62%),
+    radial-gradient(640px 480px at 100% 100%, rgba(90, 110, 130, 0.22), transparent 68%),
+    radial-gradient(760px 580px at 6% 4%, #e4e7eb, transparent 60%),
+    radial-gradient(700px 540px at 96% 2%, #ccd4df, transparent 58%),
+    radial-gradient(820px 640px at 86% 98%, #e7e1d6, transparent 62%),
+    radial-gradient(640px 520px at 16% 94%, #b9c3ce, transparent 60%),
+    linear-gradient(158deg, #c9cfd6, #b6bfc9);
+}
+
+[data-scheme="dark"] .app-shell.win::before {
+  background:
+    linear-gradient(var(--scheme-veil), var(--scheme-veil)),
+    linear-gradient(var(--win-scrim), var(--win-scrim)),
+    radial-gradient(860px 860px at 30% 42%, rgba(255, 255, 255, 0.06), transparent 62%),
+    radial-gradient(640px 480px at 100% 100%, rgba(0, 0, 0, 0.4), transparent 68%),
+    radial-gradient(760px 580px at 6% 4%, #2a2f36, transparent 60%),
+    radial-gradient(700px 540px at 96% 2%, #1b2027, transparent 58%),
+    radial-gradient(820px 640px at 86% 98%, #2b2620, transparent 62%),
+    radial-gradient(640px 520px at 16% 94%, #171b21, transparent 60%),
+    linear-gradient(158deg, #191d22, #12151a);
+}
+
+/* 26 圆角的发丝边 + 顶边高光 */
+.app-shell.win::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  border-radius: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(20, 32, 26, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+[data-scheme="dark"] .app-shell.win::after {
+  box-shadow:
+    inset 0 0 0 1px rgba(233, 239, 234, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* 画板 web-sidebar-detail：会话悬浮预览卡（悬停 350ms 才出，离开即收）。 */
+.session-hover {
+  position: fixed;
+  z-index: 300;
+  width: 300px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+  animation: pop-in 120ms ease-out both;
+}
+.session-hover__title { font-size: 12.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-hover__text { margin-top: 4px; font-size: 11.5px; line-height: 1.5; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.session-hover__meta { margin-top: 6px; font-size: 10.5px; color: var(--ink-3); }
+
+/* 无徽标的会话行不再留一个空栅：之前 π 占位被删后，标题左边空出一整块。 */
+.srow__badge:empty { display: none; }
+.srow.is-sub { padding-left: 16px; }
+
+
+.app-sidebar.side {
+  width: var(--sidebar-width, 268px);
+  flex: 0 0 auto;
+  padding-top: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* 收起态：这里的三重类赢过上面那条固定宽度，桌面「隐藏侧边栏」才真的收得起来
+   （globals 的 .sidebar-container.sidebar-closed 只管动画其余部分）。 */
+@media (min-width: 768px) {
+  .app-sidebar.side.sidebar-closed {
+    width: 0;
+    min-width: 0;
+    flex-basis: 0;
+  }
+}
+
+/* 侧栏内部的滚动与分隔交给产品，外观交给画板 */
+.app-sidebar.side .session-sidebar {
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------- 对话区 */
+
+.app-main.detail {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* 画板的 `.detail` 不是一块实色：它是窗子的帘，和侧栏一样透出壁纸。
+     产品原来读 `--sheet`（纯白），手机上就成了一整屏白色。 */
+  background: transparent;
+  box-shadow:
+    inset 1px 0 0 rgba(20, 32, 26, 0.1),
+    inset 2px 0 0 var(--sheet-edge);
+}
+
+[data-scheme="dark"] .app-main.detail {
+  box-shadow:
+    inset 1px 0 0 rgba(0, 0, 0, 0.35),
+    inset 2px 0 0 var(--sheet-edge);
+}
+
+/* globals 给 .chat-content 的实色 --bg 会把壁纸盖死；画板的 .thread 无背景，
+   detail 区就是 sheet 46% 白透出壁纸，这里对齐画板。 */
+.app-main.detail .chat-content {
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------- 浮岛壳层
+   画板是一块整窗：侧栏 / 对话 / 右栏三栏，接缝是 1px 发丝线（bridge.css 把
+   --shell-inset / --shell-gap / --pane-radius 全部归零）。参考桌面端（fastvibe）
+   的组织是三块悬在窗上的岛：离窗边 8px、彼此 8px，16 圆角加一圈发丝描边，
+   底下那层帘继续透出来。只在桌面上缩：手机是一整屏，缩了只是少一条窄屏。 */
+@media (min-width: 768px) {
+  .app-shell.win {
+    --shell-inset: 6px;
+    --shell-gap: 6px;
+    padding: var(--shell-inset);
+    gap: var(--shell-gap);
+  }
+
+  .app-sidebar.side,
+  .app-main.detail,
+  .app-right-panel {
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--sheet);
+    /* 描边画在岛内（inset），不占布局的 1px，也不和 8px 的间隙叠成双线。 */
+    box-shadow: inset 0 0 0 1px var(--glass-rim);
+  }
+
+  /* 栏与栏之间不再是接缝：岛自己分得开，去掉整窗时代的 1+2 发丝线与白色高光。 */
+  .app-main.detail,
+  [data-scheme="dark"] .app-main.detail {
+    box-shadow: inset 0 0 0 1px var(--glass-rim);
+  }
+
+  /* 收起态的负 margin 按 --shell-gap 算（globals 里那两条），岛间距跟着一起让开，
+     否则关掉的侧栏还在 flex 里留一格 8px 的空隙。 */
+  .sidebar-container.sidebar-closed {
+    margin-right: calc(var(--shell-gap) * -1);
+  }
+
+  /* macOS 桌面壳：原生红绿灯藏在窗内（electron/main.js 的 hiddenInset +
+     trafficLightPosition 24/24），侧栏顶行左边要让出它们：灯在岛边 8px 内、
+     整组约 62px 宽，所以 88px 从岛的左沿算起还留一条气。浏览器构建没有这条属性。 */
+  html[data-desktop-shell="mac"] .app-sidebar.side .sidebar-header {
+    padding-left: 88px;
+  }
+}
+
+/* ---------------------------------------------------------------- chrome row
+   画板里 .chrome 绝对定位浮在帘上；产品里 topBarRef 要给下拉面板量位置，
+   所以留在流里，只借它的排版（12/14 内边距、10 间距、32 胶囊）。 */
+
+.app-topbar {
+  background: transparent;
+}
+
+.app-topbar-row.chrome {
+  position: static;
+  left: auto;
+  right: auto;
+  top: auto;
+  z-index: auto;
+  height: 56px;
+  padding: 12px 14px 0;
+  gap: 10px;
+}
+
+/* 标题即 .chrome__title：15 / 600 / 单行 */
+.app-topbar-context {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.app-topbar-eyebrow {
+  display: none;
+}
+
+/* 产品自带的圆钮统一走 .cbtn 的外观；带文字的按钮仍是 8 圆角 */
+.app-chrome-button.cbtn {
+  width: 32px;
+  height: 32px;
+}
+
+.app-toolbar-group > button,
+.app-stats-trigger,
+.app-file-trigger {
+  border-radius: 8px !important;
+}
+
+.app-stats-trigger,
+.app-file-trigger {
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+/* ---------------------------------------------------------------- 时间线与输入区 */
+
+/* 画板的正文列：max 820、横 20；产品用 --chat-content-max-width 给宽度 */
+.chat-column-gutter {
+  padding-inline: 20px !important;
+}
+
+/* running.css 的 .thread 会盖掉滚动与顶部留白，这里把产品的滚动要回来 */
+.thread {
+  position: relative;
+  z-index: 5;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: 16px;
+  padding-bottom: 18px;
+}
+
+/* .thread__inner 在 .chat-column-gutter 里，横向留白由 gutter 给，这里不重复 */
+.thread__inner {
+  width: 860px;
+  max-width: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--thread-gap);
+}
+
+/* 一轮 = 一个 .turn：气泡 → 组头 → 步骤 → 回答 → 文件卡，行距 20 */
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--thread-gap);
+}
+
+/* 组头：26 高、chevron 落在树干列上（产品里仍由 ProcessDetailsGroup 提供，
+   这里只把它的间距压到和画板一致） */
+.turn > [data-process-group] {
+  margin: 0;
+}
+
+/* 整份历史都画：不再有「更早 N 轮」的胶囊（分页已去掉）。 */
+
+/* ---------------------------------------------------------------- 扩展状态 icon（右上角） */
+.ext-dock {
+  position: fixed;
+  top: calc(var(--chrome-height, 56px) + 8px);
+  right: 12px;
+  z-index: 320;
+}
+.ext-dock__btn { position: relative; }
+.ext-dock__btn::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.ext-dock__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 260px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  animation: pop-in 120ms ease-out both;
+}
+.ext-dock__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--line-soft);
+}
+.ext-dock__body { max-height: 260px; overflow: auto; padding: 4px 0; }
+.ext-dock__row {
+  padding: 6px 12px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  line-height: 1.5;
+}
+.ext-dock__row.is-command { display: block; width: 100%; border: 0; background: none; text-align: left; cursor: pointer; }
+.ext-dock__row.is-command:hover { background: var(--fill-2); }
+.ext-dock__row.is-widget { padding: 0; }
+
+/* ---------------------------------------------------------------- 变更卡（web-changes） */
+
+.changes-panel {
+  position: fixed;
+  top: calc(var(--chrome-height, 56px) + 12px);
+  right: 16px;
+  z-index: 400;
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(72dvh, 640px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  animation: pop-in 140ms ease-out both;
+}
+.changes-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  flex: none;
+}
+.changes-panel__title { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.changes-panel__title .ic { width: 13px; height: 13px; color: var(--ink-2); }
+.changes-panel__count { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-3); margin-left: auto; }
+.changes-panel__body { flex: 1; min-height: 0; overflow: auto; padding: 6px 8px 10px; }
+.changes-panel__empty { padding: 14px 10px; font-size: 11.5px; color: var(--ink-3); }
+.changes-file { border: 1px solid var(--line-soft); border-radius: 12px; margin: 6px 0; overflow: hidden; }
+.changes-file__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: var(--fill-1);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.changes-file__head .ic { width: 12px; height: 12px; color: var(--ink-3); flex: none; }
+.changes-file__path { flex: 1; min-width: 0; font-family: var(--mono); }
+.changes-file__status { font-family: var(--mono); font-size: 10.5px; color: var(--warning); }
+.changes-file__stat { display: flex; gap: 6px; font-family: var(--mono); font-size: 11px; }
+.changes-file__body { max-height: 320px; overflow: auto; }
+.changes-file__open { display: flex; justify-content: flex-end; padding: 4px 8px; border-bottom: 1px solid var(--line-soft); }
+.add { color: var(--success, #3f9d63); }
+.del { color: var(--danger, #d05a5a); }
+
+
+/* 浮层 / 菜单的入场：画板 web-motion-* 里那几个都是「淡入 + 上移 4」。
+   只给弹层加，不给列表行加（行上动效会跟虚拟滚动打架）。 */
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ctx-panel,
+.effort-card {
+  animation: pop-in 130ms ease-out both;
+}
+/* 侧栏折叠 / 右栏开合用产品自己的 200ms 宽度动画；这里只给抽展缩一下。 */
+.sidebar-tab,
+.m-setrow,
+.tree-row,
+.srow { transition: background 120ms ease, color 120ms ease; }
+@media (prefers-reduced-motion: reduce) {
+  .ctx-panel,
+  .effort-card { animation: none; }
+  .sidebar-tab,
+  .m-setrow,
+  .tree-row,
+  .srow { transition: none; }
+}
+
+/* ---------------------------------------------------------------- 输入胶囊 */
+
+/* `.ring` 的上下文浮窗（画板 .menu 的位置：环上方 8） */
+/* 全局 button 的 1px 描边会把 `.ring` 圈成黑环（主人截图），这里清掉。 */
+.composer .ring { box-shadow: none !important; }
+.ctx-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 120;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.ctx-panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ctx-panel__title { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.ctx-panel__pct { font-size: 12.5px; color: var(--ink-2); }
+.ctx-panel__bar {
+  height: 6px;
+  margin: 8px 0 6px;
+  border-radius: 999px;
+  background: var(--fill-2);
+  overflow: hidden;
+}
+.ctx-panel__bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 200ms ease;
+}
+.ctx-panel__meta { font-size: 11px; color: var(--ink-3); }
+.ctx-panel__rows { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 2px; }
+.ctx-panel__row { display: flex; align-items: baseline; gap: 10px; font-size: 11.5px; }
+.ctx-panel__label { flex: none; width: 62px; color: var(--ink-3); }
+.ctx-panel__value { min-width: 0; color: var(--ink-2); }
+.ctx-panel__stats { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; color: var(--ink-2); }
+.ctx-panel__compact { width: 100%; margin-top: 8px; justify-content: center; }
+
+/* 模型 chip 菜单顶部那张强度卡（web-menu-model） */
+.effort-card { width: 100%; }
+.effort-top .effort-btn { margin-left: auto; }
+.effort-title[data-auto] { color: var(--ink-2); font-weight: 500; background: none; -webkit-background-clip: initial; background-clip: initial; -webkit-text-fill-color: currentColor; }
+.effort-model .trunc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
+.effort-model svg { width: 12px; height: 12px; }
+.effort-track { cursor: pointer; }
+/* 原生 range 铺在轨道上面：拖、点、方向键都白拿（画板只有视觉）。 */
+.effort-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.effort-range:disabled { cursor: default; }
+.effort-track:has(.effort-range:focus-visible) { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 999px; }
+.effort-stop, .effort-thumb { transform: translateX(-50%); }
+.effort-fill { transition: width 160ms ease; }
+.effort-thumb { transition: left 160ms ease; }
+.effort-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+.effort-levels { display: flex; gap: 8px; font-size: 10.5px; color: var(--ink-4); }
+.effort-levels .is-on { color: var(--ink); font-weight: 600; }
+.effort-auto {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.effort-auto.is-on { border-color: var(--accent); color: var(--accent); }
+
+.composer .chat-send-button.is-stop { background: var(--ink) !important; color: var(--surface) !important; }
+
+/* 输入区：胶囊（.composer）自己负责 8px 内边距与 820 列宽，
+   fieldset 退成纯布局容器，否则胶囊里会多出一圈 14px 的底。 */
+.chat-input-shell {
+  padding: 0 !important;
+}
+
+/* 画板的 .composer 是玻璃本体；产品自带的卡片在它里面退成透明。
+   胶囊现在真的包住了「写字行 + 按钮行」，所以不能再 hidden——@ 菜单和
+   历史菜单是它的绝对定位子节点，hidden 会把它们裁掉。 */
+.composer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 22px;
+  background: var(--glass);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-rim),
+    inset 0 1px 0 var(--glass-hi),
+    0 22px 44px -28px rgba(18, 38, 28, 0.55);
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  overflow: visible;
+}
+
+.composer .chat-input-shell {
+  padding: 0 !important;
+}
+
+.composer .chat-input-card {
+  border: 0 !important;
+  border-radius: 14px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 4px 4px 0 6px !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.composer .chat-input-card:focus-within {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.composer .chat-input-controls {
+  margin-top: 0 !important;
+  padding: 0 2px 2px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* 控制键按画板 `.chip` 的尺寸：26 高、999 圆、9 内边距（思考 / 工具 / 压缩 / 提示音 / 更多控件）。
+   三个真圆钮（+ / 上下文环 / 发送）不在内。 */
+.composer .composer__bar button:not(.composer__plus):not(.ring):not(.chat-send-button) {
+  height: 26px !important;
+  min-height: 0 !important;
+  border-radius: 999px !important;
+  padding: 0 9px !important;
+}
+
+/* 圆钮与发送键：画板的 28 圆 */
+.composer .composer__plus,
+.composer .ring,
+.composer .chat-send-button {
+  border-radius: 50% !important;
+}
+
+.composer .chat-send-button {
+  width: 28px !important;
+  height: 28px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  font-size: 0 !important;
+  background: var(--accent) !important;
+  color: var(--on-accent) !important;
+  box-shadow: none !important;
+}
+
+.composer .chat-send-button:disabled {
+  background: var(--fill-3) !important;
+  color: var(--ink-4) !important;
+}
+
+/* 变更页签：12 圆角、浮在胶囊上方 8 */
+.composer-wrap > .tab {
+  margin-bottom: 8px;
+}
+
+/* 组头：画板的 .grp-head 是给 button 写的排版，产品这里也是 button，补掉 UA 默认 */
+.grp-head {
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* 工具调用卡 → 画板的 .step 行：图标 / 动词 / 主语 / 用时 / chevron，左边是树干。
+   卡片的身体（参数、diff、结果）留在 .step__body 里，8 种工具视图一行没改。 */
+/* globals.css 里 .tool-call-card 用 !important 画了边框与底色（旧皮），
+   换上 .step 后要把那层壳整个撤掉，只留树干那一列。
+   上下内边距归零，树干（.step__cont）才能从行顶连到行底，不断成一节一节。 */
+.step.tool-call-card,
+.step.thinking-step {
+  padding: 0 10px 0 32px !important;
+}
+
+.step.tool-call-card {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+.step.tool-call-card .step__line,
+.step.thinking-step .step__line {
+  min-height: 32px;
+}
+
+.step.tool-call-card .step__cont,
+.step.thinking-step .step__cont {
+  top: 0;
+  height: 100%;
+}
+
+/* 画板的树里没有「这条消息用了哪个模型」那一行；组内隐藏，树才干净。
+   组外的最后回答仍保留标签。 */
+.steps .assistant-model-label {
+  display: none !important;
+}
+
+/* 带步骤的消息：树干（.step）左边留 32px 内边距，模型名和时间原来贴在消息列的
+   最左边，比树干还靠外，看着像错位。有步骤时一起让到树干那一列。 */
+.message-assistant:has(.step) > .assistant-model-label,
+.message-assistant:has(.step) > .assistant-foot {
+  padding-left: 32px;
+}
+
+.steps .message-assistant {
+  margin-bottom: 0 !important;
+}
+
+.step.tool-call-card:hover {
+  background: var(--fill-1) !important;
+  border-radius: 8px !important;
+}
+
+.step__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.step__action {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.step__action:hover {
+  background: var(--fill-2);
+  color: var(--ink);
+}
+
+.step__panel {
+  padding: 6px 0 2px;
+}
+
+.step.is-error .step__icon,
+.step.is-error .step__verb {
+  color: var(--danger);
+}
+
+/* 本轮写过的文件：画板的胶囊（.chip），不是旧的灰框 */
+.written-file-chip {
+  border: 0;
+  background: var(--fill-2);
+  font: inherit;
+  font-size: var(--t-callout);
+  cursor: pointer;
+}
+
+.written-file-chip:hover {
+  background: var(--fill-3);
+}
+
+/* ---------------------------------------------------------------- 手机 */
+
+@media (max-width: 767px) {
+  .app-shell.win {
+    border-radius: 0;
+  }
+
+  .app-shell.win::after {
+    display: none;
+  }
+
+  .app-sidebar.side {
+    width: 100vw;
+  }
+
+  .app-main.detail {
+    box-shadow: none;
+    /* 手机也不铺纯白：透出窗子的淡色帘（画板 pwa-running）。 */
+    background: transparent;
+  }
+
+  .app-topbar-row.chrome {
+    height: 52px;
+    padding: 8px 12px 0;
+  }
+
+  .app-topbar-row.chrome > .app-chrome-button.cbtn,
+  .app-topbar-row.chrome .app-mobile-toolbar button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+  }
+
+  .chat-input-shell {
+    padding: 0 0 max(10px, env(safe-area-inset-bottom)) !important;
+    padding-right: 0 !important;
+  }
+}
+
+/* 会话头的「⋯」下拉（历史 / 生成标题 / 分支 / 系统提示词 / 工具定义）：
+   一排五颗图标认不出谁是谁，收成一张带文字的下拉卡，锚在胶囊右端。 */
+/* 顶栏自己也是这些浮层的宿主（系统提示词 / 工具定义那几张就渲染在工具行里，
+   z-index 500），所以「⋯」菜单必须开得比它们高：菜单 z-index 低一级时会被
+   浮层盖住，用户看到的就是「点了浮窗关不掉」——其实是点不到这张卡。 */
+
+.chrome-more {
+  position: relative;
+}
+
+/* 顶栏右侧的单颗圆钮（「更多」与右栏开关）：32 正圆，不套胶囊。 */
+.app-topbar-row.chrome .chrome__right > .cbtn,
+.app-topbar-row.chrome .chrome__right .chrome-more > .cbtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.chrome-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 560;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.06);
+  animation: pop-in 120ms ease-out both;
+}
+
+.chrome-more-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chrome-more-row .ic {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.chrome-more-row:hover:not(:disabled),
+.chrome-more-row:focus-visible {
+  background: var(--fill-2);
+  color: var(--ink);
+  outline: none;
+}
+
+.chrome-more-row.is-on {
+  color: var(--accent);
+}
+
+.chrome-more-row:disabled {
+  color: var(--ink-3);
+  cursor: default;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome-more-menu { animation: none; }
+}
+
+/* 右栏工具栏的「+」：锚在按钮右下方，一张 176 宽的下拉卡（fastvibe 的
+   DropdownMenuContent align=end），一行一个图标 + 文字。 */
+.panel-add {
+  position: relative;
+  display: flex;
+}
+
+.panel-add-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: 184px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.06);
+  animation: pop-in 120ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-add-menu { animation: none; }
+}
+
+/* 会话头的「⋯」下拉（历史 / 生成标题 / 分支 / 系统提示词 / 工具定义）：
+   一排五颗图标认不出谁是谁，收成一张带文字的下拉卡，锚在胶囊右端。 */
+/* 顶栏自己也是这些浮层的宿主（系统提示词 / 工具定义那几张就渲染在工具行里，
+   z-index 500），所以「⋯」菜单必须开得比它们高：菜单 z-index 低一级时会被
+   浮层盖住，用户看到的就是「点了浮窗关不掉」——其实是点不到这张卡。 */
+
+.chrome-more {
+  position: relative;
+}
+
+/* 顶栏右侧的单颗圆钮（「更多」与右栏开关）：32 正圆，不套胶囊。 */
+.app-topbar-row.chrome .chrome__right > .cbtn,
+.app-topbar-row.chrome .chrome__right .chrome-more > .cbtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.chrome-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 560;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.06);
+  animation: pop-in 120ms ease-out both;
+}
+
+.chrome-more-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chrome-more-row .ic {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.chrome-more-row:hover:not(:disabled),
+.chrome-more-row:focus-visible {
+  background: var(--fill-2);
+  color: var(--ink);
+  outline: none;
+}
+
+.chrome-more-row.is-on {
+  color: var(--accent);
+}
+
+.chrome-more-row:disabled {
+  color: var(--ink-3);
+  cursor: default;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome-more-menu { animation: none; }
+}
+
+/* 右栏工具栏的「+」：锚在按钮右下方，一张 176 宽的下拉卡（fastvibe 的
+   DropdownMenuContent align=end），一行一个图标 + 文字。 */
+.panel-add {
+  position: relative;
+  display: flex;
+}
+
+.panel-add-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: 184px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.06);
+  animation: pop-in 120ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-add-menu { animation: none; }
+}
+
+/* ---------------------------------------------------------------- 右栏头
+   照 fastvibe 的 `data-side-pane-header`：44 高、左 8 右 8 内边距、元素间 4 间距，
+   左边一颗「+」（24 圆、描边），中间一列 28 高的圆角页签（未选中是灰字，选中是
+   一档 --fill-2 底），右边展开 / 收起两颗 28 圆。整行一条发丝底线。 */
+#file-panel .app-panel-toolbar.side-pane-header {
+  /* 工具行必须先成一层：它下面的正文是同胞且在后，浮出的「+」菜单若没有这层
+     z-index，会被正文（审查页的表头）画在上面，看起来像菜单半透明。 */
+  position: relative;
+  z-index: 30;
+  gap: 4px;
+  height: 44px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+
+/* 「+」：28 圆、发丝描边（fastvibe 的 icon-xs 描边钮），不是原来那格方块 */
+#file-panel .panel-add > button {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-2);
+}
+
+#file-panel .panel-add > button:hover {
+  background: var(--fill-2);
+  color: var(--ink);
+}
+
+#file-panel .side-pane-tabs {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* TabBar 自带 36 高的滚动盒：在这条 44 高的头里让它撑满、只横滚 */
+#file-panel .side-pane-tabs > div {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+  width: 100%;
+}
+
+/* 页签条：28 高、横向滚动、无滚动条、间距 4 */
+#file-panel .side-pane-tabs .app-tabbar {
+  gap: 4px;
+  height: 32px;
+  padding: 0;
+  box-shadow: none;
+  background: transparent !important;
+}
+
+#file-panel .side-pane-tabs .app-tab {
+  flex: none;
+  max-width: 160px;
+  min-width: 60px;
+  height: 28px;
+  padding: 0 6px 0 6px !important;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none !important;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+#file-panel .side-pane-tabs .app-tab:hover {
+  background: var(--fill-2) !important;
+  color: var(--ink);
+}
+
+#file-panel .side-pane-tabs .app-tab[aria-selected="true"] {
+  background: var(--fill-2) !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+
+#file-panel .side-pane-tabs .app-tab-close {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 4px !important;
+  opacity: 0.45;
+}
+
+#file-panel .side-pane-tabs .app-tab:hover .app-tab-close,
+#file-panel .side-pane-tabs .app-tab[aria-selected="true"] .app-tab-close {
+  opacity: 0.85;
+}
+
+/* 右侧的展开 / 收起：28 圆、悬停一档底，和 fastvibe 的 icon-sm 一致 */
+#file-panel .app-panel-toolbar .file-panel-expand-button,
+#file-panel .app-panel-toolbar .app-panel-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--ink-2);
+}
+
+#file-panel .app-panel-toolbar .file-panel-expand-button:hover,
+#file-panel .app-panel-toolbar .app-panel-close:hover {
+  background: var(--fill-2);
+  color: var(--ink);
+}
+
+/* 审查页签：右栏里的一页，不再是浮在窗口上的卡片。 */
+.changes-panel.is-inline {
+  position: static;
+  /* flex 项即使 position: static 也吃 z-index，基类那条 400 会把它抬到右栏工具行
+     （「+」菜单）之上；这一页是正文，层叠交给宿主。 */
+  z-index: auto;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.changes-panel.is-inline .changes-panel__head {
+  padding: 10px 12px;
+}
+
+.panel-review {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 右栏空态（fastvibe 的 `side-pane-open-tab-shell`）：居中的一句话 + 一列大卡，
+   点一张就开那一类页签。 */
+.side-pane-empty {
+  container-type: inline-size;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 0;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+
+.side-pane-empty__inner {
+  display: flex;
+  width: 100%;
+  max-width: 320px;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.side-pane-empty h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  text-align: center;
+}
+
+.side-pane-empty p {
+  margin: 8px 0 0;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.side-pane-empty__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.side-pane-empty__card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--fill-2);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-hover);
+}
+
+.side-pane-empty__card:hover:not(:disabled) {
+  background: var(--fill-3);
+}
+
+.side-pane-empty__card:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.side-pane-empty__card .ic {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--ink-2);
+}
+
+.side-pane-empty__card span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 宽面板（≥480）时照 fastvibe 的两列网格 + 更高的卡片。 */
+@container (min-width: 480px) {
+  .side-pane-empty__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  }
+
+  .side-pane-empty__card {
+    height: 88px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 6px;
+  }
+}
+
+/* 页签右键菜单（关闭 · 关闭其他 · 全部关闭）：一张 160 宽的小卡。 */
+.tab-context-menu {
+  display: flex;
+  flex-direction: column;
+  width: 160px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.06);
+  animation: pop-in 120ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-context-menu { animation: none; }
+}
+
+/* 「子代理」页：一行一次运行，点开就是它的转录页签。 */
+.panel-agents {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.panel-agent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panel-agent-row:hover {
+  background: var(--fill-2);
+}
+
+.panel-agent-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fill-3);
+}
+
+.panel-agent-dot.is-running {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.panel-agent-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-agent-meta {
+  flex: none;
+  color: var(--ink-3);
+  font-size: 10.5px;
+}
+
+/* ---------------------------------------------------------------- 背景透明度
+   设置里那条滑块写 `--pane-alpha`（默认 1）。窗的帘（--win-scrim）和三块岛的
+   底色都乘上它：1 就是画板那种厚帘，越小越透出壁纸。 */
+:root {
+  --pane-alpha: 1;
+}
+
+.app-shell.win::before {
+  opacity: var(--pane-alpha);
+}
+
+.app-sidebar.side,
+.app-main.detail,
+.app-right-panel {
+  background: color-mix(in srgb, var(--surface) calc(46% * var(--pane-alpha)), transparent);
+}

@@ -1,0 +1,28 @@
+"use strict";
+
+const { contextBridge, ipcRenderer } = require("electron");
+
+// The renderer is the web app; it only needs to know that it is running
+// inside the desktop shell. No Node API is exposed to the page.
+contextBridge.exposeInMainWorld("piWebDesktop", {
+  isDesktop: true,
+  platform: process.platform,
+  arch: process.arch,
+  /**
+   * The OS's own folder picker. Resolves `{ canceled, path }`; a build without
+   * the handler rejects and the page keeps its own directory browser.
+   */
+  pickDirectory: (options) => ipcRenderer.invoke("pi-web:pick-directory", options ?? {}),
+});
+
+// The shell's own window chrome: on macOS the traffic lights are inset into the
+// sidebar's first row (electron/main.js), so that row has to leave room for them
+// and the browser build must not. A data attribute is the whole signal — the app
+// keeps working with no desktop flag at all.
+function markDesktopShell() {
+  if (process.platform !== "darwin") return;
+  document.documentElement?.setAttribute("data-desktop-shell", "mac");
+}
+
+markDesktopShell();
+document.addEventListener("DOMContentLoaded", markDesktopShell);

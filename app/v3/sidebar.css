@@ -1,0 +1,226 @@
+/* ============================================================================
+   Pi Web · design/v3 —— 侧栏接线
+   ----------------------------------------------------------------------------
+   画板的侧栏是 .side > .side__tools / .side__list（.sec-head + .srow）/ .side__foot。
+   产品的侧栏组件仍管虚拟滚动、分组、菜单，这里只把「行」换成画板的 .srow 模型：
+   徽标 20 + 标题 + 右侧一句话，28 高、7 圆角、悬停 6%、选中 12%。
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- 工具行 */
+
+.side .sidebar-header {
+  padding: 12px 10px 0;
+  gap: 6px;
+  min-height: 0;
+}
+
+/* 顶栏的按钮回到 droppy 的 ghost-btn：30 圆、悬停 6% */
+.side .sidebar-header .app-icon-button,
+.side .sidebar-header .sidebar-mobile-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--ink-2);
+}
+
+.side .sidebar-header .app-icon-button:hover,
+.side .sidebar-header .sidebar-mobile-close:hover {
+  background: var(--fill-2);
+  color: var(--ink);
+}
+
+/* 两个页签（会话 / 文件）做成胶囊里的两格，不再是一条下划线 */
+.side .sidebar-tabs-list {
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--fill-2);
+}
+
+.side .sidebar-tab {
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-size: 12px;
+  transition: background var(--dur-hover), color var(--dur-hover);
+}
+
+.side .sidebar-tab:hover {
+  color: var(--ink);
+}
+
+.side .sidebar-tab.is-selected {
+  background: var(--glass);
+  color: var(--ink);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-rim),
+    0 1px 2px rgba(18, 38, 28, 0.06);
+}
+
+/* ---------------------------------------------------------------- 行 */
+
+.session-tree-row.srow {
+  padding: 0 8px;
+  border-radius: 7px;
+  gap: 0;
+  transition: background var(--dur-hover);
+}
+
+.session-tree-row.srow.is-sub {
+  padding-left: 20px;
+}
+
+/* 悬停也只由外层 `.session-tree-session:hover` 上色（app/sidebar.css）。
+   内层 `.srow` 自己的 `:hover`（running.css）又铺一层，整行就会出现两档
+   深浅，和之前选中行的两层底色是同一个问题。 */
+.session-tree-main.srow:hover {
+  background: transparent;
+}
+
+/* 选中的行只由外层 `.session-tree-session.is-selected` 上色（app/sidebar.css）。
+   画板的 `.srow.is-sel`（running.css）会给行自己再铺一层 `--fill-4`，两层叠起来
+   选中比预期深一档，手机上还能看到两层不同的圆角。这里把行自己那一层收掉；
+   选择器要压过 running.css 的 `.srow.is-sel`。 */
+.session-tree-main.srow.is-sel {
+  background: transparent;
+}
+
+.session-tree-row.srow .session-tree-main {
+  gap: 8px;
+}
+
+.srow__badge {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--ink-2);
+}
+
+.srow__badge .pi-mark {
+  width: 15px;
+  height: 15px;
+  display: block;
+  color: var(--ink-2);
+}
+
+.srow__badge .spin--mini {
+  --cell: 2.8px;
+}
+
+.srow__title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--t-body);
+  color: var(--ink);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.srow.is-sel .srow__title {
+  font-weight: 500;
+}
+
+.srow__trail {
+  flex: none;
+  font-size: var(--t-sub);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.srow.is-settled {
+  height: 24px;
+}
+
+.srow.is-settled .srow__title {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.srow.is-settled .srow__badge {
+  color: var(--ink-4);
+}
+
+/* 等待回答 / 未读：画板的两个状态点 */
+.srow__trail.is-awaiting {
+  color: var(--warning);
+}
+
+.srow .session-tree-branch {
+  flex: none;
+  font-size: var(--t-sub);
+  color: var(--ink-3);
+}
+
+/* 行尾的动作（归档 / 更多）：悬停才浮出来，平时让位给时间 */
+.session-tree-row.srow .session-tree-actions {
+  opacity: 0;
+  transition: opacity var(--dur-hover);
+}
+
+.session-tree-row.srow:hover .session-tree-actions,
+.session-tree-row.srow.is-menu-open .session-tree-actions,
+.session-tree-row.srow:focus-within .session-tree-actions {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------- 分区头与页脚 */
+
+.session-tree-group-name,
+.sidebar-files-section-label {
+  font-size: var(--t-callout);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.side .session-tree-footer {
+  padding: 6px 10px 12px;
+  border-top: 0;
+  background: transparent;
+}
+
+.side .session-tree-footer-button {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 7px;
+  color: var(--ink-2);
+  font-size: var(--t-body);
+}
+
+.side .session-tree-footer-button:hover {
+  background: var(--fill-2);
+  color: var(--ink);
+}
+
+/* 手机：行高 44 由 lib/session-tree.ts 给，形状仍是 10 圆角 */
+@media (max-width: 767px) {
+  .session-tree-row.srow {
+    border-radius: 10px;
+  }
+
+  .side .sidebar-header {
+    padding: 8px 10px 0;
+  }
+}
+
+/* The board folds `.side__tools` into a single search field while searching.
+   The product opens the search on its own row below, so folding the tools here
+   only made New and Search vanish. Keep both buttons (and their spacer). */
+.sidebar-header .side__tools.is-searching .ghost-btn {
+  display: grid;
+}
+
+.sidebar-header .side__tools.is-searching .spacer {
+  display: block;
+}
+
+/* Frame D marks the selected row with its fill alone; `app/sidebar.css` also
+   paints a 3px accent bar on the left edge, which reads as a second colour on
+   the same row. The v3 tree uses the fill and the heavier title instead. */
+.session-tree-session.is-selected:not(.is-confirming)::before {
+  display: none;
+}

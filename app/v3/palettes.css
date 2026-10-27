@@ -1,0 +1,92 @@
+/* ============================================================================
+   Pi Web · design/v3 —— 调色板
+   ----------------------------------------------------------------------------
+   画板里调色板是 running.js 的 THEMES 表 + 内联 CSS 变量；产品有构建期 CSS，
+   所以把同一张表写成 [data-theme="…"] 块，省掉首屏 JS 与闪烁。
+
+   id 与 lib/theme.ts 的 THEME_OPTIONS 一一对应。前 13 套是产品原有的，
+   后 23 套是画板从 droppy 的 AppTheme.swift 搬来的。明暗仍由 [data-scheme] 决定，
+   这里只给 surface / accent / 三个状态色。
+   ========================================================================== */
+
+/* --- 产品原有的 11 套（surface / accent 保持原值，其余交给派生） --- */
+[data-theme="mist"] { --surface: #f4f8f7; --accent: #1e6559; }
+[data-theme="rose"] { --surface: #fcf7f8; --accent: #914360; }
+[data-theme="pine"] { --surface: #19201f; --accent: #acccb7; --on-accent: #10201a; }
+[data-theme="sand"] { --surface: #faf6ee; --accent: #7a4f10; }
+[data-theme="slate"] { --surface: #161b26; --accent: #8ccfe0; --on-accent: #0d1620; }
+[data-theme="dusk"] { --surface: #1e1a24; --accent: #cdb4f0; --on-accent: #1d1626; }
+[data-theme="lilac"] { --surface: #f8f6fc; --accent: #6a43a8; }
+[data-theme="ember"] { --surface: #1f1a16; --accent: #e8b27a; --on-accent: #241a12; }
+[data-theme="contrast-light"] { --surface: #ffffff; --accent: #0034a0; }
+[data-theme="contrast-dark"] { --surface: #000000; --accent: #ffd60a; --on-accent: #1a1a00; }
+[data-theme="zenburn"] { --surface: #3f3f3f; --accent: #f0dfaf; --on-accent: #2b2b2b; }
+
+/* --- droppy 的 23 套（AppTheme.swift 一行一套） --- */
+[data-theme="catppuccinMocha"] { --surface: #1e1e2e; --accent: #cba6f7; --success: #a6e3a1; --warning: #f9e2af; --danger: #f38ba8; }
+[data-theme="catppuccinLatte"] { --surface: #eff1f5; --accent: #8839ef; --success: #40a02b; --warning: #df8e1d; --danger: #d20f39; }
+[data-theme="dracula"] { --surface: #282a36; --accent: #bd93f9; --success: #50fa7b; --warning: #ffb86c; --danger: #ff5555; }
+[data-theme="tokyoNight"] { --surface: #1a1b26; --accent: #7aa2f7; --success: #9ece6a; --warning: #e0af68; --danger: #f7768e; }
+[data-theme="nord"] { --surface: #2e3440; --accent: #88c0d0; --success: #a3be8c; --warning: #ebcb8b; --danger: #bf616a; }
+[data-theme="gruvbox"] { --surface: #282828; --accent: #fe8019; --success: #b8bb26; --warning: #fabd2e; --danger: #fb4934; }
+[data-theme="gruvboxLight"] { --surface: #fbf1c7; --accent: #af3a03; --success: #79740e; --warning: #b57614; --danger: #9d0006; }
+[data-theme="oneDark"] { --surface: #282c34; --accent: #61afef; --success: #98c379; --warning: #e5c07b; --danger: #e06c75; }
+[data-theme="everforest"] { --surface: #2d353b; --accent: #a7c080; --success: #a7c080; --warning: #dbbc7f; --danger: #e67e80; }
+[data-theme="kanagawa"] { --surface: #1f1f28; --accent: #7e9cd8; --success: #98bb6c; --warning: #d7a657; --danger: #e82424; }
+[data-theme="rosePine"] { --surface: #191724; --accent: #eb6f92; --success: #9ccfd8; --warning: #f6c177; --danger: #eb6f92; }
+[data-theme="solarizedDark"] { --surface: #002b36; --accent: #268bd2; --success: #859900; --warning: #b58900; --danger: #dc322f; }
+[data-theme="solarizedLight"] { --surface: #fdf6e3; --accent: #268bd2; --success: #859900; --warning: #b58900; --danger: #dc322f; }
+[data-theme="githubDark"] { --surface: #0d1117; --accent: #4493f8; --success: #3fb950; --warning: #d29922; --danger: #f85149; }
+[data-theme="githubLight"] { --surface: #ffffff; --accent: #0969da; --success: #1a7f37; --warning: #9a6700; --danger: #cf222e; }
+[data-theme="ayu"] { --surface: #0f1419; --accent: #e6b450; --success: #aad94c; --warning: #ffb454; --danger: #f58572; }
+[data-theme="nightOwl"] { --surface: #011627; --accent: #82aaff; --success: #c5e478; --warning: #ecc48d; --danger: #ef5350; }
+[data-theme="monokai"] { --surface: #272822; --accent: #f92672; --success: #a6e22e; --warning: #fd971f; --danger: #f92672; }
+[data-theme="claude"] { --surface: #1a1816; --accent: #c15f3c; --success: #51a556; --warning: #c9a227; --danger: #d97757; }
+[data-theme="claudeLight"] { --surface: #faf9f5; --accent: #c15f3c; --success: #2e7d32; --warning: #9a6700; --danger: #b3261e; }
+[data-theme="codex"] { --surface: #101014; --accent: #d946ef; --success: #3fb950; --warning: #d29922; --danger: #f85149; }
+[data-theme="cursor"] { --surface: #181818; --accent: #88c0d0; --success: #3fa266; --warning: #f1b467; --danger: #e34671; }
+[data-theme="matrix"] { --surface: #000000; --accent: #00e676; --success: #00e676; --warning: #ffd600; --danger: #ff5252; }
+
+/* 亮色主题的「桌面」与深色主题的「桌面」：玻璃背后要有个形状才看得出模糊 */
+:root,
+[data-theme="light"],
+[data-theme="mist"],
+[data-theme="rose"],
+[data-theme="sand"],
+[data-theme="lilac"],
+[data-theme="contrast-light"],
+[data-theme="catppuccinLatte"],
+[data-theme="gruvboxLight"],
+[data-theme="solarizedLight"],
+[data-theme="githubLight"],
+[data-theme="claudeLight"] {
+  --desk: #e7eae5;
+}
+
+[data-theme="dark"],
+[data-theme="pine"],
+[data-theme="slate"],
+[data-theme="dusk"],
+[data-theme="ember"],
+[data-theme="contrast-dark"],
+[data-theme="zenburn"],
+[data-theme="catppuccinMocha"],
+[data-theme="dracula"],
+[data-theme="tokyoNight"],
+[data-theme="nord"],
+[data-theme="gruvbox"],
+[data-theme="oneDark"],
+[data-theme="everforest"],
+[data-theme="kanagawa"],
+[data-theme="rosePine"],
+[data-theme="solarizedDark"],
+[data-theme="githubDark"],
+[data-theme="ayu"],
+[data-theme="nightOwl"],
+[data-theme="monokai"],
+[data-theme="claude"],
+[data-theme="codex"],
+[data-theme="cursor"],
+[data-theme="matrix"] {
+  --desk: #0c110e;
+}

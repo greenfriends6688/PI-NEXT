@@ -1,0 +1,29 @@
+/* 顶栏按钮组（部件 01-chrome）的产品侧补丁。
+   画板：design/v3/boards/web-running.html 帧 A / 帧 B 的 `.chrome` 行。
+   颜色 / 尺寸 / 圆角 / 阴影一律来自 running.css 的 `.cbtn` / `.ccap` / `.ccap--text` / `.kbd`，
+   这里只写画板（静态 DOM）不需要、产品（真按钮）必须有的三件事。 */
+
+/* 1. UA 归零之后 button 没有指针：画板里的 `.cbtn` 是 <button> 元素本身，
+      Tailwind preflight 不给光标，这里补上。 */
+.app-topbar-row.chrome .cbtn,
+.app-topbar-row.chrome .ccap--text {
+  cursor: pointer;
+}
+
+/* 2. 分支名可以很长（fork/v3-boards-web-running）：胶囊跟着标题让位，
+      只让中间那截文字省略，图标和 ⌄ 不动。 */
+.app-topbar-row.chrome .ccap--text {
+  min-width: 0;
+}
+.app-topbar-row.chrome .ccap--text > .trunc {
+  flex: 0 1 auto;
+}
+
+/* 3. 画板里没有禁用态（每颗钮都能点）；产品有四颗按能力置灰的钮
+      （open-in 在远程访问时、终端/变更在还没有工作目录时）。
+      沿用产品自己的 disabled 口径（.file-viewer-icon-button:disabled），不新造视觉值。 */
+.app-topbar-row.chrome .cbtn:disabled,
+.app-topbar-row.chrome .ccap--text:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

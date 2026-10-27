@@ -1,0 +1,12 @@
+﻿import { chromium } from "playwright";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+const logs = [];
+page.on("console", (m) => { if (m.text().includes("[explorer]")) logs.push(m.text()); });
+await page.goto("http://127.0.0.1:30141/", { waitUntil: "domcontentloaded" });
+await page.waitForTimeout(2000);
+await page.goto(`http://127.0.0.1:30141/?session=${process.argv[2]}`, { waitUntil: "domcontentloaded" });
+await page.waitForTimeout(6000);
+console.log(logs.join("\n"));
+console.log("rows:", await page.evaluate(() => document.querySelectorAll(".tree-row").length));
+await browser.close();

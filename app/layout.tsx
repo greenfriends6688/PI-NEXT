@@ -1,0 +1,91 @@
+import type { Metadata, Viewport } from "next";
+import { Noto_Sans_Mono } from "next/font/google";
+import { PwaRegistration } from "@/components/PwaRegistration";
+import { IconSprite } from "@/components/v3/Icon";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import "katex/dist/katex.min.css";
+import "./globals.css";
+import "./settings.css";
+import "./sidebar.css";
+import "./sidebar-menu.css";
+// design/v3 render layer: the boards' own stylesheet, the palette table, the
+// legacy-token bridge and the shell glue. Loaded last; see docs/v3-landing.md.
+import "./v3/running.css";
+import "./v3/palettes.css";
+import "./v3/bridge.css";
+import "./v3/shell.css";
+import "./v3/sidebar.css";
+import "./v3/chrome.css";
+import "./v3/filetree.css";
+
+const notoSansMono = Noto_Sans_Mono({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-noto-mono",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "Pi Web",
+  description: "Pi Web interface for the pi coding agent",
+  applicationName: "Pi Web",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      {
+        url: "/icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+    ],
+    apple: [
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Pi Web",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#1e1e20" },
+  ],
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" translate="no" className={`${notoSansMono.variable} notranslate`} suppressHydrationWarning>
+      <head>
+        <meta name="google" content="notranslate" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: THEME_INIT_SCRIPT,
+          }}
+        />
+      </head>
+      <body translate="no" className="notranslate" suppressHydrationWarning>
+        <IconSprite />
+        {children}
+        <PwaRegistration />
+      </body>
+    </html>
+  );
+}

@@ -1,0 +1,206 @@
+/* Turn navigation rail, ported from pix-main's ChatMinimap (Codex-style dash
+   markers): one row per turn, an absolute rail at the transcript's left edge,
+   dash markers that grow with neighbour falloff, and a tooltip card portalled
+   to the body so it can never create a scrollbar. */
+
+.rail {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  z-index: 20;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  width: 30px;
+  max-height: min(70vh, 40rem);
+  overflow-x: visible;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 2.5rem, #000 calc(100% - 2.5rem), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 2.5rem, #000 calc(100% - 2.5rem), transparent 100%);
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rail::-webkit-scrollbar { display: none; }
+
+.rail[data-scrubbing] .marker { transition-duration: 0s; }
+
+.row {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: flex-start;
+  width: 30px;
+  min-height: 10px;
+  max-height: 50px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.markerTrack {
+  display: flex;
+  align-items: center;
+  width: 30px;
+  height: 2px;
+}
+
+.marker {
+  --marker-progress: 0;
+  width: 26px;
+  height: 2px;
+  border-radius: 999px;
+  transform: scaleX(calc(0.2308 + 0.7692 * var(--marker-progress)));
+  transform-origin: left center;
+  background: color-mix(in srgb, var(--ink-2) 70%, transparent);
+  opacity: 0.4;
+  transition:
+    transform 0.16s linear(0, 0.398 10%, 0.682 20%, 0.843 30%, 0.925 40%, 0.972 50%, 1.004 60%, 1.008 70%, 1.003 80%, 1),
+    background 0.12s ease,
+    opacity 0.12s ease;
+}
+
+.row[aria-current="true"] .marker {
+  background: var(--accent);
+  opacity: 0.9;
+}
+
+.row[data-scrub-target] .marker,
+.row:focus-visible .marker {
+  --marker-progress: 1;
+  background: var(--ink);
+  opacity: 1;
+}
+
+/* Neighbour falloff around the scrub target. */
+.row:has(+ .row[data-scrub-target]) .marker,
+.row[data-scrub-target] + .row .marker { --marker-progress: 0.7; }
+
+.row:has(+ .row + .row[data-scrub-target]) .marker,
+.row[data-scrub-target] + .row + .row .marker { --marker-progress: 0.4; }
+
+.row:has(+ .row + .row + .row[data-scrub-target]) .marker,
+.row[data-scrub-target] + .row + .row + .row .marker { --marker-progress: 0.2; }
+
+@media (hover: hover) and (pointer: fine) {
+  .rail:not([data-scrubbing]):hover .row[aria-current="true"]:not(:hover):not(:focus-visible) .marker {
+    background: color-mix(in srgb, var(--ink-2) 70%, transparent);
+    opacity: 0.4;
+  }
+
+  .rail:not([data-scrubbing]) .row:hover .marker {
+    --marker-progress: 1;
+    background: var(--ink);
+    opacity: 1;
+  }
+
+  .rail:not([data-scrubbing]) .row:has(+ .row:hover) .marker,
+  .rail:not([data-scrubbing]) .row:hover + .row .marker { --marker-progress: 0.7; }
+
+  .rail:not([data-scrubbing]) .row:has(+ .row + .row:hover) .marker,
+  .rail:not([data-scrubbing]) .row:hover + .row + .row .marker { --marker-progress: 0.4; }
+
+  .rail:not([data-scrubbing]) .row:has(+ .row + .row + .row:hover) .marker,
+  .rail:not([data-scrubbing]) .row:hover + .row + .row + .row .marker { --marker-progress: 0.2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marker { transition-duration: 0s; }
+}
+
+/* Floating turn preview card (position: fixed, clamped inside the viewport). */
+.tooltip {
+  position: fixed;
+  z-index: 120;
+  width: min(20rem, calc(100vw - 16px));
+  max-width: calc(100vw - 1rem);
+  overflow: hidden;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  color: var(--ink);
+  font-size: 12.5px;
+  line-height: 1.45;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 0 0 0.5px color-mix(in srgb, var(--line) 90%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: auto;
+  cursor: default;
+  user-select: text;
+}
+
+.userLabel {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userLabel:hover { color: var(--accent-ink, var(--accent)); }
+
+.emptyLabel { color: var(--ink-3); }
+
+.assistantPreview {
+  margin-top: 4px;
+  color: var(--ink-2);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  cursor: pointer;
+}
+
+.assistantPreview:hover { color: var(--ink); }
+
+.meta {
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* AssistantOutline (exported, tested): the compact outline the preview used to
+   render — headings as jumps and ordinary text as one clamped line. */
+.outline { display: grid; min-width: 0; gap: 0; }
+.outline :global(.katex) { font-size: 1em; }
+.outline :global(.katex-display) { display: inline; margin: 0; }
+
+.heading,
+.paragraph {
+  display: block;
+  width: 100%;
+  min-height: 22px;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  line-height: 18px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.heading[data-level="1"] { color: var(--text); font-size: 13px; font-weight: 600; }
+.heading[data-level="2"] { color: var(--text); font-size: 12px; font-weight: 500; }
+.heading[data-level="3"] { color: var(--text-muted); }
+.paragraph { font-size: 12px; }

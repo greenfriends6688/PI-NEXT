@@ -1,0 +1,13 @@
+﻿import { chromium } from "playwright";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await page.goto("http://127.0.0.1:30141/", { waitUntil: "domcontentloaded" });
+await page.waitForTimeout(2000);
+await page.goto(`http://127.0.0.1:30141/?session=${process.argv[2]}`, { waitUntil: "domcontentloaded" });
+await page.waitForTimeout(5000);
+const before = await page.evaluate(() => document.querySelectorAll(".tree-row").length);
+await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+await page.waitForTimeout(2500);
+const afterFocus = await page.evaluate(() => document.querySelectorAll(".tree-row").length);
+console.log(JSON.stringify({ before, afterFocus }));
+await browser.close();

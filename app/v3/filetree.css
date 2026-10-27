@@ -1,0 +1,177 @@
+/* 19-filetree / 20-viewer 的产品侧补丁。
+   类名、几何、颜色全部照画板走 running.css；这份文件只补画板没有的语义。
+
+   面板头（`.filetree__head`）落在宿主的滚动盒 `.sidebar-files-scroll` 里，会跟着
+   树一起滚走：画板的头不在滚动盒内，要钉住就得给它一条画板没有的底子（画板的
+   head 没有 background），那是自造材质，这里不做（DIVERGENCE S-17）。 */
+
+/* web-files 帧 A：`.detail` 是「查看器 + 右栅文件树」。右栏里把这两块并排：
+   面板宽度仍是用户的（拖拽 / 展开），树只拿画板的固定一栅。 */
+.panel-split {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+}
+
+/* 展开成全窗的文件视图（web-files 帧 A）：下面是会话，这一层必须是不透明的。 */
+.right-panel-container.right-panel-full-width {
+  background: var(--surface);
+}
+
+.panel-viewer {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.filetree-panel {
+  width: 300px;
+  min-width: 190px;
+  max-width: 300px;
+  flex: 0 0 300px;
+  height: auto;
+  align-self: stretch;
+  overflow: auto;
+}
+
+/* 手机上右栏是底部 sheet（pwa-files）：没有打开的页签时整张 sheet 就是这栅树，
+   打开文件后树让位给查看器，关掉页签就回来。 */
+@media (max-width: 767px) {
+  .filetree-panel {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    box-shadow: none;
+  }
+  /* 只有树的那一页：查看器（含空态文案）让位，工具栏的关闭键树头自己有一颗。 */
+  .panel-split:has(.filetree-panel) .panel-viewer {
+    display: none;
+  }
+}
+
+/* 画板的 `.code`（running.css）自己就是滚动盒：`overflow: hidden` 加外层再裁。
+   产品的 `.file-viewer-content` 才是 `overflow: auto` 的滚动盒，所以这一层要让
+   宽行把滚动区撑开，不能二次裁切（否则不换行的长行被切在右缘，滚不到）。 */
+.file-viewer-content .code {
+  overflow: visible;
+}
+
+/* 画板只有 1440 宽。窄屏上 head 先让出内边距，路径仍然一行截断。 */
+@media (max-width: 640px) {
+  .code-head {
+    gap: 6px;
+    padding: 8px 12px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 文件面板的底色与页签
+ *
+ * 面板原来是三层纯白叠纯白（工具栏 94% 白、树 34% 白、正文 --bg 纯白），
+ * 一眼分不出树、页签和正文。这里给三块各一档很轻的墨色底：
+ * 树最沉、工具栏其次、正文只比白纸灰一点，正文仍是可读的背景。
+ * ------------------------------------------------------------------------- */
+#file-panel {
+  --file-tree-surface: color-mix(in srgb, var(--ink) 5.5%, var(--surface));
+  --file-viewer-surface: color-mix(in srgb, var(--ink) 1.5%, var(--surface));
+  --file-toolbar-surface: color-mix(in srgb, var(--ink) 3%, var(--surface));
+}
+
+#file-panel .app-panel-toolbar {
+  background: var(--file-toolbar-surface);
+}
+
+#file-panel .filetree,
+#file-panel .filetree-panel {
+  background: var(--file-tree-surface);
+}
+
+#file-panel .filetree__head {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+/* 当前文件是一张浮在工具栏上的白卡，未选中的页签退成灰字。 */
+#file-panel .app-tab {
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  max-width: 220px !important;
+}
+
+#file-panel .app-tab:hover {
+  color: var(--ink);
+}
+
+#file-panel .app-tab[aria-selected="true"] {
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+  box-shadow: 0 1px 2px rgba(17, 17, 19, 0.08), inset 0 -2px 0 var(--accent);
+}
+
+#file-panel .app-tab-close {
+  opacity: 0.45;
+}
+
+#file-panel .app-tab[aria-selected="true"] .app-tab-close,
+#file-panel .app-tab:hover .app-tab-close {
+  opacity: 0.8;
+}
+
+/* 查看器自己的头：路径是这一屏的标题，别用 10.5px 的注释色把它压下去。 */
+#file-panel .file-viewer-shell .code-head {
+  padding: 9px 14px;
+  font-size: 11px;
+}
+
+#file-panel .file-viewer-shell .code-head > span:first-child {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+/* Nothing open: the file panel is the tree alone. The tab strip stays (it has
+   the panel's close and expand buttons); the empty viewer column goes away and
+   the tree takes its width. */
+#file-panel .panel-split.is-tree-only {
+  flex-direction: column;
+}
+
+/* 空态也是一页（fastvibe 的 `side-pane-open-tab-shell`），这时候让正文显示、
+   树让位——没有页签就没有树可看。 */
+#file-panel .panel-split.is-tree-only .app-panel-body {
+  display: block;
+  flex: 1 1 auto;
+}
+
+#file-panel .panel-split.is-tree-only .filetree-panel {
+  display: none;
+}
+
+
+#file-panel .panel-split.is-tree-only .filetree-panel {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  box-shadow: inset 0 1px 0 var(--line-soft);
+}
+
+/* The viewer column is opaque: without it the window's blue-grey wallpaper
+   showed through the code head (the dusty band above the source). */
+#file-panel {
+  background: color-mix(in srgb, var(--ink) 2%, var(--surface));
+}
+
+#file-panel .panel-viewer {
+  background: var(--file-viewer-surface);
+}
+
+#file-panel .file-viewer-shell .code-head {
+  background: var(--file-toolbar-surface);
+  border-bottom: 1px solid var(--line-soft);
+}

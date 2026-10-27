@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# builds and generated output
+.next/
+out/
+release/
+test-results/
+tsconfig.tsbuildinfo
+
+# local-only: design boards and contributor guides are not published here
+docs/
+design/
+
+# misc
+.DS_Store
+*.zip
+.shots/
+*.log
