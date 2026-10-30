@@ -1,7 +1,7 @@
 {
   "name": "@agegr/pi-web",
   "productName": "PI NEXT",
-  "version": "0.02",
+  "version": "0.2.0",
   "description": "Web UI for the pi coding agent",
   "homepage": "https://github.com/agegr/pi-web#readme",
   "repository": {
