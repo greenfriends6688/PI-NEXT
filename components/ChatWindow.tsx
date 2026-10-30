@@ -500,6 +500,9 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // 首屏先画最近一段，再把更早的历史补到上面。补的时候若用户还在底部，
   // 要重新落到底，否则滚动位置停在旧内容上，看起来就是「打开会话在第一条」。
   const paintBottomAnchorRef = useRef(false);
+  // First paint grows the history in batches; while it does, stay pinned to the
+  // latest output even if a batch landed between two of the timers below.
+  const initialPaintForceRef = useRef(false);
   const initialBottomSessionRef = useRef<string | null>(null);
   const messageContentRef = useRef<HTMLDivElement | null>(null);
   const restoreStartedRef = useRef(false);
@@ -614,6 +617,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   const paintKeyRef = useRef(sessionPaintKey);
   if (paintKeyRef.current !== sessionPaintKey) {
     paintKeyRef.current = sessionPaintKey;
+    initialPaintForceRef.current = true;
     if (paintCount !== FIRST_PAINT_MESSAGES) setPaintCount(FIRST_PAINT_MESSAGES);
   }
 
@@ -624,12 +628,15 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     const step = () => {
       if (cancelled) return;
       const container = scrollContainerRef.current;
-      paintBottomAnchorRef.current = container
-        ? isScrollAtTail(container.scrollTop, container.clientHeight, container.scrollHeight)
-        : false;
+      paintBottomAnchorRef.current = initialPaintForceRef.current
+        || (container ? isScrollAtTail(container.scrollTop, container.clientHeight, container.scrollHeight) : false);
       // 翻倍成长：60 → 120 → 240 …，六步画完上千条；每步都只是多提交一段，
       // 线性加 120 的话要跑十几个来回，反而更慢。
-      setPaintCount((current) => Math.min(messages.length, Math.max(current * 2, current + IDLE_PAINT_STEP)));
+      setPaintCount((current) => {
+        const next = Math.min(messages.length, Math.max(current * 2, current + IDLE_PAINT_STEP));
+        if (next >= messages.length) initialPaintForceRef.current = false;
+        return next;
+      });
     };
     const idle = typeof window.requestIdleCallback === "function"
       ? window.requestIdleCallback(step, { timeout: 400 })
