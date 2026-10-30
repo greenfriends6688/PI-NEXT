@@ -13,6 +13,11 @@ contextBridge.exposeInMainWorld("piWebDesktop", {
    * the handler rejects and the page keeps its own directory browser.
    */
   pickDirectory: (options) => ipcRenderer.invoke("pi-web:pick-directory", options ?? {}),
+  /** Desktop-only settings (they belong to the app, not the web settings file). */
+  getDesktopSettings: () => ipcRenderer.invoke("pi-web:get-desktop-settings"),
+  /** Saves whether a fixed Web endpoint is offered. Applies on the next launch. */
+  setWebAccess: (enabled) => ipcRenderer.invoke("pi-web:set-web-access", enabled === true),
+  focusWindow: () => ipcRenderer.invoke("pi-web:focus-window"),
 });
 
 // The shell's own window chrome: on macOS the traffic lights are inset into the

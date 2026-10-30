@@ -52,7 +52,7 @@ Commands:
   update [--check]           Update a global npm install to the latest version
 
 Options:
-  -p, --port <port>          Server port (default: 30141, or PORT)
+  -p, --port <port>          Server port (default: 30142, or PORT)
   -H, --hostname <host>      Bind hostname (default: 127.0.0.1, or PI_WEB_HOSTNAME)
       --no-open              Do not open a browser automatically
   -h, --help                 Show this help message and exit
@@ -132,7 +132,7 @@ function parseLaunchOptions(args = process.argv.slice(2), env = process.env) {
 
   return {
     help: false,
-    port: normalizePort(values.port ?? env.PORT ?? "30141"),
+    port: normalizePort(values.port ?? env.PORT ?? "30142"),
     hostname: values.hostname ?? env.PI_WEB_HOSTNAME ?? "127.0.0.1",
     openBrowser: !values["no-open"] && !isEnabled(env.PI_WEB_NO_OPEN),
   };

@@ -9,11 +9,24 @@ export interface DesktopDirectoryPick {
   path: string | null;
 }
 
+export interface DesktopSettings {
+  /** Offer a fixed Web endpoint (browser URL) instead of a random internal port. */
+  webAccess: boolean;
+  /** The port the running internal server is on. */
+  webPort: number;
+  /** The fixed port Web access uses when enabled. */
+  webAccessPort: number;
+  packaged: boolean;
+}
+
 interface DesktopShellBridge {
   isDesktop?: boolean;
   platform?: string;
   arch?: string;
   pickDirectory?: (options?: { title?: string; defaultPath?: string }) => Promise<DesktopDirectoryPick>;
+  getDesktopSettings?: () => Promise<DesktopSettings>;
+  setWebAccess?: (enabled: boolean) => Promise<{ webAccess: boolean; requiresRestart: boolean }>;
+  focusWindow?: () => Promise<void>;
 }
 
 function bridge(): DesktopShellBridge | null {
@@ -40,5 +53,38 @@ export async function pickDirectoryNatively(
   } catch {
     // An older shell without the handler: fall back to the web picker.
     return null;
+  }
+}
+
+/** The desktop shell's settings; null in the browser or an older shell. */
+export async function getDesktopSettings(): Promise<DesktopSettings | null> {
+  const get = bridge()?.getDesktopSettings;
+  if (!get) return null;
+  try {
+    return await get();
+  } catch {
+    return null;
+  }
+}
+
+/** Saves the Web-access choice; the running server keeps its port until a restart. */
+export async function setDesktopWebAccess(enabled: boolean): Promise<{ webAccess: boolean; requiresRestart: boolean } | null> {
+  const set = bridge()?.setWebAccess;
+  if (!set) return null;
+  try {
+    return await set(enabled);
+  } catch {
+    return null;
+  }
+}
+
+/** Brings the desktop window to the front from a notification click. */
+export async function focusDesktopWindow(): Promise<void> {
+  const focus = bridge()?.focusWindow;
+  if (!focus) return;
+  try {
+    await focus();
+  } catch {
+    // The browser build has no window to focus.
   }
 }

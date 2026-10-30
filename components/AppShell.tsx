@@ -23,6 +23,7 @@ import { BranchNavigator, hasSessionBranches } from "./BranchNavigator";
 import { SystemPromptPanel } from "./SystemPromptPanel";
 import { ToolDefinitionsPanel } from "./ToolDefinitionsPanel";
 import { AgentSessionPanel } from "./AgentSessionPanel";
+import { DebugPanel, DebugPanelBoundary } from "./DebugPanel";
 import { SubagentViewer } from "./SubagentViewer";
 import { TerminalPanel } from "./TerminalPanel";
 import { newTerminalTab, restoreTerminalTabs, TERMINAL_TABS_KEY, type TerminalTab } from "./terminal-tab-state";
@@ -36,6 +37,7 @@ import { useAudio } from "@/hooks/useAudio";
 import { copyText } from "@/lib/clipboard";
 import { sendAgentCommand } from "@/lib/agent-client";
 import { getFileName } from "@/lib/file-paths";
+import { focusDesktopWindow } from "@/lib/desktop-shell";
 import type { GitStatusResponse } from "@/lib/git-types";
 import type { ExtensionStatusItem, ExtensionWidgetItem } from "@/lib/types";
 import { buildAtMentionText, buildFileAtMentionsText, buildFileLineMentionText } from "@/lib/file-fuzzy";
@@ -46,10 +48,12 @@ import {
 } from "@/lib/browser-notifications";
 import { setupPushSubscription } from "@/lib/push-client";
 import { completionNotificationsEnabled, ensureNotificationPermission } from "@/lib/notification-preference";
+import { startPageVisibilityTracking } from "@/lib/page-debug";
+import type { DebugClientSession } from "@/lib/debug-types";
 import { getInitialNavigation, linkedSessionId, withTabOpen } from "@/lib/initial-navigation";
 import { clearTabOpenSession, getTabOpen, setTabOpenNewSession, setTabOpenSession } from "@/lib/tab-session";
 import { mergeCatalogRow } from "./session-catalog-helpers";
-import { getDraft, rekeyDraft } from "@/lib/draft-store";
+import { getDraft, parkedNewSessionDraftKey, rekeyDraft } from "@/lib/draft-store";
 import {
   contextForCwd,
   type NewSessionContext,
@@ -83,8 +87,9 @@ import type { SessionStatsInfo } from "@/lib/pi-types";
 import { formatActiveDuration, formatCompactCount, formatCostShort } from "@/lib/session-stats-format";
 import type { FileViewerState } from "@/lib/file-viewer-state";
 import { PRESET_READ_ONLY, type ToolEntry } from "@/lib/tool-presets";
-import { getAgentsBadge, getSessionFamily } from "@/lib/session-family";
+import { getAgentsBadge, getFoldedMoreAgentsBadge, getSessionFamily } from "@/lib/session-family";
 import { getLastSettingsSection, type SettingsSection } from "@/lib/settings-navigation";
+import { focusIfLost } from "@/lib/stacked-dialog";
 
 type SessionCopyField = "file" | "id" | "projectDir" | "gitBranch" | "gitWorktree";
 type AutoNameStatus =
@@ -98,10 +103,6 @@ const AGENT_PANEL_WIDTH = 420;
 // pi's built-in tools that never change a file; any other tool may (#1144).
 const READ_ONLY_TOOL_NAMES = new Set(PRESET_READ_ONLY);
 const TOOL_END_REFRESH_MS = 1000;
-
-function parkedNewSessionDraftKey(cwd: string): string {
-  return `parked-new:${cwd}`;
-}
 
 /** Panel tab id of the last sub-agent tab, or null when there is none. */
 function lastAgentTabId(tabs: readonly { sessionId: string }[]): string | null {
@@ -250,6 +251,8 @@ export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(() => !initialNavigation.sidebarCollapsed);
   const desktopSidebarOpenRef = useRef(!initialNavigation.sidebarCollapsed);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  // 打开文件时把文件树让出来（主人要求）：只留查看器；顶上那颗钮再把它叫回来。
+  const [fileTreeOpen, setFileTreeOpen] = useState(true);
   const [rightPanelExpanded, setRightPanelExpanded] = useState(false);
   const rightPanelFullWidth = rightPanelOpen && rightPanelExpanded && !isMobile;
   useEffect(() => {
@@ -263,6 +266,13 @@ export function AppShell() {
   // 右栏的「+」：像参考桌面端那样，一个加号里挑要开的页——文件树 / 终端 / 变更 / 系统文件夹。
   const [panelAddOpen, setPanelAddOpen] = useState(false);
   const panelAddRef = useRef<HTMLDivElement>(null);
+  // A narrow phone folds the Agents button into More: the folded button says that subagents run.
+  const foldedMoreAgentsBadge = isNarrowMobile ? getFoldedMoreAgentsBadge(agentsBadge, mobileToolbarMoreOpen) : null;
+  const moreControlsLabel = mobileToolbarMoreOpen
+    ? translate("chat.close")
+    : foldedMoreAgentsBadge
+      ? translate("chat.moreControlsAgentsRunning", { count: foldedMoreAgentsBadge.count })
+      : translate("chat.moreControls");
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
   const sidebarWidthRef = useRef(SIDEBAR_DEFAULT_WIDTH);
   const rightPanelWidthRef = useRef(RIGHT_PANEL_FALLBACK_WIDTH);
@@ -375,6 +385,17 @@ export function AppShell() {
     setSystemInfoLoading(false);
   }, []);
 
+  // The debug panel's reader of the chat's own state: kept in a ref, so registering renders
+  // nothing, and read only by the open panel (DebugPanel), never on AppShell's renders.
+  const debugSnapshotReaderRef = useRef<(() => DebugClientSession) | null>(null);
+  const handleDebugSnapshotReaderChange = useCallback((reader: (() => DebugClientSession) | null) => {
+    debugSnapshotReaderRef.current = reader;
+  }, []);
+  // The panel reports the page's visibility history from the first mount on, opened or not.
+  useEffect(() => {
+    startPageVisibilityTracking();
+  }, []);
+
   // Session stats (tokens + cost) — populated by ChatWindow, displayed in top bar
   const [sessionStats, setSessionStats] = useState<SessionStatsInfo | null>(null);
   const [autoNameStatus, setAutoNameStatus] = useState<AutoNameStatus>({ kind: "idle" });
@@ -408,7 +429,7 @@ export function AppShell() {
   }, []);
 
   // Single active panel — only one dropdown open at a time
-  const [activeTopPanel, setActiveTopPanel] = useState<"agents" | "branches" | "system" | "tools" | "session" | null>(null);
+  const [activeTopPanel, setActiveTopPanel] = useState<"agents" | "branches" | "system" | "tools" | "session" | "debug" | null>(null);
   // Extension status cells reported by the open ChatWindow. The narrow phone
   // shows them in the More sheet instead of a floating dock.
   const [extensionUi, setExtensionUi] = useState<{
@@ -444,13 +465,24 @@ export function AppShell() {
   }, [rightPanelFullWidth]);
 
   const toggleTopPanel = useCallback((
-    panel: "agents" | "branches" | "system" | "tools" | "session",
+    panel: "agents" | "branches" | "system" | "tools" | "session" | "debug",
     keepMobileToolbarOpen = false,
   ) => {
     if (isMobile) setSidebarOpen(false);
     setActiveTopPanel((cur) => cur === panel ? null : panel);
     if (isMobile && isNarrowMobile && keepMobileToolbarOpen) setMobileToolbarMoreOpen(true);
   }, [isMobile, isNarrowMobile]);
+
+  // The Debug button on screen (one of its three places at a time); Escape gives focus back to it.
+  const debugButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  // Escape inside the debug panel; it never closes another panel that took its place. With focus
+  // in the panel, that focus leaves the page with it: once the panel is gone (the next frame), the
+  // Debug button gets it back, unless the user moved it meanwhile (focusIfLost).
+  const closeDebugPanel = useCallback((restoreFocus: boolean) => {
+    setActiveTopPanel((panel) => panel === "debug" ? null : panel);
+    if (restoreFocus) requestAnimationFrame(() => focusIfLost(document, debugButtonRef.current));
+  }, []);
 
   const handleSystemInfoToggle = useCallback((
     panel: "system" | "tools",
@@ -874,7 +906,8 @@ export function AppShell() {
     setSystemPrompt(null);
     setSystemTools(null);
     setSystemInfoLoading(false);
-    setActiveTopPanel(null);
+    // The debug panel stays open across the switch: it follows whichever session is shown.
+    setActiveTopPanel((panel) => panel === "debug" ? panel : null);
     if (currentProject !== newProject) {
       // Keep #281's project isolation, but park each workspace's file tabs
       // instead of discarding them so they return when the user switches back.
@@ -899,7 +932,7 @@ export function AppShell() {
     const projectKey = workspaceKeyOf(session);
     if (activeProjectKeyRef.current !== projectKey) {
       changeFileWorkspace(activeProjectKeyRef.current, projectKey);
-      setActiveTopPanel(null);
+      setActiveTopPanel((panel) => panel === "debug" ? panel : null);
     }
     activeProjectKeyRef.current = projectKey;
     // Re-clicking the already-open session must not remount the chat and
@@ -981,7 +1014,7 @@ export function AppShell() {
     setSystemPrompt(null);
     setSystemTools(null);
     setSystemInfoLoading(false);
-    setActiveTopPanel(null);
+    setActiveTopPanel((panel) => panel === "debug" ? panel : null);
     if (isMobile) setSidebarOpen(false);
     router.replace(`?cwd=${encodeURIComponent(cwd)}`, { scroll: false });
     // The fresh composer takes the caret once it renders (#1313), unless the
@@ -1055,6 +1088,7 @@ export function AppShell() {
         tag,
         onClick: () => {
           window.focus();
+          void focusDesktopWindow();
           if (targetSession) handleSelectSession(targetSession);
         },
       });
@@ -1086,7 +1120,7 @@ export function AppShell() {
     setRefreshKey((k) => k + 1);
     setExplorerRefreshKey((k) => k + 1);
 
-    if (end.aborted || selectedSession?.relation?.kind === "subagent") return;
+    if (end.aborted || end.subagentsActive || selectedSession?.relation?.kind === "subagent") return;
     if (!completionNotificationsEnabled() || !shouldShowBrowserNotification()) return;
     const targetSession = selectedSession;
     deliverSessionNotification({
@@ -1226,7 +1260,7 @@ export function AppShell() {
       setSystemPrompt(null);
       setSystemTools(null);
       setSystemInfoLoading(false);
-      setActiveTopPanel(null);
+      setActiveTopPanel((panel) => panel === "debug" ? panel : null);
       router.replace(cwd ? `?cwd=${encodeURIComponent(cwd)}` : (typeof window !== "undefined" ? window.location.pathname : "/"), { scroll: false });
     }
   }, [invalidateWorkspaceRestore, router]);
@@ -1250,6 +1284,7 @@ export function AppShell() {
     }));
     setActiveFileTabId(tabId);
     setRightPanelOpen(true);
+    setFileTreeOpen(false);
     // On mobile the file panel is full-screen; close the drawer so it shows.
     if (isMobile) setSidebarOpen(false);
   }, [isMobile]);
@@ -1265,6 +1300,7 @@ export function AppShell() {
       : [...tabs, { id: "pane:files", label: translate("files.paneTitle"), filePath: "", kind: "files" as const }]);
     setActiveFileTabId("pane:files");
     setRightPanelOpen(true);
+    setFileTreeOpen(true);
     if (isMobile) setSidebarOpen(false);
   }, [isMobile, translate]);
 
@@ -1461,6 +1497,11 @@ export function AppShell() {
   // While restoring initial session from URL, don't show the placeholder
   const showPlaceholder = initialSessionRestored && !showChat;
 
+  // The Debug button shows with a chat only: without one, its panel would have nothing to close it.
+  useEffect(() => {
+    if (!showChat) setActiveTopPanel((panel) => panel === "debug" ? null : panel);
+  }, [showChat]);
+
   useEffect(() => {
     setProjectTrust(null);
     setProjectTrustDialogOpen(false);
@@ -1541,6 +1582,8 @@ export function AppShell() {
     || activeAgentTab
     || terminalTabs.some((tab) => tab.id === activeFileTabId),
   );
+  // 没有文件时树就是这一页（空态），有文件时听那颗「文件树」钮的。
+  const showFileTree = isFilesPaneFace && (!panelHasContent || fileTreeOpen);
   const activeCwdName = activeCwd ? getFileName(activeCwd) || activeCwd : null;
   const windowTitle = activeCwdName ? `${activeCwdName} - PI NEXT` : "PI NEXT";
 
@@ -1717,6 +1760,34 @@ export function AppShell() {
       document.removeEventListener("keydown", onKey);
     };
   }, [panelAddOpen]);
+  // While subagents run: their count, ringed by a spinner; otherwise all of them.
+  const renderAgentsBadge = (badge: { count: number; running: boolean }, mobile: boolean) => (
+    <span
+      aria-hidden="true"
+      style={{
+        position: "relative",
+        minWidth: 15, height: 15, padding: "0 4px", display: "grid", placeItems: "center",
+        borderRadius: 7,
+        background: badge.running ? "color-mix(in srgb, var(--accent) 22%, var(--bg-panel))" : "var(--bg-selected)",
+        color: "var(--accent)",
+        fontSize: 10, lineHeight: 1, fontVariantNumeric: "tabular-nums",
+        fontWeight: badge.running ? 600 : undefined,
+        ...(mobile ? { position: "absolute", top: 3, right: 3, minWidth: 13, height: 13, padding: "0 3px", fontSize: 9 } : {}),
+      }}
+    >
+      {badge.running && (
+        <svg
+          className="animate-spin motion-reduce:animate-none"
+          viewBox="0 0 24 24" fill="none" aria-hidden="true"
+          style={{ position: "absolute", top: -3, left: -3, width: "calc(100% + 6px)", height: "calc(100% + 6px)", pointerEvents: "none" }}
+        >
+          <circle cx="12" cy="12" r="11" stroke="currentColor" strokeWidth="2" opacity="0.2" />
+          <path d="M23 12a11 11 0 0 0-11-11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      )}
+      {badge.count}
+    </span>
+  );
 
   const renderChatToolbarActions = (mobile: boolean) => {
     // design/v3 的会话头右侧（部件 01-chrome）：一组 `.ccap` 胶囊，里面是 28 圆的
@@ -1813,6 +1884,16 @@ export function AppShell() {
                     >
                       <Icon name="wrench" />
                       <span>{translate("tools.title")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={`chrome-more-row${activeTopPanel === "debug" ? " is-on" : ""}`}
+                      onClick={() => { setChromeMoreOpen(false); toggleTopPanel("debug", false); }}
+                      title={translate("debug.title")}
+                    >
+                      <Icon name="bug" />
+                      <span>{translate("debug.title")}</span>
                     </button>
                   </div>
                 )}
@@ -1994,32 +2075,7 @@ export function AppShell() {
               <rect x="5" y="7" width="14" height="11" rx="2" /><path d="M9 11h.01M15 11h.01M9 15h6M12 7V4M10 4h4" />
             </svg>
             {!mobile && <span>{translate("agentSwitcher.title")}</span>}
-            {/* While subagents run: their count, ringed by a spinner; otherwise all of them. */}
-            <span
-              aria-hidden="true"
-              style={{
-                position: "relative",
-                minWidth: 15, height: 15, padding: "0 4px", display: "grid", placeItems: "center",
-                borderRadius: 7,
-                background: agentsBadge.running ? "color-mix(in srgb, var(--accent) 22%, var(--bg-panel))" : "var(--bg-selected)",
-                color: "var(--accent)",
-                fontSize: 10, lineHeight: 1, fontVariantNumeric: "tabular-nums",
-                fontWeight: agentsBadge.running ? 600 : undefined,
-                ...(mobile ? { position: "absolute", top: 3, right: 3, minWidth: 13, height: 13, padding: "0 3px", fontSize: 9 } : {}),
-              }}
-            >
-              {agentsBadge.running && (
-                <svg
-                  className="animate-spin motion-reduce:animate-none"
-                  viewBox="0 0 24 24" fill="none" aria-hidden="true"
-                  style={{ position: "absolute", top: -3, left: -3, width: "calc(100% + 6px)", height: "calc(100% + 6px)", pointerEvents: "none" }}
-                >
-                  <circle cx="12" cy="12" r="11" stroke="currentColor" strokeWidth="2" opacity="0.2" />
-                  <path d="M23 12a11 11 0 0 0-11-11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              )}
-              {agentsBadge.count}
-            </span>
+            {renderAgentsBadge(agentsBadge, mobile)}
           </button>
         )}
         {sessionHasBranches && (mobile ? (
@@ -2160,15 +2216,15 @@ export function AppShell() {
 
     const tooltipParts: string[] = [];
     if (tokens) {
-      tooltipParts.push(`in: ${tokens.input.toLocaleString(locale)}`);
-      tooltipParts.push(`out: ${tokens.output.toLocaleString(locale)}`);
-      tooltipParts.push(`cache read: ${tokens.cacheRead.toLocaleString(locale)}`);
-      tooltipParts.push(`cache write: ${tokens.cacheWrite.toLocaleString(locale)}`);
-      if (cost > 0) tooltipParts.push(`cost: $${cost.toFixed(4)}`);
+      tooltipParts.push(`${translate("session.input")}: ${tokens.input.toLocaleString(locale)}`);
+      tooltipParts.push(`${translate("session.output")}: ${tokens.output.toLocaleString(locale)}`);
+      tooltipParts.push(`${translate("session.cacheRead")}: ${tokens.cacheRead.toLocaleString(locale)}`);
+      tooltipParts.push(`${translate("session.cacheWrite")}: ${tokens.cacheWrite.toLocaleString(locale)}`);
+      if (cost > 0) tooltipParts.push(`${translate("session.cost")}: $${cost.toFixed(4)}`);
     }
     if (contextUsage?.contextWindow) {
       const percent = contextUsage.percent;
-      tooltipParts.push(`context: ${percent !== null ? percent.toFixed(1) + "%" : "unknown"} of ${contextUsage.contextWindow.toLocaleString()} tokens`);
+      tooltipParts.push(`${translate("session.context")}: ${percent !== null ? `${percent.toFixed(1)}%` : "?"} / ${contextUsage.contextWindow.toLocaleString(locale)}`);
     }
     const tooltip = tooltipParts.join("  |  ");
     const hasMobileValues = Boolean(
@@ -2188,7 +2244,8 @@ export function AppShell() {
         className={mobile ? "mobile-session-stats app-stats-trigger" : "app-stats-trigger"}
         data-mobile-toolbar-stats={mobile ? "true" : undefined}
         style={{
-          marginLeft: mobile ? 0 : "auto",
+          // The Debug button before it takes the free space (renderDebugButton).
+          marginLeft: 0,
           display: "flex", alignItems: "center", justifyContent: "flex-end",
           flex: mobile ? 1 : undefined,
           flexShrink: mobile ? 1 : 0,
@@ -2292,6 +2349,47 @@ export function AppShell() {
     );
   };
 
+  // Icon only, right of the chat's actions; on a desktop it takes the bar's free space, so it
+  // sits left of the session stats. It only opens or closes its panel: nothing is loaded here.
+  const renderDebugButton = (mobile: boolean) => {
+    if (!showChat) return null;
+    const open = activeTopPanel === "debug";
+    return (
+      <button
+        ref={debugButtonRef}
+        type="button"
+        onClick={() => toggleTopPanel("debug", mobile)}
+        title={translate("debug.title")}
+        aria-label={translate("debug.title")}
+        aria-pressed={open}
+        style={{
+          marginLeft: mobile ? 0 : "auto",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          width: TOP_BAR_ICON_BUTTON_SIZE, height: "100%", padding: 0,
+          background: open ? "var(--bg-selected)" : "none",
+          border: "none",
+          borderTop: open ? "2px solid var(--accent)" : "2px solid transparent",
+          ...(mobile ? { borderRight: "1px solid var(--border)" } : { borderLeft: "1px solid var(--border)" }),
+          color: open ? "var(--text)" : "var(--text-muted)",
+          cursor: "pointer", flexShrink: 0, transition: "color 0.1s, background 0.1s",
+        }}
+        onMouseEnter={(event) => {
+          event.currentTarget.style.color = "var(--text)";
+        }}
+        onMouseLeave={(event) => {
+          event.currentTarget.style.color = open ? "var(--text)" : "var(--text-muted)";
+        }}
+        data-mobile-toolbar-action={mobile ? "debug" : undefined}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: open ? "var(--accent)" : "var(--text-dim)", flexShrink: 0 }} aria-hidden="true">
+          <path d="M8 2l1.9 1.9M16 2l-1.9 1.9M9 7.1v-1a3 3 0 0 1 6 0v1" />
+          <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6zM12 20v-9" />
+          <path d="M6.5 9C4.6 8.8 3 7.1 3 5M6 13H2M3 21c0-2.1 1.7-3.9 3.8-4M21 5c0 2.1-1.6 3.8-3.5 4M22 13h-4M17.2 17c2.1.1 3.8 1.9 3.8 4" />
+        </svg>
+      </button>
+    );
+  };
+
   const renderMainFileToggle = (mobile: boolean) => {
     // design/v3：桌面的文件开关是会话头里的一颗 `.cbtn`（画板右侧胶囊里的文件夹）。
     if (!mobile) {
@@ -2324,7 +2422,8 @@ export function AppShell() {
         data-mobile-toolbar-file={mobile ? "true" : undefined}
         className="app-file-trigger"
         style={{
-          marginLeft: !mobile && !sessionStats && !contextUsage ? "auto" : 0,
+          // With a chat the Debug button is right-aligned instead (renderDebugButton).
+          marginLeft: !mobile && !showChat ? "auto" : 0,
           display: "flex", alignItems: "center", justifyContent: "center",
           width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0,
           background: rightPanelOpen ? "var(--bg-selected)" : "none",
@@ -2348,7 +2447,7 @@ export function AppShell() {
    * 44px squares this used to be.
    */
   const renderMobileToolbarMenu = () => {
-    const panelOn = (panel: "agents" | "system" | "tools" | "session") => activeTopPanel === panel;
+    const panelOn = (panel: "agents" | "system" | "tools" | "session" | "debug") => activeTopPanel === panel;
     const hasMessages = Boolean(
       selectedSession
       && ((sessionStats?.userMessages ?? 0) > 0 || selectedSession.messageCount > 0),
@@ -2412,6 +2511,14 @@ export function AppShell() {
         icon: "folder-fill",
         on: rightPanelOpen,
         onSelect: () => handleRightPanelToggle(),
+      },
+      {
+        key: "debug",
+        label: translate("debug.title"),
+        icon: "bug",
+        on: panelOn("debug"),
+        disabled: !showChat,
+        onSelect: () => toggleTopPanel("debug", false),
       },
     );
     return (
@@ -2712,6 +2819,7 @@ export function AppShell() {
               {/* 390 宽（画板那一档）：两侧只剩画板的「返回 · 标题 · 更多」。
                   统计 / 文件是产品真实入口，不删——挪进「更多」那层面板里。 */}
               {!isNarrowMobile && renderChatToolbarActions(true)}
+              {!isNarrowMobile && renderDebugButton(true)}
               {!isNarrowMobile && renderSessionStatsButton(true)}
               {!isNarrowMobile && renderMainFileToggle(true)}
               {isNarrowMobile && (
@@ -2719,14 +2827,15 @@ export function AppShell() {
                   type="button"
                   className="cbtn app-mobile-toolbar-more"
                   onClick={handleMobileToolbarMoreToggle}
-                  title={mobileToolbarMoreOpen ? translate("chat.close") : translate("chat.moreControls")}
-                  aria-label={mobileToolbarMoreOpen ? translate("chat.close") : translate("chat.moreControls")}
+                  title={moreControlsLabel}
+                  aria-label={moreControlsLabel}
                   aria-controls="mobile-toolbar-actions"
                   aria-expanded={mobileToolbarMoreOpen}
                   data-mobile-toolbar-more="true"
                   style={{ position: "relative", zIndex: mobileToolbarMoreOpen ? 21 : undefined }}
                 >
                   <Icon name={mobileToolbarMoreOpen ? "xmark" : "ellipsis"} />
+                  {foldedMoreAgentsBadge && renderAgentsBadge(foldedMoreAgentsBadge, true)}
                 </button>
               )}
               {isNarrowMobile && mobileToolbarMoreOpen && (
@@ -2997,6 +3106,16 @@ export function AppShell() {
                   )}
                 </div>
               )}
+              {activeTopPanel === "debug" && (
+                <DebugPanelBoundary fallback={translate("debug.failed")}>
+                  <DebugPanel
+                    readerRef={debugSnapshotReaderRef}
+                    selectedSessionId={selectedSession?.id ?? null}
+                    sessions={sessionsWithSelection}
+                    onClose={closeDebugPanel}
+                  />
+                </DebugPanelBoundary>
+              )}
             </div>
           )}
 
@@ -3031,6 +3150,7 @@ export function AppShell() {
               onSystemPromptChange={handleSystemPromptChange}
               onSystemToolsChange={handleSystemToolsChange}
               onSystemInfoLoaderChange={handleSystemInfoLoaderChange}
+              onDebugSnapshotReaderChange={handleDebugSnapshotReaderChange}
               onSessionStatsChange={handleSessionStatsChange}
               onSessionStatsPanelOpen={openSessionStatsPanel}
               onOpenSettings={openSettingsSection}
@@ -3196,6 +3316,19 @@ export function AppShell() {
               onCloseAll={handleCloseAllTabs}
             />
           </div>
+          {!isMobile && isFilesPaneFace && panelHasContent && (
+            <button
+              type="button"
+              className={`app-chrome-button${fileTreeOpen ? " is-on" : ""}`}
+              onClick={() => setFileTreeOpen((open) => !open)}
+              aria-controls="file-tree-panel"
+              aria-pressed={fileTreeOpen}
+              title={translate(fileTreeOpen ? "files.hideTree" : "files.showTree")}
+              aria-label={translate(fileTreeOpen ? "files.hideTree" : "files.showTree")}
+            >
+              <Icon name="folder-fill" />
+            </button>
+          )}
           <button
             type="button"
             className="file-panel-expand-button"
@@ -3341,8 +3474,8 @@ export function AppShell() {
         {/* 19-filetree / web-files 帧 A：文件树是右侧的一栅，在查看器右边（桌面）。
             手机上仍是抽屉里的文件页（画板 pwa-files 的 sheet）。
             面板关着就不挂载：树的 /api/files 与 /api/git/status 很贵，不能为看不见的栏付钱。 */}
-        {rightPanelOpen && isFilesPaneFace && (!isMobile || !activeFileTab?.filePath) && (newSessionCwd ?? selectedSession?.cwd ?? activeCwd) && (
-          <aside className="filetree filetree-panel">
+        {rightPanelOpen && showFileTree && (!isMobile || !activeFileTab?.filePath) && (newSessionCwd ?? selectedSession?.cwd ?? activeCwd) && (
+          <aside id="file-tree-panel" className="filetree filetree-panel">
             <FileExplorer
               ref={fileTreeRef}
               cwd={(newSessionCwd ?? selectedSession?.cwd ?? activeCwd) as string}
@@ -3353,6 +3486,7 @@ export function AppShell() {
               fileSearchOpen={treeSearchOpen}
               onFileSearchOpenChange={setTreeSearchOpen}
               showHidden={treeShowIgnored}
+              activePath={activeFileTab?.filePath ?? null}
               headExtra={(
                 <>
                   <button

@@ -73,14 +73,13 @@
 /* ---------------------------------------------------------------------------
  * 文件面板的底色与页签
  *
- * 面板原来是三层纯白叠纯白（工具栏 94% 白、树 34% 白、正文 --bg 纯白），
- * 一眼分不出树、页签和正文。这里给三块各一档很轻的墨色底：
- * 树最沉、工具栏其次、正文只比白纸灰一点，正文仍是可读的背景。
+ * 主人要纯白：树、工具栏与正文都直接读 --surface，分块交给 1px 发丝线和
+ * 行 hover，不再用墨色把树压灰。
  * ------------------------------------------------------------------------- */
 #file-panel {
-  --file-tree-surface: color-mix(in srgb, var(--ink) 5.5%, var(--surface));
-  --file-viewer-surface: color-mix(in srgb, var(--ink) 1.5%, var(--surface));
-  --file-toolbar-surface: color-mix(in srgb, var(--ink) 3%, var(--surface));
+  --file-tree-surface: var(--surface);
+  --file-viewer-surface: var(--surface);
+  --file-toolbar-surface: var(--surface);
 }
 
 #file-panel .app-panel-toolbar {
@@ -92,8 +91,24 @@
   background: var(--file-tree-surface);
 }
 
+/* 标题是项目文件夹名：一行截断，完整路径在 tooltip 里；别把五颗按钮挤成两行。 */
+#file-panel .filetree__title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 #file-panel .filetree__head {
+  /* 标题与搜索/忽略/刷新跟着树滚走会丢入口：钉在这栅的顶上，白底盖住下面的行。 */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
   border-bottom: 1px solid var(--line-soft);
+  /* 面板拖窄到 190 时，六颗钮放不下一行：让它们换行，不夹掉最后一颗。 */
+  flex-wrap: wrap;
+  row-gap: 4px;
 }
 
 /* 当前文件是一张浮在工具栏上的白卡，未选中的页签退成灰字。 */
@@ -164,7 +179,7 @@
 /* The viewer column is opaque: without it the window's blue-grey wallpaper
    showed through the code head (the dusty band above the source). */
 #file-panel {
-  background: color-mix(in srgb, var(--ink) 2%, var(--surface));
+  background: var(--surface);
 }
 
 #file-panel .panel-viewer {

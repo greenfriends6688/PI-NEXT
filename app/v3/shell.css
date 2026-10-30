@@ -45,6 +45,12 @@
     linear-gradient(158deg, #c9cfd6, #b6bfc9);
 }
 
+/* 纯白背景：浅色下整面壁纸就是白色，玻璃与帘叠上去仍是纯白。 */
+[data-scheme="light"] .app-shell.win::before {
+  filter: none;
+  background: #ffffff;
+}
+
 [data-scheme="dark"] .app-shell.win::before {
   background:
     linear-gradient(var(--scheme-veil), var(--scheme-veil)),

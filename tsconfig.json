@@ -38,6 +38,7 @@
   "exclude": [
     "node_modules",
     "demo",
+    "pi-web-0.13.0",
     "参考",
     "scripts/v3gen"
   ]

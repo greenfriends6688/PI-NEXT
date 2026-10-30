@@ -64,6 +64,8 @@ interface Props {
   showHidden?: boolean;
   /** Extra keys beside the title (the right panel's search, upload, ignored switch). */
   headExtra?: ReactNode;
+  /** The file open in the viewer beside the tree: highlighted, its folders revealed. */
+  activePath?: string | null;
 }
 
 export interface FileExplorerHandle {
@@ -222,6 +224,7 @@ export function TreeNode({
   dropTargetPath,
   onDropFiles,
   onDropTargetChange,
+  activePath,
   t,
 }: {
   node: FileNode;
@@ -241,10 +244,18 @@ export function TreeNode({
   dropTargetPath?: string | null;
   onDropFiles?: (directory: string, items: DroppedItem[]) => void;
   onDropTargetChange?: (path: string | null) => void;
+  /** The file open in the viewer beside the tree. */
+  activePath?: string | null;
   t: Translate;
 }) {
   const open = expandedPaths.has(node.fullPath);
   const hidden = node.hidden ?? parentHidden;
+  const active = activePath != null && normalizeFilePathSlashes(node.fullPath) === normalizeFilePathSlashes(activePath);
+  const rowRef = useRef<HTMLDivElement>(null);
+  // Revealed by opening a file elsewhere (chat, search, editor): bring its row into view.
+  useEffect(() => {
+    if (active) rowRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [active]);
   const isDropTarget = node.isDir && dropTargetPath === node.fullPath;
   const highlighted = highlightedPaths.has(node.fullPath);
   const normalizedPath = normalizeFilePathSlashes(node.fullPath);
@@ -350,7 +361,9 @@ export function TreeNode({
   return (
     <div>
       <div
+        ref={rowRef}
         onClick={handleClick}
+        aria-current={active ? "true" : undefined}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onDragOver={node.isDir ? (event) => {
@@ -367,7 +380,7 @@ export function TreeNode({
           onDropTargetChange?.(null);
           onDropFiles?.(node.fullPath, droppedItems(event.dataTransfer));
         } : undefined}
-        className={`tree-row${node.isDir ? " is-dir" : ""}${isDropTarget ? " is-drop" : ""}`}
+        className={`tree-row${node.isDir ? " is-dir" : ""}${isDropTarget ? " is-drop" : ""}${active ? " is-on" : ""}`}
         style={{
           // 画板的行：缩进交给 .tree-guides，行高 / 内边距 / hover 全在 .tree-row 里。
           // 只有拖放目标的强调色、描边，以及浮在行右端的按钮基点，是运行时状态。
@@ -578,12 +591,13 @@ export function TreeNode({
               dropTargetPath={dropTargetPath}
               onDropFiles={onDropFiles}
               onDropTargetChange={onDropTargetChange}
+              activePath={activePath}
               t={t}
             />
           ))}
           {children.length === 0 && loaded && !loadError && (
             <div style={{ paddingLeft: 8 + (depth + 1) * 14, fontSize: 11, color: "var(--text-dim)", height: 22, display: "flex", alignItems: "center" }}>
-              empty
+              {t("files.emptyFolder")}
             </div>
           )}
           {loadError && (
@@ -731,6 +745,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   onFileSearchOpenChange,
   showHidden = false,
   headExtra,
+  activePath = null,
 }, ref) {
   const { t } = useI18n();
   const [roots, setRoots] = useState<FileNode[]>([]);
@@ -849,6 +864,23 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
     }
     return directories;
   }, [cwd, gitFiles]);
+
+  // Opening a file anywhere (chat, search, the changed list) reveals its folders;
+  // the row then highlights and scrolls itself into view (TreeNode).
+  useEffect(() => {
+    if (!activePath) return;
+    const relative = getRelativeFilePath(activePath, cwd);
+    if (relative === activePath) return;
+    const parts = relative.split("/").filter(Boolean);
+    if (parts.length < 2) return;
+    const folders = parts.slice(0, -1).map((_, index) => joinFilePath(cwd, parts.slice(0, index + 1).join("/")));
+    setExpandedPaths((previous) => {
+      if (folders.every((folder) => previous.has(folder))) return previous;
+      const next = new Set(previous);
+      for (const folder of folders) next.add(folder);
+      return next;
+    });
+  }, [activePath, cwd]);
 
   const handleToggleExpanded = useCallback((fullPath: string, open: boolean) => {
     setExpandedPaths((prev) => {
@@ -1114,7 +1146,8 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           面板的显隐归宿主（右栏 / 侧栏的页签与折叠），文件树自己没有收起能力
           （DIVERGENCE S-16）。刷新沿用树自己的 refreshToken，不另开通道。 */}
       <div className="filetree__head">
-        <span className="filetree__title">{t("sidebar.tabFiles")}</span>
+        {/* 页签已经写着「文件」：这里说清是哪一栅，项目/工作树的文件夹名。 */}
+        <span className="filetree__title" title={cwd}>{getFileName(cwd) || cwd}</span>
         {headExtra}
         <button
           type="button"
@@ -1124,6 +1157,19 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           onClick={() => setTreeRefreshKey((key) => key + 1)}
         >
           <Icon name="refresh" />
+        </button>
+        <button
+          type="button"
+          className="cbtn cbtn--sm"
+          title={t("files.collapseAll")}
+          aria-label={t("files.collapseAll")}
+          disabled={expandedPaths.size === 0 && searchExpanded.size === 0}
+          onClick={() => {
+            setExpandedPaths(new Set());
+            setSearchExpanded(new Set());
+          }}
+        >
+          <Icon name="chevron-up" />
         </button>
       </div>
       {showUploadFeedback && (
@@ -1188,7 +1234,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
             <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 22, fontSize: 11 }}>
               <div style={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
                 {uploadSummary.uploaded.length > 0 && (
-                  <span title={`${uploadSummary.uploaded.length} uploaded`} aria-label={`${uploadSummary.uploaded.length} uploaded`} style={{ display: "flex", alignItems: "center", gap: 3, color: "#22c55e" }}>
+                  <span title={t("files.uploadedCount", { count: uploadSummary.uploaded.length })} aria-label={t("files.uploadedCount", { count: uploadSummary.uploaded.length })} style={{ display: "flex", alignItems: "center", gap: 3, color: "#22c55e" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="m5 12 4 4L19 6" />
                     </svg>
@@ -1196,7 +1242,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                   </span>
                 )}
                 {uploadSummary.skipped.length > 0 && (
-                  <span title={`${uploadSummary.skipped.length} skipped`} aria-label={`${uploadSummary.skipped.length} skipped`} style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--text-dim)" }}>
+                  <span title={t("files.skippedCount", { count: uploadSummary.skipped.length })} aria-label={t("files.skippedCount", { count: uploadSummary.skipped.length })} style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--text-dim)" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                       <circle cx="12" cy="12" r="9" />
                       <path d="M8 12h8" />
@@ -1205,7 +1251,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                   </span>
                 )}
                 {uploadSummary.errors.length > 0 && (
-                  <span title={`${uploadSummary.errors.length} failed`} aria-label={`${uploadSummary.errors.length} failed`} style={{ display: "flex", alignItems: "center", gap: 3, color: "#f87171" }}>
+                  <span title={t("files.failedCount", { count: uploadSummary.errors.length })} aria-label={t("files.failedCount", { count: uploadSummary.errors.length })} style={{ display: "flex", alignItems: "center", gap: 3, color: "#f87171" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M12 3 2.5 20h19L12 3Z" />
                       <path d="M12 9v4" />
@@ -1255,7 +1301,12 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
             id="file-search-input"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            onKeyDown={(event) => { if (event.key === "Escape") onFileSearchOpenChange?.(false); }}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              // Handled here: the debug panel and other document listeners leave this Escape alone.
+              event.preventDefault();
+              onFileSearchOpenChange?.(false);
+            }}
             placeholder={t("sidebar.searchFilesPlaceholder")}
             aria-label={t("sidebar.searchFiles")}
             style={{ width: "100%", boxSizing: "border-box", padding: "6px 24px", border: "1px solid var(--border)", borderRadius: 8, outline: "none", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: 11 }}
@@ -1305,6 +1356,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                     dropTargetPath={dropTargetPath}
                     onDropFiles={handleDropFiles}
                     onDropTargetChange={handleDropTargetChange}
+                    activePath={activePath}
                     t={t}
                   />
                 ))}
@@ -1347,7 +1399,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       {(changesCollapsed || gitFiles.length === 0) && (!fileSearchOpen || !hasSearchQuery) && (
         <div style={{ padding: "2px 4px" }}>
           {loading ? (
-            <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-dim)" }}>Loading files...</div>
+            <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--text-dim)" }}>{t("files.loading")}</div>
           ) : error ? (
             <div style={{ padding: "8px 12px", fontSize: 11, color: "#f87171" }}>{error}</div>
           ) : (
@@ -1369,6 +1421,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
                 dropTargetPath={dropTargetPath}
                 onDropFiles={handleDropFiles}
                 onDropTargetChange={handleDropTargetChange}
+                activePath={activePath}
                 t={t}
               />
             ))

@@ -1,4 +1,5 @@
 import { isBlockingExtensionUiRequest } from "./extension-ui-queue";
+import { isDesktopShell } from "./desktop-shell";
 import type { BlockingExtensionUiRequest, ExtensionUiRequest } from "./types";
 
 interface WindowNotificationLike {
@@ -64,7 +65,9 @@ export async function showBrowserNotification(
     ...(options.tag ? { tag: options.tag, renotify: true } : {}),
   };
 
-  if (environment.getServiceWorkerRegistration) {
+  // 桌面壳没有浏览器标签页/后台：直接走系统通知，点击回到同一窗口；
+  // 服务端推送的 service worker 点击会去开 Web URL，桌面端不需要。
+  if (!isDesktopShell() && environment.getServiceWorkerRegistration) {
     try {
       const registration = await environment.getServiceWorkerRegistration();
       if (registration) {

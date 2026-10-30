@@ -1,7 +1,7 @@
 {
   "name": "@agegr/pi-web",
   "productName": "PI NEXT",
-  "version": "0.12.2",
+  "version": "0.02",
   "description": "Web UI for the pi coding agent",
   "homepage": "https://github.com/agegr/pi-web#readme",
   "repository": {
@@ -38,11 +38,11 @@
   ],
   "scripts": {
     "postinstall": "node bin/prepare-terminal.js",
-    "dev": "next dev -H 127.0.0.1 -p 30141",
-    "dev:lan": "next dev -H 0.0.0.0 -p 30141",
+    "dev": "next dev -H 127.0.0.1 -p 30142",
+    "dev:lan": "next dev -H 0.0.0.0 -p 30142",
     "build": "next build --webpack",
-    "start": "next start -H 127.0.0.1 -p 30141",
-    "start:lan": "next start -H 0.0.0.0 -p 30141",
+    "start": "next start -H 127.0.0.1 -p 30142",
+    "start:lan": "next start -H 0.0.0.0 -p 30142",
     "lint": "eslint .",
     "test:terminal": "node e2e/terminal.mjs",
     "test:e2e": "node e2e/run.mjs",
@@ -51,13 +51,13 @@
     "dist:mac": "electron-builder --mac --arm64"
   },
   "dependencies": {
-    "@earendil-works/pi-agent-core": "1.2.0",
-    "@earendil-works/pi-ai": "1.2.0",
-    "@earendil-works/pi-codemode": "1.2.0",
-    "@earendil-works/pi-coding-agent": "1.2.0",
-    "@earendil-works/pi-mcp": "1.2.0",
-    "@earendil-works/pi-telemetry": "1.2.0",
-    "@earendil-works/pi-tui": "1.2.0",
+    "@earendil-works/pi-agent-core": "1.4.0",
+    "@earendil-works/pi-ai": "1.4.0",
+    "@earendil-works/pi-codemode": "1.4.0",
+    "@earendil-works/pi-coding-agent": "1.4.0",
+    "@earendil-works/pi-mcp": "1.4.0",
+    "@earendil-works/pi-telemetry": "1.4.0",
+    "@earendil-works/pi-tui": "1.4.0",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
     "js-yaml": "^5.2.3",
@@ -114,6 +114,7 @@
     },
     "asar": false,
     "npmRebuild": false,
+    "electronDist": "node_modules/electron/dist",
     "files": [
       "bin/**",
       "electron/**",

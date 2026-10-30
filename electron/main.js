@@ -9,7 +9,7 @@
 // window down with it, and so the server keeps the exact production runtime
 // path the web app uses.
 
-const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, session, shell } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const http = require("node:http");
@@ -18,7 +18,9 @@ const path = require("node:path");
 
 const APP_NAME = "PI NEXT";
 const HOST = "127.0.0.1";
-const DEFAULT_PORT = 30141;
+const DEFAULT_PORT = 30142;
+// 桌面端默认不提供固定 Web 访问口：内部 Next 服务只绑一个随机回环端口给窗口用。
+// 在设置里打开「启动 Web 访问」后，重启才改用 DEFAULT_PORT，浏览器才能访问它。
 const READY_TIMEOUT_MS = 90_000;
 const IS_MAC = process.platform === "darwin";
 
@@ -31,7 +33,52 @@ const TRAFFIC_LIGHT_POSITION = { x: 24, y: 24 };
 let mainWindow = null;
 let serverProcess = null;
 let serverPort = DEFAULT_PORT;
+let webAccess = false;
 let quitting = false;
+
+// 桌面壳自己的设置（与 Web 版设置分开）：目前只有「是否提供固定 Web 访问」。
+// 存在 App 的 userData 下，默认关闭；旧版本没有这个文件时也按关闭处理。
+function desktopSettingsFile() {
+  return path.join(app.getPath("userData"), "desktop-settings.json");
+}
+
+function readDesktopSettings() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(desktopSettingsFile(), "utf8"));
+    return { webAccess: raw && raw.webAccess === true };
+  } catch {
+    return { webAccess: false };
+  }
+}
+
+function writeDesktopSettings(settings) {
+  const file = desktopSettingsFile();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(settings, null, 2));
+  fs.renameSync(tmp, file);
+}
+
+ipcMain.handle("pi-web:get-desktop-settings", () => ({
+  webAccess,
+  webPort: serverPort,
+  webAccessPort: DEFAULT_PORT,
+  packaged: app.isPackaged,
+}));
+
+ipcMain.handle("pi-web:focus-window", () => {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+});
+
+ipcMain.handle("pi-web:set-web-access", (_event, enabled) => {
+  const next = enabled === true;
+  const settings = readDesktopSettings();
+  writeDesktopSettings({ ...settings, webAccess: next });
+  return { webAccess: next, requiresRestart: next !== webAccess };
+});
 
 app.setName(APP_NAME);
 
@@ -68,8 +115,7 @@ function isPortFree(port) {
   });
 }
 
-async function choosePort(preferred) {
-  if (await isPortFree(preferred)) return preferred;
+function randomPort() {
   return new Promise((resolve, reject) => {
     const probe = net.createServer();
     probe.once("error", reject);
@@ -78,6 +124,14 @@ async function choosePort(preferred) {
       probe.close(() => resolve(port));
     });
   });
+}
+
+async function choosePort(preferred) {
+  // 0（关闭 Web 访问时的首选）在 isPortFree 里永远“空闲”，不能直接交给 next:
+  // 随机取一个真实空闲端口再返回，窗口才知道该连哪里。
+  if (!preferred) return randomPort();
+  if (await isPortFree(preferred)) return preferred;
+  return randomPort();
 }
 
 function probeServer(port) {
@@ -223,11 +277,27 @@ function stopServer() {
   }
 }
 
+function configurePermissions() {
+  // 桌面端的完成通知走系统通知中心：显式允许 notifications，其余权限保持默认拒绝。
+  const ses = session.defaultSession;
+  ses.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === "notifications");
+  });
+  ses.setPermissionCheckHandler((_webContents, permission) => permission === "notifications");
+}
+
 async function start() {
   try {
-    serverPort = await choosePort(
-      Number(process.env.PI_WEB_PORT || process.env.PORT) || DEFAULT_PORT,
-    );
+    const settings = readDesktopSettings();
+    const envWebAccess = process.env.PI_WEB_WEB_ACCESS;
+    webAccess = envWebAccess === undefined
+      ? settings.webAccess
+      : envWebAccess === "1" || envWebAccess === "true";
+    const envPort = Number(process.env.PI_WEB_PORT || process.env.PORT) || 0;
+    serverPort = await choosePort(envPort || (webAccess ? DEFAULT_PORT : 0));
+    log(webAccess
+      ? `web access enabled on http://${HOST}:${serverPort}`
+      : `desktop-only; internal server on ${HOST}:${serverPort}`);
     serverProcess = startServer(serverPort);
     const ready = await waitForServer(serverPort, READY_TIMEOUT_MS);
     if (!ready) throw new Error("the PI NEXT server did not come up in time");
@@ -251,7 +321,11 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow.focus();
   });
 
-  app.whenReady().then(start);
+  app.whenReady().then(() => {
+    configurePermissions();
+    if (process.platform === "win32") app.setAppUserModelId("com.agegr.piweb");
+    return start();
+  });
 
   app.on("activate", () => {
     if (!mainWindow && serverProcess) createWindow();

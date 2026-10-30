@@ -8,6 +8,9 @@ release/
 test-results/
 tsconfig.tsbuildinfo
 
+# the upstream source drop kept for reference
+pi-web-0.13.0/
+
 # local-only: design boards and contributor guides are not published here
 docs/
 design/

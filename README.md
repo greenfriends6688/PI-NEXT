@@ -33,7 +33,7 @@ Pi Web 本身很好用，但界面是「Tailwind 骨架 + 一份 `!important` �
 
 ```bash
 npm install
-npm run dev            # http://127.0.0.1:30141
+npm run dev            # http://127.0.0.1:30142
 ```
 
 局域网访问用 `npm run dev:lan`；图形化安装包用 `npm run dist:mac`（electron-builder，产物在 `release/`）。

@@ -33,6 +33,7 @@ import {
 } from "@/lib/thinking-expansion-preference";
 import { ModelsConfig } from "./ModelsConfig";
 import { setupPushSubscription } from "@/lib/push-client";
+import { getDesktopSettings, isDesktopShell, setDesktopWebAccess, type DesktopSettings } from "@/lib/desktop-shell";
 import { SkillsConfig } from "./SkillsConfig";
 import { AgentsConfig } from "./AgentsConfig";
 import { PluginsConfig } from "./PluginsConfig";
@@ -103,6 +104,19 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
   const [cacheMissNoticesError, setCacheMissNoticesError] = useState<string | null>(null);
   const [pushRegistering, setPushRegistering] = useState(false);
   const [pushStatus, setPushStatus] = useState<{ kind: "ok" | "error"; message: string } | null>(null);
+  // 桌面壳自己的设置：浏览器里没有这条，也不该有。
+  const desktopShell = isDesktopShell();
+  const [desktopSettings, setDesktopSettings] = useState<DesktopSettings | null>(null);
+  const [desktopWebBusy, setDesktopWebBusy] = useState(false);
+  const [desktopWebNote, setDesktopWebNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!desktopShell) return;
+    let cancelled = false;
+    void getDesktopSettings().then((settings) => {
+      if (!cancelled) setDesktopSettings(settings);
+    });
+    return () => { cancelled = true; };
+  }, [desktopShell]);
   // The composer no longer carries a tool switch: the default for new sessions
   // is chosen here, where the tools each preset pins can be listed.
   const [toolChoice, setToolChoice] = useState<ToolPresetChoice>("configured");
@@ -190,6 +204,19 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
     } finally {
       setShellSaving(false);
     }
+  };
+
+  const toggleDesktopWebAccess = async (next: boolean) => {
+    setDesktopWebBusy(true);
+    setDesktopWebNote(null);
+    const result = await setDesktopWebAccess(next);
+    setDesktopWebBusy(false);
+    if (!result) {
+      setDesktopWebNote(t("settings.webAccessError"));
+      return;
+    }
+    setDesktopSettings((previous) => previous ? { ...previous, webAccess: result.webAccess } : previous);
+    setDesktopWebNote(t(result.requiresRestart ? "settings.webAccessRestart" : "settings.webAccessSaved"));
   };
 
   const registerPush = async () => {
@@ -545,6 +572,33 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
         </section>
       )}
 
+      {desktopShell && desktopSettings && (
+        <section className="set-section">
+          <h2 className="set-section__title">{t("settings.desktop")}</h2>
+          <div className="card">
+            <div className="crow">
+              <div className="crow__text">
+                <div className="crow__title">{t("settings.webAccess")}</div>
+                <div className="crow__detail">{t("settings.webAccessDescription", { port: desktopSettings.webAccessPort })}</div>
+              </div>
+              <div className="crow__control">
+                <ConfigSwitch
+                  checked={desktopSettings.webAccess}
+                  disabled={desktopWebBusy}
+                  loading={desktopWebBusy}
+                  label={t("settings.webAccess")}
+                  onChange={(next) => void toggleDesktopWebAccess(next)}
+                />
+              </div>
+            </div>
+          </div>
+          {desktopWebNote && (
+            <p role="status" className="settings-general-error" style={{ color: "var(--accent)" }}>{desktopWebNote}</p>
+          )}
+        </section>
+      )}
+
+      {!desktopShell && (
       <section className="set-section">
         <h2 className="set-section__title">{t("settings.pushPermission")}</h2>
         <div className="card">
@@ -574,6 +628,7 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
           </p>
         )}
       </section>
+      )}
 
       <section className="set-section">
         <h2 className="set-section__title">{t("common.language")}</h2>

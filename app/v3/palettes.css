@@ -60,7 +60,7 @@
 [data-theme="solarizedLight"],
 [data-theme="githubLight"],
 [data-theme="claudeLight"] {
-  --desk: #e7eae5;
+  --desk: #ffffff;
 }
 
 [data-theme="dark"],

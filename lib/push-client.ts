@@ -19,6 +19,8 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   return outputArray;
 }
 
+import { isDesktopShell } from "./desktop-shell";
+
 export function isPushSupported(): boolean {
   return typeof window !== "undefined"
     && "serviceWorker" in navigator
@@ -27,7 +29,7 @@ export function isPushSupported(): boolean {
 }
 
 export async function setupPushSubscription(locale: string): Promise<boolean> {
-  if (!isPushSupported() || Notification.permission !== "granted") return false;
+  if (isDesktopShell() || !isPushSupported() || Notification.permission !== "granted") return false;
   if (activeSubscriptionPromise) return activeSubscriptionPromise;
 
   const attempt = (async () => {
