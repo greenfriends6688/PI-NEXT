@@ -792,12 +792,15 @@ function AssistantMessageView({
     }
     return -1;
   })();
-  const stats = [...usageStats];
-  if (turnDurationMs !== undefined) {
-    if (stats.length > 0) stats.push({ text: "·" });
-    const time = formatTurnDuration(turnDurationMs);
-    stats.push(formatDurationPart(t("chat.turnDuration", { time }), time));
-  }
+  const durationText = turnDurationMs === undefined ? null : formatTurnDuration(turnDurationMs);
+  const durationStats = durationText === null
+    ? []
+    : [formatDurationPart(t("chat.turnDuration", { time: durationText }), durationText)];
+  // The step row already carries the usage numbers; repeating them in the foot
+  // read as two identical lines under every tool call.
+  const stats = inlineUsageIndex >= 0
+    ? durationStats
+    : (durationStats.length > 0 ? [...usageStats, { text: "·" }, ...durationStats] : usageStats);
   // One item per count: a single space at 11px ran them together. The spaces
   // stay in the text for copying; the flex gap draws the room.
   const renderStats = (parts: StatPart[]) => (
@@ -873,6 +876,7 @@ function AssistantMessageView({
       data-message-role="assistant"
       data-entry-id={entryId}
       className="message-assistant"
+      data-empty-body={!textContent.trim() ? "true" : undefined}
       style={{ marginBottom: 16 }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

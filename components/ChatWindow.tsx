@@ -497,6 +497,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   // 整份历史都在，没有分页游标；但首屏只画最近一段，
   // 其余的空闲时补上（`paintCount`），否则上千条消息会把打开会话卡住几秒。
   const [paintCount, setPaintCount] = useState(FIRST_PAINT_MESSAGES);
+  // 首屏先画最近一段，再把更早的历史补到上面。补的时候若用户还在底部，
+  // 要重新落到底，否则滚动位置停在旧内容上，看起来就是「打开会话在第一条」。
+  const paintBottomAnchorRef = useRef(false);
+  const initialBottomSessionRef = useRef<string | null>(null);
   const messageContentRef = useRef<HTMLDivElement | null>(null);
   const restoreStartedRef = useRef(false);
   const pendingScrollRestoreRef = useRef(pendingScrollRestore);
@@ -619,6 +623,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     let cancelled = false;
     const step = () => {
       if (cancelled) return;
+      const container = scrollContainerRef.current;
+      paintBottomAnchorRef.current = container
+        ? isScrollAtTail(container.scrollTop, container.clientHeight, container.scrollHeight)
+        : false;
       // 翻倍成长：60 → 120 → 240 …，六步画完上千条；每步都只是多提交一段，
       // 线性加 120 的话要跑十几个来回，反而更慢。
       setPaintCount((current) => Math.min(messages.length, Math.max(current * 2, current + IDLE_PAINT_STEP)));
@@ -632,6 +640,34 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       else window.clearTimeout(idle as number);
     };
   }, [paintCount, messages.length]);
+
+  // 补历史时保持底部：新内容加在上面，scrollTop 不变就会停在更早的一条上。
+  useLayoutEffect(() => {
+    if (!paintBottomAnchorRef.current) return;
+    paintBottomAnchorRef.current = false;
+    scrollToBottom("instant");
+  }, [paintCount, scrollToBottom]);
+
+  // 进入会话默认落到最后一次输出（搜索命中、显式恢复位置时除外）。
+  useLayoutEffect(() => {
+    const id = session?.id;
+    if (!id || loading || searchTarget || pendingScrollRestore || messages.length === 0) return;
+    if (initialBottomSessionRef.current === id) return;
+    if (!scrollContainerRef.current) return;
+    initialBottomSessionRef.current = id;
+    const frame = requestAnimationFrame(() => scrollToBottom("instant"));
+    return () => cancelAnimationFrame(frame);
+  }, [session?.id, loading, searchTarget, pendingScrollRestore, messages.length, scrollToBottom]);
+
+  // 内容分几批挂上来（先最近一段、历史补齐、长会话的 tail）：首屏的高度可能
+  // 不够一屏，第一次 scrollToBottom 只能到 0。进会话后的头一秒再落几次底，
+  // 用户还没来得及往上读；之后不再抢滚动位置。
+  useEffect(() => {
+    const id = session?.id;
+    if (!id || loading || searchTarget || pendingScrollRestore) return;
+    const timers = [120, 500, 1200].map((delay) => window.setTimeout(() => scrollToBottom("instant"), delay));
+    return () => { for (const timer of timers) clearTimeout(timer); };
+  }, [session?.id, loading, searchTarget, pendingScrollRestore, scrollToBottom]);
 
   // Push session stats up to AppShell for the top bar.
   // Compare scalar fields to avoid loops from new object identity each render.

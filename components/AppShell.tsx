@@ -11,7 +11,6 @@ import { ExtensionWidgets } from "./ExtensionWidgets";
 import { Spin } from "./v3/Spin";
 import { ChatWindow } from "./ChatWindow";
 import { NewSessionContextBar, type NewSessionContextControl } from "./NewSessionContextBar";
-import type { ChatScrollPosition } from "@/lib/chat-scroll-position";
 import { FileViewer } from "./FileViewer";
 import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
 import { TabBar, type Tab } from "./TabBar";
@@ -226,10 +225,6 @@ export function AppShell() {
   const [initialCwdError, setInitialCwdError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [sessionKey, setSessionKey] = useState(0);
-  const sessionScrollPositionsRef = useRef(new Map<string, ChatScrollPosition>());
-  const handleSessionScrollPositionChange = useCallback((sessionId: string, position: ChatScrollPosition) => {
-    sessionScrollPositionsRef.current.set(sessionId, position);
-  }, []);
   const [searchTarget, setSearchTarget] = useState<{ sessionId: string; entryId: string; blockIndex?: number } | null>(null);
   const handleSearchTargetHandled = useCallback((target: { sessionId: string; entryId: string }) => {
     setSearchTarget((current) => current === target ? null : current);
@@ -1820,7 +1815,12 @@ export function AppShell() {
                 <button
                   type="button"
                   className={`cbtn${chromeMoreOpen ? " is-on" : ""}`}
-                  onClick={() => setChromeMoreOpen((open) => !open)}
+                  onClick={() => {
+                    // 调试面板盖在浮窗上方时，这一颗仍然要能把面板收起来，
+                    // 然后再展开/收起这张「⋯」卡。
+                    setActiveTopPanel((panel) => panel === "debug" ? null : panel);
+                    setChromeMoreOpen((open) => !open);
+                  }}
                   title={translate("chat.moreControls")}
                   aria-label={translate("chat.moreControls")}
                   aria-haspopup="menu"
@@ -3131,8 +3131,6 @@ export function AppShell() {
               session={selectedSession}
               searchTarget={searchTarget?.sessionId === selectedSession?.id ? searchTarget : null}
               onSearchTargetHandled={handleSearchTargetHandled}
-              initialScrollPosition={selectedSession ? sessionScrollPositionsRef.current.get(selectedSession.id) ?? null : null}
-              onScrollPositionChange={handleSessionScrollPositionChange}
               sessionRunning={Boolean(selectedSession && runningSessionIds.has(selectedSession.id))}
               newSessionCwd={effectiveNewSessionCwd}
               newSessionDraftKey={newSessionDraftKey}

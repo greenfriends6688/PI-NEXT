@@ -259,6 +259,7 @@ export function DebugPanel({ readerRef, selectedSessionId, sessions, onClose }: 
       sessions={sessions}
       copied={copied}
       onCopy={handleCopy}
+      onClose={onClose}
       t={t}
       sectionRef={sectionRef}
     />
@@ -280,6 +281,8 @@ interface ViewProps {
   sessions: readonly SessionInfo[];
   copied: boolean;
   onCopy(): void;
+  /** Closes the panel; the view's header button is hidden when absent (fixtures). */
+  onClose?: (restoreFocus: boolean) => void;
   t: Translate;
   /** The panel's element, for the Escape that closes it to tell whether focus was inside. */
   sectionRef?: Ref<HTMLElement>;
@@ -298,7 +301,7 @@ interface Ctx {
 }
 
 /** The panel itself, from what DebugPanel read; pure, so tests render it from fixtures. */
-export function DebugPanelView({ page, server, samples = EMPTY_DEBUG_SAMPLES, selectedSessionId, sessions, copied, onCopy, t, sectionRef }: ViewProps) {
+export function DebugPanelView({ page, server, samples = EMPTY_DEBUG_SAMPLES, selectedSessionId, sessions, copied, onCopy, onClose, t, sectionRef }: ViewProps) {
   const now = page?.at ?? server.receivedAt ?? 0;
   const client = page?.client ?? null;
   const targetSessionId = debugTargetSessionId(client, selectedSessionId);
@@ -327,6 +330,17 @@ export function DebugPanelView({ page, server, samples = EMPTY_DEBUG_SAMPLES, se
         <button type="button" className="debug-panel-copy" onClick={onCopy} title={t("debug.copyTitle")}>
           {copied ? t("debug.copied") : t("debug.copyJson")}
         </button>
+        {onClose && (
+          <button
+            type="button"
+            className="debug-panel-copy debug-panel-close"
+            onClick={() => onClose(true)}
+            title={t("i18n.close")}
+            aria-label={t("i18n.close")}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        )}
       </div>
       {page !== null && (
         <div className="debug-panel-scroll">
@@ -1538,6 +1552,12 @@ const DEBUG_PANEL_CSS = `
   .debug-panel-copy:hover {
     background: var(--bg-hover);
     color: var(--text);
+  }
+  .debug-panel-copy.debug-panel-close {
+    margin-left: 0;
+    padding: 2px 7px;
+    font-size: 15px;
+    line-height: 1.1;
   }
   .debug-panel-scroll {
     display: flex;

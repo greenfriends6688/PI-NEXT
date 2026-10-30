@@ -659,8 +659,27 @@
 /* 带步骤的消息：树干（.step）左边留 32px 内边距，模型名和时间原来贴在消息列的
    最左边，比树干还靠外，看着像错位。有步骤时一起让到树干那一列。 */
 .message-assistant:has(.step) > .assistant-model-label,
-.message-assistant:has(.step) > .assistant-foot {
+.message-assistant:has(.step) > .assistant-foot,
+.turn:has(.steps) .message-assistant[data-empty-body] > .assistant-model-label {
   padding-left: 32px;
+}
+
+/* An empty step-only message sits between two process groups: its label row is
+   the trunk's gap. Move the name to the step column and carry the line through
+   the row, so the two groups connect instead of breaking at the label. */
+.turn:has(.steps) .message-assistant[data-empty-body] > .assistant-model-label {
+  position: relative;
+}
+.turn:has(.steps) .message-assistant[data-empty-body] > .assistant-model-label::before {
+  content: "";
+  position: absolute;
+  left: 12.5px;
+  top: -14px;
+  bottom: 0;
+  width: 1px;
+  background: var(--ink);
+  opacity: 0.24;
+  pointer-events: none;
 }
 
 .steps .message-assistant {
