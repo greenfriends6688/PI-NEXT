@@ -5,6 +5,7 @@ import React from "react";
 import ts from "typescript";
 
 const source = await readFile(new URL("./FileViewer.tsx", import.meta.url), "utf8");
+const cssSource = await readFile(new URL("../app/v3/running.css", import.meta.url), "utf8");
 
 test("lightweight source rows are skipped for highlighted, diff, and preview views", () => {
   // Execute the source-view calculations without mounting the file-fetching component.
@@ -49,6 +50,28 @@ test("lightweight source rows are skipped for highlighted, diff, and preview vie
     assert.equal(rows[0].props.children[1].props.children, "line");
   }
   assert.equal(render(large, "source", false, false, true)[0].props.children[1].props.style.whiteSpace, "pre-wrap");
+});
+
+test("the diff view wraps when the viewer wraps, and the key reaches the diff", () => {
+  const diffView = source.slice(source.indexOf("function DiffView"), source.indexOf("function ImageViewer"));
+  assert.notEqual(source.indexOf("function DiffView"), -1);
+
+  // Wrapped: the box stops being the widest line's width and the row's text
+  // column gives way instead of pushing a horizontal scrollbar.
+  assert.match(diffView, /width: wrapLines \? "100%" : "max-content"/);
+  assert.match(diffView, /whiteSpace: wrapLines \? "pre-wrap" : "pre"/);
+  assert.match(diffView, /overflowWrap: wrapLines \? "anywhere" : "normal"/);
+  assert.match(diffView, /flexShrink: wrapLines \? 1 : 0/);
+  // Unwrapped stays exactly as before: one line per row, sideways scroll. The
+  // +/- marker column never shrinks either way (this fork draws it with
+  // `.dline__sign`, whose CSS pins `flex: none`).
+  assert.match(diffView, /className="dline__sign"/);
+  assert.match(cssSource, /\.dline__sign \{[^}]*flex: none;/);
+  assert.match(source, /<DiffView patch=\{gitDiff\.patch!\} wrapLines=\{wrapLines\} \/>/);
+
+  // The wrap control is offered for the diff as well as the source, never for a
+  // rendered preview (markdown, HTML, table), where there are no lines to wrap.
+  assert.match(source, /\(effectiveDisplayMode === "source" \|\| effectiveDisplayMode === "diff"\) && !isBinary/);
 });
 
 test("partly loaded HTML previews up to the HTML cap; partly loaded markdown does not", () => {

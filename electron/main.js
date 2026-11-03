@@ -14,6 +14,7 @@ const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const http = require("node:http");
 const net = require("node:net");
+const os = require("node:os");
 const path = require("node:path");
 
 const APP_NAME = "PI NEXT";
@@ -51,6 +52,18 @@ function readDesktopSettings() {
   }
 }
 
+/** 这一个局域网地址（IPv4，非回环）—— 手机上打开它。没有就 null。 */
+function listLanAddress() {
+  const interfaces = os.networkInterfaces();
+  for (const addresses of Object.values(interfaces)) {
+    for (const info of addresses ?? []) {
+      if (String(info.family) !== "IPv4" || info.internal || info.address.startsWith("169.254.")) continue;
+      return info.address;
+    }
+  }
+  return null;
+}
+
 function writeDesktopSettings(settings) {
   const file = desktopSettingsFile();
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -59,12 +72,30 @@ function writeDesktopSettings(settings) {
   fs.renameSync(tmp, file);
 }
 
+// 「手机能连上」的开关：桌面壳里它就是把内部服务绑到 0.0.0.0（同一局域网可访问），
+// 然后重启子服务生效。令牌闸门由 Web 侧自己管（lib/lan-access.ts），壳不碰它。
 ipcMain.handle("pi-web:get-desktop-settings", () => ({
   webAccess,
   webPort: serverPort,
   webAccessPort: DEFAULT_PORT,
+  lanAddress: webAccess ? listLanAddress() : null,
   packaged: app.isPackaged,
 }));
+
+ipcMain.handle("pi-web:set-lan-access", async (_event, enabled) => {
+  const next = enabled === true;
+  writeDesktopSettings({ ...readDesktopSettings(), webAccess: next });
+  if (next === webAccess) return { enabled: webAccess, requiresRestart: false, lanAddress: next ? listLanAddress() : null };
+  webAccess = next;
+  // 绑定的地址变了，只能重启子服务：分配新端口（开着 web 访问时用固定端口），
+  // 再用新地址重新加载窗口。
+  stopServer();
+  serverPort = await choosePort(webAccess ? DEFAULT_PORT : 0);
+  serverProcess = startServer(serverPort);
+  const ready = await waitForServer(serverPort, READY_TIMEOUT_MS);
+  if (mainWindow && ready) mainWindow.loadURL(`http://${HOST}:${serverPort}/`);
+  return { enabled: webAccess, requiresRestart: false, lanAddress: webAccess ? listLanAddress() : null };
+});
 
 ipcMain.handle("pi-web:focus-window", () => {
   if (!mainWindow) return;
@@ -176,7 +207,8 @@ function startServer(port) {
   log(`starting the server on ${HOST}:${port}`);
   const child = spawn(
     process.execPath,
-    [nextBin, "start", "-H", HOST, "-p", String(port)],
+    // 开着「手机访问」时绑通配地址：同一局域网的手机才能打开；否则只绑回环。
+    [nextBin, "start", "-H", webAccess ? "0.0.0.0" : HOST, "-p", String(port)],
     {
       cwd: dir,
       env: {

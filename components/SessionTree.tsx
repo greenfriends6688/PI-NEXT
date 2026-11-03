@@ -130,6 +130,8 @@ export interface SessionTreeProps {
   /** A group's "+": a new session in that project at once. */
   onGroupNew(project: SidebarProject): void;
   onGroupMenu(project: SidebarProject, opener: HTMLElement): void;
+  /** An unpinned empty group's "Pin to keep": without sessions, only a pin keeps it listed. */
+  onPinEmptyGroup(project: SidebarProject): void;
   /** An archive header's toggle; `all` (Alt+click): every archive group follows this one. */
   onToggleArchiveGroup?(projectKey: string, all: boolean): void;
   /** An archive header's ⋯: Restore all, Delete…. */
@@ -142,6 +144,10 @@ export interface SessionTreeProps {
   onRevealHandled?(id: number): void;
   /** A group dropped next to another of its band. Without it no group can be dragged. */
   onMoveGroup?(projectKey: string, anchorKey: string, position: ProjectMovePosition): void;
+  /** 主会话展开/收起它的小代理行（子代理会话在会话下面，transcript 仍在右侧栏）。 */
+  onToggleFamily?(family: SessionFamily): void;
+  /** 点小代理行：在右侧栏打开它的 transcript。 */
+  onSelectSubagent?(session: SessionInfo): void;
 }
 
 /** Rows rendered beyond each edge of the viewport. */
@@ -393,7 +399,7 @@ export function SessionTree(props: SessionTreeProps): ReactNode {
     }
   }, [visibleIndices]);
 
-  const hasTreeRows = rows.some((row) => row.kind === "session" || row.kind === "group");
+  const hasTreeRows = rows.some((row) => row.kind === "session" || row.kind === "group" || row.kind === "archive-group");
   const showEmpty = !loading && !error && emptyLabel !== null && !hasTreeRows;
   // While dragging: the group's block is dimmed in place (groups never fold
   // up under the pointer), a line marks the drop, and a pill with the
@@ -467,6 +473,17 @@ export function SessionTree(props: SessionTreeProps): ReactNode {
                     handlers={handlersRef}
                     onHoverPreview={scheduleHoverPreview}
                     onHoverEnd={clearHoverPreview}
+                  />
+                );
+              }
+              if (row.kind === "subagent") {
+                return (
+                  <SubagentRowView
+                    key={row.key}
+                    row={row}
+                    top={top}
+                    height={height}
+                    onSelect={() => handlersRef.current.onSelectSubagent?.(row.session)}
                   />
                 );
               }
@@ -701,6 +718,25 @@ const SessionRowView = memo(function SessionRowView({
           {branch}
         </span>
       )}
+      {/* 带小代理的会话：一枚展开键。收起时也在，因为「这个会话起过 agent」本身就是信息；
+          数字是本次运行起了几个。 */}
+      {family.subagents.length > 0 && (
+        <button
+          type="button"
+          className={`session-tree-subagents-toggle${row.expanded ? " is-open" : ""}`}
+          aria-expanded={row.expanded}
+          aria-label={t("sidebar.subagentsCount", { count: family.subagents.length })}
+          title={t("sidebar.subagentsCount", { count: family.subagents.length })}
+          onClick={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            handlers.current.onToggleFamily?.(family);
+          }}
+        >
+          <BranchIcon size={11} />
+          {family.subagents.length}
+        </button>
+      )}
       {trail}
     </>
   );
@@ -849,7 +885,8 @@ function RenameInput({
   );
 }
 
-function DeleteConfirm({
+/** A row's delete confirmation; also a side chat's in the Agents switcher (AgentSessionPanel). */
+export function DeleteConfirm({
   label,
   deleteLabel,
   cancelLabel,
@@ -1050,6 +1087,51 @@ const GroupRowView = memo(function GroupRowView({
 });
 
 /** The rows with at most one control: section headers, "show more", footer links. */
+/**
+ * 会话下面的一行小代理（缩进 + 竖线，和画板里的子代理行一致）。
+ *
+ * 点它不会切换主会话——小代理的 transcript 在右侧栏打开（onSelectSubagent），
+ * 这样「看小代理」和「看主会话」可以并排，不会互相顶掉。
+ */
+const SubagentRowView = memo(function SubagentRowView({
+  row,
+  top,
+  height,
+  onSelect,
+}: {
+  row: Extract<SidebarRow, { kind: "subagent" }>;
+  top: number;
+  height: number;
+  onSelect: () => void;
+}) {
+  const { t, locale } = useI18n();
+  const { session } = row;
+  const label = session.relation?.kind === "subagent"
+    ? session.relation.description || session.relation.profile
+    : "";
+  const title = label || sessionRowTitle(session);
+  const when = formatShortRelativeTime(session.modified, locale, new Date());
+  return (
+    <div className="session-tree-row session-tree-subagent" style={rowStyle(top, height)} data-row-key={row.key}>
+      <button
+        type="button"
+        className="session-tree-subagent-main"
+        title={`${title}\n${when}`}
+        onClick={onSelect}
+      >
+        <span className="session-tree-subagent-title">{title}</span>
+        {row.awaiting ? (
+          <span className="tag" title={t("sidebar.agentAwaitingInput")}>{t("sidebar.agentAwaitingInput")}</span>
+        ) : row.running ? (
+          <SpinnerIcon size={11} label={t("sidebar.agentRunning")} />
+        ) : (
+          <span className="session-tree-subagent-time">{when}</span>
+        )}
+      </button>
+    </div>
+  );
+});
+
 const PlainRowView = memo(function PlainRowView({
   row,
   top,
@@ -1137,7 +1219,16 @@ const PlainRowView = memo(function PlainRowView({
     case "group-empty":
       return (
         <div className="session-tree-row session-tree-group-empty" style={style} data-row-key={row.key}>
-          {t("sidebar.noLiveSessions")}
+          <span className="session-tree-group-empty-label">{t("sidebar.noLiveSessions")}</span>
+          {!row.project.pinned && (
+            <button
+              type="button"
+              className="session-tree-more-toggle"
+              onClick={() => handlers.current.onPinEmptyGroup(row.project)}
+            >
+              {t("sidebar.pinToKeep")}
+            </button>
+          )}
         </div>
       );
     case "footer-open":

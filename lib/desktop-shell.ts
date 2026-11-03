@@ -16,6 +16,8 @@ export interface DesktopSettings {
   webPort: number;
   /** The fixed port Web access uses when enabled. */
   webAccessPort: number;
+  /** 这台机器的局域网地址（开着手机访问时）；手机用它打开。 */
+  lanAddress?: string | null;
   packaged: boolean;
 }
 
@@ -26,6 +28,7 @@ interface DesktopShellBridge {
   pickDirectory?: (options?: { title?: string; defaultPath?: string }) => Promise<DesktopDirectoryPick>;
   getDesktopSettings?: () => Promise<DesktopSettings>;
   setWebAccess?: (enabled: boolean) => Promise<{ webAccess: boolean; requiresRestart: boolean }>;
+  setLanAccess?: (enabled: boolean) => Promise<{ enabled: boolean; requiresRestart: boolean; lanAddress: string | null }>;
   focusWindow?: () => Promise<void>;
 }
 
@@ -70,6 +73,22 @@ export async function getDesktopSettings(): Promise<DesktopSettings | null> {
 /** Saves the Web-access choice; the running server keeps its port until a restart. */
 export async function setDesktopWebAccess(enabled: boolean): Promise<{ webAccess: boolean; requiresRestart: boolean } | null> {
   const set = bridge()?.setWebAccess;
+  if (!set) return null;
+  try {
+    return await set(enabled);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 打开/关闭「手机能连上」：桌面壳里就是把内部服务绑到通配地址并重启子服务。
+ * 返回重启后的实际状态；没有这个桥（浏览器里）返回 null，由调用方回退到 Web 侧的接口。
+ */
+export async function setDesktopLanAccess(
+  enabled: boolean,
+): Promise<{ enabled: boolean; requiresRestart: boolean; lanAddress: string | null } | null> {
+  const set = bridge()?.setLanAccess;
   if (!set) return null;
   try {
     return await set(enabled);

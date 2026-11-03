@@ -134,6 +134,8 @@ function parseLaunchOptions(args = process.argv.slice(2), env = process.env) {
     help: false,
     port: normalizePort(values.port ?? env.PORT ?? "30142"),
     hostname: values.hostname ?? env.PI_WEB_HOSTNAME ?? "127.0.0.1",
+    // 用户自己给了地址就照办；没给才允许 lan-access.json 把它翻成通配地址。
+    hostnameExplicit: Boolean(values.hostname ?? env.PI_WEB_HOSTNAME),
     openBrowser: !values["no-open"] && !isEnabled(env.PI_WEB_NO_OPEN),
   };
 }

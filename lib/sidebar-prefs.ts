@@ -2,8 +2,9 @@
  * Per-browser sidebar preferences: the active tab (sessions or files), the
  * user's explicit project group expand/collapse choices, the archive view's
  * folded projects, whether the pinned section is collapsed, whether the files section below the sessions is
- * collapsed, whether the files tab or section lists ignored files, and the
- * folders the worktree listing last found outside git.
+ * collapsed, whether the files tab or section lists ignored files, whether the
+ * Git changes panel shows a flat list or a folder tree, and the folders the
+ * worktree listing last found outside git.
  * Best-effort localStorage, like the other sidebar memories: privacy mode or
  * quota errors fall back to defaults.
  */
@@ -21,7 +22,10 @@ const ARCHIVE_COLLAPSED_STORAGE_KEY = "pi-web:sidebar-archive-collapsed";
 const PINNED_COLLAPSED_STORAGE_KEY = "pi-web:sidebar-pins-collapsed";
 const SHOW_IGNORED_FILES_STORAGE_KEY = "pi-web:sidebar-files-show-ignored";
 const FILES_COLLAPSED_STORAGE_KEY = "pi-web:sidebar-files-collapsed";
+const CHANGES_VIEW_MODE_STORAGE_KEY = "pi-web:sidebar-changes-view-mode";
 const NON_GIT_CWDS_STORAGE_KEY = "pi-web:sidebar-non-git-cwds";
+/** 摊开过小代理会话的主会话 id（仅这一次选择，与分组展开同一套路）。 */
+const EXPANDED_FAMILIES_STORAGE_KEY = "pi-web:sidebar-expanded-families";
 /**
  * Keys nothing reads now: the sessions/explorer split's, which the two tabs
  * replaced, and the group choices before v2 (loadGroupExpansion reads them
@@ -35,6 +39,9 @@ const MAX_GROUP_EXPANSION_ENTRIES = 300;
 const MAX_NON_GIT_CWDS = 50;
 
 export type SidebarTab = "sessions" | "files";
+
+/** Flat list (default) or folder tree for the Git changes panel. */
+export type ChangesViewMode = "list" | "tree";
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -64,6 +71,31 @@ export function saveSidebarTab(tab: SidebarTab, storage: StorageLike | null = ge
   if (!storage) return;
   try {
     storage.setItem(SIDEBAR_TAB_STORAGE_KEY, tab);
+  } catch {
+    // Persistence is best-effort.
+  }
+}
+
+/** 摊开过小代理会话的主会话 id；坏值当空集（全部收起，和默认一致）。 */
+export function loadExpandedFamilies(storage: StorageLike | null = getBrowserStorage()): Set<string> {
+  if (!storage) return new Set();
+  try {
+    const parsed: unknown = JSON.parse(storage.getItem(EXPANDED_FAMILIES_STORAGE_KEY) ?? "[]");
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((id): id is string => typeof id === "string").slice(-MAX_GROUP_EXPANSION_ENTRIES));
+  } catch {
+    return new Set();
+  }
+}
+
+export function saveExpandedFamilies(
+  ids: ReadonlySet<string>,
+  storage: StorageLike | null = getBrowserStorage(),
+): void {
+  if (!storage) return;
+  try {
+    if (ids.size === 0) storage.removeItem?.(EXPANDED_FAMILIES_STORAGE_KEY);
+    else storage.setItem(EXPANDED_FAMILIES_STORAGE_KEY, JSON.stringify([...ids]));
   } catch {
     // Persistence is best-effort.
   }
@@ -223,6 +255,29 @@ export function saveFilesCollapsed(
   if (!storage) return;
   try {
     storage.setItem(FILES_COLLAPSED_STORAGE_KEY, String(collapsed));
+  } catch {
+    // Persistence is best-effort.
+  }
+}
+
+
+/** Flat list unless the browser saved tree mode for the Git changes panel. */
+export function loadChangesViewMode(storage: StorageLike | null = getBrowserStorage()): ChangesViewMode {
+  if (!storage) return "list";
+  try {
+    return storage.getItem(CHANGES_VIEW_MODE_STORAGE_KEY) === "tree" ? "tree" : "list";
+  } catch {
+    return "list";
+  }
+}
+
+export function saveChangesViewMode(
+  mode: ChangesViewMode,
+  storage: StorageLike | null = getBrowserStorage(),
+): void {
+  if (!storage) return;
+  try {
+    storage.setItem(CHANGES_VIEW_MODE_STORAGE_KEY, mode);
   } catch {
     // Persistence is best-effort.
   }

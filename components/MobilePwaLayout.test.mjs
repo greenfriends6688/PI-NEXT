@@ -14,7 +14,8 @@ const newSessionBarSource = await readFile(new URL("./NewSessionContextBar.tsx",
 test("every class the keyboard-open rules target exists on its component", () => {
   // Every selector the keyboard rules target must exist on the element it
   // means; a renamed class would otherwise leave the rule silently dead.
-  assert.match(chatInputSource, /className="chat-input-controls"/);
+  // This fork keeps the board's `.composer__bar` beside it.
+  assert.match(chatInputSource, /className="chat-input-controls composer__bar"/);
   assert.match(chatInputSource, /className=\{compact \? undefined : "chat-input-shell"\}/);
   assert.match(extensionStatusBarSource, /className=\{`extension-status-shelf/);
   assert.match(chatWindowSource, /className="chat-content /);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Icon } from "./v3/Icon";
 import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -33,13 +33,15 @@ import {
 } from "@/lib/thinking-expansion-preference";
 import { ModelsConfig } from "./ModelsConfig";
 import { setupPushSubscription } from "@/lib/push-client";
-import { getDesktopSettings, isDesktopShell, setDesktopWebAccess, type DesktopSettings } from "@/lib/desktop-shell";
+import { getDesktopSettings, isDesktopShell, setDesktopLanAccess, type DesktopSettings } from "@/lib/desktop-shell";
 import { SkillsConfig } from "./SkillsConfig";
 import { AgentsConfig } from "./AgentsConfig";
 import { PluginsConfig } from "./PluginsConfig";
 import { McpConfig } from "./McpConfig";
-import { ConfigSwitch } from "./SettingsUi";
+import { ConfigDetailNavigationContext, ConfigSwitch, type ConfigDetailNavigation } from "./SettingsUi";
 import { FontSettings } from "./FontSettings";
+import { LanAccessPanel } from "./LanAccessPanel";
+import { BotChannelPanel } from "./BotChannelPanel";
 import {
   TOOL_PRESET_CHOICES,
   TOOL_PRESET_CHOICE_LABEL_KEYS,
@@ -54,6 +56,8 @@ interface Props {
   cwd: string | null;
   sessionId: string | null;
   initialSection: SettingsSection;
+  /** A phone opens on the list of sections instead of `initialSection` (the plain Settings button). */
+  openAtHome?: boolean;
   onClose: () => void;
   onSessionReloaded: () => void;
   quoteSelectionEnabled: boolean;
@@ -79,6 +83,7 @@ const SECTION_ICON: Record<SettingsSection, string> = {
   agents: "person-2",
   plugins: "puzzle",
   mcp: "puzzle",
+  devices: "wifi",
 };
 
 export function SettingsSectionIcon({ section }: { section: SettingsSection; size?: number; strokeWidth?: number }) {
@@ -107,8 +112,8 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
   // 桌面壳自己的设置：浏览器里没有这条，也不该有。
   const desktopShell = isDesktopShell();
   const [desktopSettings, setDesktopSettings] = useState<DesktopSettings | null>(null);
-  const [desktopWebBusy, setDesktopWebBusy] = useState(false);
-  const [desktopWebNote, setDesktopWebNote] = useState<string | null>(null);
+  const [desktopBusy, setDesktopBusy] = useState(false);
+  const [desktopNote, setDesktopNote] = useState<{ kind: "ok" | "error"; message: string } | null>(null);
   useEffect(() => {
     if (!desktopShell) return;
     let cancelled = false;
@@ -206,17 +211,26 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
     }
   };
 
+  // 桌面壳里的「手机访问」：写成 Web 偏好，再让主进程重新绑到局域网并重启子服务。
   const toggleDesktopWebAccess = async (next: boolean) => {
-    setDesktopWebBusy(true);
-    setDesktopWebNote(null);
-    const result = await setDesktopWebAccess(next);
-    setDesktopWebBusy(false);
+    setDesktopBusy(true);
+    try {
+      await fetch("/api/lan/access", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+    } catch {
+      // 写不进配置文件时下列桥接仍会把实际状态告诉我们。
+    }
+    const result = await setDesktopLanAccess(next);
+    setDesktopBusy(false);
     if (!result) {
-      setDesktopWebNote(t("settings.webAccessError"));
+      setDesktopNote({ kind: "error", message: t("settings.webAccessError") });
       return;
     }
-    setDesktopSettings((previous) => previous ? { ...previous, webAccess: result.webAccess } : previous);
-    setDesktopWebNote(t(result.requiresRestart ? "settings.webAccessRestart" : "settings.webAccessSaved"));
+    setDesktopSettings((previous) => previous ? { ...previous, webAccess: result.enabled } : previous);
+    setDesktopNote({ kind: "ok", message: t(result.requiresRestart ? "settings.webAccessRestart" : "settings.webAccessSaved") });
   };
 
   const registerPush = async () => {
@@ -584,16 +598,22 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
               <div className="crow__control">
                 <ConfigSwitch
                   checked={desktopSettings.webAccess}
-                  disabled={desktopWebBusy}
-                  loading={desktopWebBusy}
+                  disabled={desktopBusy}
+                  loading={desktopBusy}
                   label={t("settings.webAccess")}
                   onChange={(next) => void toggleDesktopWebAccess(next)}
                 />
               </div>
             </div>
           </div>
-          {desktopWebNote && (
-            <p role="status" className="settings-general-error" style={{ color: "var(--accent)" }}>{desktopWebNote}</p>
+          {desktopNote && (
+            <p
+              role={desktopNote.kind === "error" ? "alert" : "status"}
+              className="settings-general-error"
+              style={desktopNote.kind === "ok" ? { color: "var(--accent)" } : undefined}
+            >
+              {desktopNote.message}
+            </p>
           )}
         </section>
       )}
@@ -660,11 +680,95 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
   );
 }
 
+// A phone shows Settings one level at a time: the sections, a section (its list), a row's detail.
+type PhoneLevel = "home" | "section" | "detail";
+
+const PHONE_PARENT_LEVEL: Record<PhoneLevel, PhoneLevel> = { home: "home", section: "home", detail: "section" };
+const PHONE_LEVEL_DEPTH: Record<PhoneLevel, number> = { home: 0, section: 1, detail: 2 };
+const PHONE_LEVEL_EASING = "cubic-bezier(0.2, 0.8, 0.2, 1)";
+
+/**
+ * A phone's level change slides the new level in: from the right going in,
+ * from the left (a shorter way, fading up) going back, as a navigation stack
+ * does. The header's Back and title fade in with it. Only the new level moves
+ * (the old one is gone at once), so the main area clips it; nothing moves
+ * under prefers-reduced-motion.
+ */
+function animatePhoneLevelChange(main: HTMLElement | null, header: HTMLElement | null, from: PhoneLevel, to: PhoneLevel) {
+  if (!main || typeof main.animate !== "function") return;
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  const forward = PHONE_LEVEL_DEPTH[to] > PHONE_LEVEL_DEPTH[from];
+  main.animate(forward
+    ? [
+      { transform: "translateX(100%)", boxShadow: "-12px 0 24px rgba(0, 0, 0, 0.12)" },
+      { transform: "translateX(0)", boxShadow: "-12px 0 24px rgba(0, 0, 0, 0)" },
+    ]
+    : [{ transform: "translateX(-30%)", opacity: 0.4 }, { transform: "translateX(0)", opacity: 1 }], {
+    duration: 280,
+    easing: PHONE_LEVEL_EASING,
+  });
+  header?.querySelectorAll<HTMLElement>(".settings-phone-back, .settings-dialog-title").forEach((element) => {
+    element.animate([
+      { opacity: 0, transform: `translateX(${forward ? 16 : -16}px)` },
+      { opacity: 1, transform: "translateX(0)" },
+    ], { duration: 220, easing: PHONE_LEVEL_EASING });
+  });
+}
+
+/**
+ * The phone's level, with an entry in the browser history for each level
+ * entered, so the system Back gesture goes up one level instead of leaving the
+ * page. The entry copies the current history state (Next's router reads it)
+ * and keeps the URL. Closing Settings drops the entries it added.
+ */
+function usePhoneSettingsLevel(isPhone: boolean, openAtHome: boolean) {
+  const [level, setLevel] = useState<PhoneLevel>(openAtHome ? "home" : "section");
+  // A desktop shows a section, so a window narrowed to a phone's width stays
+  // on it instead of falling back to the level the panel opened at.
+  if (!isPhone && level !== "section") setLevel("section");
+  const levelRef = useRef(level);
+  levelRef.current = level;
+  const pushedRef = useRef(0);
+
+  useEffect(() => {
+    if (!isPhone) return;
+    const onPopState = () => {
+      if (pushedRef.current === 0) return;
+      pushedRef.current -= 1;
+      setLevel((current) => PHONE_PARENT_LEVEL[current]);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [isPhone]);
+
+  const enter = useCallback((next: PhoneLevel) => {
+    if (!isPhone) return;
+    window.history.pushState(window.history.state, "");
+    pushedRef.current += 1;
+    setLevel(next);
+  }, [isPhone]);
+
+  const goUp = useCallback(() => {
+    // An entry this panel added: popstate goes up, as the system Back does.
+    if (pushedRef.current > 0) window.history.back();
+    else setLevel((current) => PHONE_PARENT_LEVEL[current]);
+  }, []);
+
+  const dropHistory = useCallback(() => {
+    const pushed = pushedRef.current;
+    pushedRef.current = 0;
+    if (pushed > 0) window.history.go(-pushed);
+  }, []);
+
+  return { level, levelRef, enter, goUp, dropHistory };
+}
+
 export function SettingsPanel({
   cwd,
   sessionId,
   initialSection,
-  onClose,
+  openAtHome = false,
+  onClose: closeSettings,
   onSessionReloaded,
   quoteSelectionEnabled,
   onQuoteSelectionChange,
@@ -676,11 +780,27 @@ export function SettingsPanel({
 }: Props) {
   const { t } = useI18n();
   // 桌面用画板的 1060×760 玻璃弹窗；手机上设置是整页，保持原样。
-  const isMobile = useIsMobile();
+  const isPhone = useIsMobile();
   const [section, setSection] = useState<SettingsSection>(initialSection);
   // 手机：画板 pwa-settings 是「分区列表 → 分区详情」两级。深入链接（例如 MCP 通知）
   // 直接开到那一页，其他情况先给列表。
-  const [mobilePage, setMobilePage] = useState<SettingsSection | null>(initialSection === "general" ? null : initialSection);
+  const phone = usePhoneSettingsLevel(isPhone, openAtHome);
+  const { dropHistory, enter: enterPhoneLevel, goUp: goUpPhoneLevel, levelRef: phoneLevelRef } = phone;
+  const headerRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const shownPhoneLevelRef = useRef(phone.level);
+  // Before paint, so the new level never shows in place first.
+  useLayoutEffect(() => {
+    const from = shownPhoneLevelRef.current;
+    shownPhoneLevelRef.current = phone.level;
+    if (isPhone && from !== phone.level) animatePhoneLevelChange(mainRef.current, headerRef.current, from, phone.level);
+  }, [isPhone, phone.level]);
+  const onClose = useCallback(() => {
+    dropHistory();
+    closeSettings();
+  }, [closeSettings, dropHistory]);
+  // Named by the detail's active row (ConfigSidebarItem); none until one reports.
+  const [detailTitle, setDetailTitle] = useState<string | null>(null);
   // 画板 web-settings 的 `.set-search`：按名字过滤左边的页列表。
   const [navQuery, setNavQuery] = useState("");
   const [mountedSections, setMountedSections] = useState<ReadonlySet<SettingsSection>>(
@@ -694,6 +814,7 @@ export function SettingsPanel({
     { id: "agents", label: t("common.agents") },
     { id: "plugins", label: t("common.plugins") },
     { id: "mcp", label: t("settings.mcp") },
+    { id: "devices", label: t("settings.devices") },
   ] as const).map((item) => ({ ...item, requiresProject: settingsSectionRequiresProject(item.id) }));
   const sectionRequiresProject = settingsSectionRequiresProject(section);
 
@@ -726,6 +847,25 @@ export function SettingsPanel({
     setLastSettingsSection(nextSection);
   };
 
+  const sectionLabel = sections.find((item) => item.id === section)?.label ?? t("settings.title");
+  const detailNavigation = useMemo<ConfigDetailNavigation>(() => ({
+    detailOpen: phone.level === "detail",
+    openDetail: () => {
+      if (phoneLevelRef.current !== "section") return;
+      setDetailTitle(null);
+      enterPhoneLevel("detail");
+    },
+    closeDetail: () => {
+      if (phoneLevelRef.current === "detail") goUpPhoneLevel();
+    },
+    reportDetailTitle: setDetailTitle,
+  }), [enterPhoneLevel, goUpPhoneLevel, phone.level, phoneLevelRef]);
+
+  const openSectionFromHome = (nextSection: SettingsSection) => {
+    activateSection(nextSection);
+    enterPhoneLevel("section");
+  };
+
   // 画板 web-settings-* 每一页都有 h1 + sub；模型/技能/子代理/插件/MCP 这五个
   // list-detail 页自身没有头，在外壳上补一行（常规页自带）。
   const SECTION_PAGE_COPY: Partial<Record<SettingsSection, { title: string; sub: string }>> = {
@@ -734,11 +874,13 @@ export function SettingsPanel({
     agents: { title: t("common.agents"), sub: t("settings.pageSubAgents") },
     plugins: { title: t("common.plugins"), sub: t("settings.pageSubPlugins") },
     mcp: { title: t("settings.mcp"), sub: t("settings.pageSubMcp") },
+    devices: { title: t("settings.devices"), sub: t("settings.pageSubDevices") },
   };
   const sectionHost = (id: SettingsSection, content: ReactNode) => mountedSections.has(id) ? (
     <div
       key={id}
-      hidden={section !== id}
+      hidden={section !== id || phone.level === "home"}
+      data-phone-level={isPhone ? phone.level : undefined}
       className={`settings-section-host${SECTION_PAGE_COPY[id] ? " has-page-head" : ""}`}
     >
       {SECTION_PAGE_COPY[id] && (
@@ -765,6 +907,15 @@ export function SettingsPanel({
           {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} trust={projectTrust} onClose={onClose} onReloaded={onSessionReloaded} />)}
           {/* No project needed: the global mcp.json is listed alone, and a project adds its group. */}
           {sectionHost("mcp", <McpConfig embedded key={cwd ?? ""} cwd={cwd} trust={projectTrust} onTrustProject={onOpenTrustDialog} onProjectTrustChanged={onProjectTrustChanged} onClose={onClose} />)}
+          {/* 「手机与 Bot」：局域网访问在上，聊天应用在下 —— 同一个问题的两个方向。 */}
+          {sectionHost("devices", (
+            <div className="set-content__inner">
+              <h1 className="set-h1">{t("settings.devices")}</h1>
+              <p className="set-sub">{t("settings.pageSubDevices")}</p>
+              <LanAccessPanel />
+              <BotChannelPanel />
+            </div>
+          ))}
     </>
   );
 
@@ -776,15 +927,15 @@ export function SettingsPanel({
       aria-label={t("settings.title")}
       tabIndex={-1}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
-      className={`settings-dialog-backdrop${isMobile ? "" : " modal-scrim"}`}
+      className={`settings-dialog-backdrop${isPhone ? "" : " modal-scrim"}`}
       // 画板的遮罩是半透明的；定位仍固定全屏（.modal-scrim 是 absolute）。
-      style={isMobile ? undefined : { position: "fixed" }}
+      style={isPhone ? undefined : { position: "fixed" }}
     >
       {/* 画板 design/v3/boards/web-settings-mcp.html：`.settings-modal > .set-nav-col + .set-content`。
-          桌面用左侧竖导航；手机保留原生 select（拇指够得着，也不用横滚）。 */}
-      <div className={`settings-dialog-surface${isMobile ? "" : " settings-modal"}`}>
-        {isMobile ? (
-          mobilePage === null ? (
+          桌面用左侧竖导航；手机上逐级全屏：分区列表 → 分区（列表）→ 某一项的详情。 */}
+      <div className={`settings-dialog-surface${isPhone ? "" : " settings-modal"}`}>
+        {isPhone ? (
+          phone.level === "home" ? (
             /* 画板 pwa-settings：整页 = 标题 + 关闭 + 分区列表（图标 · 名字 · chevron）。 */
             <div className="m-settings">
               <div className="settings-dialog-header">
@@ -798,10 +949,7 @@ export function SettingsPanel({
                     type="button"
                     className="m-setrow"
                     disabled={item.requiresProject && !cwd}
-                    onClick={() => {
-                      activateSection(item.id);
-                      setMobilePage(item.id);
-                    }}
+                    onClick={() => openSectionFromHome(item.id)}
                   >
                     <SettingsSectionIcon section={item.id} />
                     <span className="m-setrow__text">{item.label}</span>
@@ -812,22 +960,31 @@ export function SettingsPanel({
             </div>
           ) : (
             <>
-              <div className="settings-dialog-header">
-                <button
-                  type="button"
-                  className="settings-dialog-back"
-                  onClick={() => setMobilePage(null)}
-                  title={t("settings.back")}
-                  aria-label={t("settings.back")}
-                >
-                  <Icon name="chevron-left" />
-                </button>
+              <div ref={headerRef} className="settings-dialog-header">
+                {(() => {
+                  const backName = phone.level === "detail" ? sectionLabel : t("settings.title");
+                  return (
+                    <button
+                      type="button"
+                      className="settings-dialog-back settings-phone-back"
+                      onClick={goUpPhoneLevel}
+                      aria-label={t("settings.backTo", { name: backName })}
+                    >
+                      <Icon name="chevron-left" />
+                      <span>{backName}</span>
+                    </button>
+                  );
+                })()}
                 <strong className="settings-dialog-title">
-                  {sections.find((item) => item.id === mobilePage)?.label ?? t("settings.title")}
+                  {phone.level === "section" ? sectionLabel : detailTitle}
                 </strong>
                 <button type="button" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")} className="config-close-button settings-dialog-close">×</button>
               </div>
-              <main className="settings-dialog-main">{sectionContent}</main>
+              <main ref={mainRef} className="settings-dialog-main">
+                <ConfigDetailNavigationContext.Provider value={detailNavigation}>
+                  {sectionContent}
+                </ConfigDetailNavigationContext.Provider>
+              </main>
             </>
           )
         ) : (
@@ -875,11 +1032,13 @@ export function SettingsPanel({
           </aside>
         )}
 
-        {!isMobile && (
+        {!isPhone && (
           <main className="settings-dialog-main set-content">
             {/* 画板的 640 内容列由各分区自己带（常规页的根就是 `.set-content__inner`）；
                 模型/技能/MCP 这些 list-detail 面板要的是整幅 set-content，套进 640 列会被压扁裁掉。 */}
-            {sectionContent}
+            <ConfigDetailNavigationContext.Provider value={detailNavigation}>
+              {sectionContent}
+            </ConfigDetailNavigationContext.Provider>
           </main>
         )}
       </div>

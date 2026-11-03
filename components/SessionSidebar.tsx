@@ -2,7 +2,7 @@
 
 import { useEffect, useImperativeHandle, useLayoutEffect, useState, useCallback, useMemo, useRef, type MouseEvent as ReactMouseEvent, type ReactNode, type Ref, type RefObject, type UIEvent as ReactUIEvent } from "react";
 import type { SessionInfo } from "@/lib/types";
-import { listSessionFamilies, type SessionFamily } from "@/lib/session-family";
+import { listSessionFamilies, type SessionFamily, isHiddenRelation } from "@/lib/session-family";
 import { dispatchSessionRowContextMenu } from "@/lib/session-row-context-menu";
 import { newSessionDeepLink, sessionDeepLink } from "@/lib/session-links";
 import { getProjectActivity, getRecentProjects } from "@/lib/project-groups";
@@ -31,11 +31,13 @@ import {
 import {
   forgetRetiredSidebarKeys,
   loadArchiveCollapsed,
+  loadExpandedFamilies,
   loadGroupExpansion,
   loadNonGitCwds,
   loadPinnedCollapsed,
   rememberCwdGitStatus,
   saveArchiveCollapsed,
+  saveExpandedFamilies,
   saveGroupExpansion,
   savePinnedCollapsed,
 } from "@/lib/sidebar-prefs";
@@ -70,6 +72,7 @@ import {
   type SessionUiStateRequest,
 } from "@/lib/session-ui-state-shared";
 import { focusIfLost, type FocusDocument } from "@/lib/stacked-dialog";
+import { countFaviconUnread, syncFaviconBadge } from "@/lib/favicon-badge";
 import { noteRunningPoll } from "@/lib/page-debug";
 import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -145,10 +148,21 @@ interface Props {
   /** Fired when a session that is not currently selected finishes running.
    *  Lets the app play a cross-workspace completion tone. */
   onBackgroundTaskDone?: () => void;
+  /**
+   * Sessions that finished while the tab was hidden (#1484): usually the
+   * selected one, which `unreadSessionIds` excludes. Counted by the favicon
+   * until the tab is opened again; never persisted, never dotted.
+   */
+  hiddenFinishedSessionIds?: Set<string>;
   onRunningSessionIdsChange?: (ids: Set<string>) => void;
   onSessionsChange?: (sessions: SessionInfo[]) => void;
   /** Full-screen phone drawer: the action that returns to the conversation. */
   onCloseMobile?: () => void;
+  /**
+   * 会话下面的小代理行被点开：在右侧栏打开它的 transcript（不切换主会话）。
+   * AppShell 传 handleOpenSubagentTab；没有它时退回到「像普通会话一样选中」。
+   */
+  onOpenSubagent?: (sessionId: string, label: string) => void;
 }
 
 /**
@@ -419,7 +433,7 @@ function buttonAnchor(element: HTMLElement, align: "start" | "end"): SidebarMenu
   return { kind: "rect", rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }, align };
 }
 
-export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, controlRef, onNewSessionContextChange, initialSessionId, initialSessionLinked, skipInitialProjectSelection, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onBackgroundTaskDone, onRunningSessionIdsChange, onSessionsChange, onCloseMobile }: Props) {
+export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, controlRef, onNewSessionContextChange, initialSessionId, initialSessionLinked, skipInitialProjectSelection, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onBackgroundTaskDone, hiddenFinishedSessionIds, onRunningSessionIdsChange, onSessionsChange, onCloseMobile, onOpenSubagent }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
@@ -475,6 +489,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const [groupExpansion, setGroupExpansion] = useState<Readonly<Record<string, boolean>>>({});
   const [keptOpenGroups, setKeptOpenGroups] = useState<ReadonlySet<string>>(() => new Set());
   const [moreShown, setMoreShown] = useState<Readonly<Record<string, number>>>({});
+  // 摊开过小代理会话的主会话 id，per browser（lib/sidebar-prefs.ts）。
+  const [expandedFamilies, setExpandedFamilies] = useState<ReadonlySet<string>>(() => loadExpandedFamilies());
   const [pinnedCollapsed, setPinnedCollapsed] = useState(false);
   // The archive view's folded projects, per browser (lib/sidebar-prefs.ts).
   const [archiveCollapsed, setArchiveCollapsed] = useState<readonly string[]>([]);
@@ -602,11 +618,12 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         setRunningSessionIds((previous) => sameIdsOr(previous, data.runningSessionIds ?? []));
         setAwaitingInputSessionIds((previous) => sameIdsOr(previous, data.awaitingInputSessionIds ?? []));
       }
-      // Drop markers for deleted sessions and for subagents, whose completion
-      // is intentionally silent even if an older client marked them unread.
+      // Drop markers for deleted sessions and for hidden family members
+      // (subagents, side chats), whose completion is intentionally silent
+      // even if an older client marked them unread.
       const unreadEligibleIds = new Set(
         data.sessions
-          .filter((session) => session.relation?.kind !== "subagent")
+          .filter((session) => !isHiddenRelation(session.relation))
           .map((session) => session.id),
       );
       setUnreadSessionIds((prev) => {
@@ -774,6 +791,17 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     onSessionsChange?.(allSessions);
   }, [allSessions, onSessionsChange]);
 
+  // The tab strip's favicon mirrors what the rows show (#1483): a persistent
+  // badge after the completion sound fades, cleared the same way the blue dot is.
+  // Sessions that finished while the tab was hidden count too (#1484): the rows
+  // exclude the selected session ("already looking"), which is false while hidden.
+  useEffect(() => {
+    syncFaviconBadge({
+      awaiting: awaitingInputSessionIds.size,
+      unread: countFaviconUnread(unreadSessionIds, hiddenFinishedSessionIds),
+    });
+  }, [awaitingInputSessionIds, unreadSessionIds, hiddenFinishedSessionIds]);
+
   useEffect(() => {
     const previous = previousRunningSessionIdsRef.current;
     const completedInBackground = [...previous].filter((id) => !runningSessionIds.has(id) && id !== selectedSessionId);
@@ -782,9 +810,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     // completion, so a last run too short for any poll to see still counts.
     const active = new Set([...runningSessionIds, ...subagentsActiveSessionIds]);
     const finishedInBackground = [...previousActiveSessionIdsRef.current].filter((id) => !active.has(id) && id !== selectedSessionId);
+    // Subagent runs and side chats finish silently: a side chat is an aside
+    // the user drives, not a background task that owes a notification.
     const knownSubagentIds = new Set(
       allSessions
-        .filter((session) => session.relation?.kind === "subagent")
+        .filter((session) => isHiddenRelation(session.relation))
         .map((session) => session.id),
     );
     const completedWithNotifications = finishedInBackground.filter(
@@ -1258,7 +1288,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     groupExpansion: shownGroupExpansion,
     moreShown,
     pinnedCollapsed,
-  }), [allSessions, uiState, runningSessionIds, awaitingInputSessionIds, unreadSessionIds, selectedSessionId, currentProject, shownGroupExpansion, moreShown, pinnedCollapsed]);
+    expandedFamilies,
+  }), [allSessions, uiState, runningSessionIds, awaitingInputSessionIds, unreadSessionIds, selectedSessionId, currentProject, shownGroupExpansion, moreShown, pinnedCollapsed, expandedFamilies]);
   // Built while the archive view is rendered, its way out included: it
   // leaves as it was, not empty.
   const archiveMounted = archiveMotion.archiveMounted;
@@ -2342,6 +2373,28 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     : menu?.kind === "group" ? `group:${menu.project.key}`
     : menu?.kind === "archive-group" ? `archive:${menu.project.key}` : null;
 
+  // 小代理会话的行：只有用户点开过的主会话才摊开（默认收起，和会话分组一样），
+  // 选择记在浏览器里——它属于「怎么看」，不属于会话数据。
+  const toggleFamily = useCallback((family: SessionFamily) => {
+    setExpandedFamilies((previous) => {
+      const next = new Set(previous);
+      if (next.has(family.root.id)) next.delete(family.root.id);
+      else next.add(family.root.id);
+      saveExpandedFamilies(next);
+      return next;
+    });
+  }, []);
+  const handleSelectSubagent = useCallback((session: SessionInfo) => {
+    const relation = session.relation?.kind === "subagent" ? session.relation : null;
+    const label = relation?.description || relation?.profile || session.name || session.firstMessage || session.id.slice(0, 12);
+    if (onOpenSubagent) {
+      onOpenSubagent(session.id, label);
+      return;
+    }
+    onSelectSession(session);
+    if (isMobile) onCloseMobile?.();
+  }, [onOpenSubagent, onSelectSession, isMobile, onCloseMobile]);
+
   const treeLayout = isMobile ? "mobile" : "desktop";
   // Until pins and archive have loaded, archived rows would flash in.
   const treeLoading = loading || !uiStateLoaded;
@@ -2354,6 +2407,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     confirmDeleteRootId,
     activeMenuRowKey,
     onSelectFamily: handleSelectFamily,
+    onToggleFamily: toggleFamily,
+    onSelectSubagent: handleSelectSubagent,
     onToggleGroup: handleToggleGroup,
     onShowMore: handleShowMore,
     onShowLess: handleShowLess,
@@ -2375,6 +2430,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     },
     onGroupNew: handleGroupNew,
     onGroupMenu: handleGroupMenu,
+    onPinEmptyGroup: (project: SidebarProject) => {
+      void applyUiState({ action: "pin-project", projectKey: project.key, root: project.root, pinned: true });
+      // The button goes with the pin: its group's header takes the focus.
+      focusAfterCommit(() => groupHeaderButton(project.key));
+    },
     onToggleArchiveGroup: handleToggleArchiveGroup,
     onArchiveGroupMenu: handleArchiveGroupMenu,
     // The footer's "Open another project": the folder picker itself, now that

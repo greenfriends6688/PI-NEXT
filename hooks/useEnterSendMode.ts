@@ -7,8 +7,7 @@ export const ENTER_SEND_MODE_DEFAULT: EnterSendMode = "enter";
 
 function readStoredMode(): EnterSendMode {
   try {
-    const raw = window.localStorage.getItem(ENTER_SEND_MODE_STORAGE_KEY);
-    return raw === "ctrlEnter" ? "ctrlEnter" : "enter";
+    return window.localStorage.getItem(ENTER_SEND_MODE_STORAGE_KEY) === "ctrlEnter" ? "ctrlEnter" : "enter";
   } catch {
     return ENTER_SEND_MODE_DEFAULT;
   }

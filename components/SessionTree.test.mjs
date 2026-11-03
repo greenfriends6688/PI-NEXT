@@ -55,6 +55,7 @@ const defaults = {
   onDeleteCancel: noop,
   onGroupNew: noop,
   onGroupMenu: noop,
+  onPinEmptyGroup: noop,
   onOpenOtherProject: noop,
   onOpenArchive: noop,
 };
@@ -397,7 +398,13 @@ test("show more, empty groups, footer links and archive groups", () => {
     rowMarkup(html, "more:/work/big"),
     /data-more-action="more">Show more · 24<\/button><button type="button" class="session-tree-more-toggle" data-more-action="less">Show less<\/button>/,
   );
-  assert.match(rowMarkup(html, "empty:/work/app"), /style="top:78px;height:28px" data-row-key="empty:\/work\/app">No sessions yet<\/div>/);
+  // Without sessions only a pin keeps a project listed once another one is current (#1476).
+  assert.match(
+    rowMarkup(html, "empty:/work/app"),
+    /style="top:78px;height:28px" data-row-key="empty:\/work\/app"><span class="session-tree-group-empty-label">No sessions yet<\/span><button type="button" class="session-tree-more-toggle">Pin to keep<\/button><\/div>/,
+  );
+  const pinnedEmpty = render({ rows: [{ kind: "group-empty", key: "empty:/work/app", project: { ...project, pinned: true } }] });
+  assert.match(rowMarkup(pinnedEmpty, "empty:/work/app"), /No sessions yet<\/span><\/div>/);
   assert.doesNotMatch(html, /footer-spacer/);
   // The archive's project header is a group header that folds its rows: the
   // chevron, the name, the count; ⋯ for its archived sessions, no "+".
@@ -411,7 +418,7 @@ test("show more, empty groups, footer links and archive groups", () => {
   assert.match(rowMarkup(html, "footer-archived"), /<span class="session-tree-footer-label">Archived · 4<\/span><svg[^>]*class="session-tree-footer-chevron"/);
 });
 
-test("loading replaces the rows; the empty label shows only without session or group rows", () => {
+test("loading replaces the rows; the empty label shows only without session, group or archive-group rows", () => {
   const loading = render({ loading: true, rows: [groupRow(), ...footer], emptyLabel: "No sessions found" });
   assert.match(loading, /<div class="session-tree-message">Loading...<\/div>/);
   assert.deepEqual(renderedKeys(loading), []);
@@ -422,6 +429,22 @@ test("loading replaces the rows; the empty label shows only without session or g
   assert.deepEqual(renderedKeys(empty), ["footer-open"]);
 
   assert.doesNotMatch(render({ rows: [groupRow(), ...footer], emptyLabel: "No sessions found" }), /No sessions found/);
+
+  const foldedArchive = render({
+    rows: [
+      { kind: "archive-group", key: "archive:/work/app", project, count: 2, expanded: false },
+      {
+        kind: "archive-group",
+        key: "archive:/work/old",
+        project: { ...project, key: "/work/old", root: "/work/old", name: "old" },
+        count: 5,
+        expanded: false,
+      },
+    ],
+    emptyLabel: "No archived sessions",
+  });
+  assert.doesNotMatch(foldedArchive, /No archived sessions/);
+  assert.deepEqual(renderedKeys(foldedArchive), ["archive:/work/app", "archive:/work/old"]);
   assert.doesNotMatch(render({ rows: footer, emptyLabel: null }), /session-tree-message/);
 
   const failed = render({ rows: footer, emptyLabel: "No sessions found", error: "HTTP 500" });
@@ -518,7 +541,7 @@ test("a row's controls fit its height with room to spare: 28px rows on a desktop
   // confirmation's buttons; a group header's + and ⋯ (its rename field is
   // the session row's). At least 2px clear above and below.
   const desktop = SIDEBAR_ROW_HEIGHTS.desktop;
-  for (const selector of [".session-tree-action", ".session-tree-rename", ".session-tree .session-tree-confirm-delete"]) {
+  for (const selector of [".session-tree-action", ".session-tree-rename", ".session-tree-confirm-delete"]) {
     assert.ok(heightOf(selector) + 4 <= desktop.session, selector);
   }
   assert.ok(heightOf(".session-tree .session-tree-group-action") + 4 <= desktop.group);
@@ -561,7 +584,7 @@ test("headers lead with their chevron, and every row's text starts in one column
   // One rhythm: session rows, every header (a project's, the pinned
   // section's, the archive's projects), the empty note and the footer are
   // one height, 28px (44px on a phone); only "show more" is shorter.
-  assert.deepEqual(SIDEBAR_ROW_HEIGHTS.desktop, { "pinned-header": 28, session: 28, "pinned-more": 26, group: 28, "group-more": 26, "group-empty": 28, spacer: 8, "footer-open": 28, "footer-archived": 28, "archive-group": 28 });
+  assert.deepEqual(SIDEBAR_ROW_HEIGHTS.desktop, { "pinned-header": 28, session: 28, subagent: 26, "pinned-more": 26, group: 28, "group-more": 26, "group-empty": 28, spacer: 8, "footer-open": 28, "footer-archived": 28, "archive-group": 28 });
   for (const [layout, height] of [["desktop", 28], ["mobile", 44]]) {
     for (const kind of ["session", "group", "pinned-header", "group-empty", "footer-open", "footer-archived", "archive-group"]) {
       assert.equal(SIDEBAR_ROW_HEIGHTS[layout][kind], height, `${layout} ${kind}`);

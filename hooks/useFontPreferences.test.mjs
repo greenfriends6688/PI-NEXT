@@ -19,11 +19,25 @@ function fixture({ initial = {}, blocked = false, server = false } = {}) {
     setItem(key, value) { if (blocked) throw new Error("blocked"); stored.set(key, value); },
     removeItem(key) { if (blocked) throw new Error("blocked"); stored.delete(key); },
   };
+  // lib/browser-prefs.ts 的替身：语义与它一致（读 localStorage，写 localStorage），
+  // 只是挂在 fixture 的 storage 上，测试才能断言"存了什么"。
+  const browserPrefs = {
+    preferenceStorage: () => (blocked ? null : storage),
+    readPreference(key) {
+      if (blocked) return null;
+      const value = storage.getItem(key);
+      return value === "" ? null : value;
+    },
+    writePreference(key, value) {
+      if (!blocked) storage.setItem(key, value);
+    },
+  };
   const exports = {};
   script.runInNewContext({
     exports,
     require(id) {
       if (id === "@/lib/font-preferences") return fonts;
+      if (id === "@/lib/browser-prefs") return browserPrefs;
       if (id === "react") return { useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot() };
       throw new Error(`Unexpected import ${id}`);
     },

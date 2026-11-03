@@ -23,7 +23,7 @@ import { SystemPromptPanel } from "./SystemPromptPanel";
 import { ToolDefinitionsPanel } from "./ToolDefinitionsPanel";
 import { AgentSessionPanel } from "./AgentSessionPanel";
 import { DebugPanel, DebugPanelBoundary } from "./DebugPanel";
-import { SubagentViewer } from "./SubagentViewer";
+import { SessionChatPanel } from "./SessionChatPanel";
 import { TerminalPanel } from "./TerminalPanel";
 import { newTerminalTab, restoreTerminalTabs, TERMINAL_TABS_KEY, type TerminalTab } from "./terminal-tab-state";
 import { useTheme } from "@/hooks/useTheme";
@@ -34,7 +34,6 @@ import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
 import { useAudio } from "@/hooks/useAudio";
 import { copyText } from "@/lib/clipboard";
-import { sendAgentCommand } from "@/lib/agent-client";
 import { getFileName } from "@/lib/file-paths";
 import { focusDesktopWindow } from "@/lib/desktop-shell";
 import type { GitStatusResponse } from "@/lib/git-types";
@@ -86,7 +85,8 @@ import type { SessionStatsInfo } from "@/lib/pi-types";
 import { formatActiveDuration, formatCompactCount, formatCostShort } from "@/lib/session-stats-format";
 import type { FileViewerState } from "@/lib/file-viewer-state";
 import { PRESET_READ_ONLY, type ToolEntry } from "@/lib/tool-presets";
-import { getAgentsBadge, getFoldedMoreAgentsBadge, getSessionFamily } from "@/lib/session-family";
+import { createSideChat, deleteSideChat } from "@/lib/side-chat-client";
+import { getAgentsBadge, getSessionFamily, isHiddenRelation, sideChatNameFrom, sideChatTitle } from "@/lib/session-family";
 import { getLastSettingsSection, type SettingsSection } from "@/lib/settings-navigation";
 import { focusIfLost } from "@/lib/stacked-dialog";
 
@@ -97,7 +97,8 @@ type AutoNameStatus =
   | { kind: "success" }
   | { kind: "error"; message: string };
 
-const TOP_BAR_ICON_BUTTON_SIZE = 36;
+// app/globals.css: 36px, 44px on a phone or touch screen.
+const TOP_BAR_ICON_BUTTON_SIZE = "var(--top-bar-height)";
 const AGENT_PANEL_WIDTH = 420;
 // pi's built-in tools that never change a file; any other tool may (#1144).
 const READ_ONLY_TOOL_NAMES = new Set(PRESET_READ_ONLY);
@@ -108,6 +109,9 @@ function lastAgentTabId(tabs: readonly { sessionId: string }[]): string | null {
   const last = tabs.at(-1);
   return last ? `agent:${last.sessionId}` : null;
 }
+
+/** 设置 › 聊天里的「选中即引用」（每台设备共享，存在界面偏好里）。 */
+const QUOTE_SELECTION_STORAGE_KEY = "pi-quote-selection-enabled";
 
 export function AppShell() {
   const router = useRouter();
@@ -137,7 +141,7 @@ export function AppShell() {
   const [quoteSelectionEnabled, setQuoteSelectionEnabled] = useState(false);
   useEffect(() => {
     try {
-      setQuoteSelectionEnabled(localStorage.getItem("pi-quote-selection-enabled") === "true");
+      setQuoteSelectionEnabled(localStorage.getItem(QUOTE_SELECTION_STORAGE_KEY) === "true");
     } catch {
       // Browser storage is best-effort.
     }
@@ -145,12 +149,17 @@ export function AppShell() {
   const handleQuoteSelectionChange = useCallback((enabled: boolean) => {
     setQuoteSelectionEnabled(enabled);
     try {
-      localStorage.setItem("pi-quote-selection-enabled", String(enabled));
+      localStorage.setItem(QUOTE_SELECTION_STORAGE_KEY, String(enabled));
     } catch {
       // Keep the current page usable when storage is unavailable.
     }
   }, []);
   const notifiedAttentionRequestIdsRef = useRef(new Set<string>());
+  // Sessions that finished while the tab was out of sight (#1484): the browser
+  // Notification fires for the selected session, which the sidebar's unread
+  // markers exclude ("already looking" — false while hidden). The favicon keeps
+  // their badge until the tab is opened again; never persisted, never dotted.
+  const [hiddenFinishedSessionIds, setHiddenFinishedSessionIds] = useState<Set<string>>(new Set());
   const handleBackgroundTaskDone = useCallback(() => {
     if (soundEnabledRef.current) playDoneSound();
   }, [playDoneSound, soundEnabledRef]);
@@ -182,7 +191,6 @@ export function AppShell() {
     () => getSessionFamily(sessionsWithSelection, selectedSession?.id),
     [selectedSession?.id, sessionsWithSelection],
   );
-  const hasSubagentSessions = Boolean(activeSessionFamily?.subagents.length);
   const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(() => new Set());
   const handleRunningSessionIdsChange = useCallback((ids: Set<string>) => {
     setRunningSessionIds((previous) => {
@@ -238,6 +246,8 @@ export function AppShell() {
   // 顶栏 open-in 那颗钮能不能点：只有 Pi Web 跑在本机、且当前平台有文件管理器时才有意义。
   const [fileManager, setFileManager] = useState<{ supported: boolean; reason: string | null } | null>(null);
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
+  // The plain Settings button opens a phone's Settings on its list of sections; shortcuts open theirs.
+  const [settingsOpenAtHome, setSettingsOpenAtHome] = useState(false);
   const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
   const [projectTrust, setProjectTrust] = useState<ProjectTrustStatus | null>(null);
   const [projectTrustDialogOpen, setProjectTrustDialogOpen] = useState(false);
@@ -261,13 +271,7 @@ export function AppShell() {
   // 右栏的「+」：像参考桌面端那样，一个加号里挑要开的页——文件树 / 终端 / 变更 / 系统文件夹。
   const [panelAddOpen, setPanelAddOpen] = useState(false);
   const panelAddRef = useRef<HTMLDivElement>(null);
-  // A narrow phone folds the Agents button into More: the folded button says that subagents run.
-  const foldedMoreAgentsBadge = isNarrowMobile ? getFoldedMoreAgentsBadge(agentsBadge, mobileToolbarMoreOpen) : null;
-  const moreControlsLabel = mobileToolbarMoreOpen
-    ? translate("chat.close")
-    : foldedMoreAgentsBadge
-      ? translate("chat.moreControlsAgentsRunning", { count: foldedMoreAgentsBadge.count })
-      : translate("chat.moreControls");
+  const moreControlsLabel = mobileToolbarMoreOpen ? translate("chat.close") : translate("chat.moreControls");
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
   const sidebarWidthRef = useRef(SIDEBAR_DEFAULT_WIDTH);
   const rightPanelWidthRef = useRef(RIGHT_PANEL_FALLBACK_WIDTH);
@@ -337,7 +341,8 @@ export function AppShell() {
     reclampRightPanelWidth();
   }, [reclampRightPanelWidth, reclampSidebarWidth, rightPanelOpen]);
   const chatInputRef = useRef<ChatInputHandle | null>(null);
-  const [pendingQuotePrompt, setPendingQuotePrompt] = useState<{ sessionId: string; text: string } | null>(null);
+  // `/side <prompt>`: the text that seeds the side chat's composer, until its panel consumes it.
+  const [sideChatPrompts, setSideChatPrompts] = useState<Record<string, string>>({});
   const topBarRef = useRef<HTMLDivElement>(null);
   const mobileToolbarRef = useRef<HTMLDivElement>(null);
   // Branch navigator state — populated by ChatWindow via onBranchDataChange
@@ -442,6 +447,31 @@ export function AppShell() {
     setExtensionUi(ui);
   }, []);
   const [topPanelPos, setTopPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const topPanelRef = useRef<HTMLDivElement>(null);
+
+  // 浮起来的顶栏面板（系统提示词 / 工具定义 / 会话信息 / Agents）自己关：点面板外面、
+  // 按 Esc 都收起。手机上尤其要——打开它的那张「⋯」表就在它下面，没有别的回退路。
+  // Debug 面板自带关闭钮，不在这里管。
+  useEffect(() => {
+    if (!activeTopPanel || activeTopPanel === "debug" || activeTopPanel === "branches") return;
+    const onDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (target && topPanelRef.current?.contains(target)) return;
+      setActiveTopPanel((panel) => (panel === "debug" || panel === "branches" ? panel : null));
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      // Nearer handler first: this panel, not the running agent behind it.
+      event.stopPropagation();
+      setActiveTopPanel((panel) => (panel === "debug" || panel === "branches" ? panel : null));
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [activeTopPanel]);
 
   useEffect(() => {
     if (!sessionHasBranches) {
@@ -450,10 +480,10 @@ export function AppShell() {
   }, [sessionHasBranches]);
 
   useEffect(() => {
-    if (!hasSubagentSessions) {
+    if (!activeSessionFamily) {
       setActiveTopPanel((panel) => panel === "agents" ? null : panel);
     }
-  }, [hasSubagentSessions]);
+  }, [activeSessionFamily]);
 
   useEffect(() => {
     if (rightPanelFullWidth) setActiveTopPanel(null);
@@ -508,6 +538,7 @@ export function AppShell() {
 
   // The composer opens Settings too: a bare /mcp opens Settings › MCP (useAgentSession).
   const openSettingsSection = useCallback((section: SettingsSection) => {
+    setSettingsOpenAtHome(false);
     setSettingsSection(section);
   }, []);
 
@@ -606,7 +637,7 @@ export function AppShell() {
   const [terminalsRestored, setTerminalsRestored] = useState(false);
   // Subagent work tabs are session-scoped and transient: no persistence, and
   // they are dropped when the project changes (they belong to its sessions).
-  const [agentTabs, setAgentTabs] = useState<{ sessionId: string; label: string }[]>([]);
+  const [agentTabs, setAgentTabs] = useState<{ sessionId: string; label: string; side?: boolean }[]>([]);
   const panelTabs: Tab[] = [
     ...paneTabs,
     ...fileTabs,
@@ -617,12 +648,16 @@ export function AppShell() {
       kind: "terminal" as const,
       closing: Boolean(tab.closing),
     })),
-    ...agentTabs.map((tab) => ({
-      id: `agent:${tab.sessionId}`,
-      label: tab.label,
-      filePath: tab.label,
-      kind: "agent" as const,
-    })),
+    ...agentTabs.map((tab) => {
+      const session = tab.side ? sessionCatalog.find((item) => item.id === tab.sessionId) : undefined;
+      const label = session ? sideChatTitle(session, tab.label) : tab.label;
+      return {
+        id: `agent:${tab.sessionId}`,
+        label,
+        filePath: label,
+        kind: (tab.side ? "side" : "agent") as "agent" | "side",
+      };
+    }),
   ];
 
   useEffect(() => {
@@ -1115,9 +1150,17 @@ export function AppShell() {
     setRefreshKey((k) => k + 1);
     setExplorerRefreshKey((k) => k + 1);
 
-    if (end.aborted || end.subagentsActive || selectedSession?.relation?.kind === "subagent") return;
+    if (end.aborted || end.subagentsActive || isHiddenRelation(selectedSession?.relation)) return;
     if (!completionNotificationsEnabled() || !shouldShowBrowserNotification()) return;
     const targetSession = selectedSession;
+    if (targetSession) {
+      setHiddenFinishedSessionIds((prev) => {
+        if (prev.has(targetSession.id)) return prev;
+        const next = new Set(prev);
+        next.add(targetSession.id);
+        return next;
+      });
+    }
     deliverSessionNotification({
       targetSession,
       title: targetSession?.name ?? translate("i18n.sessionComplete"),
@@ -1126,8 +1169,23 @@ export function AppShell() {
     });
   }, [deliverSessionNotification, selectedSession, translate]);
 
+  // The badge is for an unseen tab: opening it puts the finished chat on screen.
+  useEffect(() => {
+    const clearIfSeen = () => {
+      if (document.visibilityState !== "visible" || !document.hasFocus()) return;
+      setHiddenFinishedSessionIds((prev) => (prev.size === 0 ? prev : new Set()));
+    };
+    clearIfSeen();
+    document.addEventListener("visibilitychange", clearIfSeen);
+    window.addEventListener("focus", clearIfSeen);
+    return () => {
+      document.removeEventListener("visibilitychange", clearIfSeen);
+      window.removeEventListener("focus", clearIfSeen);
+    };
+  }, []);
+
   const handleAttentionNeeded = useCallback((request: BlockingExtensionUiRequest) => {
-    if (selectedSession?.relation?.kind === "subagent") return;
+    if (isHiddenRelation(selectedSession?.relation)) return;
     if (!completionNotificationsEnabled() || !shouldShowBrowserNotification()) return;
     if (!claimExtensionAttentionNotification(request, notifiedAttentionRequestIdsRef.current)) return;
 
@@ -1209,20 +1267,6 @@ export function AppShell() {
     hydrateSelectedSession(newSessionId);
     router.replace(`?session=${encodeURIComponent(newSessionId)}`, { scroll: false });
   }, [invalidateWorkspaceRestore, router, hydrateSelectedSession]);
-
-  const handleAskInNewChat = useCallback(async (
-    prompt: string,
-    sourceSessionId: string,
-    sourceEntryId: string,
-  ) => {
-    const result = await sendAgentCommand<{ newSessionId?: string }>(sourceSessionId, {
-      type: "fork_branch",
-      entryId: sourceEntryId,
-    });
-    if (!result?.newSessionId) throw new Error(translate("chat.quoteForkFailed"));
-    setPendingQuotePrompt({ sessionId: result.newSessionId, text: prompt });
-    handleSessionForked(result.newSessionId);
-  }, [handleSessionForked, translate]);
 
   // The sidebar calls this when the initial session is not in its list.
   const handleInitialRestoreDone = useCallback(() => {
@@ -1329,8 +1373,15 @@ export function AppShell() {
   }, [terminalTabs, isMobile]);
 
   // Subagent work opens in a right-panel tab instead of hijacking the main chat.
-  const handleOpenSubagentTab = useCallback((sessionId: string, label: string) => {
-    setAgentTabs((prev) => prev.some((tab) => tab.sessionId === sessionId) ? prev : [...prev, { sessionId, label }]);
+  const handleOpenSubagentTab = useCallback((sessionId: string, label: string, side?: boolean) => {
+    setAgentTabs((prev) => {
+      if (prev.some((tab) => tab.sessionId === sessionId)) return prev;
+      // Every side chat has the same name, and `/side` can be used again and
+      // again: the lowest number no open tab shows tells them apart.
+      let numbered = label;
+      for (let number = 2; side && prev.some((tab) => tab.label === numbered); number += 1) numbered = `${label} ${number}`;
+      return [...prev, { sessionId, label: numbered, ...(side ? { side: true } : {}) }];
+    });
     setActiveFileTabId(`agent:${sessionId}`);
     setRightPanelOpen(true);
     if (isMobile) setSidebarOpen(false);
@@ -1344,14 +1395,38 @@ export function AppShell() {
     () => new Set(rightPanelOpen ? agentTabs.map((tab) => tab.sessionId) : []),
     [agentTabs, rightPanelOpen],
   );
-  const handleToggleSubagentTab = (sessionId: string, label: string) => {
+  const handleToggleSubagentTab = (sessionId: string, label: string, side?: boolean) => {
     if (openSubagentTabIds.has(sessionId)) {
       handleCloseFileTab(`agent:${sessionId}`);
       return;
     }
     if (isMobile) setActiveTopPanel(null);
-    handleOpenSubagentTab(sessionId, label);
+    handleOpenSubagentTab(sessionId, label, side);
   };
+
+  // `/side` landed (hooks/useAgentSession): open the forked chat's tab, seed
+  // its composer when the command carried a prompt, and refresh the list so
+  // the family's badge folds the new member in.
+  const handleSideSession = useCallback((session: SessionInfo, prompt: string | null) => {
+    if (prompt) setSideChatPrompts((prev) => ({ ...prev, [session.id]: prompt }));
+    handleOpenSubagentTab(session.id, sideChatTitle(session, (prompt && sideChatNameFrom(prompt)) || translate("sideChat.title")), true);
+    setRefreshKey((key) => key + 1);
+  }, [handleOpenSubagentTab, translate]);
+
+  // The switcher's New side chat, on the main agent's row, whichever family member the main chat shows.
+  const handleNewSideChat = useCallback(async (rootSessionId: string) => {
+    const result = await createSideChat(rootSessionId, translate);
+    if ("error" in result) return result.error;
+    if (isMobile) setActiveTopPanel(null);
+    handleSideSession(result.session, null);
+    return null;
+  }, [handleSideSession, isMobile, translate]);
+
+  // A side chat's first prompt names it: read the name when a run in an open tab starts or ends.
+  const runningSideTabs = agentTabs.filter((tab) => tab.side && runningSessionIds.has(tab.sessionId)).map((tab) => tab.sessionId).join();
+  useEffect(() => {
+    if (runningSideTabs) setRefreshKey((key) => key + 1);
+  }, [runningSideTabs]);
 
   const handleTerminalClosed = (tab: TerminalTab) => {
     const replacement = tab.closing === "restart" ? newTerminalTab(tab.cwd) : null;
@@ -1420,6 +1495,28 @@ export function AppShell() {
       return remaining.at(-1)?.id ?? terminalTabs.at(-1)?.id ?? lastAgentTabId(agentTabs) ?? paneTabs.at(-1)?.id ?? null;
     });
   }, [fileTabs, terminalTabs, agentTabs, paneTabs]);
+
+  // The Agents switcher's Delete on a side chat: its tab goes with it, and the
+  // main chat showing it goes back to the parent, as the Main agent row does
+  // (`handleSessionDeleted` would leave the family for a fresh composer).
+  const handleDeleteSideChat = useCallback(async (sessionId: string, root: SessionInfo): Promise<string | null> => {
+    const result = await deleteSideChat(sessionId);
+    if (result) return result.error;
+    handleCloseFileTab(`agent:${sessionId}`);
+    if (selectedSessionRef.current?.id === sessionId) {
+      handleSelectSession(root);
+      setRefreshKey((key) => key + 1);
+    } else {
+      handleSessionDeleted(sessionId);
+    }
+    return null;
+  }, [handleCloseFileTab, handleSelectSession, handleSessionDeleted]);
+
+  // One session, one chat: opening a subagent or side chat in the main chat closes its tab.
+  const selectedSessionId = selectedSession?.id;
+  useEffect(() => {
+    if (agentTabs.some((tab) => tab.sessionId === selectedSessionId)) handleCloseFileTab(`agent:${selectedSessionId}`);
+  }, [agentTabs, handleCloseFileTab, selectedSessionId]);
 
   const handleViewFullHistory = useCallback(() => {
     if (!selectedSession) return;
@@ -1610,15 +1707,20 @@ export function AppShell() {
         selectedCwd={selectedSession?.cwd ?? newSessionCwd ?? null}
         onCwdChange={handleCwdChange}
         onBackgroundTaskDone={handleBackgroundTaskDone}
+        hiddenFinishedSessionIds={hiddenFinishedSessionIds}
         onRunningSessionIdsChange={handleRunningSessionIdsChange}
         onSessionsChange={handleSessionsChange}
         onCloseMobile={() => setSidebarOpen(false)}
+        onOpenSubagent={handleOpenSubagentTab}
       />
       <div className="sidebar-footer">
         <SidebarFoot
           label={translate("common.settings")}
           title={translate("common.settings")}
-          onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}
+          onClick={() => {
+            setSettingsOpenAtHome(true);
+            setSettingsSection(getLastSettingsSection(projectTrustCwd));
+          }}
         />
       </div>
     </>
@@ -1782,6 +1884,41 @@ export function AppShell() {
       )}
       {badge.count}
     </span>
+  );
+
+  // The Agents switcher's button. A narrow phone shows it left of the More button instead of
+  // folding it into that menu: the bar has the room, and the badge stays in sight.
+  const renderAgentsButton = (mobile: boolean) => (
+    <button
+      type="button"
+      // On a narrow phone it sits outside the More menu, so it leaves that menu as it is.
+      onClick={() => toggleTopPanel("agents", mobile && !isNarrowMobile)}
+      disabled={!activeSessionFamily}
+      title={agentsButtonLabel}
+      aria-label={agentsButtonLabel}
+      aria-pressed={activeTopPanel === "agents"}
+      style={{
+        position: "relative",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+        width: mobile ? TOP_BAR_ICON_BUTTON_SIZE : undefined,
+        height: "100%", padding: mobile ? 0 : "0 12px",
+        background: activeTopPanel === "agents" ? "var(--bg-selected)" : "none",
+        border: "none",
+        borderTop: activeTopPanel === "agents" ? "2px solid var(--accent)" : "2px solid transparent",
+        borderRight: "1px solid var(--border)",
+        color: activeTopPanel === "agents" ? "var(--text)" : activeSessionFamily ? "var(--text-muted)" : "var(--text-dim)",
+        cursor: activeSessionFamily ? "pointer" : "not-allowed", opacity: activeSessionFamily ? 1 : 0.45,
+        flexShrink: 0, fontSize: 11, whiteSpace: "nowrap",
+        transition: "color 0.1s, background 0.1s",
+      }}
+      data-mobile-toolbar-action={mobile ? "agents" : undefined}
+    >
+      <svg width={mobile ? 16 : 13} height={mobile ? 16 : 13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="5" y="7" width="14" height="11" rx="2" /><path d="M9 11h.01M15 11h.01M9 15h6M12 7V4M10 4h4" />
+      </svg>
+      {!mobile && <span>{translate("agentSwitcher.title")}</span>}
+      {agentsBadge && agentsBadge.count > 0 && renderAgentsBadge(agentsBadge, mobile)}
+    </button>
   );
 
   const renderChatToolbarActions = (mobile: boolean) => {
@@ -1951,8 +2088,8 @@ export function AppShell() {
           data-mobile-toolbar-action={mobile ? "history" : undefined}
         >
           <svg
-            width="12"
-            height="12"
+            width={mobile ? 16 : 12}
+            height={mobile ? 16 : 12}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -2030,16 +2167,16 @@ export function AppShell() {
               data-mobile-toolbar-action={mobile ? "name" : undefined}
             >
               {autoNameStatus.kind === "naming" ? (
-                <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg className="animate-spin" width={mobile ? 16 : 13} height={mobile ? 16 : 13} viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
                   <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               ) : isSuccess ? (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width={mobile ? 16 : 13} height={mobile ? 16 : 13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               ) : (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width={mobile ? 16 : 13} height={mobile ? 16 : 13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="m15 4 5 5L7 22l-5-5Z" />
                   <path d="m14 5 5 5" />
                   <path d="M6 4V2M5 3H3M19 19v3M17.5 20.5h3" />
@@ -2049,35 +2186,7 @@ export function AppShell() {
             </button>
           );
         })()}
-        {hasSubagentSessions && agentsBadge && (
-          <button
-            type="button"
-            onClick={() => toggleTopPanel("agents", mobile)}
-            title={agentsButtonLabel}
-            aria-label={agentsButtonLabel}
-            aria-pressed={activeTopPanel === "agents"}
-            style={{
-              position: "relative",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              width: mobile ? TOP_BAR_ICON_BUTTON_SIZE : undefined,
-              height: "100%", padding: mobile ? 0 : "0 12px",
-              background: activeTopPanel === "agents" ? "var(--bg-selected)" : "none",
-              border: "none",
-              borderTop: activeTopPanel === "agents" ? "2px solid var(--accent)" : "2px solid transparent",
-              borderRight: "1px solid var(--border)",
-              color: activeTopPanel === "agents" ? "var(--text)" : "var(--text-muted)",
-              cursor: "pointer", flexShrink: 0, fontSize: 11, whiteSpace: "nowrap",
-              transition: "color 0.1s, background 0.1s",
-            }}
-            data-mobile-toolbar-action={mobile ? "agents" : undefined}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="5" y="7" width="14" height="11" rx="2" /><path d="M9 11h.01M15 11h.01M9 15h6M12 7V4M10 4h4" />
-            </svg>
-            {!mobile && <span>{translate("agentSwitcher.title")}</span>}
-            {renderAgentsBadge(agentsBadge, mobile)}
-          </button>
-        )}
+        {!(mobile && isNarrowMobile) && renderAgentsButton(mobile)}
         {sessionHasBranches && (mobile ? (
           <button
             type="button"
@@ -2097,7 +2206,7 @@ export function AppShell() {
             }}
             data-mobile-toolbar-action="branches"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branchTree.length > 0 ? "var(--accent)" : "var(--text-dim)" }} aria-hidden="true">
+            <svg width={mobile ? 16 : 12} height={mobile ? 16 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: branchTree.length > 0 ? "var(--accent)" : "var(--text-dim)" }} aria-hidden="true">
               <line x1="6" y1="3" x2="6" y2="15" />
               <circle cx="18" cy="6" r="3" />
               <circle cx="6" cy="18" r="3" />
@@ -2147,7 +2256,7 @@ export function AppShell() {
           }}
           data-mobile-toolbar-action={mobile ? "system" : undefined}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: systemPrompt ? "var(--accent)" : "var(--text-dim)", flexShrink: 0 }} aria-hidden="true">
+          <svg width={mobile ? 16 : 12} height={mobile ? 16 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: systemPrompt ? "var(--accent)" : "var(--text-dim)", flexShrink: 0 }} aria-hidden="true">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
             <line x1="8" y1="13" x2="16" y2="13" />
@@ -2184,7 +2293,7 @@ export function AppShell() {
           }}
           data-mobile-toolbar-action={mobile ? "tools" : undefined}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: systemTools?.some((tool) => tool.active) ? "var(--accent)" : "var(--text-dim)", flexShrink: 0 }} aria-hidden="true">
+          <svg width={mobile ? 16 : 12} height={mobile ? 16 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: systemTools?.some((tool) => tool.active) ? "var(--accent)" : "var(--text-dim)", flexShrink: 0 }} aria-hidden="true">
             <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z" />
           </svg>
           {!mobile && <span>{translate("tools.label")}</span>}
@@ -2381,7 +2490,7 @@ export function AppShell() {
         }}
         data-mobile-toolbar-action={mobile ? "debug" : undefined}
       >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: open ? "var(--accent)" : "var(--text-dim)", flexShrink: 0 }} aria-hidden="true">
+        <svg width={mobile ? 16 : 13} height={mobile ? 16 : 13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: open ? "var(--accent)" : "var(--text-dim)", flexShrink: 0 }} aria-hidden="true">
           <path d="M8 2l1.9 1.9M16 2l-1.9 1.9M9 7.1v-1a3 3 0 0 1 6 0v1" />
           <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6zM12 20v-9" />
           <path d="M6.5 9C4.6 8.8 3 7.1 3 5M6 13H2M3 21c0-2.1 1.7-3.9 3.8-4M21 5c0 2.1-1.6 3.8-3.5 4M22 13h-4M17.2 17c2.1.1 3.8 1.9 3.8 4" />
@@ -2471,15 +2580,6 @@ export function AppShell() {
         onSelect: () => { void handleAutoName(); },
       },
     ];
-    if (hasSubagentSessions && agentsBadge) {
-      rows.push({
-        key: "agents",
-        label: translate("agentSwitcher.title"),
-        icon: "person-2",
-        on: panelOn("agents"),
-        onSelect: () => toggleTopPanel("agents", false),
-      });
-    }
     rows.push(
       {
         key: "session",
@@ -2817,7 +2917,9 @@ export function AppShell() {
                 )}
               </div>
               {/* 390 宽（画板那一档）：两侧只剩画板的「返回 · 标题 · 更多」。
-                  统计 / 文件是产品真实入口，不删——挪进「更多」那层面板里。 */}
+                  统计 / 文件是产品真实入口，不删——挪进「更多」那层面板里。
+                  Agents 例外：它留在「更多」左边，运行中的角标才一直在视线里。 */}
+              {isNarrowMobile && renderAgentsButton(true)}
               {!isNarrowMobile && renderChatToolbarActions(true)}
               {!isNarrowMobile && renderDebugButton(true)}
               {!isNarrowMobile && renderSessionStatsButton(true)}
@@ -2835,7 +2937,6 @@ export function AppShell() {
                   style={{ position: "relative", zIndex: mobileToolbarMoreOpen ? 21 : undefined }}
                 >
                   <Icon name={mobileToolbarMoreOpen ? "xmark" : "ellipsis"} />
-                  {foldedMoreAgentsBadge && renderAgentsBadge(foldedMoreAgentsBadge, true)}
                 </button>
               )}
               {isNarrowMobile && mobileToolbarMoreOpen && (
@@ -2877,15 +2978,19 @@ export function AppShell() {
           )}
           {/* Top panel dropdown — shared, only one active at a time */}
           {activeTopPanel && topPanelPos && (
-            <div style={{
-              position: "fixed",
-              top: topPanelPos.top,
-              left: topPanelPos.left,
-              width: topPanelPos.width,
-              maxHeight: `calc(100dvh - ${topPanelPos.top}px)`,
-              overflowY: "auto",
-              zIndex: 500,
-            }}>
+            <div
+              ref={topPanelRef}
+              className="top-panel-floating"
+              style={{
+                position: "fixed",
+                top: topPanelPos.top,
+                left: topPanelPos.left,
+                width: topPanelPos.width,
+                maxHeight: `calc(100dvh - ${topPanelPos.top}px)`,
+                overflowY: "auto",
+                zIndex: 500,
+              }}
+            >
               {activeTopPanel === "agents" && activeSessionFamily && selectedSession && (
                 <AgentSessionPanel
                   rootSession={activeSessionFamily.root}
@@ -2895,6 +3000,8 @@ export function AppShell() {
                   onSelectSession={handleSelectSession}
                   openSubagentTabIds={openSubagentTabIds}
                   onToggleSubagentTab={handleToggleSubagentTab}
+                  onNewSideChat={() => handleNewSideChat(activeSessionFamily.root.id)}
+                  onDeleteSideChat={(sessionId) => handleDeleteSideChat(sessionId, activeSessionFamily.root)}
                 />
               )}
               {activeTopPanel === "system" && (
@@ -3106,6 +3213,18 @@ export function AppShell() {
                   )}
                 </div>
               )}
+              {/* 手机上浮窗没有自己的边框，给它一颗「×」：这颗永远在右上角，44 的拇指尺寸。 */}
+              {isMobile && activeTopPanel !== "debug" && (
+                <button
+                  type="button"
+                  className="top-panel-close"
+                  onClick={() => setActiveTopPanel(null)}
+                  title={translate("i18n.close")}
+                  aria-label={translate("i18n.close")}
+                >
+                  <Icon name="xmark" />
+                </button>
+              )}
               {activeTopPanel === "debug" && (
                 <DebugPanelBoundary fallback={translate("debug.failed")}>
                   <DebugPanel
@@ -3142,6 +3261,7 @@ export function AppShell() {
               onAttentionNeeded={handleAttentionNeeded}
               onSessionCreated={handleSessionCreated}
               onSessionForked={handleSessionForked}
+              onSideSession={handleSideSession}
               modelsRefreshKey={modelsRefreshKey}
               chatInputRef={chatInputRef}
               onBranchDataChange={handleBranchDataChange}
@@ -3156,10 +3276,7 @@ export function AppShell() {
               onOpenFile={handleOpenLinkedFile}
               onFilesUploaded={handleExplorerRefresh}
               onOpenSubagent={handleOpenSubagentTab}
-              onAskInNewChat={handleAskInNewChat}
               quoteSelectionEnabled={quoteSelectionEnabled}
-              initialPrompt={pendingQuotePrompt?.sessionId === selectedSession?.id ? pendingQuotePrompt?.text : undefined}
-              onInitialPromptConsumed={() => setPendingQuotePrompt(null)}
               soundEnabled={soundEnabled}
               onSoundToggle={onSoundToggle}
               onExtensionStatusChange={onExtensionStatusChange}
@@ -3443,6 +3560,16 @@ export function AppShell() {
                     <Icon name="person-2" />
                     <span>{translate("sidebar.agents")}</span>
                   </button>
+                  {/* 侧聊与它们并排：手机上没有输入框旁那颗钮时，这里也能随时开一个。 */}
+                  <button
+                    type="button"
+                    className="side-pane-empty__card"
+                    onClick={() => { if (selectedSession) void handleNewSideChat(selectedSession.id); }}
+                    disabled={!selectedSession || selectedSession.transient}
+                  >
+                    <Icon name="bubble-left" />
+                    <span>{translate("sideChat.new")}</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -3459,12 +3586,33 @@ export function AppShell() {
             </div>
           ))}
           {activeAgentTab && (
-            <SubagentViewer
+            <SessionChatPanel
               key={activeAgentTab.sessionId}
               sessionId={activeAgentTab.sessionId}
-              fallbackLabel={activeAgentTab.label}
               running={runningSessionIds.has(activeAgentTab.sessionId)}
+              initialPrompt={sideChatPrompts[activeAgentTab.sessionId]}
+              onInitialPromptConsumed={() => setSideChatPrompts((prev) => {
+                if (!(activeAgentTab.sessionId in prev)) return prev;
+                const next = { ...prev };
+                delete next[activeAgentTab.sessionId];
+                return next;
+              })}
+              modelsRefreshKey={modelsRefreshKey}
+              quoteSelectionEnabled={quoteSelectionEnabled}
               onOpenFile={handleOpenLinkedFile}
+              onOpenSubagent={handleOpenSubagentTab}
+              onSessionForked={(newSessionId) => {
+                if (isMobile) setRightPanelOpen(false);
+                handleSessionForked(newSessionId);
+              }}
+              onOpenSettings={openSettingsSection}
+              onToolEnd={handleToolEnd}
+              onFilesUploaded={handleExplorerRefresh}
+              soundEnabled={soundEnabled}
+              onSoundToggle={onSoundToggle}
+              playDoneSound={playDoneSound}
+              unlockAudio={unlockAudio}
+              holdAudio={holdAudio}
             />
           )}
         </div>
@@ -3544,6 +3692,7 @@ export function AppShell() {
       <SettingsPanel        cwd={projectTrustCwd}
         sessionId={selectedSession?.id ?? null}
         initialSection={settingsSection}
+        openAtHome={settingsOpenAtHome}
         quoteSelectionEnabled={quoteSelectionEnabled}
         onQuoteSelectionChange={handleQuoteSelectionChange}
         onClose={() => {

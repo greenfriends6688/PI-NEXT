@@ -23,6 +23,7 @@ import {
   type AtQueryMatch, type FileIndexEntry,
 } from "@/lib/file-fuzzy";
 import { getMarkdownListContinuation } from "@/lib/markdown-list-continuation";
+import { quoteSeparator } from "@/lib/quoted-selection";
 import { Icon } from "./v3/Icon";
 import { isBareMcpCommand, isBuiltinMcpCommand } from "@/lib/mcp-command";
 import { FolderIcon, getFileIcon } from "./FileIcons";
@@ -47,6 +48,8 @@ export interface AttachedImage {
 interface Props {
   onSend: (message: string, images?: AttachedImage[]) => void;
   onAbort: () => void;
+  /** Sends the draft to a new side chat instead of the running agent. */
+  onSideChat?: (message: string) => void;
   onFollowUp?: (message: string, images?: AttachedImage[]) => void;
   onPromptWithStreamingBehavior?: (message: string, behavior: "steer" | "followUp", images?: AttachedImage[]) => void;
   isStreaming: boolean;
@@ -63,6 +66,10 @@ interface Props {
   missingCwd?: string | null;
   /** Diagnostics from resolving `enabledModels`, e.g. a pattern that matched nothing. */
   modelScopeWarnings?: string[];
+  /** Every available model, once loaded for the selector's "all" scope. */
+  allModelList?: { id: string; name: string; provider: string }[] | null;
+  /** Set only while `enabledModels` narrows the list: loads `allModelList`. */
+  onLoadAllModels?: () => void;
   onModelChange?: (provider: string, modelId: string) => void;
   modelSwitching?: boolean;
   /** The model new sessions start with, starred in the model selector. */
@@ -107,6 +114,8 @@ interface Props {
 
 export interface ChatInputHandle {
   insertText: (text: string) => void;
+  /** Insert at the caret as a paragraph of its own: a blockquote must start a line. */
+  insertQuote: (text: string) => void;
   insertIfEmpty: (text: string) => void;
   replaceMessage: (message: UserMessage) => void;
   prependText: (text: string) => void;
@@ -300,6 +309,10 @@ const BUILTIN_SLASH_COMMANDS: BuiltinSlashCommand[] = [
   { name: "session", description: "chat.commandSession", source: "builtin", availableWhileStreaming: true },
   { name: "copy", description: "chat.commandCopy", source: "builtin", availableWhileStreaming: true },
   { name: "clone", description: "chat.commandClone", source: "builtin" },
+  // A side chat forks the session while it runs (ADR 0007): the primary use
+  // case is a side question during a long parent run, so it must be offered
+  // mid-stream. The fork is file-level, never touching the running agent.
+  { name: "side", description: "chat.commandSide", source: "builtin", availableWhileStreaming: true },
 ];
 
 function getBuiltinSlashCommand(message: string): BuiltinSlashCommand | undefined {
@@ -432,12 +445,13 @@ function isDormantSkillCommand(command: SlashCommandPaletteItem, dormancy: Recor
 export function buildSlashCommandLayout(
   commands: SlashCommandPaletteItem[],
   dormancy: Record<string, boolean>,
+  query = "",
 ) {
   let index = 0;
   const groups = SLASH_SOURCES
     .map((source) => {
       const sourceCommands = commands.filter((command) => command.source === source);
-      const orderedCommands = source === "skill"
+      const orderedCommands = source === "skill" && !query
         ? [
             ...sourceCommands.filter((command) => !isDormantSkillCommand(command, dormancy)),
             ...sourceCommands.filter((command) => isDormantSkillCommand(command, dormancy)),
@@ -663,7 +677,7 @@ export function ModelScopeWarningBanner({ warnings }: { warnings?: string[] }) {
 // Memoized: its props hold still while a reply streams or a tool runs, and the
 // chat around it re-renders through both.
 export const ChatInput = memo(forwardRef<ChatInputHandle, Props>(function ChatInput({
-  onSend, onAbort, onFollowUp, isStreaming, model, isAutoModelSelection, modelNames, modelList, modelError, missingCwd, modelScopeWarnings, onModelChange, modelSwitching,
+  onSend, onAbort, onSideChat, onFollowUp, isStreaming, model, isAutoModelSelection, modelNames, modelList, modelError, missingCwd, modelScopeWarnings, allModelList, onLoadAllModels, onModelChange, modelSwitching,
   contextUsage,
   defaultModel, onSetDefaultModel,
   onCompact, onAbortCompaction, isCompacting, compactError, onDismissCompactError, compactResult,
@@ -908,6 +922,17 @@ export const ChatInput = memo(forwardRef<ChatInputHandle, Props>(function ChatIn
       replaceTextareaRange(ta, start, end, sep + text);
       setAtQuery(null);
     },
+    insertQuote(text: string) {
+      const ta = textareaRef.current;
+      if (!ta) {
+        setValue((v) => v + quoteSeparator(v) + text);
+        return;
+      }
+      const start = ta.selectionStart ?? ta.value.length;
+      const end = ta.selectionEnd ?? ta.value.length;
+      replaceTextareaRange(ta, start, end, quoteSeparator(ta.value.slice(0, start)) + text);
+      setAtQuery(null);
+    },
     addImages(files: File[]) {
       processImageFiles(files);
     },
@@ -1108,7 +1133,7 @@ export const ChatInput = memo(forwardRef<ChatInputHandle, Props>(function ChatIn
   const {
     commands: displayedSlashCommands,
     groups: groupedSlashCommands,
-  } = buildSlashCommandLayout(filteredSlashCommands, skillDormancy);
+  } = buildSlashCommandLayout(filteredSlashCommands, skillDormancy, slashQuery ?? "");
 
   const slashCommandCountLabel = filteredSlashCommands.length === 1
     ? t(slashQuery ? "chat.match" : "chat.command")
@@ -1292,6 +1317,15 @@ export const ChatInput = memo(forwardRef<ChatInputHandle, Props>(function ChatIn
       autoGrowTextarea(ta);
     });
   }, []);
+
+  // Sends the draft to a new side chat instead of the running agent (ADR 0007).
+  // Images stay with the main chat: `/side` does not take them either.
+  const sendToSideChat = useCallback(() => {
+    const msg = value.trim();
+    if (!msg || attachedImages.length || !onSideChat) return;
+    clearInput();
+    onSideChat(msg);
+  }, [value, attachedImages, onSideChat, clearInput, onAudioUnlock]);
 
   // 排队只有一个动作：这一轮跑完再发（pi 的 `followUp`）。以前还有个「引导」分支，
   // 它把消息塞进正在跑的这一轮——用户看到的就是「我明明在排队，它直接发出去了」。
@@ -2303,7 +2337,7 @@ export const ChatInput = memo(forwardRef<ChatInputHandle, Props>(function ChatIn
           <textarea
             ref={textareaRef}
             className="chat-input-textarea"
-            aria-label={compact ? t("chat.quoteQuestion") : undefined}
+            aria-label={compact ? t("chat.askInSideChat") : undefined}
             value={value}
             onChange={(e) => {
               valueRef.current = e.target.value;
@@ -2418,6 +2452,8 @@ export const ChatInput = memo(forwardRef<ChatInputHandle, Props>(function ChatIn
               isAutoSelection={isAutoModelSelection}
               defaultValue={defaultModel}
               onSetDefault={onSetDefaultModel}
+              allOptions={allModelList?.map((m) => ({ provider: m.provider, modelId: m.id, name: m.name }))}
+              onShowAll={onLoadAllModels}
               emptyLabel={modelOptions.length > 0 ? t("chat.selectModel") : t("chat.noModels")}
               effortLabel={thinkingDisplayLabel}
               menuFooter={onThinkingLevelChange && (
@@ -2471,6 +2507,34 @@ export const ChatInput = memo(forwardRef<ChatInputHandle, Props>(function ChatIn
             </div>
           )}
 
+          {isStreaming && onSideChat && (
+            <button
+              type="button"
+              onClick={sendToSideChat}
+              disabled={!value.trim() || attachedImages.length > 0}
+              title={t("chat.sideChatHint")}
+              aria-label={t("chat.sideChat")}
+              className="chat-side-chat-button"
+              style={{
+                flexShrink: 0,
+                alignSelf: "flex-end",
+                display: "grid",
+                placeItems: "center",
+                width: isMobile ? 44 : 34,
+                height: isMobile ? 44 : 34,
+                padding: 0,
+                border: "1px solid var(--border)",
+                borderRadius: 9,
+                background: "none",
+                color: value.trim() && !attachedImages.length ? "var(--text-muted)" : "var(--text-dim)",
+                cursor: value.trim() && !attachedImages.length ? "pointer" : "not-allowed",
+              }}
+            >
+              <svg width={isMobile ? 18 : 16} height={isMobile ? 18 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 12a8 8 0 0 1-8 8H5.5a2 2 0 0 1-1.4-3.4A8 8 0 1 1 21 12z" /><path d="M13 8.5v7M9.5 12h7" />
+              </svg>
+            </button>
+          )}
           {isStreaming ? (
             <button
               className={`chat-send-button send${canQueueStreamingMessage ? "" : " is-stop"}`}

@@ -1,3 +1,4 @@
+
 const STORAGE_KEY = "pi-thinking-expanded";
 
 // Broadcast so already-mounted ThinkingBlock instances update when the
@@ -5,7 +6,6 @@ const STORAGE_KEY = "pi-thinking-expanded";
 export const THINKING_EXPANDED_EVENT = "pi-thinking-expanded-changed";
 
 export function isThinkingExpandedByDefault(): boolean {
-  if (typeof window === "undefined") return false;
   try {
     return window.localStorage.getItem(STORAGE_KEY) === "true";
   } catch {
@@ -17,7 +17,7 @@ export function setThinkingExpandedByDefault(expanded: boolean): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, String(expanded));
   } catch {
-    // Nothing was saved, so there is no change to announce.
+    // 什么都没存下，也就没什么可广播的。
     return;
   }
   window.dispatchEvent(new Event(THINKING_EXPANDED_EVENT));

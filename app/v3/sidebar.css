@@ -224,3 +224,79 @@
 .session-tree-session.is-selected:not(.is-confirming)::before {
   display: none;
 }
+
+/* ------------------------------------------------- 小代理行（主会话下面）
+   一次 run 起了多个 agent 时，它们出现在**会话下面**（用户要的就是这个位置），
+   缩进一级 + 一条竖线，和画板里的子代理行同一形状。transcript 仍然在右侧栏：
+   点行只开右侧栏那页，不顶掉主会话。 */
+.session-tree-subagent {
+  padding-left: 22px;
+}
+
+.session-tree-subagent-main {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* 竖线：画板 02 的子代理行，起止各收 3px，不贴到相邻行。 */
+.session-tree-subagent-main::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  background: var(--line);
+}
+
+.session-tree-subagent-main:hover { background: var(--fill-2); }
+.session-tree-subagent-main:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.session-tree-subagent-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--t-sub);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.session-tree-subagent-time {
+  flex: none;
+  font-size: var(--t-sub);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 主会话行右栅上的展开键：把它的小代理行摊开/收起。 */
+.session-tree-subagents-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--fill-2);
+  color: var(--ink-3);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.session-tree-subagents-toggle:hover { background: var(--fill-3); color: var(--ink); }
+.session-tree-subagents-toggle.is-open { background: var(--fill-3); color: var(--ink); }

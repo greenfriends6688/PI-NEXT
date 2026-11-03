@@ -31,6 +31,8 @@ const { createRunRecordTracker, getOpenUrl, getRunDir } = require("./run-records
 const { getPackageVersion, runCommand } = require("./pi-web-commands");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { formatReachableAddresses } = require("./network-addresses");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { reachableUrls, resolveHostname } = require("./lan-bind");
 
 let launchOptions;
 try {
@@ -70,7 +72,10 @@ function exitWhenIdle(code) {
   setTimeout(() => process.exit(code), 2_000).unref();
 }
 
-function startServer({ port, hostname, openBrowser }) {
+function startServer({ port, hostname: launchHostname, hostnameExplicit, openBrowser }) {
+  // 设置里的「允许同一局域网访问」写的是 lan-access.json；服务端读得到它，但进程早绑在
+  // 回环上了 —— 所以绑哪里必须在这里定（bin/lan-bind.js 的头注写了完整规则）。
+  let hostname = resolveHostname({ requested: launchHostname, explicit: hostnameExplicit === true });
 
   const pkgDir = path.join(__dirname, "..");
   const nextDir = path.join(pkgDir, ".next");
@@ -104,6 +109,17 @@ function startServer({ port, hostname, openBrowser }) {
   const rotation = rotatePreviewSecrets(nextDir);
   if (!rotation.ok) {
     console.warn(getRotationWarning(rotation.reason));
+  }
+
+  if (hostname !== launchHostname && !loopbackHostnames.has(hostname)) {
+    const urls = reachableUrls(hostname, port);
+    console.warn(
+      "Pi Web is open to your local network (Settings > Phone & Bots has it on).\n"
+      + (urls.length > 0
+        ? `Open on a phone: ${urls.join("  ")}`
+        : "No LAN address yet - connect this machine to Wi-Fi.")
+      + "\nTurn it off there and restart to bind loopback only.",
+    );
   }
 
   if (!loopbackHostnames.has(hostname)) {
@@ -145,9 +161,12 @@ function startServer({ port, hostname, openBrowser }) {
   });
 
   let serverReady = false;
-  const url = `http://${hostname}:${port}`;
+  // 通配绑定（0.0.0.0 / ::）时本机浏览器要用 127.0.0.1；这行也是打印给用户的那条地址。
+  const displayHost = hostname === "0.0.0.0" || hostname === "::" || hostname === "[::]" ? "127.0.0.1" : hostname;
+  const url = `http://${displayHost}:${port}`;
   // Next.js repeats the `-H` value in its own "Network:" line, which a wildcard
   // bind makes unusable; name the interfaces and their addresses instead.
+  // -H 0.0.0.0 就是「同一局域网可访问」（手机打开这几条地址即可）。
   const reachable = formatReachableAddresses(hostname, port);
 
   child.stdout.on("data", (chunk) => {

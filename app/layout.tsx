@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Mono } from "next/font/google";
 import { PwaRegistration } from "@/components/PwaRegistration";
+import { UiPreferencesSync } from "@/components/UiPreferencesSync";
 import { IconSprite } from "@/components/v3/Icon";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "katex/dist/katex.min.css";
@@ -28,7 +29,6 @@ export const metadata: Metadata = {
   title: "Pi Web",
   description: "Pi Web interface for the pi coding agent",
   applicationName: "Pi Web",
-  manifest: "/manifest.webmanifest",
   icons: {
     icon: [
       {
@@ -74,6 +74,7 @@ export default function RootLayout({
   return (
     <html lang="en" translate="no" className={`${notoSansMono.variable} notranslate`} suppressHydrationWarning>
       <head>
+        <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
         <meta name="google" content="notranslate" />
         <script
           dangerouslySetInnerHTML={{
@@ -83,6 +84,7 @@ export default function RootLayout({
       </head>
       <body translate="no" className="notranslate" suppressHydrationWarning>
         <IconSprite />
+        <UiPreferencesSync />
         {children}
         <PwaRegistration />
       </body>

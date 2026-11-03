@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld("piWebDesktop", {
   getDesktopSettings: () => ipcRenderer.invoke("pi-web:get-desktop-settings"),
   /** Saves whether a fixed Web endpoint is offered. Applies on the next launch. */
   setWebAccess: (enabled) => ipcRenderer.invoke("pi-web:set-web-access", enabled === true),
+  /** 「手机能连上」：绑局域网并立刻重启子服务，不需要用户自己退出重开。 */
+  setLanAccess: (enabled) => ipcRenderer.invoke("pi-web:set-lan-access", enabled === true),
   focusWindow: () => ipcRenderer.invoke("pi-web:focus-window"),
 });
 

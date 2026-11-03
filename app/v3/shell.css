@@ -610,6 +610,32 @@
   color: var(--ink-4) !important;
 }
 
+/* A phone or touch screen: the controls row is a finger's 44px, as the top
+   bars and the file rows are (app/globals.css's --top-bar-height). The board's
+   26px chips keep their look, only their box grows. */
+@media (max-width: 767px), (pointer: coarse) {
+  .composer .composer__bar {
+    min-height: 44px;
+  }
+
+  .composer .composer__bar button:not(.composer__plus):not(.ring):not(.chat-send-button) {
+    height: 44px !important;
+    padding: 0 12px !important;
+  }
+
+  .composer .composer__plus,
+  .composer .ring,
+  .composer .chat-send-button {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  .composer .composer__plus .ic {
+    width: 18px;
+    height: 18px;
+  }
+}
+
 /* 变更页签：12 圆角、浮在胶囊上方 8 */
 .composer-wrap > .tab {
   margin-bottom: 8px;
@@ -1332,4 +1358,44 @@
 .app-main.detail,
 .app-right-panel {
   background: color-mix(in srgb, var(--surface) calc(46% * var(--pane-alpha)), transparent);
+}
+
+/* 顶栏浮出来的面板（系统提示词 / 工具定义 / 会话信息 / Agents）：手机上要给一颗
+   永远够得着的「×」。面板自己没有边框，这颗钉在它的右上角，44 的拇指尺寸。 */
+.top-panel-floating {
+  position: relative;
+}
+
+.top-panel-close {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.top-panel-close .ic {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.2;
+}
+
+.top-panel-close:hover {
+  background: var(--fill-2);
+  color: var(--ink);
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .top-panel-close {
+    display: grid;
+  }
 }

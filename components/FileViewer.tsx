@@ -20,6 +20,7 @@ import {
 } from "@/lib/file-types";
 import { encodeFilePathForApi, getFileDirectory, getFileName, getRelativeFilePath } from "@/lib/file-paths";
 import { fileVersion, fileVersionChanged } from "@/lib/file-version";
+import { injectSandboxedHtmlPolyfill } from "@/lib/html-sandbox-polyfill";
 import { HIDDEN_PAGE_GRACE_MS, usePageHiddenFor } from "@/hooks/usePageHidden";
 import { pageId, trackEventSource } from "@/lib/page-debug";
 import { parsePdfPageFragment, resolveLocalFileHref, shouldOpenLocalFileInApp } from "@/lib/file-links";
@@ -34,6 +35,7 @@ import type { GitFileDiffResponse } from "@/lib/git-types";
 import { useI18n } from "@/hooks/useI18n";
 import {
   resolveInitialFileDisplayMode,
+  resolveInitialWrapLines,
   type FileViewerDisplayMode as DisplayMode,
   type FileViewerState,
 } from "@/lib/file-viewer-state";
@@ -347,7 +349,7 @@ function diffLines(patch: string): Array<DiffLine | DiffGap> {
   return files.flatMap(unifiedDiffLines);
 }
 
-export function DiffView({ patch }: { patch: string }) {
+export function DiffView({ patch, wrapLines = false }: { patch: string; wrapLines?: boolean }) {
   const { t } = useI18n();
   const diff = diffLines(patch);
 
@@ -400,7 +402,7 @@ export function DiffView({ patch }: { patch: string }) {
     <div
       className="file-diff-view"
       style={{
-        width: "max-content",
+        width: wrapLines ? "100%" : "max-content",
         minWidth: "100%",
         ...FILE_CODE_STYLE,
       }}
@@ -428,7 +430,17 @@ export function DiffView({ patch }: { patch: string }) {
                 {line.type === "removed" ? line.oldLineNo : line.newLineNo}
               </span>
               <span className="dline__sign">{prefix}</span>
-              <span className="file-diff-line-content" style={{ whiteSpace: "pre", color: "var(--ink)" }}>
+              <span
+                className="file-diff-line-content"
+                style={{
+                  flexShrink: wrapLines ? 1 : 0,
+                  minWidth: 0,
+                  padding: "0 8px 0 0",
+                  whiteSpace: wrapLines ? "pre-wrap" : "pre",
+                  overflowWrap: wrapLines ? "anywhere" : "normal",
+                  color: "var(--ink)",
+                }}
+              >
                 {line.text || "\u00a0"}
               </span>
             </div>
@@ -1196,7 +1208,7 @@ function TextFileViewer({
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestedInitialDisplayMode = resolveInitialFileDisplayMode(initialState, initialDisplayMode);
-  const initialWrapLines = initialState?.wrapLines ?? false;
+  const initialWrapLines = resolveInitialWrapLines(initialState, filePath);
   const initialScrollTop = initialState?.scrollTop ?? 0;
   const initialScrollLeft = initialState?.scrollLeft ?? 0;
   const [displayMode, setDisplayMode] = useState<DisplayMode>(requestedInitialDisplayMode);
@@ -1500,6 +1512,11 @@ function TextFileViewer({
     ? !!data && (!data.truncated || data.size <= HTML_PREVIEW_MAX_BYTES)
     : isMarkdown && !data?.truncated);
   const effectiveDisplayMode = isDeletedDiff ? "diff" : displayMode;
+  const rawHtml = data?.truncated ? htmlFull?.text : viewerContent;
+  const htmlPreview = useMemo(
+    () => isHtml && effectiveDisplayMode === "preview" ? injectSandboxedHtmlPolyfill(rawHtml ?? "") : "",
+    [isHtml, effectiveDisplayMode, rawHtml],
+  );
   // A partly loaded HTML file previews whole, so Load more belongs to its source view.
   const showLoadMore = !!data?.truncated && !(isHtml && effectiveDisplayMode === "preview");
   // A text file small enough to edit; a file the source view loads in chunks
@@ -1868,7 +1885,7 @@ function TextFileViewer({
                 <MentionIcon />
               </button>
             )}
-            {effectiveDisplayMode === "source" && !isBinary && (
+            {(effectiveDisplayMode === "source" || effectiveDisplayMode === "diff") && !isBinary && (
               <>
                 <button
                   type="button"
@@ -1963,14 +1980,14 @@ function TextFileViewer({
             }}
           />
         ) : effectiveDisplayMode === "diff" && hasGitDiff ? (
-          <DiffView patch={gitDiff.patch!} />
+          <DiffView patch={gitDiff.patch!} wrapLines={wrapLines} />
         ) : isHtml && effectiveDisplayMode === "preview" && data?.truncated && !htmlFull?.text ? (
           <div style={{ padding: 24, color: "var(--text-dim)", fontSize: 12 }}>
             {htmlFull?.error ?? t("i18n.loading")}
           </div>
         ) : isHtml && effectiveDisplayMode === "preview" ? (
           <iframe
-            srcDoc={data?.truncated ? htmlFull?.text : content}
+            srcDoc={htmlPreview}
             sandbox="allow-scripts"
             style={{ width: "100%", height: "100%", border: "none", background: "var(--bg)" }}
              title={t("i18n.htmlPreview")}

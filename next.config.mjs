@@ -54,6 +54,10 @@ const nextConfig = {
     "node-pty",
     "undici",
     "web-push",
+    // 聊天渠道的 SDK 只在动态 import 里用到，且带原生/传递依赖（ws、axios）。
+    // 打进 server bundle 会把 ws 弄坏，所以留在 node_modules 里运行时 require。
+    "@larksuiteoapi/node-sdk",
+    "dingtalk-stream",
     "@earendil-works/pi-coding-agent",
     "@earendil-works/pi-agent-core",
     "@earendil-works/pi-ai",

@@ -3,6 +3,12 @@ import { closeAllAgentEventStreams } from "@/lib/agent-event-stream";
 import { applyCodemodeWorkerDefault } from "@/lib/codemode-workers";
 
 export function registerNodeInstrumentation(): void {
+  // 渠道是进程内的长轮询：必须在这里拉起，否则一重启进程就静默消失。
+  // 起不来只打日志，不影响 Pi Web 本身（lib/bot-channel-runtime.ts）。
+  void import("@/lib/bot-channel-runtime")
+    .then((module) => module.startConfiguredBotChannels())
+    .catch(() => {});
+
   // Before any session can run a codemode script (lib/codemode-workers.ts).
   applyCodemodeWorkerDefault();
 

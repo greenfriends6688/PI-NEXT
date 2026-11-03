@@ -5,6 +5,9 @@ export const SETTINGS_SECTION_VALUES = [
   "agents",
   "plugins",
   "mcp",
+  // 「手机与 Bot」：局域网访问（配对、二维码）和聊天应用渠道合成一页 ——
+  // 它们本来就是同一个问题的两个方向（让这个 Web 从别的设备用得上）。
+  "devices",
 ] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTION_VALUES)[number];

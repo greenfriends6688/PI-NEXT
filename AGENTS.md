@@ -42,7 +42,7 @@ app/api/
   sessions/[id]/route.ts           GET/PATCH/DELETE a session
   sessions/[id]/context/route.ts   GET ?leafId=&tail=&before= a page of a leaf's context (tail defaults to 50; before pages upward)
   sessions/[id]/export/route.ts    GET exported HTML
-  sessions/[id]/fork/route.ts      POST copy the session's current branch into a new session (never starts an AgentSession)
+  sessions/[id]/fork/route.ts      POST copy the session's current branch into a new session, or { side: true } a side chat (never starts an AgentSession)
   sessions/delete/route.ts         POST { ids } delete sessions and their subagents (a project's Delete all sessions); running ones kept
   sessions/stats/route.ts          POST { ids } each session's tokens, cost, tool calls, active time (the agent switcher's rows)
   sessions/[id]/state/route.ts     GET live wrapper state while running
@@ -94,6 +94,13 @@ app/api/
   skills/search/route.ts           POST skills.sh search
   subagents/settings/route.ts      GET/PUT built-in subagent switch and maxConcurrent
   web-auth/route.ts                GET status | POST login | DELETE logout (browser password)
+  lan/access/route.ts              GET status (creates the token on first visit) | PUT enabled/rotate
+  lan/pair/generate/route.ts       POST mint a 6-digit pair code (desktop side)
+  lan/pair/redeem/route.ts         POST spend a pair code, plant the LAN cookie (the only token-free write)
+  bot-channel/route.ts             GET all channels | POST save/start/stop/register-* — WeChat, Feishu, Lark, DingTalk, WeCom
+  (the LAN panel and this one are one settings page: Settings › Phone & Bots, section "devices")
+  bot-channel/wecom/route.ts       GET the WeCom callback URL check (decrypt echostr) | POST its messages
+  ui-preferences/route.ts          GET/PUT the whole UI-preferences file (per-key merge, last write wins)
   provider-usage/query/route.ts    POST provider usage quotas
   push/config/route.ts             GET VAPID public key
   push/subscribe/route.ts          POST register a push subscription
@@ -104,19 +111,35 @@ lib/
   missing-cwd.ts            client-safe `reason: "cwd-missing"` refusal of a folder that no longer exists: error class, body fields, parsing
   debug-types.ts            client-safe shapes of the Debug panel: GET /api/agent/debug and the page's own snapshot
   debug-snapshot.ts         buildDebugSnapshot(): the debug route's synchronous field reads, each source guarded
+  ui-preferences.ts         <agentDir>/ui-preferences.json: per-key { value, updatedAt }, last write wins, corrupt file reads empty
+  ui-preferences-client.ts  client half: wraps localStorage writes for the preference keys, pushes them, seeds from the server on load
+  lan-access.ts             the LAN token gate: token file, read-only derivation, cookie and ?t= presentation, reachable URLs
+  lan-pair.ts               6-digit pair codes (mint/spend/expire) and the redeem attempt limiter
+  qrcode.ts                 vendored ISO/IEC 18004 QR encoder (byte mode, every version and EC level)
+  qr-image.ts               a QR code as a drawable bitmap: quiet zone, scale, light background
+  bot-channel.ts            <agentDir>/bot-channel.json: per-channel credentials/allowlist/session, readiness, status shape
+  bot-channel-runtime.ts    the one start/stop of the relays; instrumentation restarts each "enabled" channel
+  bot-channel-delivery.ts   hands a chat message to a session over the existing agent RPC face; opens a scratch session when unbound
+  bot-channel-register.ts   the globalThis registry behind WeChat/Feishu/Lark QR sign-in (begin → poll)
+  weixin-channel.ts         WeChat iLink bot platform: QR sign-in plus long polling and sendText (no new dependency)
+  feishu-channel.ts         Feishu/Lark: device-flow app creation, the SDK's WebSocket receive, REST send
+  dingtalk-channel.ts       DingTalk Stream mode: robot message parse, reply via the callback's sessionWebhook
+  wecom-channel.ts          WeCom: callback signature and AES-CBC decrypt, tenant token, application message send
   stream-client.ts          an event stream's reported address and "Chrome · macOS" label, for the Debug panel's connected pages and SSE titles only
   page-stream-registry.ts   open terminal and file-watch streams with their page (`?holder=`) and client, for the Debug panel's connected pages
   page-debug.ts             client: the page's id (`?holder=` of its streams), EventSources, visibility history, protocol and running-poll record (Debug panel)
   file-watch-registry.ts    open ?type=watch streams, counted on globalThis for the Debug panel
   rpc-manager.ts            AgentSessionWrapper, registry, startRpcSession
   session-reader.ts         SessionManager wrappers, path cache, buildSessionContext adapter
-  session-fork.ts           forkSessionBranch(): the sidebar's Fork, a leaf-branch copy on a fresh SessionManager named after its source, typed refusals
+  side-chat-client.ts       client: ask the fork route for a side chat, refusals as translated notices
+  session-fork.ts           forkSessionBranch(): the sidebar's Fork, a leaf-branch copy on a fresh SessionManager named after its source, typed refusals; createSideSession(): the same copy as a side chat
+  side-session.ts           a side chat's metadata entry, allowed tools, hidden boundary message, own entries for usage
   session-fork-name.ts      client-safe Fork naming: source title + " · " + 4 hex; splitting the suffix off for the row and toast
   session-delete.ts         deleteSessions(): session files with their subagents, re-parenting what stays, wrapper shutdown, pins/archive cleanup
   session-tree.ts           sidebar row model: pinned section, project groups and their order, archived predicate, virtual rows, drop targets
   session-ui-state.ts       pi-web-session-state.json (pins, archive, project order and names): lock, atomic write, revision, corrupt backup
   session-ui-state-shared.ts client-safe types and rules of that state: request parsing, apply, undo snapshot
-  sidebar-prefs.ts          per-browser sidebar tab, group expand choices, archive folds, pinned-section collapse, files-section fold, folders found outside git
+  sidebar-prefs.ts          per-browser sidebar tab, group expand choices, archive folds, pinned-section collapse, files-section fold, changed files as list or tree, folders found outside git
   sidebar-actions.ts        session row menu entries, a project group's name entries and rename request, fork refusal messages, delete-all requests
   session-links.ts          same-instance links: a session's (?session=<id>), a fresh composer's (?cwd=<dir>); the plain-click rule the sidebar keeps in the page
   new-session-context.ts    client-safe: what the project/worktree pickers show (project, worktrees, project list), lag-safe contextForCwd, the directory a group's + and Open in new tab use
@@ -146,6 +169,7 @@ lib/
   linked-directory.ts       directory links leading outside the allowed roots + the allow-link check
   file-paths.ts             client/server path encoding helpers
   file-version.ts           a watched file's size+mtime version: viewers skip reloading an unchanged file on reconnect
+  html-sandbox-polyfill.ts  in-memory localStorage/sessionStorage shim injected into the sandboxed HTML preview's srcDoc
   delimited-table.ts        client-safe CSV/TSV parsing (RFC 4180, delimiter detection, file line per record) and table layout
   file-tree-visibility.ts   which entries the file tree lists (git check-ignore, name-list fallback)
   file-tree-expansion.ts    the file tree's open directories per cwd: page-memory LRU of 20 folders
@@ -154,6 +178,7 @@ lib/
   worktree.ts               project/worktree resolution and git worktree operations
   draft-store.ts            local draft persistence
   extension-ui-queue.ts     FIFO queues for extension dialogs and custom panels, by request id; isBlockingExtensionUiRequest() (which method a run waits on)
+  favicon-badge.ts          the tab's favicon badge: awaiting and unread counts drawn over the stock icon
   session-stats-format.ts   client-safe compact counts, costs and active durations of the stats toolbar and agent switcher
   turn-duration.ts          getTurnDurationMs() / formatTurnDuration(): a finished turn's length from its anchor to its last response's end, on pi's timestamps
   transcript-notices.ts     client-safe: showCacheMissNotices notices on chat messages, TUI number formats, a fold's cache-miss sum
@@ -218,7 +243,11 @@ components/
   OAuthPastePanel.tsx      paste box for a sign-in's redirected address or code (Models, MCP)
   ProjectTrustDialog.tsx   trust confirmation listing the project's MCP servers
   AgentsConfig.tsx         built-in subagent toggle + agent profile editor
-  SubagentViewer.tsx       read-only right-panel tab of a subagent's transcript (polls the context route)
+  SessionChatPanel.tsx     right-panel tab of a subagent or side chat: a ChatWindow for that session
+  LanAccessPanel.tsx       Settings › Phone: LAN switch, the addresses phones can open, the pair code and its QR
+  BotChannelPanel.tsx      Settings › Bot: Telegram token/chat/allowlist/session, start/stop, test
+  UiPreferencesSync.tsx    installs the preference sync (one effect, renders nothing)
+  QrCanvas.tsx             draws lib/qr-image.ts onto a canvas (the pairing QR)
   DebugPanel.tsx           Debug top panel (desktop: the session header's More card; phones: the controls): page and server state, its own tick and poll, error boundary
   debug-panel-state.ts     pure helpers of DebugPanel: formatting, server clock, poller, issues, session grouping, poll samples
   PluginsConfig.tsx        Settings › Plugins: installed package plugins
@@ -269,8 +298,11 @@ Design decisions and traps live in `docs/agents/`, one note per area. Read every
 - [models.md](docs/agents/models.md): default model and reasoning level, providers registered at session_start, mid-run reasoning changes, remote provider catalogs, `enabledModels` scoping and minimal edits, managed models' context-window overrides, provider auth listing and credentials, the extension-loaded runtime those routes share. Files: `app/api/models/**`, `app/api/models-config/**`, `app/api/auth/**`, `lib/model-runtime.ts`, `lib/default-preferences.ts`, `lib/model-scope.ts`, `lib/enabled-models*.ts`, `lib/model-context.ts`, `lib/model-image-limits.ts`, `lib/model-provider-check.ts`, `lib/model-catalog-refresh.ts`, `lib/deferred-provider-models.ts`, `lib/provider-listing*.ts`, `components/ModelsConfig.tsx`, `components/EnabledModelsSection.tsx`, `components/ModelContextWindow.tsx`, `components/ModelSelector.tsx`, `components/SelectorRow.tsx`.
 - [files-and-access.md](docs/agents/files-and-access.md): worktrees and project grouping, the file access allow-list (the `/api/files` security boundary), file tree visibility and its open directories per folder, uploads and chat file drops, the source view's languages by extension, the CSV/TSV table view, web password throttling. Files: `app/api/files/**`, `app/api/cwd/**`, `app/api/worktrees/**`, `app/api/file-index/**`, `app/api/web-auth/**`, `proxy.ts`, `lib/path-security.ts`, `lib/file-access.ts`, `lib/linked-directory.ts`, `lib/session-file-references*.ts`, `lib/file-tree-visibility.ts`, `lib/file-tree-expansion.ts`, `lib/file-upload-client.ts`, `lib/file-version.ts`, `lib/worktree.ts`, `lib/paths.ts`, `lib/auth-throttle.ts`, `components/ProjectWorktreePicker.tsx`, `components/NewSessionContextBar.tsx`, `components/FileExplorer.tsx`, `lib/delimited-table.ts`, `components/DelimitedTable.tsx`, the table branch of `components/FileViewer.tsx`, `hooks/useDragDrop.ts`.
 - [settings-ui.md](docs/agents/settings-ui.md): General's sidebar file-browser choice, Plugins and Skills routes, sidebar group switches, the shared `SettingsUi` blocks every settings panel and add pane uses. Files: `app/api/plugins/**`, `app/api/skills/**`, `lib/skills-service.ts`, `components/SettingsUi.tsx`, `components/settings-ui-helpers.ts`, `components/SkillsConfig.tsx`, `components/PluginsConfig.tsx`, `hooks/useFilesPlacement.ts`; also before adding a settings section or add pane.
-- [subagents.md](docs/agents/subagents.md): the built-in subagent setting, profiles and their files, run status, completion notifications, the subagent viewer tab. Files: `lib/subagent*.ts`, `app/api/subagents/**`, `components/AgentsConfig.tsx`, `components/SubagentViewer.tsx`, `components/subagent-viewer-state.ts`.
-- [client-platform.md](docs/agents/client-platform.md): the global shortcuts (Ctrl+Alt+N on macOS's dead-key Option+N and Windows AltGr, Esc stacking), mobile software keyboard and viewport height, the terminal's extra keys, its own dark/light theme and its font size following the chat's, completion sound, the launcher opening the browser only after the first page is served. Files: `hooks/useKeyboardShortcuts.ts`, `hooks/useViewportHeight.ts`, `hooks/useAudio.ts`, `components/TerminalExtraKeys.tsx`, `lib/terminal-extra-keys.ts`, `lib/terminal-theme.ts`, `hooks/useTerminalTheme.ts`, `terminalFontSize()` in `hooks/useChatAppearance.ts`, the keyboard-open CSS, `bin/browser-opener.js`, the browser opening in `bin/pi-web.js`.
+- [side-sessions.md](docs/agents/side-sessions.md): side chats (ADR 0007): the Fork copy with a `pi-web:side` entry inside the bounded head read, the `side` relation kind and family fold, the parent's session minus tools (an allow-list of exactly its tools), the hidden boundary message and where each provider's request puts the tool change, `/side`, the tab shared with subagents, usage that skips inherited entries. Files: `lib/side-session.ts`, `lib/session-fork.ts`, `lib/session-family.ts`, `lib/session-delete.ts`, `lib/session-reader.ts`, side handling in `lib/rpc-manager.ts`, `app/api/sessions/[id]/fork/route.ts`, `app/api/sessions/stats/route.ts`, `components/SessionChatPanel.tsx`, `components/TabBar.tsx`, `components/AgentSessionPanel.tsx`, `components/ChatInput.tsx`, `hooks/useAgentSession.ts`, `lib/side-chat-client.ts`, side handling in `components/AppShell.tsx`.
+- [subagents.md](docs/agents/subagents.md): the built-in subagent setting, profiles and their files, run status, completion notifications, the subagent tab. Files: `lib/subagent*.ts`, `app/api/subagents/**`, `components/AgentsConfig.tsx`, `components/SessionChatPanel.tsx`.
+- [preferences.md](docs/agents/preferences.md): the default locale (Simplified Chinese on a fresh install, English for SSR and the first frame) and how every settings value follows the machine instead of one browser (one file, per-key merge, the storage-layer interception, which keys are settings and which are per-device state, the one reload per session). Files: `hooks/useI18n.tsx`, `lib/i18n/registry.ts`, `lib/ui-preferences.ts`, `lib/ui-preferences-client.ts`, `components/UiPreferencesSync.tsx`, `app/api/ui-preferences/route.ts`, `components/SettingsPanel.tsx`.
+- [lan-and-bots.md](docs/agents/lan-and-bots.md): reaching the same Pi Web from a phone on the LAN (the token gate that exists only when a token is set, read-only derivation, `?t=` to cookie, 6-digit pairing and its throttling, the 307 to /pair, rebinding from the desktop shell) and the five chat channels (WeChat iLink, Feishu/Lark and DingTalk Stream need no public URL, WeCom needs a tunnel; QR sign-in for the first two, the existing RPC face for delivery, never injecting into a running session, the fail-closed allowlist, `enabled` and the instrumentation restart). Files: `lib/lan-access.ts`, `lib/lan-pair.ts`, `lib/qrcode.ts`, `lib/qr-image.ts`, `components/QrCanvas.tsx`, `components/LanAccessPanel.tsx`, `app/pair/page.tsx`, `app/api/lan/**`, `proxy.ts`, `bin/pi-web.js`, `electron/main.js`, `lib/bot-channel*.ts`, `lib/weixin-channel.ts`, `lib/feishu-channel.ts`, `lib/dingtalk-channel.ts`, `lib/wecom-channel.ts`, `app/api/bot-channel/**`, `components/BotChannelPanel.tsx`, `instrumentation-node.ts`.
+- [client-platform.md](docs/agents/client-platform.md): the global shortcuts (Ctrl+Alt+N on macOS's dead-key Option+N and Windows AltGr, Esc stacking), mobile software keyboard and viewport height, the terminal's shell (PowerShell first on Windows), the terminal's extra keys, its own dark/light theme and its font size following the chat's, completion sound, the launcher opening the browser only after the first page is served. Files: `hooks/useKeyboardShortcuts.ts`, `hooks/useViewportHeight.ts`, `hooks/useAudio.ts`, `terminalShell()` in `lib/terminal-manager.ts`, `components/TerminalExtraKeys.tsx`, `lib/terminal-extra-keys.ts`, `lib/terminal-theme.ts`, `hooks/useTerminalTheme.ts`, `terminalFontSize()` in `hooks/useChatAppearance.ts`, the keyboard-open CSS, `bin/browser-opener.js`, the browser opening in `bin/pi-web.js`.
 
 ---
 

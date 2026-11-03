@@ -24,7 +24,7 @@ import { workspaceKeyOf } from "./workspace-memory";
 
 export type SidebarLayout = "desktop" | "mobile";
 export type SidebarRowKind =
-  | "pinned-header" | "session" | "pinned-more" | "group" | "group-more" | "group-empty"
+  | "pinned-header" | "session" | "subagent" | "pinned-more" | "group" | "group-more" | "group-empty"
   | "spacer" | "footer-open" | "footer-archived" | "archive-group";
 
 /**
@@ -36,8 +36,8 @@ export type SidebarRowKind =
  * footer; groups themselves sit right on each other, with none between them.
  */
 export const SIDEBAR_ROW_HEIGHTS: Record<SidebarLayout, Record<SidebarRowKind, number>> = {
-  desktop: { "pinned-header": 36, session: 28, "pinned-more": 26, group: 28, "group-more": 26, "group-empty": 28, spacer: 8, "footer-open": 28, "footer-archived": 36, "archive-group": 28 },
-  mobile: { "pinned-header": 44, session: 44, "pinned-more": 36, group: 44, "group-more": 36, "group-empty": 44, spacer: 8, "footer-open": 44, "footer-archived": 44, "archive-group": 44 },
+  desktop: { "pinned-header": 36, session: 28, subagent: 26, "pinned-more": 26, group: 28, "group-more": 26, "group-empty": 28, spacer: 8, "footer-open": 28, "footer-archived": 36, "archive-group": 28 },
+  mobile: { "pinned-header": 44, session: 44, subagent: 36, "pinned-more": 36, group: 44, "group-more": 36, "group-empty": 44, spacer: 8, "footer-open": 44, "footer-archived": 44, "archive-group": 44 },
 };
 export const GROUP_VISIBLE_LIMIT = 6;
 export const PINNED_VISIBLE_LIMIT = 8;
@@ -57,7 +57,13 @@ export interface SidebarFamilyStatus { running: boolean; awaiting: boolean; unre
 // input counts as awaiting, not running.
 export type SidebarRow =
   | { kind: "pinned-header"; key: "pinned-header"; count: number; collapsed: boolean; running: number; awaiting: number; unread: number }
-  | { kind: "session"; key: string; family: SessionFamily; context: "pinned" | "group" | "archive"; project: SidebarProject; status: SidebarFamilyStatus }
+  | { kind: "session"; key: string; family: SessionFamily; context: "pinned" | "group" | "archive"; project: SidebarProject; status: SidebarFamilyStatus; /** 它的小代理行是否摊开。 */ expanded: boolean }
+  /**
+   * 主会话展开后的小代理行：缩进一级，点开就是右侧栏的那个小代理 transcript。
+   * 它们只属于这次运行，不是会话树里独立的一条会话，所以不参与分组/置顶/归档，
+   * 也不会被「显示更多」窗口算进去。
+   */
+  | { kind: "subagent"; key: string; family: SessionFamily; project: SidebarProject; session: SessionInfo; running: boolean; awaiting: boolean; context: "pinned" | "group" | "archive" }
   | { kind: "pinned-more"; key: "pinned-more"; hidden: number; canShowLess: boolean; nextShown: number }
   | { kind: "group"; key: string; project: SidebarProject; expanded: boolean; running: number; awaiting: number; unread: number }
   | { kind: "group-more"; key: string; projectKey: string; hidden: number; canShowLess: boolean; nextShown: number }
@@ -86,6 +92,11 @@ export interface SessionTreeInput {
   /** Families revealed beyond the base limit by "show more", per projectKey or PINNED_MORE_KEY. */
   moreShown: Readonly<Record<string, number>>;
   pinnedCollapsed: boolean;
+  /**
+   * 展开过小代理会话的主会话 id（"expandedFamilies"）：展开状态属于**看**，不属于数据，
+   * 所以由调用方拿着（并记住在浏览器里），和项目分组展开同一套路。缺省 = 全收起。
+   */
+  expandedFamilies?: ReadonlySet<string>;
 }
 
 export interface SessionTreeModel {
@@ -315,7 +326,7 @@ function sessionRow(
   family: SessionFamily,
   context: "pinned" | "group" | "archive",
   project: SidebarProject,
-  input: FamilyFlagsInput,
+  input: FamilyFlagsInput & { expandedFamilies?: ReadonlySet<string> },
 ): SidebarRow {
   return {
     kind: "session",
@@ -324,7 +335,40 @@ function sessionRow(
     context,
     project,
     status: familyStatus(family, input),
+    expanded: input.expandedFamilies?.has(family.root.id) === true,
   };
+}
+
+/**
+ * A family's subagent rows, right below it, when the user expanded it.
+ *
+ * 用户要的是「这个会话起的多个 agent 出现在会话下面」：它们的 transcript 仍然在右侧栏
+ * （点行即开），这里只负责让它们在会话树里看得见、点得到。没有 relation 的会话不算，
+ * 因为它们不是这次运行的小代理。
+ */
+function subagentRows(
+  family: SessionFamily,
+  context: "pinned" | "group" | "archive",
+  project: SidebarProject,
+  input: FamilyFlagsInput & { expandedFamilies?: ReadonlySet<string> },
+): SidebarRow[] {
+  if (!input.expandedFamilies?.has(family.root.id)) return [];
+  return [...family.subagents]
+    .sort((a, b) => {
+      const left = Date.parse(a.modified);
+      const right = Date.parse(b.modified);
+      return (Number.isNaN(left) ? 0 : left) - (Number.isNaN(right) ? 0 : right);
+    })
+    .map((session) => ({
+      kind: "subagent" as const,
+      key: `subagent:${context}:${session.id}`,
+      family,
+      project,
+      session,
+      running: input.runningIds.has(session.id),
+      awaiting: Boolean(input.awaitingIds?.has(session.id)),
+      context,
+    }));
 }
 
 /**
@@ -462,7 +506,9 @@ export function buildSessionTree(input: SessionTreeInput): SessionTreeModel {
     if (!input.pinnedCollapsed) {
       const { visible, revealed, nextShown } = visibleFamilies(sorted, PINNED_VISIBLE_LIMIT, shownMoreFor(input.moreShown, PINNED_MORE_KEY), input);
       for (const family of visible) {
-        rows.push(sessionRow(family, "pinned", resolver.get(familyProjectKey(family)), input));
+        const project = resolver.get(familyProjectKey(family));
+        rows.push(sessionRow(family, "pinned", project, input));
+        rows.push(...subagentRows(family, "pinned", project, input));
       }
       const more = moreRowState(sorted.length, visible.length, revealed);
       if (more) rows.push({ kind: "pinned-more", key: "pinned-more", ...more, nextShown });
@@ -530,7 +576,10 @@ export function buildSessionTree(input: SessionTreeInput): SessionTreeModel {
         rows.push({ kind: "group-empty", key: `empty:${project.key}`, project });
       } else {
         const { visible, revealed, nextShown } = visibleFamilies(groupFamilies, GROUP_VISIBLE_LIMIT, shownMoreFor(input.moreShown, project.key), input);
-        for (const family of visible) rows.push(sessionRow(family, "group", project, input));
+        for (const family of visible) {
+          rows.push(sessionRow(family, "group", project, input));
+          rows.push(...subagentRows(family, "group", project, input));
+        }
         const more = moreRowState(groupFamilies.length, visible.length, revealed);
         if (more) rows.push({ kind: "group-more", key: `more:${project.key}`, projectKey: project.key, ...more, nextShown });
       }
@@ -703,7 +752,8 @@ export interface GroupBlock { key: string; pinned: boolean; top: number; bottom:
 
 /** A row that belongs to the group above it. */
 function isGroupMemberRow(row: SidebarRow): boolean {
-  return row.kind === "group-more" || row.kind === "group-empty" || (row.kind === "session" && row.context === "group");
+  return row.kind === "group-more" || row.kind === "group-empty" || row.kind === "subagent"
+    || (row.kind === "session" && row.context === "group");
 }
 
 /** The group blocks of `rows`, top to bottom. */
