@@ -827,6 +827,44 @@ export function setSubagentProfileEnabled(
   );
 }
 
+/**
+ * `PUT /api/subagents/profiles` — `{ cwd, scope, profile }`: writes one
+ * Markdown profile (`global`: `~/.pi/agent/agents`, `project`: `.pi/agents`).
+ * `name` is the file name; the body becomes the system prompt.
+ */
+export function saveSubagentProfile(
+  cwd: string,
+  scope: "global" | "project",
+  profile: Omit<SubagentProfile, "scope" | "filePath">,
+  options: RequestOptions = {},
+): Promise<{ profile: SubagentProfile }> {
+  return req<{ profile: SubagentProfile }>(
+    "/api/subagents/profiles",
+    {
+      method: "PUT",
+      body: JSON.stringify({ cwd, scope, profile }),
+    },
+    options,
+  );
+}
+
+/** `DELETE /api/subagents/profiles` — remove one global or project profile. */
+export async function deleteSubagentProfile(
+  cwd: string,
+  scope: "global" | "project",
+  name: string,
+  options: RequestOptions = {},
+): Promise<void> {
+  await req<{ ok: true }>(
+    "/api/subagents/profiles",
+    {
+      method: "DELETE",
+      body: JSON.stringify({ cwd, scope, name }),
+    },
+    options,
+  );
+}
+
 // --- settings › devices (`app/api/lan/access/route.ts`) -------------------
 
 /** `GET /api/lan/access` (`app/api/lan/access/route.ts:26-40`): the token itself is never in the answer. */

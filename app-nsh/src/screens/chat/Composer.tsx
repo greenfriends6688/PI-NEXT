@@ -1289,7 +1289,9 @@ export function Composer(props: ComposerProps) {
                       boxShadow: finish.light.boxShadow,
                     }}
                   >
-                    <Icon name="arrow-up" size={14} tint={colors.onLight} />
+                    <View testID="composer-send">
+                      <Icon name="arrow-up" size={14} tint={colors.onLight} />
+                    </View>
                   </Press>
                 </View>
               )}
@@ -1310,7 +1312,9 @@ export function Composer(props: ComposerProps) {
                     boxShadow: finish.light.boxShadow,
                   }}
                 >
-                  <Glyph name="stop" size={12} tint={colors.onLight} />
+                  <View testID="composer-stop">
+                    <Glyph name="stop" size={12} tint={colors.onLight} />
+                  </View>
                 </Press>
               </View>
             </If>

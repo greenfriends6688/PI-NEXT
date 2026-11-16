@@ -228,6 +228,13 @@ export const zhCNLocale: LocalePlugin = {
     "agents.reloading": "正在重新加载...",
     "agents.loading": "正在加载子代理...",
     "agents.new": "新建子代理",
+    "agents.editProfile": "编辑配置档",
+    "agents.newDetail": "填写名称、简介和系统指令；工具列表决定它能运行什么。",
+    "agents.namePlaceholder": "my-agent",
+    "agents.nameRequired": "请填写名称",
+    "agents.displayNamePlaceholder": "我的代理",
+    "agents.descriptionPlaceholder": "它做什么",
+    "agents.promptPlaceholder": "给子代理的系统指令…",
     "agents.empty": "选择或创建一个子代理配置",
     "agents.emptyList": "还没有子代理，先创建一个",
 

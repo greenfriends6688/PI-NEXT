@@ -30,7 +30,7 @@
 // limit.
 
 import { platform, resource, signal, Text, View, type JSX } from "nsh";
-import { NumberInput } from "nsh/base";
+import { Input, NumberInput } from "nsh/base";
 import {
   Badge,
   Button,
@@ -40,9 +40,11 @@ import {
   numberInputText,
 } from "../../ui/kit";
 import {
+  deleteSubagentProfile,
   loadSubagentProfiles,
   loadSubagentSettings,
   MAX_SUBAGENT_MAX_CONCURRENT,
+  saveSubagentProfile,
   saveSubagentSettings,
   setSubagentProfileEnabled,
   type SubagentProfile,
@@ -75,6 +77,9 @@ import {
 
 /** A pointer and a keyboard: compact steppers, as the gallery's demo. */
 const desktop = platform.desktop;
+
+/** The built-in tools a profile can offer, as the local route accepts them. */
+const EDITOR_TOOLS = ["read", "bash", "edit", "write", "grep", "find", "ls"] as const;
 /** The limit's field: 96 points, its digits centered (pi-next's is 72). */
 const LIMIT_WIDTH = 96;
 
@@ -239,6 +244,114 @@ export function Agents() {
   const isSelected = (profile: SubagentProfile): boolean => {
     const current = selectedProfile();
     return current !== null && profileKey(current) === profileKey(profile);
+  };
+
+  /**
+   * The editor's draft. `null` shows the read-only profile; a profile with
+   * `isNew` has no file yet. Only global and project scopes are writable.
+   */
+  interface AgentDraft {
+    isNew: boolean;
+    scope: "global" | "project";
+    name: string;
+    displayName: string;
+    description: string;
+    systemPrompt: string;
+    tools: string[];
+    enabled: boolean;
+  }
+  const profileDraft = signal<AgentDraft | null>(null);
+  const formBusy = signal(false);
+  /** The editor's values; a truthy profileDraft is always mounted when this is read. */
+  const currentDraft = (): AgentDraft => profileDraft() ?? {
+    isNew: true,
+    scope: "project",
+    name: "",
+    displayName: "",
+    description: "",
+    systemPrompt: "",
+    tools: [],
+    enabled: true,
+  };
+
+  const beginCreate = (): void => {
+    profileDraft.set({
+      isNew: true,
+      scope: "project",
+      name: "",
+      displayName: "",
+      description: "",
+      systemPrompt: "",
+      tools: ["read", "grep", "find", "ls"],
+      enabled: true,
+    });
+    profileError.set(null);
+  };
+
+  const beginEdit = (profile: SubagentProfile): void => {
+    if (profile.scope !== "global" && profile.scope !== "project") return;
+    profileDraft.set({
+      isNew: false,
+      scope: profile.scope,
+      name: profile.name,
+      displayName: profile.displayName,
+      description: profile.description,
+      systemPrompt: profile.systemPrompt ?? "",
+      tools: [...(profile.tools ?? [])],
+      enabled: profile.enabled,
+    });
+    profileError.set(null);
+  };
+
+  const updateDraft = (change: Partial<AgentDraft>): void => {
+    profileDraft.update((current) => (current === null ? null : { ...current, ...change }));
+  };
+
+  const saveDraft = async (): Promise<void> => {
+    const current = profileDraft();
+    const folder = activeCwd();
+    if (!current || !folder) return;
+    if (current.name.trim() === "") {
+      profileError.set(t("agents.nameRequired"));
+      return;
+    }
+    formBusy.set(true);
+    profileError.set(null);
+    try {
+      const saved = await saveSubagentProfile(folder, current.scope, {
+        name: current.name.trim(),
+        displayName: current.displayName.trim() || current.name.trim(),
+        description: current.description.trim() || current.name.trim(),
+        systemPrompt: current.systemPrompt,
+        tools: current.tools,
+        enabled: current.enabled,
+      });
+      profiles.refetch();
+      selectedKey.set(profileKey({ scope: current.scope, name: saved.profile.name }));
+      profileDraft.set(null);
+    } catch (cause) {
+      profileError.set(errorText(cause));
+    } finally {
+      formBusy.set(false);
+    }
+  };
+
+  const deleteDraft = async (): Promise<void> => {
+    const current = profileDraft();
+    const folder = activeCwd();
+    if (!current || current.isNew || !folder) return;
+    formBusy.set(true);
+    profileError.set(null);
+    try {
+      await deleteSubagentProfile(folder, current.scope, current.name);
+      profiles.refetch();
+      selectedKey.set(null);
+      profileDraft.set(null);
+    } catch (cause) {
+      profileError.set(errorText(cause));
+    } finally {
+      formBusy.set(false);
+    }
   };
 
   const toggleProfile = async (profile: SubagentProfile, on: boolean): Promise<void> => {
@@ -434,12 +547,143 @@ export function Agents() {
               </Each>
             </View>
           }
-          listFooter={
-            // No create route: the action stays visible, as the reference's, but takes no press.
-            <ConfigListAction label={t("agents.new")} onPress={() => undefined} disabled={true} />
-          }
+          listFooter={<ConfigListAction label={t("agents.new")} onPress={beginCreate} />}
           detail={
             <View style={{ gap: 14 }}>
+              <If when={profileDraft() !== null}>
+                  <View style={{ gap: 12 }}>
+                    <ConfigDetailTitle
+                      title={currentDraft().isNew ? t("agents.new") : currentDraft().displayName || currentDraft().name}
+                      subtitle={currentDraft().isNew ? t("agents.newDetail") : undefined}
+                    >
+                      <Button
+                        label={t("i18n.cancel")}
+                        variant="ghost"
+                        size="small"
+                        onPress={() => {
+                          profileDraft.set(null);
+                          profileError.set(null);
+                        }}
+                      />
+                    </ConfigDetailTitle>
+
+                    <View style={{ flexDirection: desktop ? "row" : "column", gap: 12 }}>
+                      <View style={fieldCell}>
+                        <ConfigField label={t("agents.name")}>
+                          <Input
+                            testID="agent-profile-name"
+                            value={currentDraft().name}
+                            readonly={!currentDraft().isNew}
+                            onChange={({ value }) => updateDraft({ name: value })}
+                            placeholder={t("agents.namePlaceholder")}
+                            style={{ height: 32, paddingHorizontal: 8, fontSize: 12.5, borderRadius: 8, borderWidth: 1, borderColor: colors.fieldBorder, backgroundColor: colors.field }}
+                          />
+                        </ConfigField>
+                      </View>
+                      <View style={fieldCell}>
+                        <ConfigField label={t("agents.displayName")}>
+                          <Input
+                            testID="agent-profile-display-name"
+                            value={currentDraft().displayName}
+                            onChange={({ value }) => updateDraft({ displayName: value })}
+                            placeholder={t("agents.displayNamePlaceholder")}
+                            style={{ height: 32, paddingHorizontal: 8, fontSize: 12.5, borderRadius: 8, borderWidth: 1, borderColor: colors.fieldBorder, backgroundColor: colors.field }}
+                          />
+                        </ConfigField>
+                      </View>
+                    </View>
+
+                    <ConfigField label={t("agents.description")}>
+                      <Input
+                        testID="agent-profile-description"
+                        value={currentDraft().description}
+                        onChange={({ value }) => updateDraft({ description: value })}
+                        placeholder={t("agents.descriptionPlaceholder")}
+                        style={{ height: 32, paddingHorizontal: 8, fontSize: 12.5, borderRadius: 8, borderWidth: 1, borderColor: colors.fieldBorder, backgroundColor: colors.field }}
+                      />
+                    </ConfigField>
+
+                    <ConfigField label={t("agents.prompt")}>
+                      <Input
+                        testID="agent-profile-prompt"
+                        multiline
+                        value={currentDraft().systemPrompt}
+                        onChange={({ value }) => updateDraft({ systemPrompt: value })}
+                        placeholder={t("agents.promptPlaceholder")}
+                        style={{ minHeight: 150, paddingHorizontal: 8, paddingVertical: 7, fontSize: 12, lineHeight: 18, borderRadius: 8, borderWidth: 1, borderColor: colors.fieldBorder, backgroundColor: colors.field }}
+                      />
+                    </ConfigField>
+
+                    <ConfigField label={t("agents.tools")}>
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                        <Each of={EDITOR_TOOLS} key={(tool: string) => tool}>
+                          {(tool) => (
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                              <SettingsSwitch
+                                value={currentDraft().tools.includes(tool())}
+                                label={tool()}
+                                onChange={(on) => updateDraft({
+                                  tools: on
+                                    ? [...currentDraft().tools, tool()]
+                                    : currentDraft().tools.filter((item) => item !== tool()),
+                                })}
+                              />
+                              <Text style={{ ...settingsCode(), lineHeight: 18 }}>{tool()}</Text>
+                            </View>
+                          )}
+                        </Each>
+                      </View>
+                    </ConfigField>
+
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={{ fontSize: 11, color: colors.muted }}>{t("agents.enable")}</Text>
+                        <SettingsSwitch
+                          value={currentDraft().enabled}
+                          label={t("agents.enable")}
+                          onChange={(on) => updateDraft({ enabled: on })}
+                        />
+                      </View>
+                      <If when={currentDraft().isNew}>
+                        <Button
+                          label={t("agents.scope.project")}
+                          variant={currentDraft().scope === "project" ? "primary" : "secondary"}
+                          size="small"
+                          onPress={() => updateDraft({ scope: "project" })}
+                        />
+                        <Button
+                          label={t("agents.scope.global")}
+                          variant={currentDraft().scope === "global" ? "primary" : "secondary"}
+                          size="small"
+                          onPress={() => updateDraft({ scope: "global" })}
+                        />
+                      </If>
+                      <View style={{ flex: 1 }} />
+                      <Button
+                        label={formBusy() ? t("i18n.saving") : t("i18n.save")}
+                        variant="primary"
+                        disabled={formBusy()}
+                        onPress={() => void saveDraft()}
+                      />
+                      <If when={!currentDraft().isNew}>
+                        <Button
+                          label={t("i18n.delete")}
+                          variant="danger"
+                          size="small"
+                          disabled={formBusy()}
+                          onPress={() => void deleteDraft()}
+                        />
+                      </If>
+                    </View>
+
+                    <If when={profileError()}>
+                      <SettingsError>{errorText(profileError())}</SettingsError>
+                    </If>
+                  </View>
+              </If>
+
+              <If when={profileDraft() === null}>
+              <View style={{ gap: 14 }}>
               <If when={profiles.loading()}>
                 <SettingsLoading label={t("agents.loadingProfiles")} />
               </If>
@@ -461,6 +705,14 @@ export function Agents() {
                           }}
                         >
                           <Badge label={t(`agents.scope.${profile().scope}`)} />
+                          <If when={profile().scope === "global" || profile().scope === "project"}>
+                            <Button
+                              label={t("agents.editProfile")}
+                              variant="secondary"
+                              size="small"
+                              onPress={() => beginEdit(profile())}
+                            />
+                          </If>
                           <If
                             when={profile().scope !== "workspace"}
                             else={
@@ -707,6 +959,8 @@ export function Agents() {
                     </View>
                   )}
                 </If>
+              </If>
+              </View>
               </If>
             </View>
           }

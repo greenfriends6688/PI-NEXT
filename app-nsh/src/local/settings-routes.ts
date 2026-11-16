@@ -2846,6 +2846,233 @@ async function getSubagentProfiles(request: LocalRequest): Promise<LocalResponse
   }
   if (!info.isDirectory()) return errorResponse("Valid cwd required", 400);
 
+  return jsonResponse({ profiles: await subagentProfilesFor(cwd) });
+}
+
+
+// ---------------------------------------------------------------------------
+// Writable agent profiles
+// ---------------------------------------------------------------------------
+
+/** The scopes a person can write: the built-ins have no file of their own. */
+type WritableProfileScope = "global" | "project";
+
+function writableScope(value: unknown): WritableProfileScope | null {
+  return value === "global" || value === "project" ? value : null;
+}
+
+function profileFileName(name: string): string | null {
+  const normalized = name.trim();
+  return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(normalized) ? normalized : null;
+}
+
+function profileDirectory(cwd: string, scope: WritableProfileScope): string {
+  return scope === "global"
+    ? path.join(piAgentDirectory(), "agents")
+    : path.join(path.resolve(cwd), ".pi", "agents");
+}
+
+/** One line of YAML for the values a profile holds: strings, booleans, numbers, inline lists. */
+function profileYamlValue(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => JSON.stringify(String(entry))).join(", ")}]`;
+  }
+  if (typeof value === "boolean" || typeof value === "number") return String(value);
+  const text = String(value);
+  return text === "" ? null : JSON.stringify(text);
+}
+
+function profileMarkdown(
+  data: Record<string, unknown>,
+  systemPrompt: string,
+): string {
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(data)) {
+    const rendered = profileYamlValue(value);
+    if (rendered !== null) lines.push(`${key}: ${rendered}`);
+  }
+  return `---\n${lines.join("\n")}\n---\n\n${systemPrompt.trim()}\n`;
+}
+
+function profileBody(cwd: string, scope: WritableProfileScope, name: string): string {
+  return path.join(profileDirectory(cwd, scope), `${name}.md`);
+}
+
+async function readProfileText(filePath: string): Promise<string | null> {
+  try {
+    return await readText(filePath);
+  } catch {
+    return null;
+  }
+}
+
+interface ProfileWriteBody {
+  cwd: string;
+  scope: WritableProfileScope;
+  profile: {
+    name: string;
+    displayName?: string;
+    description?: string;
+    systemPrompt?: string;
+    tools?: string[];
+    enabled?: boolean;
+    model?: string;
+    thinking?: string;
+    maxTurns?: number;
+  };
+}
+
+async function saveAgentProfile(request: LocalRequest): Promise<LocalResponse> {
+  let body: unknown;
+  try {
+    body = JSON.parse(request.body ?? "null");
+  } catch {
+    return errorResponse("Invalid JSON body", 400);
+  }
+  if (!isRecord(body) || typeof body.cwd !== "string" || body.cwd === "") {
+    return errorResponse("cwd is required", 400);
+  }
+  const scope = writableScope(body.scope);
+  if (scope === null) return errorResponse("scope must be global or project", 400);
+  if (!isRecord(body.profile) || typeof body.profile.name !== "string") {
+    return errorResponse("profile.name is required", 400);
+  }
+  const name = profileFileName(body.profile.name);
+  if (name === null) {
+    return errorResponse("Agent name may contain only letters, numbers, dots, underscores, and hyphens", 400);
+  }
+  const cwd = path.resolve(body.cwd);
+  let folder: Awaited<ReturnType<typeof stat>>;
+  try {
+    folder = await stat(cwd);
+  } catch {
+    return errorResponse("Valid cwd required", 400);
+  }
+  if (!folder.isDirectory()) return errorResponse("Valid cwd required", 400);
+  if (scope === "project" && !path.resolve(profileDirectory(cwd, scope)).startsWith(`${cwd}${path.sep}`)) {
+    return errorResponse("Agent profile directory is outside the project root", 400);
+  }
+  const profile = body.profile;
+  const tools = Array.isArray(profile.tools)
+    ? [...new Set(profile.tools.filter((tool): tool is string => typeof tool === "string" && SUBAGENT_BUILTIN_TOOLS.has(tool)))]
+    : [...SUBAGENT_DEFAULT_TOOLS];
+  const thinking = typeof profile.thinking === "string" && SUBAGENT_THINKING_LEVELS.has(profile.thinking)
+    ? profile.thinking
+    : undefined;
+  const maxTurns = typeof profile.maxTurns === "number" && Number.isFinite(profile.maxTurns) && profile.maxTurns > 0
+    ? Math.floor(profile.maxTurns)
+    : undefined;
+  const filePath = profileBody(cwd, scope, name);
+  try {
+    const previous = await readProfileText(filePath);
+    const existing = previous === null ? { data: {}, rest: "" } : parseFrontmatter(previous);
+    const displayName = typeof profile.displayName === "string" && profile.displayName.trim()
+      ? profile.displayName.trim()
+      : name;
+    const description = typeof profile.description === "string" && profile.description.trim()
+      ? profile.description.trim()
+      : name;
+    const systemPrompt = typeof profile.systemPrompt === "string" ? profile.systemPrompt : existing.rest;
+    const data: Record<string, unknown> = {
+      ...existing.data,
+      description,
+      display_name: displayName,
+      tools,
+      load_skills: existing.data.load_skills === true,
+      load_extensions: existing.data.load_extensions === true,
+      codemode: existing.data.codemode === "on" || existing.data.codemode === true ? "on" : existing.data.codemode === "inherit" ? "inherit" : "off",
+      enabled: profile.enabled !== false,
+      inherit_context: existing.data.inherit_context === true,
+      run_in_background: existing.data.run_in_background === true,
+      prompt_mode: existing.data.prompt_mode === "replace" ? "replace" : "append",
+      ...(typeof profile.model === "string" && profile.model.trim() ? { model: profile.model.trim() } : {}),
+      ...(thinking !== undefined ? { thinking } : {}),
+      ...(maxTurns !== undefined ? { max_turns: maxTurns } : {}),
+    };
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeAtomic(filePath, profileMarkdown(data, systemPrompt));
+    const saved = parseProfileFile(profileMarkdown(data, systemPrompt), filePath, scope);
+    if (!saved) return errorResponse("The saved profile could not be read back", 500);
+    return jsonResponse({ profile: saved });
+  } catch (cause) {
+    return errorResponse(describe(cause), 500);
+  }
+}
+
+async function patchAgentProfile(request: LocalRequest): Promise<LocalResponse> {
+  let body: unknown;
+  try {
+    body = JSON.parse(request.body ?? "null");
+  } catch {
+    return errorResponse("Invalid JSON body", 400);
+  }
+  if (!isRecord(body) || typeof body.cwd !== "string" || typeof body.name !== "string" || typeof body.enabled !== "boolean") {
+    return errorResponse("cwd, name and enabled are required", 400);
+  }
+  const scopeRaw = body.scope;
+  const name = profileFileName(body.name);
+  if (name === null) return errorResponse("Invalid agent name", 400);
+  if (scopeRaw === "builtin") {
+    const settings = await readStoredSubagentSettings(false);
+    const disabled = new Set(settings.disabledBuiltIns.map((entry) => entry.toLowerCase()));
+    if (body.enabled) disabled.delete(name.toLowerCase());
+    else disabled.add(name.toLowerCase());
+    try {
+      await updateTextFile(subagentSettingsPath(), (text) => {
+        let next = setKey(text, [], "version", 1);
+        next = setKey(next, [], "disabledBuiltIns", [...disabled].sort());
+        return next;
+      });
+      const profiles = await subagentProfilesFor(body.cwd);
+      const found = profiles.find((profile) => profile.scope === "builtin" && profile.name.toLowerCase() === name.toLowerCase());
+      return found ? jsonResponse({ profile: found }) : errorResponse("Agent profile not found", 404);
+    } catch (cause) {
+      return errorResponse(describe(cause), 500);
+    }
+  }
+  const scope = writableScope(scopeRaw);
+  if (scope === null) return errorResponse("scope must be global, project or builtin", 400);
+  const cwd = path.resolve(body.cwd);
+  const filePath = profileBody(cwd, scope, name);
+  try {
+    const source = await readProfileText(filePath);
+    if (source === null) return errorResponse("Agent profile not found", 404);
+    const existing = parseFrontmatter(source);
+    const data = { ...existing.data, enabled: body.enabled };
+    await writeAtomic(filePath, profileMarkdown(data, existing.rest));
+    const saved = parseProfileFile(profileMarkdown(data, existing.rest), filePath, scope);
+    return saved ? jsonResponse({ profile: saved }) : errorResponse("The profile could not be read back", 500);
+  } catch (cause) {
+    return errorResponse(describe(cause), 500);
+  }
+}
+
+async function deleteAgentProfile(request: LocalRequest): Promise<LocalResponse> {
+  let body: unknown;
+  try {
+    body = JSON.parse(request.body ?? "null");
+  } catch {
+    return errorResponse("Invalid JSON body", 400);
+  }
+  if (!isRecord(body) || typeof body.cwd !== "string" || typeof body.name !== "string") {
+    return errorResponse("cwd and name are required", 400);
+  }
+  const scope = writableScope(body.scope);
+  if (scope === null) return errorResponse("scope must be global or project", 400);
+  const name = profileFileName(body.name);
+  if (name === null) return errorResponse("Invalid agent name", 400);
+  const filePath = profileBody(path.resolve(body.cwd), scope, name);
+  try {
+    await unlink(filePath);
+  } catch (cause) {
+    if (errorCode(cause) !== "ENOENT") return errorResponse(describe(cause), 500);
+  }
+  return jsonResponse({ ok: true });
+}
+
+/** The full list, shared by the write answers (they return the saved row). */
+async function subagentProfilesFor(cwd: string): Promise<SubagentProfileView[]> {
   const settings = await readStoredSubagentSettings(false);
   const disabled = new Set(settings.disabledBuiltIns.map((name) => name.toLowerCase()));
   const profiles = builtInProfiles().map((profile) => ({
@@ -2853,10 +3080,10 @@ async function getSubagentProfiles(request: LocalRequest): Promise<LocalResponse
     enabled: !disabled.has(profile.name.toLowerCase()),
   }));
   profiles.push(...await readProfileDirectory(path.join(piAgentDirectory(), "agents"), "global"));
-  profiles.push(...await readProfileDirectory(path.join(cwd, ".agents", "agents"), "workspace"));
-  profiles.push(...await readProfileDirectory(path.join(cwd, ".pi", "agents"), "project"));
+  profiles.push(...await readProfileDirectory(path.join(path.resolve(cwd), ".agents", "agents"), "workspace"));
+  profiles.push(...await readProfileDirectory(path.join(path.resolve(cwd), ".pi", "agents"), "project"));
   profiles.sort((a, b) => a.displayName.localeCompare(b.displayName));
-  return jsonResponse({ profiles });
+  return profiles;
 }
 
 // ---------------------------------------------------------------------------
@@ -2906,6 +3133,9 @@ export async function handleSettings(request: LocalRequest): Promise<LocalRespon
   }
   if (pathIs(request, "subagents", "profiles")) {
     if (method === "GET") return getSubagentProfiles(request);
+    if (method === "PUT") return saveAgentProfile(request);
+    if (method === "PATCH") return patchAgentProfile(request);
+    if (method === "DELETE") return deleteAgentProfile(request);
     return null;
   }
 

@@ -25,6 +25,7 @@ import {
   type LocalRequest,
   type LocalResponse,
 } from "./request";
+import { loginShellRun, quoteShell } from "../pi/install";
 
 /** `~/.pi/agent/models.json`. */
 function modelsFile(): string {
@@ -209,8 +210,13 @@ function testResponse(): LocalResponse {
   });
 }
 
-/** Provider quotas need the provider's own API and credentials; say so quietly. */
-function usageResponse(request: LocalRequest): LocalResponse {
+/**
+ * Provider quotas: the one network read this window makes with pi's own
+ * credential. OpenCode Go answers `{ usage: { rolling, weekly, monthly } }`
+ * at its official endpoint; the key in `auth.json` is the one the provider
+ * itself uses, so no second sign-in is involved.
+ */
+async function usageResponse(request: LocalRequest): Promise<LocalResponse> {
   let providerId = "";
   try {
     const body = JSON.parse(request.body ?? "null") as { providerId?: unknown };
@@ -218,11 +224,76 @@ function usageResponse(request: LocalRequest): LocalResponse {
   } catch {
     // No body: the pane sends one provider at a time.
   }
-  return jsonResponse({
-    providerId,
-    status: "auth-unavailable",
-    message: "这个构建不查询额度：用量在这里没有凭据。",
-  });
+  if (providerId !== "opencode-go") {
+    return jsonResponse({
+      providerId,
+      status: "auth-unavailable",
+      message: "这个构建只查询 OpenCode Go 的额度。",
+    });
+  }
+  let key = "";
+  try {
+    const sources = await readSources();
+    const entry = sources.auth["opencode-go"];
+    key = isRecord(entry) && typeof entry.key === "string" ? entry.key.trim() : "";
+  } catch {
+    // An unreadable auth file reads as no credential.
+  }
+  if (!key) {
+    return jsonResponse({
+      providerId,
+      status: "auth-unavailable",
+      message: "OpenCode Go 还没有配置 API Key。",
+    });
+  }
+  try {
+    const body = await loginShellRun(
+      `curl -fsSL --max-time 15 -H ${quoteShell(`Authorization: Bearer ${key}`)} -H "Accept: application/json" "https://opencode.ai/zen/go/v1/usage"`,
+      20_000,
+    );
+    const parsed: unknown = JSON.parse(body);
+    if (!isRecord(parsed)) throw new Error("Usage response was not an object");
+    const usage = isRecord(parsed.usage) ? parsed.usage : parsed;
+    const labels: Record<string, string> = { rolling: "Rolling", weekly: "Weekly", monthly: "Monthly" };
+    const buckets: Record<string, unknown>[] = [];
+    for (const [id, raw] of Object.entries(usage)) {
+      if (!isRecord(raw)) continue;
+      const percent = typeof raw.percent === "number"
+        ? raw.percent
+        : typeof raw.usagePercent === "number"
+          ? raw.usagePercent
+          : typeof raw.usage_percent === "number" ? raw.usage_percent : undefined;
+      if (percent === undefined || !Number.isFinite(percent)) continue;
+      const at = Date.parse(String(raw.resetsAt ?? raw.resetAt ?? raw.resets_at ?? raw.reset_at ?? ""));
+      buckets.push({
+        id,
+        label: labels[id] ?? id,
+        used: Math.max(0, Math.min(100, percent)),
+        remaining: 100 - Math.max(0, Math.min(100, percent)),
+        limit: 100,
+        unit: "percent",
+        ...(Number.isFinite(at) ? { resetsAt: Math.floor(at / 1000) } : {}),
+      });
+    }
+    if (buckets.length === 0) throw new Error("OpenCode Go returned no usage data");
+    return jsonResponse({
+      providerId,
+      status: "ready",
+      report: {
+        providerId,
+        providerName: "OpenCode Go",
+        capturedAt: Date.now(),
+        buckets,
+        metrics: [],
+      },
+    });
+  } catch (cause) {
+    return jsonResponse({
+      providerId,
+      status: "query-failed",
+      message: `OpenCode Go 用量查询失败：${describe(cause)}`,
+    });
+  }
 }
 
 export async function handleModelSettings(request: LocalRequest): Promise<LocalResponse | null> {
@@ -234,7 +305,7 @@ export async function handleModelSettings(request: LocalRequest): Promise<LocalR
   }
 
   if (segments[1] === "provider-usage" && segments[2] === "query" && segments.length === 3) {
-    return request.method === "POST" ? usageResponse(request) : null;
+    return request.method === "POST" ? await usageResponse(request) : null;
   }
 
   if (segments[1] !== "models-config") return null;

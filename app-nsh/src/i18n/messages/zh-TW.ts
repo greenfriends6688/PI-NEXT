@@ -228,6 +228,13 @@ export const zhTWLocale: LocalePlugin = {
     "agents.reloading": "正在重新載入...",
     "agents.loading": "正在載入子代理...",
     "agents.new": "新增子代理",
+    "agents.editProfile": "編輯設定檔",
+    "agents.newDetail": "填寫名稱、簡介與系統指令；工具清單決定它能執行什麼。",
+    "agents.namePlaceholder": "my-agent",
+    "agents.nameRequired": "請填寫名稱",
+    "agents.displayNamePlaceholder": "我的代理",
+    "agents.descriptionPlaceholder": "它做什麼",
+    "agents.promptPlaceholder": "給子代理的系統指令…",
     "agents.empty": "選擇或建立子代理設定檔",
     "agents.emptyList": "還沒有子代理，先建立一個",
 
