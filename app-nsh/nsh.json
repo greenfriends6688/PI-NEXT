@@ -1,0 +1,121 @@
+{
+  "name": "Pi",
+  "id": "dev.piweb.pinext",
+  "version": "0.1.0",
+  "build": 1,
+  "appearance": "system",
+  "theme": "./theme.json",
+  "locales": [
+    "en",
+    "zh-CN",
+    "zh-TW"
+  ],
+  "schemes": [
+    "pi"
+  ],
+  "window": {
+    "title": "Pi",
+    "titleBar": {
+      "style": "hidden",
+      "height": 44
+    }
+  },
+  "android": {
+    "usesCleartextTraffic": true
+  },
+  "ios": {
+    "infoPlist": {
+      "NSAppTransportSecurity": {
+        "NSAllowsLocalNetworking": true
+      }
+    }
+  },
+  "capabilities": {
+    "homeDir": true,
+    "network": {
+      "hosts": [
+        "127.0.0.1",
+        "localhost",
+        "api.anthropic.com",
+        "*.openai.com"
+      ],
+      "http": [
+        {
+          "host": "*",
+          "port": 30142,
+          "schemes": [
+            "http",
+            "https"
+          ]
+        }
+      ]
+    },
+    "webview": {
+      "hosts": [
+        "*"
+      ],
+      "input": false
+    },
+    "statusBar": true,
+    "clipboard": true,
+    "picker": true,
+    "notifications": true,
+    "audio": true,
+    "openUrl": {
+      "schemes": [
+        "https",
+        "http"
+      ]
+    },
+    "windows": {
+      "kinds": [
+        "normal",
+        "dialog"
+      ]
+    },
+    "fs": {
+      "read": [
+        "${dataDir}",
+        "${homeDir}",
+        "${homeDir}/.pi",
+        "${pluginDir}/pi-web",
+        "${pluginDir}/node",
+        "/Applications/PI NEXT.app/Contents/Resources/nsh/pi-web",
+        "/Applications/PI NEXT.app/Contents/Resources/nsh/node",
+        "/Applications/PI NEXT.app/Contents/Resources/pi-web",
+        "/Applications/pi-web.app/Contents/Resources/pi-web",
+        "/usr/local/lib/node_modules/@agegr/pi-web",
+        "/opt/homebrew/lib/node_modules/@agegr/pi-web"
+      ],
+      "write": [
+        "${dataDir}",
+        "${homeDir}"
+      ]
+    },
+    "process": {
+      "execute": [
+        "node",
+        "/usr/bin/env",
+        "cmd",
+        "pi",
+        "git",
+        "/usr/bin/git",
+        "/usr/bin/osascript",
+        "/bin/zsh",
+        "/bin/bash",
+        "/Applications/PI NEXT.app/Contents/Resources/nsh/node/bin/node"
+      ],
+      "exit": false,
+      "env": [
+        "PATH",
+        "HOME",
+        "SHELL",
+        "PI_EXECUTABLE",
+        "LANG",
+        "PI_NSH_SERVER",
+        "PI_NSH_NODE"
+      ]
+    },
+    "application": true
+  }
+}
