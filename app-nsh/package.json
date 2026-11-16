@@ -8,15 +8,15 @@
     "test": "nsh test",
     "dev": "node scripts/dev.mjs",
     "bundle": "node scripts/bundle-app.mjs \"release/PI NEXT.app\"",
-    "package:macos": "nsh package --target macos --out ./release --name \"PI NEXT\" --icon ../build/icon-master.png && (strip -x \"release/PI NEXT.app/Contents/MacOS/PINEXT\" || true) && codesign --force --deep --sign - \"release/PI NEXT.app\"",
+    "package:macos": "nsh package --target macos --out ./release --name \"PI NEXT\" --icon ./assets/icon-master.png && (strip -x \"release/PI NEXT.app/Contents/MacOS/PINEXT\" || true) && codesign --force --deep --sign - \"release/PI NEXT.app\"",
     "dmg": "npm run package:macos && S=$(mktemp -d) && cp -R \"release/PI NEXT.app\" \"$S/\" && ln -s /Applications \"$S/Applications\" && hdiutil create -volname \"PI NEXT\" -srcfolder \"$S\" -ov -format UDZO \"release/PI-NEXT-0.1.0-arm64.dmg\" && rm -rf \"$S\"",
     "dist:mac": "npm run dmg",
-    "package:web": "nsh package --target web --out ./release/web --name \"PI NEXT\" --icon ../build/icon-master.png",
+    "package:web": "nsh package --target web --out ./release/web --name \"PI NEXT\" --icon ./assets/icon-master.png",
     "package:ios": "nsh package --target ios --out ./release/ios --name \"PI NEXT\"",
-    "package:android": "nsh package --target android --out ./release/android --name \"PI NEXT\" --icon ../build/icon-master.png",
-    "package:linux": "nsh package --target linux --out ./release/linux --name \"PI NEXT\" --icon ../build/icon-master.png",
-    "package:windows": "nsh package --target windows --out ./release/windows --name \"PI NEXT\" --icon ../build/icon-master.png",
-    "package:macos:full": "nsh package --target macos --out ./release --name \"PI NEXT\" --icon ../build/icon-master.png && node scripts/bundle-app.mjs \"release/PI NEXT.app\" && (strip -x \"release/PI NEXT.app/Contents/MacOS/PINEXT\" || true) && codesign --force --deep --sign - \"release/PI NEXT.app\"",
+    "package:android": "nsh package --target android --out ./release/android --name \"PI NEXT\" --icon ./assets/icon-master.png",
+    "package:linux": "nsh package --target linux --out ./release/linux --name \"PI NEXT\" --icon ./assets/icon-master.png",
+    "package:windows": "nsh package --target windows --out ./release/windows --name \"PI NEXT\" --icon ./assets/icon-master.png",
+    "package:macos:full": "nsh package --target macos --out ./release --name \"PI NEXT\" --icon ./assets/icon-master.png && node scripts/bundle-app.mjs \"release/PI NEXT.app\" && (strip -x \"release/PI NEXT.app/Contents/MacOS/PINEXT\" || true) && codesign --force --deep --sign - \"release/PI NEXT.app\"",
     "dmg:full": "npm run package:macos:full && S=$(mktemp -d) && cp -R \"release/PI NEXT.app\" \"$S/\" && ln -s /Applications \"$S/Applications\" && hdiutil create -volname \"PI NEXT\" -srcfolder \"$S\" -ov -format UDZO \"release/PI-NEXT-0.1.0-arm64-full.dmg\" && rm -rf \"$S\""
   }
 }
