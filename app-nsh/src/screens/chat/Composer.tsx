@@ -20,10 +20,11 @@
 //     break on Shift+Return / Option+Return on the desktops, which is exactly
 //     the "Enter sends, Shift+Enter breaks" pair.
 
-import { cleanup, Clipboard, effect, keymap, Picker, platform, Scroll, signal, Text, token, untracked, View } from "nsh";
-import { Input, Menu } from "nsh/base";
+import { cleanup, Clipboard, effect, Image, keymap, Picker, platform, Scroll, signal, Text, token, untracked, View, windowSize } from "nsh";
+import { Dialog, Input, Menu } from "nsh/base";
 import {
   alpha,
+  backdrop,
   Badge,
   Button,
   colors,
@@ -284,6 +285,8 @@ export function Composer(props: ComposerProps) {
   const slashIndex = signal(0);
   /** Images and uploaded files waiting beside the draft. */
   const pendingImages = signal<PendingImage[]>([]);
+  /** The thumbnail opened full size, or null. */
+  const previewImage = signal<PendingImage | null>(null);
   const pendingFiles = signal<PendingFile[]>([]);
   const attaching = signal(false);
   let nextAttachmentId = 1;
@@ -892,7 +895,12 @@ export function Composer(props: ComposerProps) {
     if (pending.length === 0) return;
     const target = key();
     untracked(() => {
-      for (const insert of pending) appendComposerDraft(target, insert.text);
+      for (const insert of pending) {
+        // A file mention is part of the sentence being typed; an extension's
+        // text is a block of its own. The old default newline broke the line
+        // every time the file tree's `@` button inserted a path.
+        appendComposerDraft(target, insert.text, insert.text.trimStart().startsWith("@") ? " " : "\n");
+      }
       consumeComposerInserts(pending.map((insert) => insert.id));
     });
   });
@@ -1176,7 +1184,14 @@ export function Composer(props: ComposerProps) {
               <Each of={pendingImages()} key={(image: PendingImage) => image.id}>
                 {(image) => (
                   <View style={{ width: 56, height: 56 }}>
-                    <Photo src={image().src} width={56} height={56} />
+                    <View
+                      onPress={() => previewImage.set(image())}
+                      role="button"
+                      accessibilityLabel={t("chat.previewImage")}
+                      style={{ width: 56, height: 56 }}
+                    >
+                      <Photo src={image().src} width={56} height={56} />
+                    </View>
                     <View
                       onPress={() => removeImage(image().id)}
                       role="button"
@@ -1321,6 +1336,30 @@ export function Composer(props: ComposerProps) {
           </View>
         </View>
       </View>
+
+      {/* A pasted or picked image, full size over the composer. */}
+      <Dialog
+        open={previewImage() !== null}
+        onOpenChange={({ open }) => {
+          if (!open) previewImage.set(null);
+        }}
+        closeOnEscape
+        backdropStyle={backdrop()}
+        style={{
+          width: Math.min(1100, windowSize().width - 40),
+          height: Math.min(800, windowSize().height - 40),
+          borderRadius: 12,
+          overflow: "hidden",
+          backgroundColor: colors.background,
+        }}
+      >
+        <View style={{ flex: 1, minHeight: 0, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+          <Image
+            src={previewImage()?.src ?? ""}
+            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          />
+        </View>
+      </Dialog>
     </View>
   );
 }

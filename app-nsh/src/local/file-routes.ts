@@ -29,6 +29,7 @@ import {
   getImageMime,
   getVideoMime,
 } from "../lib/file-types";
+import { loginShellRun, quoteShell } from "../pi/install";
 import {
   describe,
   errorResponse,
@@ -557,9 +558,45 @@ async function fileGet(request: LocalRequest, segments: readonly string[]): Prom
     });
   }
 
-  // docx previews need a converter this runtime does not carry; the pipe still
-  // answers them, and a PDF is `?type=read`'s byte stream.
-  if (type === "preview") return null;
+  // A docx preview: macOS `textutil` turns the document into HTML, which the
+  // viewer's web view shows. (The old server used mammoth; the window has no
+  // Node module loader. `textutil` is the system converter, and only macOS
+  // has it, so other platforms keep falling through to the pipe.)
+  if (type === "preview") {
+    if (!fileStat.isFile()) return errorResponse("Not a file", 400);
+    if (getFileExt(filePath) !== "docx") {
+      return errorResponse("Preview not available for this file type", 400);
+    }
+    if (fileStat.size > DOCX_PREVIEW_MAX_BYTES) {
+      return errorResponse("DOCX too large for preview (>10MB)", 413);
+    }
+    if (process.platform !== "darwin") return null;
+    try {
+      const raw = await loginShellRun(
+        `/usr/bin/textutil -convert html -stdout ${quoteShell(filePath)}`,
+        20_000,
+      );
+      if (raw.trim() === "") return errorResponse("The document is empty", 500);
+      const html = raw.replace(/<script[\s\S]*?<\/script>/gi, "");
+      const style = `<style>body{font:14px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;color:#1d1d1f;background:#fff;padding:24px;max-width:900px;margin:0 auto;}img{max-width:100%;height:auto;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #ddd;padding:4px 6px;vertical-align:top;}p{margin:0 0 10px;}</style>`;
+      const page = /<\/head>/i.test(html)
+        ? html.replace(/<\/head>/i, `${style}</head>`)
+        : `<!doctype html><html><head><meta charset="utf-8">${style}</head><body>${html}</body></html>`;
+      return {
+        status: 200,
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "no-cache",
+          "content-security-policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'",
+          "referrer-policy": "no-referrer",
+          "x-content-type-options": "nosniff",
+        },
+        body: page,
+      };
+    } catch (cause) {
+      return errorResponse(`DOCX preview failed: ${describe(cause)}`, 500);
+    }
+  }
 
   // type === "list"
   if (!fileStat.isDirectory()) return errorResponse("Not a directory", 400);
